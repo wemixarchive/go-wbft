@@ -151,6 +151,14 @@ func (h *Header) SanityCheck() error {
 	return nil
 }
 
+// ## Quorum QBFT START
+// QBFTHashWithRoundNumber gets the hash of the Header with Only commit seal set to its null value
+func (h *Header) QBFTHashWithRoundNumber(round uint32) common.Hash {
+	return rlpHash(QBFTFilteredHeaderWithRound(h, round))
+}
+
+// ## Quorum QBFT END
+
 // EmptyBody returns true if there is no additional 'body' to complete the header
 // that is: no transactions, no uncles and no withdrawals.
 func (h *Header) EmptyBody() bool {

@@ -18,6 +18,7 @@
 package consensus
 
 import (
+	"github.com/ethereum/go-ethereum/p2p"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -127,3 +128,39 @@ type PoW interface {
 	// Hashrate returns the current mining hashrate of a PoW consensus engine.
 	Hashrate() float64
 }
+
+// ## Quorum QBFT
+
+// Handler should be implemented is the consensus needs to handle and send peer's message
+type Handler interface {
+	// NewChainHead handles a new head block comes
+	NewChainHead() error
+
+	// HandleMsg handles a message from peer
+	HandleMsg(address common.Address, data p2p.Msg) (bool, error)
+
+	// SetBroadcaster sets the broadcaster to send message to peers
+	SetBroadcaster(Broadcaster)
+}
+
+// Broadcaster defines the interface to enqueue blocks to fetcher and find peer
+type Broadcaster interface {
+	// Enqueue add a block into fetcher queue
+	Enqueue(id string, block *types.Block)
+	// FindPeers retrives peers by addresses
+	FindPeers(map[common.Address]bool) map[common.Address]Peer
+}
+
+// Peer defines the interface to communicate with peer
+type Peer interface {
+	// Send sends the message to this peer
+	Send(msgcode uint64, data interface{}) error
+
+	// SendConsensus sends the message to this p2p peer using the consensus specific devp2p subprotocol
+	SendConsensus(msgcode uint64, data interface{}) error
+
+	// SendQBFTConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
+	SendQBFTConsensus(msgcode uint64, payload []byte) error
+}
+
+// ## Quorum QBFT END
