@@ -26,6 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
@@ -33,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -48,7 +51,12 @@ var FullNodeGPO = gasprice.Config{
 
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
-	SyncMode:           downloader.SnapSync,
+	// ## Quorum QBFT START
+	//SyncMode: downloader.SnapSync,
+	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
+	SyncMode: downloader.FullSync,
+	// ## Quorum QBFT END
+
 	NetworkId:          0, // enable auto configuration of networkID == chainID
 	TxLookupLimit:      2350000,
 	TransactionHistory: 2350000,
@@ -131,6 +139,11 @@ type Config struct {
 	// Mining options
 	Miner miner.Config
 
+	// ##quorum istanbul
+	// Istanbul options
+	Istanbul istanbul.Config
+	// ##END
+
 	// Transaction pool options
 	TxPool   legacypool.Config
 	BlobPool blobpool.Config
@@ -164,11 +177,52 @@ type Config struct {
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
-func CreateConsensusEngine(config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
+func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *istanbul.Config, stack *node.Node, db ethdb.Database) (consensus.Engine, error) {
 	// If proof-of-authority is requested, set it up
 	if config.Clique != nil {
 		return beacon.New(clique.New(config.Clique, db)), nil
 	}
+
+	// ## Quorum QBFT START
+	if config.QBFT != nil {
+		if istanbulCfg == nil {
+			istanbulCfg = new(istanbul.Config)
+		}
+		if len(config.Transitions) > 0 {
+			istanbulCfg.Transitions = config.Transitions
+		}
+		if config.QBFT.BlockPeriodSeconds != 0 {
+			istanbulCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
+		}
+		if config.QBFT.EmptyBlockPeriodSeconds != nil {
+			istanbulCfg.EmptyBlockPeriod = *config.QBFT.EmptyBlockPeriodSeconds
+		}
+		if config.QBFT.RequestTimeoutSeconds != 0 {
+			istanbulCfg.RequestTimeout = config.QBFT.RequestTimeoutSeconds * 1000
+		}
+		if config.QBFT.EpochLength != 0 {
+			istanbulCfg.Epoch = config.QBFT.EpochLength
+		}
+
+		istanbulCfg.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(config.QBFT.ProposerPolicy))
+		if config.QBFT.Ceil2Nby3Block != nil {
+			istanbulCfg.Ceil2Nby3Block = config.QBFT.Ceil2Nby3Block
+		}
+
+		istanbulCfg.BlockReward = config.QBFT.BlockReward
+		istanbulCfg.BeneficiaryMode = config.QBFT.BeneficiaryMode
+		istanbulCfg.MiningBeneficiary = config.QBFT.MiningBeneficiary
+		istanbulCfg.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
+		istanbulCfg.Validators = config.QBFT.Validators
+
+		if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {
+			istanbulCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
+		}
+
+		return beacon.New(istanbulBackend.New(istanbulCfg, stack.Config().NodeKey(), db)), nil
+	}
+	// ## Quorum QBFT END
+
 	// If defaulting to proof-of-work, enforce an already merged network since
 	// we cannot run PoW algorithms anymore, so we cannot even follow a chain
 	// not coordinated by a beacon node.

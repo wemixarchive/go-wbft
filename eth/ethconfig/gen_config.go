@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
 // MarshalTOML marshals as TOML.
@@ -56,6 +57,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCTxFeeCap             float64
 		OverrideCancun          *uint64 `toml:",omitempty"`
 		OverrideVerkle          *uint64 `toml:",omitempty"`
+		Istanbul                		istanbul.Config  // ## Quorum QBFT
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -97,6 +99,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.RPCTxFeeCap = c.RPCTxFeeCap
 	enc.OverrideCancun = c.OverrideCancun
 	enc.OverrideVerkle = c.OverrideVerkle
+	enc.Istanbul = c.Istanbul // ## Quorum QBFT
 	return &enc, nil
 }
 
@@ -142,6 +145,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCTxFeeCap             *float64
 		OverrideCancun          *uint64 `toml:",omitempty"`
 		OverrideVerkle          *uint64 `toml:",omitempty"`
+		Istanbul                *istanbul.Config // ## Quorum QBFT
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {
@@ -264,5 +268,10 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.OverrideVerkle != nil {
 		c.OverrideVerkle = dec.OverrideVerkle
 	}
+	// ## Quorum QBFT START
+	if dec.Istanbul != nil {
+		c.Istanbul = *dec.Istanbul
+	}
+	// ## Quorum QBFT END
 	return nil
 }

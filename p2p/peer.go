@@ -118,6 +118,11 @@ type Peer struct {
 	// events receives message send / receive events if set
 	events   *event.Feed
 	testPipe *MsgPipeRW // for testing
+
+	// ## Quorum QBFT START
+	EthPeerRegistered   chan struct{}
+	EthPeerDisconnected chan struct{}
+	// ## Quorum QBFT END
 }
 
 // NewPeer returns a peer for testing purposes.
