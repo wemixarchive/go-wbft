@@ -120,7 +120,7 @@ type Backend struct {
 	qbftConsensusEnabled bool // qbft consensus
 }
 
-func (sb *Backend) Engine() qbft.Engine {
+func (sb *Backend) Engine() *qbftengine.Engine {
 	return sb.qbftEngine // ## Quorum QBFT : currently return only qbft engine
 }
 
