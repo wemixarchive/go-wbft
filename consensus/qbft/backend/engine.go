@@ -50,7 +50,7 @@ const (
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
 func (sb *Backend) Author(header *types.Header) (common.Address, error) {
-	return sb.Engine().Author(header)
+	return header.Coinbase, nil
 }
 
 // Signers extracts all the addresses who have signed the given header
@@ -111,7 +111,10 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given engine.
 func (sb *Backend) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	return sb.Engine().VerifyUncles(chain, block)
+	if len(block.Uncles()) > 0 {
+		return qbftcommon.ErrInvalidUncleHash
+	}
+	return nil
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
@@ -486,7 +489,7 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	}
 
 	// Resolve the authorization key and check against validators
-	validator, err := sb.Engine().Author(header)
+	validator, err := sb.Author(header)
 	if err != nil {
 		logger.Error("BFT: invalid header author", "err", err)
 		return err

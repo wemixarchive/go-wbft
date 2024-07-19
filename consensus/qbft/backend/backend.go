@@ -85,7 +85,7 @@ type Backend struct {
 
 	core qbft.Core
 
-	qbftEngine *qbftengine.Engine
+	qbftEngine *qbftengine.EngineEx
 
 	istanbulEventMux *event.TypeMux
 
@@ -120,7 +120,7 @@ type Backend struct {
 	qbftConsensusEnabled bool // qbft consensus
 }
 
-func (sb *Backend) Engine() qbft.Engine {
+func (sb *Backend) Engine() *qbftengine.EngineEx {
 	return sb.qbftEngine // ## Quorum QBFT : currently return only qbft engine
 }
 
