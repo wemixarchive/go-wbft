@@ -1,7 +1,7 @@
 package qbfttypes
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -28,8 +28,8 @@ func (m *CommonPayload) SetSource(address common.Address) {
 	m.source = address
 }
 
-func (m *CommonPayload) View() types.View {
-	return types.View{Sequence: m.Sequence, Round: m.Round}
+func (m *CommonPayload) View() istanbul.View {
+	return istanbul.View{Sequence: m.Sequence, Round: m.Round}
 }
 
 func (m *CommonPayload) Signature() []byte {

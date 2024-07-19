@@ -17,7 +17,6 @@
 package istanbul
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math/big"
 	"time"
 
@@ -31,24 +30,24 @@ type Backend interface {
 	Address() common.Address
 
 	// Validators returns the validator set
-	Validators(proposal types.Proposal) types.ValidatorSet
+	Validators(proposal Proposal) ValidatorSet
 
 	// EventMux returns the event mux in backend
 	EventMux() *event.TypeMux
 
 	// Broadcast sends a message to all validators (include self)
-	Broadcast(valSet types.ValidatorSet, code uint64, payload []byte) error
+	Broadcast(valSet ValidatorSet, code uint64, payload []byte) error
 
 	// Gossip sends a message to all validators (exclude self)
-	Gossip(valSet types.ValidatorSet, code uint64, payload []byte) error
+	Gossip(valSet ValidatorSet, code uint64, payload []byte) error
 
 	// Commit delivers an approved proposal to backend.
 	// The delivered proposal will be put into blockchain.
-	Commit(proposal types.Proposal, seals [][]byte, round *big.Int) error
+	Commit(proposal Proposal, seals [][]byte, round *big.Int) error
 
 	// Verify verifies the proposal. If a consensus.ErrFutureBlock error is returned,
 	// the time difference of the proposal and current time is also returned.
-	Verify(types.Proposal) (time.Duration, error)
+	Verify(Proposal) (time.Duration, error)
 
 	// Sign signs input data with the backend's private key
 	Sign([]byte) ([]byte, error)
@@ -61,7 +60,7 @@ type Backend interface {
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
 	// LastProposal retrieves latest committed proposal and the address of proposer
-	LastProposal() (types.Proposal, common.Address)
+	LastProposal() (Proposal, common.Address)
 
 	// HasPropsal checks if the combination of the given hash and height matches any existing blocks
 	HasPropsal(hash common.Hash, number *big.Int) bool
@@ -70,7 +69,7 @@ type Backend interface {
 	GetProposer(number uint64) common.Address
 
 	// ParentValidators returns the validator set of the given proposal's parent block
-	ParentValidators(proposal types.Proposal) types.ValidatorSet
+	ParentValidators(proposal Proposal) ValidatorSet
 
 	// HasBadProposal returns whether the block with the hash is a bad block
 	HasBadProposal(hash common.Hash) bool

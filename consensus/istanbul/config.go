@@ -17,7 +17,6 @@
 package istanbul
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math/big"
 	"strings"
 	"sync"
@@ -38,10 +37,10 @@ const (
 
 // ProposerPolicy represents the Validator Proposer Policy
 type ProposerPolicy struct {
-	Id         ProposerPolicyId          // Could be RoundRobin or Sticky
-	By         types.ValidatorSortByFunc // func that defines how the ValidatorSet should be sorted
-	registry   []types.ValidatorSet      // Holds the ValidatorSet for a given block height
-	registryMU *sync.Mutex               // Mutex to lock access to changes to Registry
+	Id         ProposerPolicyId    // Could be RoundRobin or Sticky
+	By         ValidatorSortByFunc // func that defines how the ValidatorSet should be sorted
+	registry   []ValidatorSet      // Holds the ValidatorSet for a given block height
+	registryMU *sync.Mutex         // Mutex to lock access to changes to Registry
 }
 
 // NewRoundRobinProposerPolicy returns a RoundRobin ProposerPolicy with ValidatorSortByString as default sort function
@@ -55,10 +54,10 @@ func NewStickyProposerPolicy() *ProposerPolicy {
 }
 
 func NewProposerPolicy(id ProposerPolicyId) *ProposerPolicy {
-	return NewProposerPolicyByIdAndSortFunc(id, types.ValidatorSortByString())
+	return NewProposerPolicyByIdAndSortFunc(id, ValidatorSortByString())
 }
 
-func NewProposerPolicyByIdAndSortFunc(id ProposerPolicyId, by types.ValidatorSortByFunc) *ProposerPolicy {
+func NewProposerPolicyByIdAndSortFunc(id ProposerPolicyId, by ValidatorSortByFunc) *ProposerPolicy {
 	return &ProposerPolicy{Id: id, By: by, registryMU: new(sync.Mutex)}
 }
 
@@ -90,12 +89,12 @@ func (p *ProposerPolicy) UnmarshalTOML(decode func(interface{}) error) error {
 		return err
 	}
 	p.Id = pp.Id
-	p.By = types.ValidatorSortByString()
+	p.By = ValidatorSortByString()
 	return nil
 }
 
 // Use sets the ValidatorSortByFunc for the given ProposerPolicy and sorts the validatorSets according to it
-func (p *ProposerPolicy) Use(v types.ValidatorSortByFunc) {
+func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 	p.By = v
 
 	for _, validatorSet := range p.registry {
@@ -104,12 +103,12 @@ func (p *ProposerPolicy) Use(v types.ValidatorSortByFunc) {
 }
 
 // RegisterValidatorSet stores the given ValidatorSet in the policy registry
-func (p *ProposerPolicy) RegisterValidatorSet(valSet types.ValidatorSet) {
+func (p *ProposerPolicy) RegisterValidatorSet(valSet ValidatorSet) {
 	p.registryMU.Lock()
 	defer p.registryMU.Unlock()
 
 	if len(p.registry) == 0 {
-		p.registry = []types.ValidatorSet{valSet}
+		p.registry = []ValidatorSet{valSet}
 	} else {
 		p.registry = append(p.registry, valSet)
 	}

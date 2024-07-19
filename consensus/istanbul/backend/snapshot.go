@@ -19,8 +19,6 @@ package backend
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
@@ -55,13 +53,13 @@ type Snapshot struct {
 	Hash   common.Hash              // Block hash where the snapshot was created
 	Votes  []*Vote                  // List of votes cast in chronological order
 	Tally  map[common.Address]Tally // Current vote tally to avoid recalculating
-	ValSet types.ValidatorSet       // Set of authorized validators at this moment
+	ValSet istanbul.ValidatorSet    // Set of authorized validators at this moment
 }
 
 // newSnapshot create a new snapshot with the specified startup parameters. This
 // method does not initialize the set of recent validators, so only ever use if for
 // the genesis block.
-func newSnapshot(epoch uint64, number uint64, hash common.Hash, valSet types.ValidatorSet) *Snapshot {
+func newSnapshot(epoch uint64, number uint64, hash common.Hash, valSet istanbul.ValidatorSet) *Snapshot {
 	snap := &Snapshot{
 		Epoch:  epoch,
 		Number: number,
@@ -212,7 +210,7 @@ func (s *Snapshot) UnmarshalJSON(b []byte) error {
 	s.Tally = j.Tally
 
 	// Setting the By function to ValidatorSortByStringFunc should be fine, as the validator do not change only the order changes
-	pp := istanbul.NewProposerPolicyByIdAndSortFunc(j.Policy, types.ValidatorSortByString())
+	pp := istanbul.NewProposerPolicyByIdAndSortFunc(j.Policy, istanbul.ValidatorSortByString())
 	s.ValSet = validator.NewSet(j.Validators, pp)
 	return nil
 }

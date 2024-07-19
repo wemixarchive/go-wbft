@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"github.com/ethereum/go-ethereum/triedb"
 	"math/big"
 	"reflect"
@@ -147,10 +146,10 @@ func TestSealStopChannel(t *testing.T) {
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	stop := make(chan struct{}, 1)
-	eventSub := engine.EventMux().Subscribe(types2.RequestEvent{})
+	eventSub := engine.EventMux().Subscribe(istanbul.RequestEvent{})
 	eventLoop := func() {
 		ev := <-eventSub.Chan()
-		_, ok := ev.Data.(types2.RequestEvent)
+		_, ok := ev.Data.(istanbul.RequestEvent)
 		if !ok {
 			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
@@ -179,13 +178,13 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
-	eventSub := engine.EventMux().Subscribe(types2.RequestEvent{})
+	eventSub := engine.EventMux().Subscribe(istanbul.RequestEvent{})
 	blockOutputChannel := make(chan *types.Block)
 	stopChannel := make(chan struct{})
 
 	go func() {
 		ev := <-eventSub.Chan()
-		if _, ok := ev.Data.(types2.RequestEvent); !ok {
+		if _, ok := ev.Data.(istanbul.RequestEvent); !ok {
 			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
 		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {

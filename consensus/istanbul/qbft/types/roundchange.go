@@ -3,7 +3,7 @@ package qbfttypes
 import (
 	"bytes"
 	"fmt"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
+	types2 "github.com/ethereum/go-ethereum/consensus/istanbul"
 	"io"
 	"math/big"
 

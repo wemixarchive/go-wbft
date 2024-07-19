@@ -18,8 +18,8 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/common/prque"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
 )
 
 // ## Quorum QBFT START
@@ -46,7 +46,7 @@ var (
 // return errInvalidMessage if the message is invalid
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view
-func (c *core) checkMessage(msgCode uint64, view *types.View) error {
+func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
 	}
@@ -161,7 +161,7 @@ func (c *core) processBacklog() {
 			m, prio := backlog.Pop()
 
 			var code uint64
-			var view types.View
+			var view istanbul.View
 			var event backlogEvent
 
 			msg := m.(qbfttypes.QBFTMessage)
@@ -191,7 +191,7 @@ func (c *core) processBacklog() {
 }
 
 // ## Quorum QBFT START : change return type from float32 to int64
-func toPriority(msgCode uint64, view *types.View) int64 {
+func toPriority(msgCode uint64, view *istanbul.View) int64 {
 	if msgCode == qbfttypes.RoundChangeCode {
 		// For msgRoundChange, set the message priority based on its sequence
 		return -int64(view.Sequence.Uint64() * 1000)

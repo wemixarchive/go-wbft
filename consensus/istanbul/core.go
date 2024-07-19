@@ -1,4 +1,4 @@
-package types
+package istanbul
 
 import "github.com/ethereum/go-ethereum/common"
 

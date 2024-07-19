@@ -3,7 +3,6 @@ package qbftengine
 import (
 	"bytes"
 	"fmt"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math/big"
 	"time"
 
@@ -83,7 +82,7 @@ func writeRoundNumber(round *big.Int) ApplyQBFTExtra {
 	}
 }
 
-func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators types2.ValidatorSet) (time.Duration, error) {
+func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators istanbul.ValidatorSet) (time.Duration, error) {
 	// check block body
 	txnHash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil)) // ## Quorum QBFT
 	if txnHash != block.Header().TxHash {
@@ -116,7 +115,7 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 	return 0, err
 }
 
-func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators types2.ValidatorSet) error {
+func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
 	return e.verifyHeader(chain, header, parents, validators)
 }
 
@@ -124,7 +123,7 @@ func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.H
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
-func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators types2.ValidatorSet) error {
+func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
 	if header.Number == nil {
 		return istanbulcommon.ErrUnknownBlock
 	}
@@ -157,7 +156,7 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	return e.verifyCascadingFields(chain, header, validators, parents)
 }
 
-func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool, validators types2.ValidatorSet) (chan<- struct{}, <-chan error) {
+func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool, validators istanbul.ValidatorSet) (chan<- struct{}, <-chan error) {
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 	go func() {
@@ -188,7 +187,7 @@ func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*typ
 // rather depend on a batch of previous headers. The caller may optionally pass
 // in a batch of parents (ascending order) to avoid looking those up from the
 // database. This is useful for concurrently verifying a batch of new headers.
-func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, validators types2.ValidatorSet, parents []*types.Header) error {
+func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet, parents []*types.Header) error {
 	// The genesis block is the always valid dead-end
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -223,7 +222,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	return e.verifyCommittedSeals(chain, header, parents, validators)
 }
 
-func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators types2.ValidatorSet) error {
+func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
 	// Verifying the genesis block is not supported
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -245,7 +244,7 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 }
 
 // verifyCommittedSeals checks whether every committed seal is signed by one of the parent's validators
-func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators types2.ValidatorSet) error {
+func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators istanbul.ValidatorSet) error {
 	number := header.Number.Uint64()
 
 	if number == 0 {
@@ -300,7 +299,7 @@ func (e *Engine) VerifyUncles(chain consensus.ChainReader, block *types.Block) e
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
-func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header, validators types2.ValidatorSet) error {
+func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
 	// get parent header and ensure the signer is in parent's validator set
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -315,7 +314,7 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 	return e.verifySigner(chain, header, nil, validators)
 }
 
-func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators types2.ValidatorSet) error {
+func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators istanbul.ValidatorSet) error {
 	header.Coinbase = common.Address{}
 	header.Nonce = istanbulcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
@@ -347,7 +346,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	} else {
 		for _, transition := range e.cfg.Transitions {
 			if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
-				toRemove := make([]types2.Validator, 0, validators.Size())
+				toRemove := make([]istanbul.Validator, 0, validators.Size())
 				l := validators.List()
 				toRemove = append(toRemove, l...)
 				for i := range toRemove {
@@ -397,7 +396,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators types2.ValidatorSet) (*types.Block, error) {
+func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators istanbul.ValidatorSet) (*types.Block, error) {
 	if _, v := validators.GetByAddress(e.signer); v == nil {
 		return block, istanbulcommon.ErrUnauthorized
 	}

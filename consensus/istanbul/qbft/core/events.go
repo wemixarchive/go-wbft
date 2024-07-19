@@ -17,12 +17,12 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
 )
 
 type backlogEvent struct {
-	src types.Validator
+	src istanbul.Validator
 	msg qbfttypes.QBFTMessage
 }
 

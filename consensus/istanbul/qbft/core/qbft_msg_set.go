@@ -18,7 +18,7 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"io"
 	"math/big"
 	"strings"
@@ -30,9 +30,9 @@ import (
 )
 
 // Construct a new message set to accumulate messages for given sequence/view number.
-func newQBFTMsgSet(valSet types.ValidatorSet) *qbftMsgSet {
+func newQBFTMsgSet(valSet istanbul.ValidatorSet) *qbftMsgSet {
 	return &qbftMsgSet{
-		view: &types.View{
+		view: &istanbul.View{
 			Round:    new(big.Int),
 			Sequence: new(big.Int),
 		},
@@ -45,8 +45,8 @@ func newQBFTMsgSet(valSet types.ValidatorSet) *qbftMsgSet {
 // ----------------------------------------------------------------------------
 
 type qbftMsgSet struct {
-	view       *types.View
-	valSet     types.ValidatorSet
+	view       *istanbul.View
+	valSet     istanbul.ValidatorSet
 	messagesMu *sync.Mutex
 	messages   map[common.Address]qbfttypes.QBFTMessage
 }
@@ -57,7 +57,7 @@ type qbftMsgMapAsStruct struct {
 	Msg     qbfttypes.QBFTMessage
 }
 
-func (ms *qbftMsgSet) View() *types.View {
+func (ms *qbftMsgSet) View() *istanbul.View {
 	return ms.view
 }
 
@@ -137,7 +137,7 @@ func (ms *qbftMsgSet) DecodeRLP(stream *rlp.Stream) error {
 		return nil
 	}
 	var msgSet struct {
-		MsgView *types.View
+		MsgView *istanbul.View
 		//		valSet        istanbul.ValidatorSet
 		MessagesSlice []qbftMsgMapAsStruct
 	}

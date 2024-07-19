@@ -18,7 +18,6 @@ package validator
 
 import (
 	fmt "fmt"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"reflect"
 	"strings"
 	"testing"
@@ -42,7 +41,7 @@ func TestValidatorSet(t *testing.T) {
 }
 
 func testNewValidatorSet(t *testing.T) {
-	var validators []types.Validator
+	var validators []istanbul.Validator
 	const ValCnt = 100
 
 	// Create 100 validators with random addresses

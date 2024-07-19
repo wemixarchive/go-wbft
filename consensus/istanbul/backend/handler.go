@@ -19,8 +19,7 @@ package backend
 import (
 	"bytes"
 	"errors"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"reflect"
 
@@ -49,11 +48,6 @@ var (
 	// errPayloadReadFailed is returned when qbft message read fails
 	errPayloadReadFailed = errors.New("unable to read payload from message")
 )
-
-// Protocol implements consensus.Engine.Protocol
-func (sb *Backend) Protocol() consensus.Protocol {
-	return consensus.IstanbulProtocol
-}
 
 func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
@@ -97,7 +91,7 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 		sb.knownMessages.Add(hash, true)
 
-		go sb.istanbulEventMux.Post(types2.MessageEvent{
+		go sb.istanbulEventMux.Post(istanbul.MessageEvent{
 			Code:    msg.Code,
 			Payload: data,
 		})
@@ -110,7 +104,7 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		// as p2p.Msg can only be decoded once (get EOF for any subsequence read), we need to make sure the payload is restored after we decode it
 		sb.logger.Debug("BFT: received NewBlockMsg", "size", msg.Size, "payload.type", reflect.TypeOf(msg.Payload), "sender", addr)
 		if reader, ok := msg.Payload.(*bytes.Reader); ok {
-			payload, err := ioutil.ReadAll(reader)
+			payload, err := io.ReadAll(reader)
 			if err != nil {
 				return true, err
 			}
@@ -145,6 +139,6 @@ func (sb *Backend) NewChainHead() error {
 	if !sb.coreStarted {
 		return istanbul.ErrStoppedEngine
 	}
-	go sb.istanbulEventMux.Post(types2.FinalCommittedEvent{})
+	go sb.istanbulEventMux.Post(istanbul.FinalCommittedEvent{})
 	return nil
 }

@@ -17,7 +17,6 @@
 package validator
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math"
 	"reflect"
 	"sync"
@@ -41,12 +40,12 @@ func (val *defaultValidator) String() string {
 // ----------------------------------------------------------------------------
 
 type defaultSet struct {
-	validators types.Validators
+	validators istanbul.Validators
 	policy     *istanbul.ProposerPolicy
 
-	proposer    types.Validator
+	proposer    istanbul.Validator
 	validatorMu sync.RWMutex
-	selector    types.ProposalSelector
+	selector    istanbul.ProposalSelector
 }
 
 func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy) *defaultSet {
@@ -54,7 +53,7 @@ func newDefaultSet(addrs []common.Address, policy *istanbul.ProposerPolicy) *def
 
 	valSet.policy = policy
 	// init validators
-	valSet.validators = make([]types.Validator, len(addrs))
+	valSet.validators = make([]istanbul.Validator, len(addrs))
 	for i, addr := range addrs {
 		valSet.validators[i] = New(addr)
 	}
@@ -80,13 +79,13 @@ func (valSet *defaultSet) Size() int {
 	return len(valSet.validators)
 }
 
-func (valSet *defaultSet) List() []types.Validator {
+func (valSet *defaultSet) List() []istanbul.Validator {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()
 	return valSet.validators
 }
 
-func (valSet *defaultSet) GetByIndex(i uint64) types.Validator {
+func (valSet *defaultSet) GetByIndex(i uint64) istanbul.Validator {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()
 	if i < uint64(valSet.Size()) {
@@ -95,7 +94,7 @@ func (valSet *defaultSet) GetByIndex(i uint64) types.Validator {
 	return nil
 }
 
-func (valSet *defaultSet) GetByAddress(addr common.Address) (int, types.Validator) {
+func (valSet *defaultSet) GetByAddress(addr common.Address) (int, istanbul.Validator) {
 	for i, val := range valSet.List() {
 		if addr == val.Address() {
 			return i, val
@@ -104,7 +103,7 @@ func (valSet *defaultSet) GetByAddress(addr common.Address) (int, types.Validato
 	return -1, nil
 }
 
-func (valSet *defaultSet) GetProposer() types.Validator {
+func (valSet *defaultSet) GetProposer() istanbul.Validator {
 	return valSet.proposer
 }
 
@@ -124,7 +123,7 @@ func (valSet *defaultSet) SortValidators() {
 	valSet.Policy().By.Sort(valSet.validators)
 }
 
-func calcSeed(valSet types.ValidatorSet, proposer common.Address, round uint64) uint64 {
+func calcSeed(valSet istanbul.ValidatorSet, proposer common.Address, round uint64) uint64 {
 	offset := 0
 	if idx, val := valSet.GetByAddress(proposer); val != nil {
 		offset = idx
@@ -136,7 +135,7 @@ func emptyAddress(addr common.Address) bool {
 	return addr == common.Address{}
 }
 
-func roundRobinProposer(valSet types.ValidatorSet, proposer common.Address, round uint64) types.Validator {
+func roundRobinProposer(valSet istanbul.ValidatorSet, proposer common.Address, round uint64) istanbul.Validator {
 	if valSet.Size() == 0 {
 		return nil
 	}
@@ -150,7 +149,7 @@ func roundRobinProposer(valSet types.ValidatorSet, proposer common.Address, roun
 	return valSet.GetByIndex(pick)
 }
 
-func stickyProposer(valSet types.ValidatorSet, proposer common.Address, round uint64) types.Validator {
+func stickyProposer(valSet istanbul.ValidatorSet, proposer common.Address, round uint64) istanbul.Validator {
 	if valSet.Size() == 0 {
 		return nil
 	}
@@ -192,7 +191,7 @@ func (valSet *defaultSet) RemoveValidator(address common.Address) bool {
 	return false
 }
 
-func (valSet *defaultSet) Copy() types.ValidatorSet {
+func (valSet *defaultSet) Copy() istanbul.ValidatorSet {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()
 

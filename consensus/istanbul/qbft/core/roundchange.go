@@ -18,7 +18,7 @@ package core
 
 import (
 	"errors"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 	"sort"
 	"sync"
@@ -187,29 +187,29 @@ func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 }
 
 // highestPrepared returns the highest Prepared Round and the corresponding Prepared Block
-func (c *core) highestPrepared(round *big.Int) (*big.Int, types2.Proposal) {
+func (c *core) highestPrepared(round *big.Int) (*big.Int, istanbul.Proposal) {
 	return c.roundChangeSet.highestPreparedRound[round.Uint64()], c.roundChangeSet.highestPreparedBlock[round.Uint64()]
 }
 
 // ----------------------------------------------------------------------------
 
-func newRoundChangeSet(valSet types2.ValidatorSet) *roundChangeSet {
+func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 	return &roundChangeSet{
 		validatorSet:         valSet,
 		roundChanges:         make(map[uint64]*qbftMsgSet),
 		prepareMessages:      make(map[uint64][]*qbfttypes.Prepare),
 		highestPreparedRound: make(map[uint64]*big.Int),
-		highestPreparedBlock: make(map[uint64]types2.Proposal),
+		highestPreparedBlock: make(map[uint64]istanbul.Proposal),
 		mu:                   new(sync.Mutex),
 	}
 }
 
 type roundChangeSet struct {
-	validatorSet         types2.ValidatorSet
+	validatorSet         istanbul.ValidatorSet
 	roundChanges         map[uint64]*qbftMsgSet
 	prepareMessages      map[uint64][]*qbfttypes.Prepare
 	highestPreparedRound map[uint64]*big.Int
-	highestPreparedBlock map[uint64]types2.Proposal
+	highestPreparedBlock map[uint64]istanbul.Proposal
 	mu                   *sync.Mutex
 }
 
@@ -226,7 +226,7 @@ func (rcs *roundChangeSet) NewRound(r *big.Int) {
 }
 
 // Add adds the round and message into round change set
-func (rcs *roundChangeSet) Add(r *big.Int, msg qbfttypes.QBFTMessage, preparedRound *big.Int, preparedBlock types2.Proposal, prepareMessages []*qbfttypes.Prepare, quorumSize int) error {
+func (rcs *roundChangeSet) Add(r *big.Int, msg qbfttypes.QBFTMessage, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages []*qbfttypes.Prepare, quorumSize int) error {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 

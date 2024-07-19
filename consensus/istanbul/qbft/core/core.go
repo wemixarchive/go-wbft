@@ -17,7 +17,6 @@
 package core
 
 import (
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math"
 	"math/big"
 	"sync"
@@ -43,7 +42,7 @@ var (
 // ## Quorum QBFT END
 
 // New creates an Istanbul consensus core
-func New(backend istanbul.Backend, config *istanbul.Config) types2.Core {
+func New(backend istanbul.Backend, config *istanbul.Config) istanbul.Core {
 	c := &core{
 		config:             config,
 		address:            backend.Address(),
@@ -76,7 +75,7 @@ type core struct {
 	timeoutSub            *event.TypeMuxSubscription
 	futurePreprepareTimer *time.Timer
 
-	valSet     types2.ValidatorSet
+	valSet     istanbul.ValidatorSet
 	validateFn func([]byte, []byte) (common.Address, error)
 
 	backlogs   map[common.Address]*prque.Prque[int64, qbfttypes.QBFTMessage]
@@ -100,8 +99,8 @@ type core struct {
 	newRoundTimer *time.Timer
 }
 
-func (c *core) currentView() *types2.View {
-	return &types2.View{
+func (c *core) currentView() *istanbul.View {
+	return &istanbul.View{
 		Sequence: new(big.Int).Set(c.current.Sequence()),
 		Round:    new(big.Int).Set(c.current.Round()),
 	}
@@ -176,14 +175,14 @@ func (c *core) startNewRound(round *big.Int) {
 	}
 
 	// Create next view
-	var newView *types2.View
+	var newView *istanbul.View
 	if roundChange {
-		newView = &types2.View{
+		newView = &istanbul.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
 	} else {
-		newView = &types2.View{
+		newView = &istanbul.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
@@ -219,7 +218,7 @@ func (c *core) startNewRound(round *big.Int) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *core) updateRoundState(view *types2.View, validatorSet types2.ValidatorSet, roundChange bool) {
+func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {

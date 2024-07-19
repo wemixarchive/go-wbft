@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -80,7 +79,7 @@ func testParameterizedCase(
 	preparesNotForTargetRound int,
 	messageJustified bool) {
 	pp := istanbul.NewRoundRobinProposerPolicy()
-	pp.Use(types2.ValidatorSortByByte())
+	pp.Use(istanbul.ValidatorSortByByte())
 	validatorSet := validator.NewSet(generateValidators(quorumSize), pp)
 	block := makeBlock(1)
 	var round int64 = 10
@@ -146,13 +145,13 @@ func testParameterizedCase(
 	}
 }
 
-func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock types2.Proposal) *qbfttypes.SignedRoundChangePayload {
+func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock istanbul.Proposal) *qbfttypes.SignedRoundChangePayload {
 	m := qbfttypes.NewRoundChange(big.NewInt(1), big.NewInt(1), big.NewInt(preparedRound), preparedBlock)
 	m.SetSource(from)
 	return &m.SignedRoundChangePayload
 }
 
-func createPrepareMessage(from common.Address, round int64, preparedBlock types2.Proposal) *qbfttypes.Prepare {
+func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *qbfttypes.Prepare {
 	return qbfttypes.NewPrepareWithSigAndSource(big.NewInt(1), big.NewInt(round), preparedBlock.Hash(), nil, from)
 }
 

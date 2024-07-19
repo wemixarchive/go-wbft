@@ -18,7 +18,6 @@ package backend
 
 import (
 	"fmt"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math/big"
 	"math/rand"
 	"time"
@@ -228,7 +227,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			sb.sealMu.Unlock()
 		}()
 		// post block into Istanbul engine
-		go sb.EventMux().Post(types2.RequestEvent{
+		go sb.EventMux().Post(istanbul.RequestEvent{
 			Proposal: block,
 		})
 		for {

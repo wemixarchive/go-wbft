@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"math/big"
 	"sort"
 	"strings"
@@ -271,7 +270,7 @@ func generatePrivateKey() (*ecdsa.PrivateKey, error) {
 	return crypto.HexToECDSA(key)
 }
 
-func newTestValidatorSet(n int) (types2.ValidatorSet, []*ecdsa.PrivateKey) {
+func newTestValidatorSet(n int) (istanbul.ValidatorSet, []*ecdsa.PrivateKey) {
 	// generate validators
 	keys := make(Keys, n)
 	addrs := make([]common.Address, n)

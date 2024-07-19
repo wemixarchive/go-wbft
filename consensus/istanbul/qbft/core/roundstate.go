@@ -17,7 +17,7 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 	"sync"
 
@@ -26,7 +26,7 @@ import (
 )
 
 // newRoundState creates a new roundState instance with the given view and validatorSet
-func newRoundState(view *types.View, validatorSet types.ValidatorSet, preprepare *qbfttypes.Preprepare, preparedRound *big.Int, preparedBlock types.Proposal, pendingRequest *Request, hasBadProposal func(hash common.Hash) bool) *roundState {
+func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, preprepare *qbfttypes.Preprepare, preparedRound *big.Int, preparedBlock istanbul.Proposal, pendingRequest *Request, hasBadProposal func(hash common.Hash) bool) *roundState {
 	return &roundState{
 		round:      view.Round,
 		sequence:   view.Sequence,
@@ -55,7 +55,7 @@ type roundState struct {
 
 	pendingRequest *Request
 	preparedRound  *big.Int
-	preparedBlock  types.Proposal
+	preparedBlock  istanbul.Proposal
 
 	mu             *sync.RWMutex
 	hasBadProposal func(hash common.Hash) bool
@@ -73,7 +73,7 @@ func (s *roundState) Subject() *Subject {
 	}
 
 	return &Subject{
-		View: &types.View{
+		View: &istanbul.View{
 			Round:    new(big.Int).Set(s.round),
 			Sequence: new(big.Int).Set(s.sequence),
 		},
@@ -88,7 +88,7 @@ func (s *roundState) SetPreprepare(preprepare *qbfttypes.Preprepare) {
 	s.Preprepare = preprepare
 }
 
-func (s *roundState) Proposal() types.Proposal {
+func (s *roundState) Proposal() istanbul.Proposal {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

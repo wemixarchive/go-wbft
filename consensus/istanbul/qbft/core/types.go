@@ -18,9 +18,8 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	qbfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/qbft/types"
 )
 
@@ -64,14 +63,14 @@ func (s State) Cmp(y State) int {
 
 // Request is used to construct a Preprepare message
 type Request struct {
-	Proposal        types.Proposal
+	Proposal        istanbul.Proposal
 	RCMessages      *qbftMsgSet
 	PrepareMessages []*qbfttypes.Prepare
 }
 
 // Subject represents the message sent when msgPrepare and msgCommit is broadcasted
 type Subject struct {
-	View   *types.View
+	View   *istanbul.View
 	Digest common.Hash
 }
 

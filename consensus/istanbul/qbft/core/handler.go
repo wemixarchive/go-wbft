@@ -18,7 +18,7 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -60,8 +60,8 @@ func (c *core) Stop() error {
 func (c *core) subscribeEvents() {
 	c.events = c.backend.EventMux().Subscribe(
 		// external events
-		types.RequestEvent{},
-		types.MessageEvent{},
+		istanbul.RequestEvent{},
+		istanbul.MessageEvent{},
 		// internal events
 		backlogEvent{},
 	)
@@ -69,7 +69,7 @@ func (c *core) subscribeEvents() {
 		timeoutEvent{},
 	)
 	c.finalCommittedSub = c.backend.EventMux().Subscribe(
-		types.FinalCommittedEvent{},
+		istanbul.FinalCommittedEvent{},
 	)
 }
 
@@ -107,7 +107,7 @@ func (c *core) handleEvents() {
 
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
-			case types.RequestEvent:
+			case istanbul.RequestEvent:
 				// we are block proposer and look to get our block proposal validated by other validators
 				r := &Request{
 					Proposal: ev.Proposal,
@@ -117,7 +117,7 @@ func (c *core) handleEvents() {
 					// store request for later treatment
 					c.storeRequestMsg(r)
 				}
-			case types.MessageEvent:
+			case istanbul.MessageEvent:
 				// we received a message from another validator
 				if err := c.handleEncodedMsg(ev.Code, ev.Payload); err != nil {
 					continue
@@ -153,7 +153,7 @@ func (c *core) handleEvents() {
 				return
 			}
 			switch event.Data.(type) {
-			case types.FinalCommittedEvent:
+			case istanbul.FinalCommittedEvent:
 				c.handleFinalCommitted()
 			}
 		}

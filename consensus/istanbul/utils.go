@@ -18,7 +18,6 @@ package istanbul
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -53,7 +52,7 @@ func GetSignatureAddressNoHashing(data []byte, sig []byte) (common.Address, erro
 	return crypto.PubkeyToAddress(*pubkey), nil
 }
 
-func CheckValidatorSignature(valSet types.ValidatorSet, data []byte, sig []byte) (common.Address, error) {
+func CheckValidatorSignature(valSet ValidatorSet, data []byte, sig []byte) (common.Address, error) {
 	// 1. Get signature address
 	signer, err := GetSignatureAddress(data, sig)
 	if err != nil {

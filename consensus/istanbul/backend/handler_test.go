@@ -18,7 +18,6 @@ package backend
 
 import (
 	"bytes"
-	types2 "github.com/ethereum/go-ethereum/consensus/istanbul/types"
 	"io/ioutil"
 	"math/big"
 	"testing"
@@ -158,7 +157,7 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 }
 
 func postAndWait(backend *Backend, block *types.Block, t *testing.T) {
-	eventSub := backend.EventMux().Subscribe(types2.RequestEvent{})
+	eventSub := backend.EventMux().Subscribe(istanbul.RequestEvent{})
 	defer eventSub.Unsubscribe()
 	stop := make(chan struct{}, 1)
 	eventLoop := func() {
@@ -166,7 +165,7 @@ func postAndWait(backend *Backend, block *types.Block, t *testing.T) {
 		stop <- struct{}{}
 	}
 	go eventLoop()
-	if err := backend.EventMux().Post(types2.RequestEvent{
+	if err := backend.EventMux().Post(istanbul.RequestEvent{
 		Proposal: block,
 	}); err != nil {
 		t.Fatalf("%s", err)

@@ -18,19 +18,17 @@ package validator
 
 import (
 	"bytes"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
-func New(addr common.Address) types.Validator {
+func New(addr common.Address) istanbul.Validator {
 	return &defaultValidator{
 		address: addr,
 	}
 }
 
-func NewSet(addrs []common.Address, policy *istanbul.ProposerPolicy) types.ValidatorSet {
+func NewSet(addrs []common.Address, policy *istanbul.ProposerPolicy) istanbul.ValidatorSet {
 	return newDefaultSet(addrs, policy)
 }
 
@@ -49,7 +47,7 @@ func ValidExtraData(extraData []byte) bool {
 	return len(extraData)%common.AddressLength == 0
 }
 
-func SortedAddresses(validators []types.Validator) []common.Address {
+func SortedAddresses(validators []istanbul.Validator) []common.Address {
 	addrs := make([]common.Address, len(validators))
 	for i, validator := range validators {
 		addrs[i] = validator.Address()

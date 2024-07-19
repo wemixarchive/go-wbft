@@ -19,7 +19,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -266,8 +268,125 @@ func init() {
 	}
 }
 
+// func main() {
+// 	if err := app.Run(os.Args); err != nil {
+// 		fmt.Fprintln(os.Stderr, err)
+// 		os.Exit(1)
+// 	}
+// }
+
+// test with 4 validators
+// ~/qbft-testnet
+// ├── genesis.json
+// ├── static-nodes.json
+// ├── alloc.json
+// ├── nodekey1
+// ├── nodekey2
+// ├── nodekey3
+// ├── nodekey4
+
+// make genesis block
+// go run . genesis 1
+// go run . genesis 2
+// go run . genesis 3
+// go run . genesis 4
+
+// start 4 nodes
+// go run . run 1
+// go run . run 2
+// go run . run 3
+// go run . run 4
+
+// go run . attach http://127.0.0.1:22001
+
 func main() {
-	if err := app.Run(os.Args); err != nil {
+	node := 1
+	root := filepath.Join(flags.HomeDir(), "go-wemix-qbft")
+	fmt.Println(root)
+
+	const (
+		GENESIS = "genesis"
+		RUN     = "run"
+		COMMAND = ""
+	)
+
+	var (
+		argsFns = map[string]func() []string{
+			GENESIS: func() []string {
+				return []string{"geth", fmt.Sprintf("--datadir=%s/node-%d/data", root, node), "init", fmt.Sprintf("%s/genesis.json", root)}
+			},
+			RUN: func() []string {
+				return []string{"geth", fmt.Sprintf("--datadir=%s/node-%d/data", root, node), "--verbosity=5", "--syncmode=full",
+					fmt.Sprintf("--port=3030%d", node), "--nat=none", "--nodiscover", "--mine",
+					"--http", "--http.addr=127.0.0.1", fmt.Sprintf("--http.port=2200%d", node), "--http.corsdomain=*", "--http.vhosts=*",
+					"--http.api=admin,eth,debug,miner,net,txpool,personal,web3,istanbul,engine", fmt.Sprintf("--authrpc.port=855%d", node),
+					"console"}
+			},
+			COMMAND: func() []string {
+				return os.Args
+			},
+		}
+	)
+
+	funcID := COMMAND
+
+	// run or genesis
+	switch args := os.Args[1:]; len(args) { // remove program name
+	case 0:
+		funcID = RUN // for debug
+	case 1, 2:
+		switch args[0] {
+		case GENESIS:
+			funcID = args[0]
+			// After creating the genesis block, copy the static-nodes.json and nodekey files into the geth folder.
+			defer func() {
+				copyFn := func(sourcepath, destpath string) {
+					var source, dest *os.File
+					var err error
+
+					if source, err = os.Open(sourcepath); err != nil {
+						panic(err)
+					}
+					defer source.Close()
+
+					if dest, err = os.Create(destpath); err != nil {
+						panic(err)
+					}
+					defer dest.Close()
+
+					if _, err = io.Copy(dest, source); err != nil {
+						panic(err)
+					} else {
+						fmt.Printf("%s copyed to %s\n", sourcepath, destpath)
+					}
+				}
+
+				// copy static-nodes.json
+				copyFn(fmt.Sprintf("%s/static-nodes.json", root), fmt.Sprintf("%s/node-%d/data/geth/static-nodes.json", root, node))
+
+				// copy nodekey
+				copyFn(fmt.Sprintf("%s/nodekey%d", root, node), fmt.Sprintf("%s/node-%d/data/geth/nodekey", root, node))
+			}()
+		case RUN:
+			funcID = args[0]
+		default:
+			goto entry
+		}
+		if len(args) == 2 {
+			if d, err := strconv.Atoi(args[1]); err != nil {
+				panic(err)
+			} else {
+				node = d
+			}
+		}
+	}
+
+entry:
+	fmt.Println("##################################################################################")
+	fmt.Println(argsFns[funcID]())
+	fmt.Println("##################################################################################")
+
+	if err := app.Run(argsFns[funcID]()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

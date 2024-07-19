@@ -2,7 +2,7 @@ package core
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/types"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,7 +18,7 @@ import (
 //     preparedRound of `quorumSize` ROUND-CHANGE messages and (2) whose preparedRound and
 //     preparedBlockDigest match the round and block of `quorumSize` PREPARE messages.
 func isJustified(
-	proposal types.Proposal,
+	proposal istanbul.Proposal,
 	roundChangeMessages []*qbfttypes.SignedRoundChangePayload,
 	prepareMessages []*qbfttypes.Prepare,
 	quorumSize int) error {
@@ -68,7 +68,7 @@ func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*qbfttypes.Signe
 
 // Checks whether a set of ROUND-CHANGE messages has some message with `preparedRound` and `preparedBlockDigest`,
 // and has `quorumSize` messages with prepared round equal to nil or equal or lower than `preparedRound`.
-func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages []*qbfttypes.SignedRoundChangePayload, preparedRound *big.Int, preparedBlock types.Proposal, quorumSize int) error {
+func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages []*qbfttypes.SignedRoundChangePayload, preparedRound *big.Int, preparedBlock istanbul.Proposal, quorumSize int) error {
 	lowerOrEqualRoundCount := 0
 	hasMatchingMessage := false
 	for _, m := range roundChangeMessages {
