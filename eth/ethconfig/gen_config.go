@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/miner"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 )
 
 // MarshalTOML marshals as TOML.
@@ -55,9 +55,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		RPCGasCap               uint64
 		RPCEVMTimeout           time.Duration
 		RPCTxFeeCap             float64
-		OverrideCancun          *uint64 `toml:",omitempty"`
-		OverrideVerkle          *uint64 `toml:",omitempty"`
-		Istanbul                		istanbul.Config  // ## Quorum QBFT
+		OverrideCancun          *uint64     `toml:",omitempty"`
+		OverrideVerkle          *uint64     `toml:",omitempty"`
+		Istanbul                qbft.Config // ## Quorum QBFT
 	}
 	var enc Config
 	enc.Genesis = c.Genesis
@@ -143,9 +143,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		RPCGasCap               *uint64
 		RPCEVMTimeout           *time.Duration
 		RPCTxFeeCap             *float64
-		OverrideCancun          *uint64 `toml:",omitempty"`
-		OverrideVerkle          *uint64 `toml:",omitempty"`
-		Istanbul                *istanbul.Config // ## Quorum QBFT
+		OverrideCancun          *uint64      `toml:",omitempty"`
+		OverrideVerkle          *uint64      `toml:",omitempty"`
+		Istanbul                *qbft.Config // ## Quorum QBFT
 	}
 	var dec Config
 	if err := unmarshal(&dec); err != nil {

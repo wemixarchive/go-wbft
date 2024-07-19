@@ -27,9 +27,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
-	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
+	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -380,10 +380,10 @@ func (w *worker) start() {
 	w.running.Store(true)
 
 	// ## Quorum QBFT START
-	var backend *istanbulBackend.Backend
-	if backend, _ = w.engine.(*istanbulBackend.Backend); backend == nil {
+	var backend *qbftBackend.Backend
+	if backend, _ = w.engine.(*qbftBackend.Backend); backend == nil {
 		if beacon, ok := w.engine.(*beacon.Beacon); ok {
-			backend, _ = beacon.InnerEngine().(*istanbulBackend.Backend)
+			backend, _ = beacon.InnerEngine().(*qbftBackend.Backend)
 		}
 	}
 	if backend != nil {
@@ -396,10 +396,10 @@ func (w *worker) start() {
 // stop sets the running status as 0.
 func (w *worker) stop() {
 	// ## Quorum QBFT START
-	var backend *istanbulBackend.Backend
-	if backend, _ = w.engine.(*istanbulBackend.Backend); backend == nil {
+	var backend *qbftBackend.Backend
+	if backend, _ = w.engine.(*qbftBackend.Backend); backend == nil {
 		if beacon, ok := w.engine.(*beacon.Beacon); ok {
-			backend, _ = beacon.InnerEngine().(*istanbulBackend.Backend)
+			backend, _ = beacon.InnerEngine().(*qbftBackend.Backend)
 		}
 	}
 	if backend != nil {

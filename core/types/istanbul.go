@@ -37,7 +37,7 @@ var (
 	QBFTDropVote = byte(0x00) // Magic number to vote on removing a validator.
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
-	ErrInvalidIstanbulHeaderExtra = errors.New("invalid istanbul header extra-data")
+	ErrInvalidIstanbulHeaderExtra = errors.New("invalid qbft header extra-data")
 )
 
 // QBFTExtra represents header extradata for qbft protocol

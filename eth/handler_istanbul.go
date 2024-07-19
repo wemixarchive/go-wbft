@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/log"
@@ -117,7 +117,7 @@ func (h *handler) handleConsensusLoop(p *eth.Peer, protoRW p2p.MsgReadWriter, fa
 	for {
 		if err := h.handleConsensus(p, protoRW, fallThroughBackend); err != nil {
 			// allow the P2P connection to remain active during sync (when the engine is stopped)
-			if errors.Is(err, istanbul.ErrStoppedEngine) && h.downloader.Synchronising() {
+			if errors.Is(err, qbft.ErrStoppedEngine) && h.downloader.Synchronising() {
 				// should this be warn or debug
 				p.Log().Debug("Ignoring `stopped engine` consensus error due to active sync.")
 				continue

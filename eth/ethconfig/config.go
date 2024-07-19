@@ -26,8 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
+	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
@@ -139,10 +139,8 @@ type Config struct {
 	// Mining options
 	Miner miner.Config
 
-	// ##quorum istanbul
 	// Istanbul options
-	Istanbul istanbul.Config
-	// ##END
+	Istanbul qbft.Config // ## Quorum QBFT
 
 	// Transaction pool options
 	TxPool   legacypool.Config
@@ -177,7 +175,7 @@ type Config struct {
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
-func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *istanbul.Config, stack *node.Node, db ethdb.Database) (consensus.Engine, error) {
+func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *qbft.Config, stack *node.Node, db ethdb.Database) (consensus.Engine, error) {
 	// If proof-of-authority is requested, set it up
 	if config.Clique != nil {
 		return beacon.New(clique.New(config.Clique, db)), nil
@@ -186,7 +184,7 @@ func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *istanbul.Con
 	// ## Quorum QBFT START
 	if config.QBFT != nil {
 		if istanbulCfg == nil {
-			istanbulCfg = new(istanbul.Config)
+			istanbulCfg = new(qbft.Config)
 		}
 		if len(config.Transitions) > 0 {
 			istanbulCfg.Transitions = config.Transitions
@@ -204,7 +202,7 @@ func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *istanbul.Con
 			istanbulCfg.Epoch = config.QBFT.EpochLength
 		}
 
-		istanbulCfg.ProposerPolicy = istanbul.NewProposerPolicy(istanbul.ProposerPolicyId(config.QBFT.ProposerPolicy))
+		istanbulCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
 		if config.QBFT.Ceil2Nby3Block != nil {
 			istanbulCfg.Ceil2Nby3Block = config.QBFT.Ceil2Nby3Block
 		}
@@ -219,7 +217,7 @@ func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *istanbul.Con
 			istanbulCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
 		}
 
-		return beacon.New(istanbulBackend.New(istanbulCfg, stack.Config().NodeKey(), db)), nil
+		return beacon.New(qbftBackend.New(istanbulCfg, stack.Config().NodeKey(), db)), nil
 	}
 	// ## Quorum QBFT END
 
