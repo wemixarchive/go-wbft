@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
@@ -26,23 +27,26 @@ var (
 
 type SignerFn func(data []byte) ([]byte, error)
 
-// extention of consensus.Engine for qbft
-type EngineEx struct {
+type Engine struct {
 	cfg *qbft.Config
 
 	signer common.Address // Ethereum address of the signing key
 	sign   SignerFn       // Signer function to authorize hashes with
 }
 
-func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn) *EngineEx {
-	return &EngineEx{
+func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn) *Engine {
+	return &Engine{
 		cfg:    cfg,
 		signer: signer,
 		sign:   sign,
 	}
 }
 
-func (e *EngineEx) CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error {
+func (e *Engine) Author(header *types.Header) (common.Address, error) {
+	return header.Coinbase, nil
+}
+
+func (e *Engine) CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error {
 	return ApplyHeaderQBFTExtra(
 		header,
 		writeCommittedSeals(seals),
@@ -78,7 +82,7 @@ func writeRoundNumber(round *big.Int) ApplyQBFTExtra {
 	}
 }
 
-func (e *EngineEx) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (time.Duration, error) {
+func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (time.Duration, error) {
 	// check block body
 	txnHash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil)) // ## Quorum QBFT
 	if txnHash != block.Header().TxHash {
@@ -111,7 +115,7 @@ func (e *EngineEx) VerifyBlockProposal(chain consensus.ChainHeaderReader, block 
 	return 0, err
 }
 
-func (e *EngineEx) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
 	return e.verifyHeader(chain, header, parents, validators)
 }
 
@@ -119,7 +123,7 @@ func (e *EngineEx) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
-func (e *EngineEx) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
 	if header.Number == nil {
 		return qbftcommon.ErrUnknownBlock
 	}
@@ -152,11 +156,38 @@ func (e *EngineEx) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	return e.verifyCascadingFields(chain, header, validators, parents)
 }
 
+func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool, validators qbft.ValidatorSet) (chan<- struct{}, <-chan error) {
+	abort := make(chan struct{})
+	results := make(chan error, len(headers))
+	go func() {
+		errored := false
+		for i, header := range headers {
+			var err error
+			if errored {
+				err = consensus.ErrUnknownAncestor
+			} else {
+				err = e.verifyHeader(chain, header, headers[:i], validators)
+			}
+
+			if err != nil {
+				errored = true
+			}
+
+			select {
+			case <-abort:
+				return
+			case results <- err:
+			}
+		}
+	}()
+	return abort, results
+}
+
 // verifyCascadingFields verifies all the header fields that are not standalone,
 // rather depend on a batch of previous headers. The caller may optionally pass
 // in a batch of parents (ascending order) to avoid looking those up from the
 // database. This is useful for concurrently verifying a batch of new headers.
-func (e *EngineEx) verifyCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, parents []*types.Header) error {
+func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, parents []*types.Header) error {
 	// The genesis block is the always valid dead-end
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -191,7 +222,7 @@ func (e *EngineEx) verifyCascadingFields(chain consensus.ChainHeaderReader, head
 	return e.verifyCommittedSeals(chain, header, parents, validators)
 }
 
-func (e *EngineEx) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
 	// Verifying the genesis block is not supported
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -199,7 +230,10 @@ func (e *EngineEx) verifySigner(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// Resolve the authorization key and check against signers
-	signer := header.Coinbase
+	signer, err := e.Author(header)
+	if err != nil {
+		return err
+	}
 
 	// Signer should be in the validator set of previous block's extraData.
 	if _, v := validators.GetByAddress(signer); v == nil {
@@ -210,7 +244,7 @@ func (e *EngineEx) verifySigner(chain consensus.ChainHeaderReader, header *types
 }
 
 // verifyCommittedSeals checks whether every committed seal is signed by one of the parent's validators
-func (e *EngineEx) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
 	number := header.Number.Uint64()
 
 	if number == 0 {
@@ -254,9 +288,18 @@ func (e *EngineEx) verifyCommittedSeals(chain consensus.ChainHeaderReader, heade
 	return nil
 }
 
+// VerifyUncles verifies that the given block's uncles conform to the consensus
+// rules of a given engine.
+func (e *Engine) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+	if len(block.Uncles()) > 0 {
+		return qbftcommon.ErrInvalidUncleHash
+	}
+	return nil
+}
+
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
-func (e *EngineEx) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
 	// get parent header and ensure the signer is in parent's validator set
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -271,7 +314,7 @@ func (e *EngineEx) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	return e.verifySigner(chain, header, nil, validators)
 }
 
-func (e *EngineEx) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
 	header.Coinbase = common.Address{}
 	header.Nonce = qbftcommon.EmptyBlockNonce
 	header.MixDigest = types.IstanbulDigest
@@ -294,27 +337,34 @@ func (e *EngineEx) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	}
 
 	currentBlockNumber := big.NewInt(0).SetUint64(number - 1)
-	for _, transition := range e.cfg.Transitions {
-		if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
-			toRemove := make([]qbft.Validator, 0, validators.Size())
-			l := validators.List()
-			toRemove = append(toRemove, l...)
-			for i := range toRemove {
-				validators.RemoveValidator(toRemove[i].Address())
+	validatorContract := e.cfg.GetValidatorContractAddress(currentBlockNumber)
+	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(currentBlockNumber) == params.ContractMode {
+		return ApplyHeaderQBFTExtra(
+			header,
+			WriteValidators([]common.Address{}),
+		)
+	} else {
+		for _, transition := range e.cfg.Transitions {
+			if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
+				toRemove := make([]qbft.Validator, 0, validators.Size())
+				l := validators.List()
+				toRemove = append(toRemove, l...)
+				for i := range toRemove {
+					validators.RemoveValidator(toRemove[i].Address())
+				}
+				for i := range transition.Validators {
+					validators.AddValidator(transition.Validators[i])
+				}
+				break
 			}
-			for i := range transition.Validators {
-				validators.AddValidator(transition.Validators[i])
-			}
-			break
 		}
+		validatorsList := validator.SortedAddresses(validators.List())
+		// add validators in snapshot to extraData's validators section
+		return ApplyHeaderQBFTExtra(
+			header,
+			WriteValidators(validatorsList),
+		)
 	}
-	validatorsList := validator.SortedAddresses(validators.List())
-	// add validators in snapshot to extraData's validators section
-	return ApplyHeaderQBFTExtra(
-		header,
-		WriteValidators(validatorsList),
-	)
-
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
@@ -329,7 +379,7 @@ func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 //
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (e *EngineEx) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
+func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	// Accumulate any block and uncle rewards and commit the final state root
 	e.accumulateRewards(chain, state, header)
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -338,7 +388,7 @@ func (e *EngineEx) Finalize(chain consensus.ChainHeaderReader, header *types.Hea
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
-func (e *EngineEx) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	e.Finalize(chain, header, state, txs, uncles)
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil // ## Quorum QBFT
@@ -346,7 +396,7 @@ func (e *EngineEx) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (e *EngineEx) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (*types.Block, error) {
+func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (*types.Block, error) {
 	if _, v := validators.GetByAddress(e.signer); v == nil {
 		return block, qbftcommon.ErrUnauthorized
 	}
@@ -363,16 +413,16 @@ func (e *EngineEx) Seal(chain consensus.ChainHeaderReader, block *types.Block, v
 	return block.WithSeal(header), nil
 }
 
-func (e *EngineEx) SealHash(header *types.Header) common.Hash {
+func (e *Engine) SealHash(header *types.Header) common.Hash {
 	header.Coinbase = e.signer
 	return sigHash(header)
 }
 
-func (e *EngineEx) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
 	return new(big.Int)
 }
 
-func (e *EngineEx) ExtractGenesisValidators(header *types.Header) ([]common.Address, error) {
+func (e *Engine) ExtractGenesisValidators(header *types.Header) ([]common.Address, error) {
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return nil, err
@@ -381,7 +431,7 @@ func (e *EngineEx) ExtractGenesisValidators(header *types.Header) ([]common.Addr
 	return extra.Validators, nil
 }
 
-func (e *EngineEx) Signers(header *types.Header) ([]common.Address, error) {
+func (e *Engine) Signers(header *types.Header) ([]common.Address, error) {
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return []common.Address{}, err
@@ -403,7 +453,7 @@ func (e *EngineEx) Signers(header *types.Header) ([]common.Address, error) {
 	return addrs, nil
 }
 
-func (e *EngineEx) Address() common.Address {
+func (e *Engine) Address() common.Address {
 	return e.signer
 }
 
@@ -428,7 +478,7 @@ func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
 	return h.QBFTHashWithRoundNumber(round).Bytes()
 }
 
-func (e *EngineEx) WriteVote(header *types.Header, candidate common.Address, authorize bool) error {
+func (e *Engine) WriteVote(header *types.Header, candidate common.Address, authorize bool) error {
 	return ApplyHeaderQBFTExtra(
 		header,
 		WriteVote(candidate, authorize),
@@ -448,7 +498,7 @@ func WriteVote(candidate common.Address, authorize bool) ApplyQBFTExtra {
 	}
 }
 
-func (e *EngineEx) ReadVote(header *types.Header) (candidate common.Address, authorize bool, err error) {
+func (e *Engine) ReadVote(header *types.Header) (candidate common.Address, authorize bool, err error) {
 	qbftExtra, err := getExtra(header)
 	if err != nil {
 		return common.Address{}, false, err
@@ -502,7 +552,7 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 }
 
 // AccumulateRewards credits the beneficiary of the given block with a reward.
-func (e *EngineEx) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
+func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
 	blockReward := chain.Config().GetBlockReward(header.Number)
 	if blockReward.Cmp(big.NewInt(0)) > 0 {
 		coinbase := header.Coinbase
