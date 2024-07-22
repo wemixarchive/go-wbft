@@ -21,7 +21,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
-	istanbulcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
+	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -62,7 +62,7 @@ func (api *API) GetSignersFromBlock(number *rpc.BlockNumber) (*BlockSigners, err
 	}
 
 	if header == nil {
-		return nil, istanbulcommon.ErrUnknownBlock
+		return nil, qbftcommon.ErrUnknownBlock
 	}
 
 	return api.signers(header)
@@ -72,7 +72,7 @@ func (api *API) GetSignersFromBlock(number *rpc.BlockNumber) (*BlockSigners, err
 func (api *API) GetSignersFromBlockByHash(hash common.Hash) (*BlockSigners, error) {
 	header := api.chain.GetHeaderByHash(hash)
 	if header == nil {
-		return nil, istanbulcommon.ErrUnknownBlock
+		return nil, qbftcommon.ErrUnknownBlock
 	}
 
 	return api.signers(header)
@@ -108,7 +108,7 @@ func (api *API) GetSnapshot(number *rpc.BlockNumber) (*Snapshot, error) {
 	}
 	// Ensure we have an actually valid block and return its snapshot
 	if header == nil {
-		return nil, istanbulcommon.ErrUnknownBlock
+		return nil, qbftcommon.ErrUnknownBlock
 	}
 	return api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
 }
@@ -117,7 +117,7 @@ func (api *API) GetSnapshot(number *rpc.BlockNumber) (*Snapshot, error) {
 func (api *API) GetSnapshotAtHash(hash common.Hash) (*Snapshot, error) {
 	header := api.chain.GetHeaderByHash(hash)
 	if header == nil {
-		return nil, istanbulcommon.ErrUnknownBlock
+		return nil, qbftcommon.ErrUnknownBlock
 	}
 	return api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
 }
@@ -133,7 +133,7 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 	}
 	// Ensure we have an actually valid block and return the validators from its snapshot
 	if header == nil {
-		return nil, istanbulcommon.ErrUnknownBlock
+		return nil, qbftcommon.ErrUnknownBlock
 	}
 	snap, err := api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
 	if err != nil {
@@ -146,7 +146,7 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 func (api *API) GetValidatorsAtHash(hash common.Hash) ([]common.Address, error) {
 	header := api.chain.GetHeaderByHash(hash)
 	if header == nil {
-		return nil, istanbulcommon.ErrUnknownBlock
+		return nil, qbftcommon.ErrUnknownBlock
 	}
 	snap, err := api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
 	if err != nil {

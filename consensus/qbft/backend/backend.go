@@ -26,7 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/lru"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
-	istanbulcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
+	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	qbftcore "github.com/ethereum/go-ethereum/consensus/qbft/core"
 	qbftengine "github.com/ethereum/go-ethereum/consensus/qbft/engine"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
@@ -195,7 +195,7 @@ func (sb *Backend) Commit(proposal qbft.Proposal, seals [][]byte, round *big.Int
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("BFT: invalid block proposal", "proposal", proposal)
-		return istanbulcommon.ErrInvalidProposal
+		return qbftcommon.ErrInvalidProposal
 	}
 
 	// Commit header
@@ -243,13 +243,13 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("BFT: invalid block proposal", "proposal", proposal)
-		return 0, istanbulcommon.ErrInvalidProposal
+		return 0, qbftcommon.ErrInvalidProposal
 	}
 
 	// check bad block
 	if sb.HasBadProposal(block.Hash()) {
 		sb.logger.Warn("BFT: bad block proposal", "proposal", proposal)
-		return 0, istanbulcommon.ErrBlacklistedHash
+		return 0, qbftcommon.ErrBlacklistedHash
 	}
 
 	header := block.Header()
@@ -280,7 +280,7 @@ func (sb *Backend) CheckSignature(data []byte, address common.Address, sig []byt
 	}
 	// Compare derived addresses
 	if signer != address {
-		return istanbulcommon.ErrInvalidSignature
+		return qbftcommon.ErrInvalidSignature
 	}
 
 	return nil

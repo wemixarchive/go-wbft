@@ -104,7 +104,7 @@ func (c *core) handleCommitMsg(commit *qbftmessage.Commit) error {
 
 	logger = logger.New("commits.count", c.current.QBFTCommits.Size(), "quorum", c.QuorumSize())
 
-	// If we reached thresho
+	// If we reached threshold
 	if c.current.QBFTCommits.Size() >= c.QuorumSize() {
 		logger.Info("QBFT: received quorum of COMMIT messages")
 		c.commitQBFT()

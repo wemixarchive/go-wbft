@@ -175,7 +175,7 @@ type Config struct {
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
-func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *qbft.Config, stack *node.Node, db ethdb.Database) (consensus.Engine, error) {
+func CreateConsensusEngine(config *params.ChainConfig, qbftCfg *qbft.Config, stack *node.Node, db ethdb.Database) (consensus.Engine, error) {
 	// If proof-of-authority is requested, set it up
 	if config.Clique != nil {
 		return beacon.New(clique.New(config.Clique, db)), nil
@@ -183,41 +183,41 @@ func CreateConsensusEngine(config *params.ChainConfig, istanbulCfg *qbft.Config,
 
 	// ## Quorum QBFT START
 	if config.QBFT != nil {
-		if istanbulCfg == nil {
-			istanbulCfg = new(qbft.Config)
+		if qbftCfg == nil {
+			qbftCfg = new(qbft.Config)
 		}
 		if len(config.Transitions) > 0 {
-			istanbulCfg.Transitions = config.Transitions
+			qbftCfg.Transitions = config.Transitions
 		}
 		if config.QBFT.BlockPeriodSeconds != 0 {
-			istanbulCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
+			qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
 		}
 		if config.QBFT.EmptyBlockPeriodSeconds != nil {
-			istanbulCfg.EmptyBlockPeriod = *config.QBFT.EmptyBlockPeriodSeconds
+			qbftCfg.EmptyBlockPeriod = *config.QBFT.EmptyBlockPeriodSeconds
 		}
 		if config.QBFT.RequestTimeoutSeconds != 0 {
-			istanbulCfg.RequestTimeout = config.QBFT.RequestTimeoutSeconds * 1000
+			qbftCfg.RequestTimeout = config.QBFT.RequestTimeoutSeconds * 1000
 		}
 		if config.QBFT.EpochLength != 0 {
-			istanbulCfg.Epoch = config.QBFT.EpochLength
+			qbftCfg.Epoch = config.QBFT.EpochLength
 		}
 
-		istanbulCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
+		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
 		if config.QBFT.Ceil2Nby3Block != nil {
-			istanbulCfg.Ceil2Nby3Block = config.QBFT.Ceil2Nby3Block
+			qbftCfg.Ceil2Nby3Block = config.QBFT.Ceil2Nby3Block
 		}
 
-		istanbulCfg.BlockReward = config.QBFT.BlockReward
-		istanbulCfg.BeneficiaryMode = config.QBFT.BeneficiaryMode
-		istanbulCfg.MiningBeneficiary = config.QBFT.MiningBeneficiary
-		istanbulCfg.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
-		istanbulCfg.Validators = config.QBFT.Validators
+		qbftCfg.BlockReward = config.QBFT.BlockReward
+		qbftCfg.BeneficiaryMode = config.QBFT.BeneficiaryMode
+		qbftCfg.MiningBeneficiary = config.QBFT.MiningBeneficiary
+		qbftCfg.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
+		qbftCfg.Validators = config.QBFT.Validators
 
 		if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {
-			istanbulCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
+			qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
 		}
 
-		return beacon.New(qbftBackend.New(istanbulCfg, stack.Config().NodeKey(), db)), nil
+		return beacon.New(qbftBackend.New(qbftCfg, stack.Config().NodeKey(), db)), nil
 	}
 	// ## Quorum QBFT END
 
