@@ -38,10 +38,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// ## Quorum QBFT START
+// ## Wemix QBFT START
 // 1. related code to istanbul engine is erased
 // 2. package "github.com/hashicorp/golang-lru" is replaced to  "github.com/ethereum/go-ethereum/common/lru"
-// ## Quorum QBFT END
+// ## Wemix QBFT END
 
 const (
 	// fetcherID is the ID indicates the block is from Istanbul engine
@@ -116,12 +116,10 @@ type Backend struct {
 
 	recentMessages *lru.Cache[common.Address, *lru.Cache[common.Hash, bool]] // the cache of peer's messages
 	knownMessages  *lru.Cache[common.Hash, bool]                             // the cache of self messages
-
-	qbftConsensusEnabled bool // qbft consensus
 }
 
 func (sb *Backend) Engine() *qbftengine.Engine {
-	return sb.qbftEngine // ## Quorum QBFT : currently return only qbft engine
+	return sb.qbftEngine // ## Wemix QBFT : currently return only qbft engine
 }
 
 // zekun: HACK
@@ -344,29 +342,10 @@ func (sb *Backend) Close() error {
 	return nil
 }
 
-// IsQBFTConsensus returns whether qbft consensus should be used
-func (sb *Backend) IsQBFTConsensus() bool {
-	if sb.qbftConsensusEnabled {
-		return true
-	}
-	if sb.chain != nil {
-		qbftEnabled := sb.IsQBFTConsensusAt(sb.chain.CurrentHeader().Number)
-		sb.qbftConsensusEnabled = qbftEnabled
-		return qbftEnabled
-	}
-	return false
-}
-
-// IsQBFTConsensusForHeader checks if qbft consensus is enabled for the block height identified by the given header
-func (sb *Backend) IsQBFTConsensusAt(blockNumber *big.Int) bool {
-	return sb.config.IsQBFTConsensusAt(blockNumber)
-}
-
 func (sb *Backend) startQBFT() error {
 	sb.logger.Info("BFT: activate QBFT")
 	sb.logger.Trace("BFT: set ProposerPolicy sorter to ValidatorSortByByteFunc")
 	sb.config.ProposerPolicy.Use(qbft.ValidatorSortByByte())
-	sb.qbftConsensusEnabled = true
 
 	sb.core = qbftcore.New(sb, sb.config)
 	if err := sb.core.Start(); err != nil {
@@ -388,8 +367,6 @@ func (sb *Backend) stop() error {
 			return err
 		}
 	}
-
-	sb.qbftConsensusEnabled = false
 
 	return nil
 }

@@ -3,11 +3,11 @@ package messages
 import (
 	"bytes"
 	"fmt"
-	types2 "github.com/ethereum/go-ethereum/consensus/qbft"
 	"io"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -21,7 +21,7 @@ type RoundChange struct {
 	Justification []*Prepare
 }
 
-func NewRoundChange(sequence *big.Int, round *big.Int, preparedRound *big.Int, preparedBlock types2.Proposal) *RoundChange {
+func NewRoundChange(sequence *big.Int, round *big.Int, preparedRound *big.Int, preparedBlock qbft.Proposal) *RoundChange {
 	roundChange := &RoundChange{
 		SignedRoundChangePayload: SignedRoundChangePayload{
 			CommonPayload: CommonPayload{

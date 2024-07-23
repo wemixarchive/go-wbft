@@ -33,7 +33,7 @@ var (
 	ErrInvalidUncleHash = errors.New("non empty uncle hash")
 
 	// ErrBlacklistedHash is returned if a block to import is on the blacklist.
-	ErrBlacklistedHash = errors.New("blacklisted hash") // ## Quorum QBFT
+	ErrBlacklistedHash = errors.New("blacklisted hash") // ## Wemix QBFT
 
 	// ErrInconsistentValidatorSet is returned if the validator set is inconsistent
 	// ErrInconsistentValidatorSet = errors.New("non empty uncle hash")

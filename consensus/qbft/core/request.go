@@ -17,9 +17,9 @@
 package core
 
 import (
-	types2 "github.com/ethereum/go-ethereum/consensus/qbft"
 	"time"
 
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -129,7 +129,7 @@ func (c *core) storeRequestMsg(request *Request) {
 	c.pendingRequestsMu.Lock()
 	defer c.pendingRequestsMu.Unlock()
 
-	c.pendingRequests.Push(request, -request.Proposal.Number().Int64()) // ## Quorum QBFT
+	c.pendingRequests.Push(request, -request.Proposal.Number().Int64()) // ## Wemix QBFT
 }
 
 // processPendingRequests is called each time QBFT state is re-initialized
@@ -143,13 +143,13 @@ func (c *core) processPendingRequests() {
 
 	for !(c.pendingRequests.Empty()) {
 		r, prio := c.pendingRequests.Pop()
-		// ## Quorum QBFT START : removed
+		// ## Wemix QBFT START : removed
 		//r, ok := m.(*Request)
 		//if !ok {
 		//	logger.Error("QBFT: malformed pending block proposal request, skip", "msg", m)
 		//	continue
 		//}
-		// ## Quorum QBFT END
+		// ## Wemix QBFT END
 		// Push back if it's a future message
 		err := c.checkRequestMsg(r)
 		if err != nil {
@@ -163,7 +163,7 @@ func (c *core) processPendingRequests() {
 		}
 		logger.Debug("QBFT: found pending block proposal request", "proposal.number", r.Proposal.Number(), "proposal.hash", r.Proposal.Hash())
 
-		go c.sendEvent(types2.RequestEvent{
+		go c.sendEvent(qbft.RequestEvent{
 			Proposal: r.Proposal,
 		})
 	}

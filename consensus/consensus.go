@@ -18,12 +18,12 @@
 package consensus
 
 import (
-	"github.com/ethereum/go-ethereum/p2p"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -129,8 +129,7 @@ type PoW interface {
 	Hashrate() float64
 }
 
-// ## Quorum QBFT
-
+// ## Quorum QBFT START
 // Handler should be implemented is the consensus needs to handle and send peer's message
 type Handler interface {
 	// NewChainHead handles a new head block comes
@@ -153,12 +152,6 @@ type Broadcaster interface {
 
 // Peer defines the interface to communicate with peer
 type Peer interface {
-	// Send sends the message to this peer
-	Send(msgcode uint64, data interface{}) error
-
-	// SendConsensus sends the message to this p2p peer using the consensus specific devp2p subprotocol
-	SendConsensus(msgcode uint64, data interface{}) error
-
 	// SendQBFTConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
 	SendQBFTConsensus(msgcode uint64, payload []byte) error
 }

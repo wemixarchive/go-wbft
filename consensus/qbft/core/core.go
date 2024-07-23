@@ -32,14 +32,11 @@ import (
 	metrics "github.com/ethereum/go-ethereum/metrics"
 )
 
-// ## Quorum QBFT START
 var (
 	roundMeter     = metrics.NewRegisteredMeter("consensus/qbft/core/round", nil)
 	sequenceMeter  = metrics.NewRegisteredMeter("consensus/qbft/core/sequence", nil)
 	consensusTimer = metrics.NewRegisteredTimer("consensus/qbft/core/consensus", nil)
 )
-
-// ## Quorum QBFT END
 
 // New creates an Istanbul consensus core
 func New(backend qbft.Backend, config *qbft.Config) qbft.Core {

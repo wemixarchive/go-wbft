@@ -41,10 +41,10 @@ const (
 	inmemoryMessages   = 1024
 )
 
-// ## Quorum QBFT START
+// ## Wemix QBFT START
 // 1. code related to ibft engine is erased
 // 2. fix interface function to get fit with consensus.Engine interface
-// ## Quorum QBFT END
+// ## Wemix QBFT END
 
 // Author retrieves the Ethereum address of the account that minted the given
 // block, which may be different from the header's coinbase if a consensus
@@ -63,7 +63,7 @@ func (sb *Backend) Signers(header *types.Header) ([]common.Address, error) {
 // VerifyHeader checks whether a header conforms to the consensus rules of a
 // given engine. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
-func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error { // ## Quorum QBFT
+func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
 	return sb.verifyHeader(chain, header, nil)
 }
 
@@ -81,7 +81,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 // concurrently. The method returns a quit channel to abort the operations and
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
-func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) { // ## Quorum QBFT
+func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 	go func() {
@@ -176,13 +176,13 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 //
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (sb *Backend) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, _ []*types.Withdrawal) { // ## Quorum QBFT
+func (sb *Backend) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, _ []*types.Withdrawal) {
 	sb.Engine().Finalize(chain, header, state, txs, uncles)
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
-func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt, _ []*types.Withdrawal) (*types.Block, error) { // ## Quorum QBFT
+func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt, _ []*types.Withdrawal) (*types.Block, error) {
 	return sb.Engine().FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
 
@@ -229,7 +229,6 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		})
 		for {
 			select {
-			// ## Quorum QBFT START
 			case sealed := <-sb.commitCh:
 				// if the block hash and the hash from channel are the same,
 				// return the result. Otherwise, keep waiting the next hash.
@@ -239,7 +238,6 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 						return
 					}
 				}
-				// ## Quorum QBFT END
 			case <-stop:
 				results <- nil
 				return
@@ -431,7 +429,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 
 	// If we've generated a new checkpoint snapshot, save to disk
 	if snapApplied.Number%checkpointInterval == 0 && len(headers) > 0 {
-		if err = sb.storeSnap(snap); err != nil {
+		if err = sb.storeSnap(snapApplied); err != nil {
 			return nil, err
 		}
 	}

@@ -914,7 +914,6 @@ web3._extend({
 `
 
 // ## Quorum QBFT START
-
 const Istanbul_JS = `
 web3._extend({
 	property: 'istanbul',
@@ -991,3 +990,5 @@ web3._extend({
 	]
 });
 `
+
+// ## Quorum QBFT END

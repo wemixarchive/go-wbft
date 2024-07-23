@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
@@ -84,7 +83,7 @@ func writeRoundNumber(round *big.Int) ApplyQBFTExtra {
 
 func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (time.Duration, error) {
 	// check block body
-	txnHash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil)) // ## Quorum QBFT
+	txnHash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil))
 	if txnHash != block.Header().TxHash {
 		return 0, qbftcommon.ErrMismatchTxhashes
 	}
@@ -337,34 +336,36 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	currentBlockNumber := big.NewInt(0).SetUint64(number - 1)
-	validatorContract := e.cfg.GetValidatorContractAddress(currentBlockNumber)
-	if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(currentBlockNumber) == params.ContractMode {
-		return ApplyHeaderQBFTExtra(
-			header,
-			WriteValidators([]common.Address{}),
-		)
-	} else {
-		for _, transition := range e.cfg.Transitions {
-			if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
-				toRemove := make([]qbft.Validator, 0, validators.Size())
-				l := validators.List()
-				toRemove = append(toRemove, l...)
-				for i := range toRemove {
-					validators.RemoveValidator(toRemove[i].Address())
-				}
-				for i := range transition.Validators {
-					validators.AddValidator(transition.Validators[i])
-				}
-				break
+	// ## Wemix QBFT START : removed
+	// validatorContract := e.cfg.GetValidatorContractAddress(currentBlockNumber)
+	// if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(currentBlockNumber) == params.ContractMode {
+	// 	return ApplyHeaderQBFTExtra(
+	// 		header,
+	// 		WriteValidators([]common.Address{}),
+	// 	)
+	// } else {
+	// ## Wemix QBFT EMD
+	for _, transition := range e.cfg.Transitions {
+		if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
+			toRemove := make([]qbft.Validator, 0, validators.Size())
+			l := validators.List()
+			toRemove = append(toRemove, l...)
+			for i := range toRemove {
+				validators.RemoveValidator(toRemove[i].Address())
 			}
+			for i := range transition.Validators {
+				validators.AddValidator(transition.Validators[i])
+			}
+			break
 		}
-		validatorsList := validator.SortedAddresses(validators.List())
-		// add validators in snapshot to extraData's validators section
-		return ApplyHeaderQBFTExtra(
-			header,
-			WriteValidators(validatorsList),
-		)
 	}
+	validatorsList := validator.SortedAddresses(validators.List())
+	// add validators in snapshot to extraData's validators section
+	return ApplyHeaderQBFTExtra(
+		header,
+		WriteValidators(validatorsList),
+	)
+	// } // ## Wemix QBFT : removed
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
@@ -391,7 +392,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	e.Finalize(chain, header, state, txs, uncles)
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil // ## Quorum QBFT
+	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil
 }
 
 // Seal generates a new block for the given input block with the local miner's
@@ -562,6 +563,6 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		rewardAccount, _ := chain.Config().GetRewardAccount(header.Number, coinbase)
 		log.Trace("QBFT: accumulate rewards to", "rewardAccount", rewardAccount, "blockReward", blockReward)
 
-		state.AddBalance(rewardAccount, uint256.MustFromBig(&blockReward)) // ## Quorum QBFT
+		state.AddBalance(rewardAccount, uint256.MustFromBig(&blockReward))
 	}
 }

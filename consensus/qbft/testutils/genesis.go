@@ -13,16 +13,16 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// ## Quorum QBFT START
+// ## Wemix QBFT START
 // 1. remove qbft engine related test code
-// ## Quorum QBFT END
+// ## Wemix QBFT END
 
-func Genesis(validators []common.Address) *core.Genesis { // ## Quorum QBFT START
+func Genesis(validators []common.Address) *core.Genesis {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig
 	// force enable QBFT engine
-	genesis.Config.QBFT = &params.QBFTConfig{} // ## Quorum QBFT START
+	genesis.Config.QBFT = &params.QBFTConfig{}
 	genesis.Config.Ethash = nil
 	genesis.Difficulty = qbftcommon.DefaultDifficulty
 	genesis.Nonce = qbftcommon.EmptyBlockNonce.Uint64()
@@ -33,7 +33,7 @@ func Genesis(validators []common.Address) *core.Genesis { // ## Quorum QBFT STAR
 	return genesis
 }
 
-func GenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) { // ## Quorum QBFT START
+func GenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
 	// Setup validators
 	var nodeKeys = make([]*ecdsa.PrivateKey, n)
 	var addrs = make([]common.Address, n)

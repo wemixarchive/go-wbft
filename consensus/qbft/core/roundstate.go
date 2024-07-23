@@ -17,11 +17,11 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 )
 

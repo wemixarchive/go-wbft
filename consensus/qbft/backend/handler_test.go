@@ -18,7 +18,7 @@ package backend
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"testing"
 	"time"
@@ -31,12 +31,12 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-// ## Quorum QBFT START
+// ## Wemix QBFT START
 // 1. package "github.com/hashicorp/golang-lru" is replaced to  "github.com/ethereum/go-ethereum/common/lru"
-// ## Quorum QBFT END
+// ## Wemix QBFT END
 
 func TestIstanbulMessage(t *testing.T) {
-	_, backend := newBlockChain(1, nil)
+	_, backend := newBlockChain(1)
 	defer backend.Stop()
 
 	// generate one msg
@@ -91,7 +91,7 @@ func tryUntilMessageIsHandled(backend *Backend, arbitraryAddress common.Address,
 }
 
 func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
-	_, backend := newBlockChain(1, nil)
+	_, backend := newBlockChain(1)
 	defer backend.Stop()
 	arbitraryAddress := common.BytesToAddress([]byte("arbitrary"))
 	arbitraryBlock, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
@@ -104,22 +104,23 @@ func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
 	if !handled {
 		t.Errorf("expected message being handled but not")
 	}
-	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+	if _, err := io.ReadAll(arbitraryP2PMessage.Payload); err != nil {
 		t.Errorf("expected p2p message payload is restored")
 	}
 }
 
 func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
-	_, backend := newBlockChain(1, nil)
+	_, backend := newBlockChain(1)
 	defer backend.Stop()
 	arbitraryAddress := common.BytesToAddress([]byte("arbitrary"))
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
 	postAndWait(backend, types.NewBlock(&types.Header{
-		Number:    big.NewInt(1),
-		Root:      common.BytesToHash([]byte("someRoot")),
-		GasLimit:  1,
-		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil, new(trie.Trie)), t)
+		Number:     big.NewInt(1),
+		ParentHash: backend.currentBlock().Hash(),
+		Root:       common.BytesToHash([]byte("someRoot")),
+		GasLimit:   1,
+		MixDigest:  types.IstanbulDigest,
+	}, nil, nil, nil, trie.NewStackTrie(nil)), t)
 
 	handled, err := tryUntilMessageIsHandled(backend, arbitraryAddress, arbitraryP2PMessage)
 	if err != nil {
@@ -128,21 +129,22 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 	if handled {
 		t.Errorf("expected message not being handled")
 	}
-	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+	if _, err := io.ReadAll(arbitraryP2PMessage.Payload); err != nil {
 		t.Errorf("expected p2p message payload is restored")
 	}
 }
 
 func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
-	_, backend := newBlockChain(1, nil)
+	_, backend := newBlockChain(1)
 	defer backend.Stop()
 	arbitraryAddress := common.BytesToAddress([]byte("arbitrary"))
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, true)
 	postAndWait(backend, types.NewBlock(&types.Header{
-		Number:    big.NewInt(1),
-		GasLimit:  1,
-		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil, new(trie.Trie)), t)
+		Number:     big.NewInt(1),
+		ParentHash: backend.currentBlock().Hash(),
+		GasLimit:   1,
+		MixDigest:  types.IstanbulDigest,
+	}, nil, nil, nil, trie.NewStackTrie(nil)), t)
 
 	handled, err := tryUntilMessageIsHandled(backend, arbitraryAddress, arbitraryP2PMessage)
 	if err != nil {
@@ -151,7 +153,7 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 	if handled {
 		t.Errorf("expected message not being handled")
 	}
-	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+	if _, err := io.ReadAll(arbitraryP2PMessage.Payload); err != nil {
 		t.Errorf("expected p2p message payload is restored")
 	}
 }
@@ -178,7 +180,7 @@ func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Blo
 		Number:    big.NewInt(1),
 		GasLimit:  0,
 		MixDigest: types.IstanbulDigest,
-	}, nil, nil, nil, trie.NewStackTrie(nil)) // ## Quorum QBFT
+	}, nil, nil, nil, trie.NewStackTrie(nil))
 	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
 	if invalidMsg {
 		request = []interface{}{"invalid msg"}
@@ -187,7 +189,7 @@ func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Blo
 	if err != nil {
 		t.Fatalf("can't encode due to %s", err)
 	}
-	payload, err := ioutil.ReadAll(r)
+	payload, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatalf("can't read payload due to %s", err)
 	}

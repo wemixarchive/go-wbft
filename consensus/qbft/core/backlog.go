@@ -22,9 +22,9 @@ import (
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 )
 
-// ## Quorum QBFT START
+// ## Wemix QBFT START
 // 1. package "gopkg.in/karalabe/cookiejar.v2/collections/prque" is replaced to  "github.com/ethereum/go-ethereum/common/prque"
-// ## Quorum QBFT END
+// ## Wemix QBFT END
 
 var (
 	// msgPriority is defined for calculating processing priority to speedup consensus
@@ -190,7 +190,7 @@ func (c *core) processBacklog() {
 	}
 }
 
-// ## Quorum QBFT START : change return type from float32 to int64
+// ## Wemix QBFT : change return type from float32 to int64
 func toPriority(msgCode uint64, view *qbft.View) int64 {
 	if msgCode == qbftmessage.RoundChangeCode {
 		// For msgRoundChange, set the message priority based on its sequence
@@ -201,5 +201,3 @@ func toPriority(msgCode uint64, view *qbft.View) int64 {
 	// 1000 * Sequence limits the range of round is from 0 to 99
 	return -int64(view.Sequence.Uint64()*1000 + view.Round.Uint64()*10 + uint64(msgPriority[msgCode]))
 }
-
-// ## Quorum QBFT END

@@ -18,7 +18,6 @@ package qbft
 
 import (
 	"math/big"
-	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -130,11 +129,9 @@ type Config struct {
 	Epoch                    uint64                `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
 	Ceil2Nby3Block           *big.Int              `toml:",omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	AllowedFutureBlockTime   uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	TestQBFTBlock            *big.Int              `toml:",omitempty"` // Fork block at which block confirmations are done using qbft consensus instead of ibft
 	BeneficiaryMode          *string               `toml:",omitempty"` // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
 	BlockReward              *math.HexOrDecimal256 `toml:",omitempty"` // Reward
 	MiningBeneficiary        *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
-	ValidatorContract        common.Address        `toml:",omitempty"`
 	Validators               []common.Address      `toml:",omitempty"`
 	ValidatorSelectionMode   *string               `toml:",omitempty"`
 	Client                   bind.ContractCaller   `toml:",omitempty"`
@@ -150,39 +147,6 @@ var DefaultConfig = &Config{
 	Epoch:                  30000,
 	Ceil2Nby3Block:         big.NewInt(0),
 	AllowedFutureBlockTime: 0,
-	TestQBFTBlock:          big.NewInt(0),
-}
-
-// QBFTBlockNumber returns the qbftBlock fork block number, returns -1 if qbftBlock is not defined
-func (c Config) QBFTBlockNumber() int64 {
-	if c.TestQBFTBlock == nil {
-		return -1
-	}
-	return c.TestQBFTBlock.Int64()
-}
-
-// IsQBFTConsensusAt checks if qbft consensus is enabled for the block height identified by the given header
-func (c *Config) IsQBFTConsensusAt(blockNumber *big.Int) bool {
-	if c.TestQBFTBlock != nil {
-		if c.TestQBFTBlock.Uint64() == 0 {
-			return true
-		}
-
-		if blockNumber.Cmp(c.TestQBFTBlock) >= 0 {
-			return true
-		}
-	}
-	result := false
-	if blockNumber == nil {
-		blockNumber = big.NewInt(0)
-	}
-	c.getTransitionValue(blockNumber, func(t params.Transition) {
-		if strings.EqualFold(t.Algorithm, params.QBFT) {
-			result = true
-		}
-	})
-
-	return result
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {
@@ -214,9 +178,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.ValidatorSelectionMode != "" {
 			newConfig.ValidatorSelectionMode = &transition.ValidatorSelectionMode
 		}
-		if transition.ValidatorContractAddress != (common.Address{}) {
-			newConfig.ValidatorContract = transition.ValidatorContractAddress
-		}
 		if len(transition.Validators) > 0 {
 			newConfig.Validators = transition.Validators
 		}
@@ -226,16 +187,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 	})
 
 	return newConfig
-}
-
-func (c Config) GetValidatorContractAddress(blockNumber *big.Int) common.Address {
-	validatorContractAddress := c.ValidatorContract
-	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		if (transition.ValidatorContractAddress != common.Address{}) {
-			validatorContractAddress = transition.ValidatorContractAddress
-		}
-	})
-	return validatorContractAddress
 }
 
 func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
@@ -284,10 +235,7 @@ func (c *Config) getTransitionValue(num *big.Int, callback func(transition param
 	}
 }
 
-// ## Quorum QBFT START
 // String implements the stringer interface, returning the consensus engine details.
 func (c *Config) String() string {
 	return "qbft"
 }
-
-// ## Quorum QBFT END

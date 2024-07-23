@@ -2,10 +2,10 @@ package core
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/log"
 )

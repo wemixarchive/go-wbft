@@ -21,22 +21,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestQbftTransitionAtBlockZero(t *testing.T) {
-	config := *DefaultConfig
-	config.TestQBFTBlock = nil
-	config.Transitions = []params.Transition{{
-		Block:     big.NewInt(0),
-		Algorithm: params.QBFT,
-	}}
-	assert.True(t, config.IsQBFTConsensusAt(big.NewInt(0)))
-	assert.True(t, config.IsQBFTConsensusAt(nil))
-}
 
 func TestProposerPolicy_UnmarshalTOML(t *testing.T) {
 	input := `id = 2
@@ -104,80 +92,6 @@ func TestGetConfig(t *testing.T) {
 		c := test.expectedConfig.GetConfig(big.NewInt(test.blockNumber))
 		if !reflect.DeepEqual(c, test.expectedConfig) {
 			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.expectedConfig, c)
-		}
-	}
-}
-
-func TestIsQBFTConsensusAt(t *testing.T) {
-	config1 := *DefaultConfig
-	config1.TestQBFTBlock = nil
-	config2 := *DefaultConfig
-	config2.TestQBFTBlock = big.NewInt(5)
-	config3 := *DefaultConfig
-	config3.TestQBFTBlock = nil
-	config3.Transitions = []params.Transition{
-		{Block: big.NewInt(10), Algorithm: params.QBFT},
-	}
-	type test struct {
-		config      Config
-		blockNumber int64
-		isQBFT      bool
-	}
-	tests := []test{
-		{*DefaultConfig, 0, true},
-		{*DefaultConfig, 10, true},
-		{config1, 0, false},
-		{config1, 10, false},
-		{config2, 4, false},
-		{config2, 5, true},
-		{config2, 7, true},
-		{config3, 0, false},
-		{config3, 7, false},
-		{config3, 10, true},
-		{config3, 11, true},
-	}
-	for _, test := range tests {
-		isQbft := test.config.IsQBFTConsensusAt(big.NewInt(test.blockNumber))
-		if !reflect.DeepEqual(isQbft, test.isQBFT) {
-			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.isQBFT, isQbft)
-		}
-	}
-}
-
-func TestGetValidatorContractAddress(t *testing.T) {
-	address, address1, address2, address3 := common.Address{}, common.Address{0x2}, common.Address{0x4}, common.Address{0x6}
-
-	config := *DefaultConfig
-	config.Transitions = []params.Transition{{
-		Block:                    big.NewInt(2),
-		ValidatorContractAddress: address1,
-	}, {
-		Block:                    big.NewInt(4),
-		ValidatorContractAddress: address2,
-	}, {
-		Block:                    big.NewInt(6),
-		ValidatorContractAddress: address3,
-	}}
-
-	type test struct {
-		blockNumber     int64
-		expectedAddress common.Address
-	}
-	tests := []test{
-		{0, address},
-		{1, address},
-		{2, address1},
-		{3, address1},
-		{4, address2},
-		{5, address2},
-		{10, address3},
-		{100, address3},
-	}
-
-	for _, test := range tests {
-		c := config.GetValidatorContractAddress(big.NewInt(test.blockNumber))
-		if !reflect.DeepEqual(c, test.expectedAddress) {
-			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.expectedAddress, c)
 		}
 	}
 }

@@ -331,7 +331,6 @@ func TestVoting(t *testing.T) {
 		genesis := testutils.Genesis(validators)
 		config := new(qbft.Config)
 		*config = *qbft.DefaultConfig
-		config.TestQBFTBlock = big.NewInt(0)
 		if tt.epoch != 0 {
 			config.Epoch = tt.epoch
 		}
@@ -411,7 +410,7 @@ func TestSaveAndLoad(t *testing.T) {
 	snap := &Snapshot{
 		Epoch:  5,
 		Number: 10,
-		Hash:   common.BytesToHash([]byte("1234567890")),
+		Hash:   common.HexToHash("1234567890"),
 		Votes: []*Vote{
 			{
 				Validator: common.BytesToAddress([]byte("1234567891")),

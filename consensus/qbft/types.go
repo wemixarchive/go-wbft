@@ -19,7 +19,7 @@ package qbft
 import (
 	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/event"
+
 	"io"
 	"math/big"
 	"sort"
@@ -28,6 +28,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -325,7 +326,4 @@ type Backend interface {
 	HasBadProposal(hash common.Hash) bool
 
 	Close() error
-
-	// IsQBFTConsensus checks qbftBlock fork block and returns if it should be enabled
-	IsQBFTConsensusAt(*big.Int) bool
 }

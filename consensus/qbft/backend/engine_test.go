@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/triedb"
 	"math/big"
 	"reflect"
 	"testing"
@@ -35,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/triedb"
 )
 
 func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *qbft.Config) (*core.BlockChain, *Backend) {
@@ -43,8 +43,6 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	// Use the first key as private key
 	backend := New(cfg, nodeKeys[0], memDB)
 
-	backend.qbftConsensusEnabled = backend.IsQBFTConsensus()
-	// ## Quorum QBFT START
 	genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
 
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis, nil, backend, vm.Config{}, nil, nil)
@@ -53,7 +51,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	}
 
 	backend.Start(blockchain, blockchain.CurrentFullBlock, rawdb.HasBadBlock)
-	// ## Quorum QBFT END
+
 	snap, err := backend.snapshot(blockchain, 0, common.Hash{}, nil)
 	if err != nil {
 		panic(err)
@@ -78,12 +76,10 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 // in this test, we can set n to 1, and it means we can process Istanbul and commit a
 // block by one node. Otherwise, if n is larger than 1, we have to generate
 // other fake events to process Istanbul.
-func newBlockChain(n int, qbftBlock *big.Int) (*core.BlockChain, *Backend) {
+func newBlockChain(n int) (*core.BlockChain, *Backend) {
 	genesis, nodeKeys := testutils.GenesisAndKeys(n)
 
 	config := copyConfig(qbft.DefaultConfig)
-
-	config.TestQBFTBlock = qbftBlock
 
 	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
@@ -99,7 +95,7 @@ func makeHeader(parent *types.Block, config *qbft.Config) *types.Header {
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     blockNumber,
-		GasLimit:   core.CalcGasLimit(parent.GasLimit(), parent.GasLimit()), // ## Quorum QBFT
+		GasLimit:   core.CalcGasLimit(parent.GasLimit(), parent.GasLimit()),
 		GasUsed:    0,
 		Time:       parent.Time() + config.GetConfig(blockNumber).BlockPeriod,
 		Difficulty: qbftcommon.DefaultDifficulty,
@@ -119,13 +115,13 @@ func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *ty
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
-	state, _ := chain.StateAt(parent.Root())                                         // ## Quorum QBFT
-	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil, nil) // ## Quorum QBFT
+	state, _ := chain.StateAt(parent.Root())
+	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil, nil)
 	return block
 }
 
 func TestQBFTPrepare(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 	header := makeHeader(chain.Genesis(), engine.config)
 	err := engine.Prepare(chain, header)
@@ -141,7 +137,7 @@ func TestQBFTPrepare(t *testing.T) {
 }
 
 func TestSealStopChannel(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	stop := make(chan struct{}, 1)
@@ -171,7 +167,7 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
@@ -219,7 +215,7 @@ func updateQBFTBlock(block *types.Block, addr common.Address) *types.Block {
 }
 
 func TestSealCommitted(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedBlock := updateQBFTBlock(block, engine.Address())
@@ -240,7 +236,7 @@ func TestSealCommitted(t *testing.T) {
 }
 
 func TestVerifyHeader(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 
 	// qbftcommon.ErrEmptyCommittedSeals case
@@ -335,7 +331,7 @@ func TestVerifyHeader(t *testing.T) {
 }
 
 func TestVerifyHeaders(t *testing.T) {
-	chain, engine := newBlockChain(1, big.NewInt(0))
+	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 	genesis := chain.Genesis()
 

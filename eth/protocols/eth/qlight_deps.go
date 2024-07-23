@@ -5,7 +5,6 @@ import (
 )
 
 // ## Quorum QBFT START
-
 func CurrentENREntry(chain *core.BlockChain) *enrEntry {
 	return currentENREntry(chain)
 }

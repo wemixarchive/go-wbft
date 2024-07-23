@@ -11,9 +11,7 @@ import (
 )
 
 // ## Quorum QBFT START
-
 const (
-	QBFT            = "qbft"
 	ContractMode    = "contract"
 	BlockHeaderMode = "blockheader"
 )
@@ -39,7 +37,6 @@ func (c QBFTConfig) String() string {
 
 type Transition struct {
 	Block                        *big.Int              `json:"block"`
-	Algorithm                    string                `json:"algorithm,omitempty"`
 	EpochLength                  uint64                `json:"epochlength,omitempty"`                  // Number of blocks that should pass before pending validator votes are reset
 	BlockPeriodSeconds           uint64                `json:"blockperiodseconds,omitempty"`           // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
 	EmptyBlockPeriodSeconds      *uint64               `json:"emptyblockperiodseconds,omitempty"`      // Minimum time between two consecutive QBFT a block and empty block’ timestamps in seconds
@@ -58,7 +55,6 @@ type Transition struct {
 	BeneficiaryMode              *string               `json:"beneficiaryMode,omitempty"`              // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
 	MiningBeneficiary            *common.Address       `json:"miningBeneficiary,omitempty"`            // Wallet address that benefits at every new block (besu mode)
 	MaxRequestTimeoutSeconds     *uint64               `json:"maxRequestTimeoutSeconds,omitempty"`     // The max a timeout should be for a round change
-	ValidatorContractAddress     common.Address        `json:"validatorcontractaddress"`               // Smart contract address for list of validators
 }
 
 // gets value at or after a transition

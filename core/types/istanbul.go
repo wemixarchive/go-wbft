@@ -16,7 +16,6 @@
 
 package types
 
-// ## Quorum QBFT START
 import (
 	"errors"
 	"io"
@@ -25,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+// ## Quorum QBFT START
 var (
 	// IstanbulDigest represents a hash of "Istanbul practical byzantine fault tolerance"
 	// to identify whether the block is from Istanbul consensus engine

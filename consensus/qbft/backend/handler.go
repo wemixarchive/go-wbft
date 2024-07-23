@@ -32,9 +32,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 )
 
-// ## Quorum QBFT START
+// ## Wemix QBFT START
 // 1. package "github.com/hashicorp/golang-lru" is replaced to  "github.com/ethereum/go-ethereum/common/lru"
-// ## Quorum QBFT END
+// ## Wemix QBFT END
 
 const (
 	NewBlockMsg = 0x07
@@ -51,14 +51,14 @@ var (
 
 func (sb *Backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 	var data []byte
-	if sb.IsQBFTConsensus() {
+	if msg.Code == istanbulMsg {
+		if err := msg.Decode(&data); err != nil {
+			return nil, common.Hash{}, errDecodeFailed
+		}
+	} else {
 		data = make([]byte, msg.Size)
 		if _, err := msg.Payload.Read(data); err != nil {
 			return nil, common.Hash{}, errPayloadReadFailed
-		}
-	} else {
-		if err := msg.Decode(&data); err != nil {
-			return nil, common.Hash{}, errDecodeFailed
 		}
 	}
 	return data, qbft.RLPHash(data), nil

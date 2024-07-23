@@ -18,13 +18,13 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"io"
 	"math/big"
 	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/rlp"
 )

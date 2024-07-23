@@ -1,10 +1,10 @@
 package messages
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 )
 
 // Data that is common to all QBFT messages. Used for composition.

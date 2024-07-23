@@ -2,22 +2,22 @@ package messages
 
 import (
 	"fmt"
-	types2 "github.com/ethereum/go-ethereum/consensus/qbft"
 	"io"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type Preprepare struct {
 	CommonPayload
-	Proposal                  types2.Proposal
+	Proposal                  qbft.Proposal
 	JustificationRoundChanges []*SignedRoundChangePayload
 	JustificationPrepares     []*Prepare
 }
 
-func NewPreprepare(sequence *big.Int, round *big.Int, proposal types2.Proposal) *Preprepare {
+func NewPreprepare(sequence *big.Int, round *big.Int, proposal qbft.Proposal) *Preprepare {
 	return &Preprepare{
 		CommonPayload: CommonPayload{
 			code:     PreprepareCode,
