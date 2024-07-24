@@ -158,13 +158,12 @@ func (c *core) processBacklog() {
 		//   1. backlog is empty
 		//   2. The first message in queue is a future message
 		for !(backlog.Empty() || isFuture) {
-			m, prio := backlog.Pop()
+			msg, prio := backlog.Pop()
 
 			var code uint64
 			var view qbft.View
 			var event backlogEvent
 
-			msg := m.(qbftmessage.QBFTMessage)
 			code = msg.Code()
 			view = msg.View()
 			event.msg = msg
@@ -174,15 +173,15 @@ func (c *core) processBacklog() {
 			if err != nil {
 				if err == errFutureMessage {
 					// this is still a future message
-					logger.Trace("QBFT: stop processing backlog", "msg", m)
-					backlog.Push(m, prio)
+					logger.Trace("QBFT: stop processing backlog", "msg", msg)
+					backlog.Push(msg, prio)
 					isFuture = true
 					break
 				}
-				logger.Trace("QBFT: skip backlog message", "msg", m, "err", err)
+				logger.Trace("QBFT: skip backlog message", "msg", msg, "err", err)
 				continue
 			}
-			logger.Trace("QBFT: post backlog event", "msg", m)
+			logger.Trace("QBFT: post backlog event", "msg", msg)
 
 			event.src = src
 			go c.sendEvent(event)

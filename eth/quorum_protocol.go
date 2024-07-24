@@ -26,12 +26,6 @@ const (
 	quorumConsensusProtocolName = "istanbul"
 )
 
-// ProtocolVersions are the supported versions of the quorum consensus protocol (first is primary), e.g. []uint{Istanbul64, Istanbul99, Istanbul100}.
-var quorumConsensusProtocolVersions []uint
-
-// protocol Length describe the number of messages support by the protocol/version map[uint]uint64{Istanbul64: 18, Istanbul99: 18, Istanbul100: 18}
-var quorumConsensusProtocolLengths map[uint]uint64
-
 func (s *Ethereum) quorumConsensusProtocols(backend eth.Backend, network uint64, dnsdisc enode.Iterator) []p2p.Protocol {
 	// Set protocol Name/Version
 	// keep `var protocolName = "eth"` as is, and only update the quorum consensus specific protocol
