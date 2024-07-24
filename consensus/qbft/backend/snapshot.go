@@ -19,6 +19,7 @@ package backend
 import (
 	"bytes"
 	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
