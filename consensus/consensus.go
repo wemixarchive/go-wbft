@@ -15,7 +15,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 //
-// This file is derived from quorum/consensus/config.go (2024.07.25).
+// The "## Quorum QBFT" mark is code referenced from
+// quorum/consensus/consensus.go and quorum/consensus/protocol.go (2024.07.25).
 // Modified and improved for the wemix development.
 
 // Package consensus implements different Ethereum consensus engines.

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 //
-// This file is derived from quorum/eth/downloader/downloader.go (2024.07.25).
+// The "## Quorum QBFT" mark is code referenced from quorum/eth/downloader/downloader.go (2024.07.25).
 // Modified and improved for the wemix development.
 
 // Package downloader contains the manual full chain synchronisation.

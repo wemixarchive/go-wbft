@@ -19,7 +19,7 @@ import (
 )
 
 // ## Wemix QBFT START
-// 1. remove qbft engine related test code
+// 1. remove ibft engine related test code
 // ## Wemix QBFT END
 
 func Genesis(validators []common.Address) *core.Genesis {
