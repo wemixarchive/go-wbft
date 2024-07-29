@@ -189,3 +189,10 @@ var (
 	// SystemAddress is where the system-transaction is sent from as per EIP-4788
 	SystemAddress common.Address = common.HexToAddress("0xfffffffffffffffffffffffffffffffffffffffe")
 )
+
+// wemix parameters
+var (
+	FixedDifficulty           int64  = 1 // 0 means no fixed difficulty
+	FixedGasLimit             uint64 = 0 // 0 means no fixed gas limit,
+	DefaultBriocheBlockReward        = big.NewInt(1e18)
+)

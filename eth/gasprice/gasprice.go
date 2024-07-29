@@ -18,6 +18,7 @@ package gasprice
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"math/big"
 	"sync"
 
@@ -139,6 +140,10 @@ func NewOracle(backend OracleBackend, params Config) *Oracle {
 		maxBlockHistory:  maxBlockHistory,
 		historyCache:     cache,
 	}
+}
+
+func (oracle *Oracle) SuggestWemixTipCap(ctx context.Context) (*big.Int, error) {
+	return wpoa.SuggestGasPrice(), nil
 }
 
 // SuggestTipCap returns a tip cap so that newly created transaction can have a

@@ -140,6 +140,10 @@ var (
 		Usage:    "Ethereum mainnet",
 		Category: flags.EthCategory,
 	}
+	WemixTestnetFlag = cli.BoolFlag{
+		Name:  "wemix-testnet",
+		Usage: "Wemix test network: pre-configured wemix test network",
+	}
 	GoerliFlag = &cli.BoolFlag{
 		Name:     "goerli",
 		Usage:    "Görli network: pre-configured proof-of-authority test network",
@@ -2056,7 +2060,9 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	var genesis *core.Genesis
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
-		genesis = core.DefaultGenesisBlock()
+		genesis = core.DefaultWemixMainnetGenesisBlock()
+	case ctx.Bool(WemixTestnetFlag.Name):
+		genesis = core.DefaultWemixTestnetGenesisBlock()
 	case ctx.Bool(HoleskyFlag.Name):
 		genesis = core.DefaultHoleskyGenesisBlock()
 	case ctx.Bool(SepoliaFlag.Name):
@@ -2079,7 +2085,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	if err != nil {
 		Fatalf("%v", err)
 	}
-	engine, err := ethconfig.CreateConsensusEngine(config, chainDb)
+	engine, err := ethconfig.CreateConsensusEngine(stack, config, chainDb)
 	if err != nil {
 		Fatalf("%v", err)
 	}

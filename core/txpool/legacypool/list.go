@@ -18,6 +18,7 @@ package legacypool
 
 import (
 	"container/heap"
+	"github.com/ethereum/go-ethereum/core/state"
 	"math"
 	"math/big"
 	"sort"
@@ -362,7 +363,9 @@ func (l *list) Forward(threshold uint64) types.Transactions {
 // a point in calculating all the costs or if the balance covers all. If the threshold
 // is lower than the costgas cap, the caps will be reset to a new high after removing
 // the newly invalidated transactions.
-func (l *list) Filter(costLimit *uint256.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
+func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, transactor common.Address, gasLimit uint64) (types.Transactions, types.Transactions) {
+	costLimit := stateDB.GetBalance(transactor)
+
 	// If all transactions are below the threshold, short circuit
 	if l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
 		return nil, nil
@@ -372,6 +375,9 @@ func (l *list) Filter(costLimit *uint256.Int, gasLimit uint64) (types.Transactio
 
 	// Filter out all the transactions above the account's funds
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
+		if feeDelegation && tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() != nil {
+			return tx.Gas() > gasLimit || tx.FeeCost().Cmp(stateDB.GetBalance(*tx.FeePayer()).ToBig()) > 0 || tx.Value().Cmp(costLimit.ToBig()) > 0
+		}
 		return tx.Gas() > gasLimit || tx.Cost().Cmp(costLimit.ToBig()) > 0
 	})
 

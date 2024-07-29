@@ -70,6 +70,7 @@ type Genesis struct {
 	GasUsed       uint64      `json:"gasUsed"`
 	ParentHash    common.Hash `json:"parentHash"`
 	BaseFee       *big.Int    `json:"baseFeePerGas"` // EIP-1559
+	Fees          *big.Int    `json:"fees"`
 	ExcessBlobGas *uint64     `json:"excessBlobGas"` // EIP-4844
 	BlobGasUsed   *uint64     `json:"blobGasUsed"`   // EIP-4844
 }
@@ -306,7 +307,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	// chain config as that would be AllProtocolChanges (applying any new fork
 	// on top of an existing private network genesis block). In that case, only
 	// apply the overrides.
-	if genesis == nil && stored != params.MainnetGenesisHash {
+	if genesis == nil && stored != params.MainnetGenesisHash && stored != params.WemixMainnetGenesisHash {
 		newcfg = storedcfg
 		applyOverrides(newcfg)
 	}
@@ -364,6 +365,10 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 	switch {
 	case g != nil:
 		return g.Config
+	case ghash == params.WemixMainnetGenesisHash:
+		return params.WemixMainnetChainConfig
+	case ghash == params.WemixTestnetGenesisHash:
+		return params.WemixTestnetChainConfig
 	case ghash == params.MainnetGenesisHash:
 		return params.MainnetChainConfig
 	case ghash == params.HoleskyGenesisHash:
@@ -484,6 +489,22 @@ func (g *Genesis) MustCommit(db ethdb.Database, triedb *triedb.Database) *types.
 		panic(err)
 	}
 	return block
+}
+
+func DefaultWemixMainnetGenesisBlock() *Genesis {
+	genesis := new(Genesis)
+	if err := json.NewDecoder(strings.NewReader(wemixMainnetGenesisJson)).Decode(genesis); err != nil {
+		panic("Cannot parse default wemix mainnet genesis.")
+	}
+	return genesis
+}
+
+func DefaultWemixTestnetGenesisBlock() *Genesis {
+	genesis := new(Genesis)
+	if err := json.NewDecoder(strings.NewReader(wemixTestnetGenesisJson)).Decode(genesis); err != nil {
+		panic("Cannot parse default wemix mainnet genesis.")
+	}
+	return genesis
 }
 
 // DefaultGenesisBlock returns the Ethereum main net genesis block.
