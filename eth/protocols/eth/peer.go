@@ -1,3 +1,4 @@
+// Modification Copyright 2024 The Wemix Authors
 // Copyright 2020 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -13,6 +14,9 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+//
+// The "## Quorum QBFT" mark is code referenced from quorum/eth/protocols/eth/peer.go (2024.07.25).
+// Modified and improved for the wemix development.
 
 package eth
 
@@ -90,6 +94,8 @@ type Peer struct {
 
 	term chan struct{} // Termination channel to stop the broadcasters
 	lock sync.RWMutex  // Mutex protecting the internal fields
+
+	consensusRw p2p.MsgReadWriter // Quorum: this is the RW for the consensus devp2p protocol, e.g. "istanbul/100" // ## Quorum QBFT
 }
 
 // NewPeer creates a wrapper for a network connection and negotiated  protocol
@@ -491,3 +497,19 @@ func (k *knownCache) Contains(hash common.Hash) bool {
 func (k *knownCache) Cardinality() int {
 	return k.hashes.Cardinality()
 }
+
+// ## Quorum QBFT START
+// SendQBFTConsensus is used to send consensus subprotocol messages from an "eth" peer without encoding the payload
+func (p *Peer) SendQBFTConsensus(msgcode uint64, payload []byte) error {
+	if p.consensusRw == nil {
+		return nil
+	}
+	return p2p.SendWithNoEncoding(p.consensusRw, msgcode, payload)
+}
+
+func (p *Peer) AddConsensusProtoRW(rw p2p.MsgReadWriter) *Peer {
+	p.consensusRw = rw
+	return p
+}
+
+// ## Quorum QBFT END

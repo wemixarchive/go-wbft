@@ -1,3 +1,4 @@
+// Modification Copyright 2024 The Wemix Authors
 // Copyright 2014 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -13,6 +14,9 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+//
+// The "## Quorum QBFT" mark is code referenced from quorum/core/types/block.go (2024.07.25).
+// Modified and improved for the wemix development.
 
 // Package types contains data types related to Ethereum consensus.
 package types
@@ -119,6 +123,16 @@ type headerMarshaling struct {
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *Header) Hash() common.Hash {
+	// ## Quorum QBFT START
+	// If the mix digest is equivalent to the predefined Istanbul digest, use Istanbul specific hash calculation.
+	if h != nil && h.MixDigest == IstanbulDigest {
+		// Seal is reserved in extra-data. To prove block is signed by the proposer.
+		if istanbulHeader := QBFTFilteredHeader(h); istanbulHeader != nil {
+			return rlpHash(istanbulHeader)
+		}
+	}
+	// ## Quorum QBFT END
+
 	return rlpHash(h)
 }
 
@@ -157,6 +171,14 @@ func (h *Header) SanityCheck() error {
 	}
 	return nil
 }
+
+// ## Quorum QBFT START
+// QBFTHashWithRoundNumber gets the hash of the Header with Only commit seal set to its null value
+func (h *Header) QBFTHashWithRoundNumber(round uint32) common.Hash {
+	return rlpHash(QBFTFilteredHeaderWithRound(h, round))
+}
+
+// ## Quorum QBFT END
 
 // EmptyBody returns true if there is no additional 'body' to complete the header
 // that is: no transactions, no uncles and no withdrawals.

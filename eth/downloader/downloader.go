@@ -1,3 +1,4 @@
+// Modification Copyright 2024 The Wemix Authors
 // Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -13,6 +14,9 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+//
+// The "## Quorum QBFT" mark is code referenced from quorum/eth/downloader/downloader.go (2024.07.25).
+// Modified and improved for the wemix development.
 
 // Package downloader contains the manual full chain synchronisation.
 package downloader
@@ -285,6 +289,14 @@ func (d *Downloader) Progress() ethereum.SyncProgress {
 		HealingBytecode:     pending.BytecodeHeal,
 	}
 }
+
+// ## Quorum QBFT START
+// Synchronising returns whether the downloader is currently retrieving blocks.
+func (d *Downloader) Synchronising() bool {
+	return d.synchronising.Load()
+}
+
+// ## Quorum QBFT END
 
 // RegisterPeer injects a new download peer into the set of block source to be
 // used for fetching hashes and blocks from.

@@ -1,3 +1,4 @@
+// Modification Copyright 2024 The Wemix Authors
 // Copyright 2021 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -13,19 +14,25 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+//
+// The "## Quorum QBFT" mark is code referenced from quorum/eth/ethconfig/config.go (2024.07.25).
+// Modified and improved for the wemix development.
 
 // Package ethconfig contains the configuration of the ETH and LES protocols.
 package ethconfig
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/wpoa"
-	"github.com/ethereum/go-ethereum/node"
+	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
+	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
+	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
@@ -33,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -48,7 +56,12 @@ var FullNodeGPO = gasprice.Config{
 
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
-	SyncMode:           downloader.SnapSync,
+	// ## Quorum QBFT START
+	//SyncMode: downloader.SnapSync,
+	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
+	SyncMode: downloader.FullSync,
+	// ## Quorum QBFT END
+
 	NetworkId:          0, // enable auto configuration of networkID == chainID
 	TxLookupLimit:      2350000,
 	TransactionHistory: 2350000,
@@ -131,6 +144,9 @@ type Config struct {
 	// Mining options
 	Miner miner.Config
 
+	// Istanbul options
+	Istanbul qbft.Config // ## Quorum QBFT
+
 	// Transaction pool options
 	TxPool   legacypool.Config
 	BlobPool blobpool.Config
@@ -173,4 +189,54 @@ func CreateConsensusEngine(stack *node.Node, config *params.ChainConfig, db ethd
 	// WEMIX consensus engine
 	engine := wpoa.NewWemixEngine(stack)
 	return beacon.New(engine), nil
+}
+
+func CreateQBFTConsensusEngine(config *params.ChainConfig, qbftCfg *qbft.Config, stack *node.Node, db ethdb.Database) (consensus.Engine, error) {
+	// ## Quorum QBFT START
+	if config.QBFT != nil {
+		if qbftCfg == nil {
+			qbftCfg = new(qbft.Config)
+		}
+		if len(config.Transitions) > 0 {
+			qbftCfg.Transitions = config.Transitions
+		}
+		if config.QBFT.BlockPeriodSeconds != 0 {
+			qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
+		}
+		if config.QBFT.EmptyBlockPeriodSeconds != nil {
+			qbftCfg.EmptyBlockPeriod = *config.QBFT.EmptyBlockPeriodSeconds
+		}
+		if config.QBFT.RequestTimeoutSeconds != 0 {
+			qbftCfg.RequestTimeout = config.QBFT.RequestTimeoutSeconds * 1000
+		}
+		if config.QBFT.EpochLength != 0 {
+			qbftCfg.Epoch = config.QBFT.EpochLength
+		}
+
+		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
+		if config.QBFT.Ceil2Nby3Block != nil {
+			qbftCfg.Ceil2Nby3Block = config.QBFT.Ceil2Nby3Block
+		}
+
+		qbftCfg.BlockReward = config.QBFT.BlockReward
+		qbftCfg.BeneficiaryMode = config.QBFT.BeneficiaryMode
+		qbftCfg.MiningBeneficiary = config.QBFT.MiningBeneficiary
+		qbftCfg.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
+		qbftCfg.Validators = config.QBFT.Validators
+
+		if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {
+			qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
+		}
+
+		return beacon.New(qbftBackend.New(qbftCfg, stack.Config().NodeKey(), db)), nil
+	}
+	// ## Quorum QBFT END
+
+	// If defaulting to proof-of-work, enforce an already merged network since
+	// we cannot run PoW algorithms anymore, so we cannot even follow a chain
+	// not coordinated by a beacon node.
+	if !config.TerminalTotalDifficultyPassed {
+		return nil, errors.New("ethash is only supported as a historical component of already merged networks")
+	}
+	return beacon.New(ethash.NewFaker()), nil
 }

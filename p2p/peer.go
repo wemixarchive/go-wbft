@@ -1,3 +1,4 @@
+// Modification Copyright 2024 The Wemix Authors
 // Copyright 2014 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -13,6 +14,9 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+//
+// The "## Quorum QBFT" mark is code referenced from quorum/p2p/peer.go (2024.07.25).
+// Modified and improved for the wemix development
 
 package p2p
 
@@ -118,6 +122,11 @@ type Peer struct {
 	// events receives message send / receive events if set
 	events   *event.Feed
 	testPipe *MsgPipeRW // for testing
+
+	// ## Quorum QBFT START
+	EthPeerRegistered   chan struct{}
+	EthPeerDisconnected chan struct{}
+	// ## Quorum QBFT END
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -212,6 +221,14 @@ func (p *Peer) Disconnect(reason DiscReason) {
 	case p.disc <- reason:
 	case <-p.closed:
 	}
+
+	// ## Quorum QBFT START
+	// if a quorum eth service subprotocol is waiting on EthPeerRegistered, notify the peer that it was not registered.
+	select {
+	case p.EthPeerDisconnected <- struct{}{}:
+	default:
+	}
+	// ## Quorum QBFT END
 }
 
 // String implements fmt.Stringer.
@@ -236,6 +253,10 @@ func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 		closed:   make(chan struct{}),
 		pingRecv: make(chan struct{}, 16),
 		log:      log.New("id", conn.node.ID(), "conn", conn.flags),
+		// ## Quorum QBFT START
+		EthPeerRegistered:   make(chan struct{}, 1),
+		EthPeerDisconnected: make(chan struct{}, 1),
+		// ## Quorum QBFT END
 	}
 	return p
 }

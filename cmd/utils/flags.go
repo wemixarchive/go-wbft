@@ -2086,6 +2086,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 		Fatalf("%v", err)
 	}
 	engine, err := ethconfig.CreateConsensusEngine(stack, config, chainDb)
+	//engine, err := ethconfig.CreateQBFTConsensusEngine(config, nil, stack, chainDb) // ## Quorum QBFT
 	if err != nil {
 		Fatalf("%v", err)
 	}

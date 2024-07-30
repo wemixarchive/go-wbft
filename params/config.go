@@ -1,3 +1,4 @@
+// Modification Copyright 2024 The Wemix Authors
 // Copyright 2016 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -13,6 +14,9 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+//
+// The "## Quorum QBFT" mark is code referenced from quorum/params/config.go (2024.07.25).
+// Modified and improved for the wemix development
 
 package params
 
@@ -439,6 +443,11 @@ type ChainConfig struct {
 	Ethash  *EthashConfig  `json:"ethash,omitempty"`
 	Clique  *CliqueConfig  `json:"clique,omitempty"`
 	Brioche *BriocheConfig `json:"brioche,omitempty"` // if this config is nil, brioche halving is not applied
+
+	// ## Quorum QBFT START
+	QBFT        *QBFTConfig  `json:"qbft,omitempty"`        // Quorum
+	Transitions []Transition `json:"transitions,omitempty"` // Quorum - transition config based on the block number
+	// ## Quorum QBFT END
 }
 
 // Brioche halving configuration

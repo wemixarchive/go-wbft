@@ -1,3 +1,4 @@
+// Modification Copyright 2024 The Wemix Authors
 // Copyright 2014 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -13,6 +14,9 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+//
+// The "## Quorum QBFT" mark is code referenced from quorum/p2p/message.go (2024.07.25).
+// Modified and improved for the wemix development
 
 package p2p
 
@@ -103,6 +107,15 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 	}
 	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
 }
+
+// ## Quorum QBFT START
+// SendWithNoEncoding writes an RLP-encoded message with the given code.
+// It does not re-encode the message
+func SendWithNoEncoding(w MsgWriter, msgcode uint64, payload []byte) error {
+	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(len(payload)), Payload: bytes.NewReader(payload)})
+}
+
+// ## Quorum QBFT END
 
 // SendItems writes an RLP with the given code and data elements.
 // For a call such as:
