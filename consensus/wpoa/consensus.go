@@ -19,23 +19,12 @@ package wpoa
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	crand "crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common/math"
-	gov "github.com/ethereum/go-ethereum/consensus/wpoa/bind"
-	"github.com/ethereum/go-ethereum/consensus/wpoa/metclient"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/pkg/errors"
 	"math/big"
 	"math/rand"
@@ -44,12 +33,23 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
+	gov "github.com/ethereum/go-ethereum/consensus/wpoa/bind"
+	"github.com/ethereum/go-ethereum/consensus/wpoa/metclient"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
@@ -85,7 +85,7 @@ var (
 )
 
 type WemixPoA struct {
-	stack *node.Node
+	prvKey *ecdsa.PrivateKey
 
 	bootNodeId         string // allowed to generate block without admin contract
 	nodeInfo           *p2p.NodeInfo
@@ -166,14 +166,21 @@ type WemixGovInfo struct {
 	Nodes                     []*wemixNode
 }
 
-func GovInfo(engine consensus.Engine) (WemixGovInfo, error) {
+func NewWemixEngine(prvKey *ecdsa.PrivateKey, rpcCli *rpc.Client) consensus.Engine {
+	wpoa := &WemixPoA{}
+	wpoa.prvKey = prvKey
+	wpoa.rpcCli = rpcCli
+	wpoa.cli = ethclient.NewClient(wpoa.rpcCli)
+	wpoa.coinbaseEnodeCache = &sync.Map{}
+	wpoa.height2enode = NewLruCache(10000, true)
+
+	SetWemixPoA(wpoa)
+	return wpoa
+}
+
+func (wpoa *WemixPoA) GovInfo() (WemixGovInfo, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	wpoa, ok := engine.(*WemixPoA)
-	if !ok {
-		return WemixGovInfo{}, errNotWemixPoA
-	}
 
 	block, err := wpoa.cli.HeaderByNumber(ctx, nil)
 	if err != nil {
@@ -259,63 +266,6 @@ func GovInfo(engine consensus.Engine) (WemixGovInfo, error) {
 	})
 	result.Nodes = nodes
 	return result, nil
-}
-
-func GetMaxPriorityFeePerGas(engine consensus.Engine) *big.Int {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	defaultFee := big.NewInt(100 * params.GWei)
-	wpoa, ok := engine.(*WemixPoA)
-	if !ok {
-		return defaultFee
-	}
-
-	block, err := wpoa.cli.HeaderByNumber(ctx, nil)
-	if err != nil {
-		return defaultFee
-	}
-	contracts, err := wpoa.getRegGovEnvContracts(ctx, block.Number)
-	if err != nil {
-		return defaultFee
-	}
-
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: block.Number}
-	maxPriorityFeePerGas, err := contracts.EnvStorageImp.GetMaxPriorityFeePerGas(opts)
-	if err != nil {
-		return defaultFee
-	}
-	return maxPriorityFeePerGas
-}
-
-func CalcBaseFee(engine consensus.Engine, config *params.ChainConfig, parent *types.Header) (*big.Int, error) {
-	wpoa, ok := engine.(*WemixPoA)
-	if !ok {
-		return nil, errNotWemixPoA
-	}
-	return wpoa.CalcBaseFee(config, parent), nil
-}
-
-func CalcGasLimit(parentGasLimit, desiredLimit uint64) uint64 {
-	if params.FixedGasLimit != 0 {
-		return params.FixedGasLimit
-	}
-	if desiredLimit == 0 { // Wemix: governance is not initialized yet, inherit parent's gas limit
-		return parentGasLimit
-	}
-	return desiredLimit
-}
-
-func NewWemixEngine(stack *node.Node) consensus.Engine {
-	wpoa := &WemixPoA{}
-	wpoa.stack = stack
-	wpoa.rpcCli = stack.Attach()
-	wpoa.cli = ethclient.NewClient(wpoa.rpcCli)
-	wpoa.coinbaseEnodeCache = &sync.Map{}
-	wpoa.height2enode = NewLruCache(10000, true)
-
-	SetWemixPoA(wpoa)
-	return wpoa
 }
 
 // Author implements consensus.Engine, returning the header's coinbase as the
@@ -1040,8 +990,7 @@ func hashimeta(hash []byte, nonce uint64) ([]byte, []byte) {
 }
 
 func (wpoa *WemixPoA) signBlock(height *big.Int, hash common.Hash) (common.Address, []byte, error) {
-	prvKey := wpoa.stack.Server().PrivateKey
-	sig, err := crypto.Sign(crypto.Keccak256(append(height.Bytes(), hash.Bytes()...)), prvKey)
+	sig, err := crypto.Sign(crypto.Keccak256(append(height.Bytes(), hash.Bytes()...)), wpoa.prvKey)
 	if err != nil {
 		return common.Address{}, nil, err
 	}
@@ -1066,7 +1015,7 @@ func (wpoa *WemixPoA) signBlock(height *big.Int, hash common.Hash) (common.Addre
 			return common.Address{}, nil, err
 		}
 
-		nodeId := crypto.FromECDSAPub(&prvKey.PublicKey)[1:]
+		nodeId := crypto.FromECDSAPub(&wpoa.prvKey.PublicKey)[1:]
 		if addr, err := wpoa.enodeExists(ctx, height, contracts.GovImp, nodeId); err != nil {
 			return common.Address{}, nil, err
 		} else {

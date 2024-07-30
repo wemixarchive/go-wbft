@@ -187,7 +187,7 @@ func CreateConsensusEngine(stack *node.Node, config *params.ChainConfig, db ethd
 	}
 
 	// WEMIX consensus engine
-	engine := wpoa.NewWemixEngine(stack)
+	engine := wpoa.NewWemixEngine(stack.Server().PrivateKey, stack.Attach())
 	return beacon.New(engine), nil
 }
 

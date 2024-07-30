@@ -2,9 +2,11 @@ package wpoa
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/core/types"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
 )
 
 var (
@@ -48,6 +50,10 @@ func SuggestGasPrice() *big.Int {
 	}
 }
 
+func CalcBaseFee(config *params.ChainConfig, parent *types.Header) *big.Int {
+	return wemixPoA.CalcBaseFee(config, parent)
+}
+
 func Info() interface{} {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -55,7 +61,7 @@ func Info() interface{} {
 	if err != nil {
 		return ""
 	}
-	govInfo, err := GovInfo(wemixPoA)
+	govInfo, err := wemixPoA.GovInfo()
 	if err != nil {
 		return ""
 	}
