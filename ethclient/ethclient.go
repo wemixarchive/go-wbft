@@ -665,6 +665,9 @@ func toCallArg(msg ethereum.CallMsg) interface{} {
 	if msg.AccessList != nil {
 		arg["accessList"] = msg.AccessList
 	}
+	if msg.FeePayer != nil {
+		arg["feePayer"] = msg.FeePayer
+	}
 	if msg.BlobGasFeeCap != nil {
 		arg["maxFeePerBlobGas"] = (*hexutil.Big)(msg.BlobGasFeeCap)
 	}

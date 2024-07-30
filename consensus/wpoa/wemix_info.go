@@ -47,3 +47,35 @@ func SuggestGasPrice() *big.Int {
 		return fee
 	}
 }
+
+func Info() interface{} {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	contracts, err := wemixPoA.getRegGovEnvContracts(ctx, nil)
+	if err != nil {
+		return ""
+	}
+	govInfo, err := GovInfo(wemixPoA)
+	if err != nil {
+		return ""
+	}
+
+	ca := contracts.Address()
+	info := &map[string]interface{}{
+		"registry":                  ca.Registry,
+		"governance":                ca.Gov,
+		"staking":                   ca.Staking,
+		"modifiedblock":             govInfo.ModifiedBlock,
+		"blocksPer":                 govInfo.BlocksPer,
+		"blockInterval":             govInfo.BlockInterval,
+		"blockReward":               govInfo.BlockReward,
+		"maxPriorityFeePerGas":      govInfo.MaxPriorityFeePerGas,
+		"blockGasLimit":             govInfo.GasLimit,
+		"maxBaseFee":                govInfo.MaxBaseFee,
+		"baseFeeMaxChangeRate":      govInfo.BaseFeeMaxChangeRate,
+		"gasTargetPercentage":       govInfo.GasTargetPercentage,
+		"nodes":                     govInfo.Nodes,
+		"defaultBriocheBlockReward": defaultBriocheBlockReward,
+	}
+	return info
+}

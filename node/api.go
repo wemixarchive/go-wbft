@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -318,6 +319,11 @@ func (api *adminAPI) NodeInfo() (*p2p.NodeInfo, error) {
 // Datadir retrieves the current data directory the node is using.
 func (api *adminAPI) Datadir() string {
 	return api.node.DataDir()
+}
+
+// WemixInfo retrieves the information about Wemix
+func (api *adminAPI) WemixInfo() interface{} {
+	return wpoa.Info()
 }
 
 // web3API offers helper utils

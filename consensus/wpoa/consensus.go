@@ -152,7 +152,7 @@ type reward struct {
 	Reward *big.Int       `json:"reward"`
 }
 
-type WemixInfo struct {
+type WemixGovInfo struct {
 	ModifiedBlock             *big.Int
 	BlockInterval             *big.Int
 	BlocksPer                 *big.Int
@@ -166,60 +166,60 @@ type WemixInfo struct {
 	Nodes                     []*wemixNode
 }
 
-func Info(engine consensus.Engine) (WemixInfo, error) {
+func GovInfo(engine consensus.Engine) (WemixGovInfo, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	wpoa, ok := engine.(*WemixPoA)
 	if !ok {
-		return WemixInfo{}, errNotWemixPoA
+		return WemixGovInfo{}, errNotWemixPoA
 	}
 
 	block, err := wpoa.cli.HeaderByNumber(ctx, nil)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	contracts, err := wpoa.getRegGovEnvContracts(ctx, block.Number)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	opts := &bind.CallOpts{Context: ctx, BlockNumber: block.Number}
-	result := WemixInfo{}
+	result := WemixGovInfo{}
 	result.ModifiedBlock, err = contracts.GovImp.ModifiedBlock(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.BlockInterval, err = contracts.EnvStorageImp.GetBlockCreationTime(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.BlocksPer, err = contracts.EnvStorageImp.GetBlocksPer(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.BlockReward, err = contracts.EnvStorageImp.GetBlockRewardAmount(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.MaxPriorityFeePerGas, err = contracts.EnvStorageImp.GetMaxPriorityFeePerGas(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.MaxBaseFee, err = contracts.EnvStorageImp.GetMaxBaseFee(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.GasLimit, result.BaseFeeMaxChangeRate, result.BaseFeeMaxChangeRate, err = contracts.EnvStorageImp.GetGasLimitAndBaseFee(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.DefaultBriocheBlockReward = new(big.Int).Set(defaultBriocheBlockReward)
@@ -227,22 +227,22 @@ func Info(engine consensus.Engine) (WemixInfo, error) {
 	nodes := make([]*wemixNode, 0)
 	nodeLength, err := contracts.GovImp.GetNodeLength(opts)
 	if err != nil {
-		return WemixInfo{}, err
+		return WemixGovInfo{}, err
 	}
 	count := nodeLength.Int64()
 	for i := int64(1); i <= count; i++ {
 		node, err := contracts.GovImp.GetNode(opts, big.NewInt(i))
 		if err != nil {
-			return WemixInfo{}, err
+			return WemixGovInfo{}, err
 		}
 		member, err := contracts.GovImp.GetMember(opts, big.NewInt(i))
 		if err != nil {
-			return WemixInfo{}, err
+			return WemixGovInfo{}, err
 		}
 
 		sid := hex.EncodeToString(node.Enode)
 		if len(sid) != 128 {
-			return WemixInfo{}, errInvalidEnode
+			return WemixGovInfo{}, errInvalidEnode
 		}
 		idv4, _ := toIdv4(sid)
 		nodes = append(nodes, &wemixNode{
