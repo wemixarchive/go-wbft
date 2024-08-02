@@ -181,9 +181,10 @@ func postAndWait(backend *Backend, block *types.Block, t *testing.T) {
 
 func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Block, p2p.Msg) {
 	arbitraryBlock := types.NewBlock(&types.Header{
-		Number:    big.NewInt(1),
-		GasLimit:  0,
-		MixDigest: types.IstanbulDigest,
+		Number:     big.NewInt(1),
+		GasLimit:   0,
+		Difficulty: types.QBFTDefaultDifficulty,
+		MixDigest:  types.IstanbulDigest,
 	}, nil, nil, nil, trie.NewStackTrie(nil))
 	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
 	if invalidMsg {
