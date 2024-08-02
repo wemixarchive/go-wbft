@@ -102,7 +102,7 @@ func makeHeader(parent *types.Block, config *qbft.Config) *types.Header {
 		GasLimit:   core.CalcGasLimit(parent.GasLimit(), parent.GasLimit()),
 		GasUsed:    0,
 		Time:       parent.Time() + config.GetConfig(blockNumber).BlockPeriod,
-		Difficulty: qbftcommon.DefaultDifficulty,
+		Difficulty: types.QBFTDefaultDifficulty,
 	}
 	return header
 }

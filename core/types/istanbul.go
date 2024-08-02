@@ -23,6 +23,7 @@ package types
 import (
 	"errors"
 	"io"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -39,6 +40,10 @@ var (
 
 	QBFTAuthVote = byte(0xFF) // Magic number to vote on adding a new validator
 	QBFTDropVote = byte(0x00) // Magic number to vote on removing a validator.
+
+	// QBFTDefaultDifficulty is used to identify whether the block is from QBFT consensus engine.
+	// we use this value on behalf of the role IstanbulDigest
+	QBFTDefaultDifficulty = big.NewInt(1) // ## Wemix
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
 	ErrInvalidIstanbulHeaderExtra = errors.New("invalid qbft header extra-data")
