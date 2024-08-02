@@ -265,14 +265,15 @@ func TestVerifyHeader(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrInvalidExtraDataFormat)
 	}
 
+	// TODO This test does not need anymore as we don't fix mixHash field to IstanbulDigest
 	// non zero MixDigest
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
+	/*block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	header := block.Header()
 	header.MixDigest = common.BytesToHash([]byte("123456789"))
-	err = engine.VerifyHeader(chain, header)
+	err := engine.VerifyHeader(chain, header)
 	if err != qbftcommon.ErrInvalidMixDigest {
 		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrInvalidMixDigest)
-	}
+	}*/
 
 	// invalid uncles hash
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
