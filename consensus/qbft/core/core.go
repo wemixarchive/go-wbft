@@ -308,10 +308,6 @@ func (c *Core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 }
 
 func (c *Core) QuorumSize() int {
-	if c.config.Get2FPlus1Enabled(c.current.sequence) || c.config.Ceil2Nby3Block == nil || (c.current != nil && c.current.sequence.Cmp(c.config.Ceil2Nby3Block) < 0) {
-		c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used 2F+ 1")
-		return (2 * c.valSet.F()) + 1
-	}
 	c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used ceil(2N/3)")
 	return int(math.Ceil(float64(2*c.valSet.Size()) / 3))
 }
