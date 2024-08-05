@@ -213,11 +213,11 @@ func (c *Core) deliverMessage(m qbftmessage.QBFTMessage) error {
 	case qbftmessage.PreprepareCode:
 		err = c.handlePreprepareMsg(m.(*qbftmessage.Preprepare))
 	case qbftmessage.PrepareCode:
-		err = c.handlePrepare(m.(*qbftmessage.Prepare))
+		err = c.handlePrepareMsg(m.(*qbftmessage.Prepare))
 	case qbftmessage.CommitCode:
 		err = c.handleCommitMsg(m.(*qbftmessage.Commit))
 	case qbftmessage.RoundChangeCode:
-		err = c.handleRoundChange(m.(*qbftmessage.RoundChange))
+		err = c.handleRoundChangeMsg(m.(*qbftmessage.RoundChange))
 	default:
 		c.logger.Error("QBFT: invalid messages code", "code", m.Code())
 		return errInvalidMessage

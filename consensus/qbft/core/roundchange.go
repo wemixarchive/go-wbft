@@ -95,10 +95,10 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 	}
 }
 
-// handleRoundChange is called when receiving a ROUND-CHANGE message from another validator
+// handleRoundChangeMsg is called when receiving a ROUND-CHANGE message from another validator
 // - accumulates ROUND-CHANGE messages until reaching quorum for a given round
 // - when quorum of ROUND-CHANGE messages is reached then
-func (c *Core) handleRoundChange(roundChange *qbftmessage.RoundChange) error {
+func (c *Core) handleRoundChangeMsg(roundChange *qbftmessage.RoundChange) error {
 	logger := c.currentLogger(true, roundChange)
 
 	view := roundChange.View()
