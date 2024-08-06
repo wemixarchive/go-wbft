@@ -158,7 +158,7 @@ func (c *Core) handleEvents() {
 			}
 			switch event.Data.(type) {
 			case qbft.FinalCommittedEvent:
-				c.handleFinalCommitted()
+				c.handleFinalCommittedMsg()
 			}
 		}
 	}
