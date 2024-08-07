@@ -31,10 +31,6 @@ import (
 
 // ## Quorum QBFT START
 var (
-	// IstanbulDigest represents a hash of "Istanbul practical byzantine fault tolerance"
-	// to identify whether the block is from Istanbul consensus engine
-	IstanbulDigest = common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365")
-
 	IstanbulExtraVanity = 32 // Fixed number of extra-data bytes reserved for validator vanity
 	IstanbulExtraSeal   = 65 // Fixed number of extra-data bytes reserved for validator seal
 

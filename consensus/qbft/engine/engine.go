@@ -321,7 +321,6 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
 	header.Coinbase = common.Address{}
 	header.Nonce = qbftcommon.EmptyBlockNonce
-	header.MixDigest = types.IstanbulDigest
 
 	// copy the parent extra data as the header extra data
 	number := header.Number.Uint64()

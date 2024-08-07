@@ -31,7 +31,6 @@ func Genesis(validators []common.Address) *core.Genesis {
 	genesis.Config.Ethash = nil
 	genesis.Difficulty = types.QBFTDefaultDifficulty
 	genesis.Nonce = qbftcommon.EmptyBlockNonce.Uint64()
-	genesis.Mixhash = types.IstanbulDigest
 
 	appendValidators(genesis, validators)
 

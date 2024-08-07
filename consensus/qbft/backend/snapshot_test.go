@@ -353,7 +353,6 @@ func TestVoting(t *testing.T) {
 				Time:       uint64(int64(j) * int64(config.GetConfig(blockNumber).BlockPeriod)),
 				Coinbase:   accounts.address(vote.validator),
 				Difficulty: types.QBFTDefaultDifficulty,
-				MixDigest:  types.IstanbulDigest,
 			}
 			_ = qbftengine.ApplyHeaderQBFTExtra(
 				headers[j],
