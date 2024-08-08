@@ -385,10 +385,11 @@ var (
 
 // NetworkNames are user friendly names to use in the chain spec banner.
 var NetworkNames = map[string]string{
-	MainnetChainConfig.ChainID.String(): "mainnet",
-	GoerliChainConfig.ChainID.String():  "goerli",
-	SepoliaChainConfig.ChainID.String(): "sepolia",
-	HoleskyChainConfig.ChainID.String(): "holesky",
+	WemixMainnetChainConfig.ChainID.String(): "mainnet",
+	WemixTestnetChainConfig.ChainID.String(): "testnet",
+	GoerliChainConfig.ChainID.String():       "goerli",
+	SepoliaChainConfig.ChainID.String():      "sepolia",
+	HoleskyChainConfig.ChainID.String():      "holesky",
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -551,7 +552,7 @@ func (c *ChainConfig) Description() string {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
 		}
 	default:
-		banner += "Consensus: unknown\n"
+		banner += "Consensus: WEMIX PoA\n"
 	}
 	banner += "\n"
 
@@ -585,6 +586,13 @@ func (c *ChainConfig) Description() string {
 	banner += fmt.Sprintf(" - Pangyo:                      #%-8v\n", c.PangyoBlock)
 	banner += fmt.Sprintf(" - Applepie:                    #%-8v\n", c.ApplepieBlock)
 	banner += fmt.Sprintf(" - Brioche:                     #%-8v\n", c.BriocheBlock)
+	if c.Brioche != nil {
+		banner += fmt.Sprintf("   - FirstHalvingBlock:         #%-8v\n", c.Brioche.FirstHalvingBlock)
+		banner += fmt.Sprintf("   - HalvingPeriod:             %-8v\n", c.Brioche.HalvingPeriod)
+		banner += fmt.Sprintf("   - FinishRewardBlock:         #%-8v\n", c.Brioche.FinishRewardBlock)
+		banner += fmt.Sprintf("   - HalvingTimes:              %-8v\n", c.Brioche.HalvingTimes)
+		banner += fmt.Sprintf("   - HalvingRate:               %-8v\n", c.Brioche.HalvingRate)
+	}
 	banner += "\n"
 
 	// Add a special section for the merge as it's non-obvious

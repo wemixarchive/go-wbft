@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"os"
 	"sort"
 	"strconv"
@@ -356,6 +357,11 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 
 	// Start up the node itself
 	utils.StartNode(ctx, stack, isConsole)
+
+	// initialize WEMIX info on starting
+	if err := wpoa.StartWemix(); err != nil {
+		panic("cannot start wemix")
+	}
 
 	// Unlock any account specifically requested
 	unlockAccounts(ctx, stack)

@@ -87,9 +87,7 @@ var (
 type WemixPoA struct {
 	prvKey *ecdsa.PrivateKey
 
-	bootNodeId         string // allowed to generate block without admin contract
 	nodeInfo           *p2p.NodeInfo
-	bootAccount        common.Address
 	rpcCli             *rpc.Client
 	cli                *ethclient.Client
 	coinbaseEnodeCache *sync.Map
@@ -101,6 +99,9 @@ type WemixPoA struct {
 	lock                 sync.Mutex // Ensures thread safety for the in-memory caches and mining fields
 	blockBuildParamsLock sync.Mutex
 	blockBuildParams     *blockBuildParameters
+
+	bootNodeId  string // allowed to generate block without admin contract
+	bootAccount common.Address
 }
 
 type wemixNode struct {
@@ -176,6 +177,31 @@ func NewWemixEngine(prvKey *ecdsa.PrivateKey, rpcCli *rpc.Client) consensus.Engi
 
 	SetWemixPoA(wpoa)
 	return wpoa
+}
+
+func (wpoa *WemixPoA) SetBootInfo() error {
+	var err error
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	block, err := wpoa.cli.HeaderByNumber(ctx, new(big.Int))
+	if err != nil {
+		return err
+	}
+	var nodeId string
+	if len(block.Extra) < 64 {
+		return fmt.Errorf("invalid bootnode id in the genesis block")
+	} else if len(block.Extra) == 64 {
+		nodeId = hex.EncodeToString(block.Extra)
+	} else if len(block.Extra) <= 128 {
+		return fmt.Errorf("invalid bootnode id in the genesis block")
+	} else {
+		nodeId = string(block.Extra[len(block.Extra)-128:])
+	}
+	wpoa.bootNodeId, _ = toIdv4(nodeId)
+	wpoa.bootAccount = block.Coinbase
+
+	return nil
 }
 
 func (wpoa *WemixPoA) GovInfo() (WemixGovInfo, error) {
@@ -401,9 +427,6 @@ func (wpoa *WemixPoA) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		if header.Time > uint64(unixNow+allowedFutureBlockTimeSeconds) {
 			return consensus.ErrFutureBlock
 		}
-	}
-	if header.Time <= parent.Time {
-		return errOlderBlockTime
 	}
 
 	// WEMIX poa uses 1 for the difficulty
@@ -788,7 +811,7 @@ func (wpoa *WemixPoA) getRewardParams(ctx context.Context, height *big.Int) (*re
 	}
 	rp.distributionMethod = []*big.Int{distributionMethod1, distributionMethod2, distributionMethod3, distributionMethod4}
 
-	staker, err := contracts.Registry.GetContractAddress(opts, metclient.ToBytes32(gov.DOMAIN_Staking))
+	staker, err := contracts.Registry.GetContractAddress(opts, metclient.ToBytes32(gov.DOMAIN_StakingReward))
 	if err != nil {
 		return nil, errors.Wrap(err, gov.DOMAIN_Staking)
 	}

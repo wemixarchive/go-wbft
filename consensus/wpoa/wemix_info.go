@@ -17,6 +17,10 @@ func SetWemixPoA(wpoa *WemixPoA) {
 	wemixPoA = wpoa
 }
 
+func StartWemix() error {
+	return wemixPoA.SetBootInfo()
+}
+
 func GetLegacyBlockRewardAmount(height *big.Int) (*big.Int, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
