@@ -137,12 +137,13 @@ var (
 	}
 	MainnetFlag = &cli.BoolFlag{
 		Name:     "mainnet",
-		Usage:    "Ethereum mainnet",
+		Usage:    "Wemix mainnet",
 		Category: flags.EthCategory,
 	}
-	WemixTestnetFlag = cli.BoolFlag{
-		Name:  "wemix-testnet",
-		Usage: "Wemix test network: pre-configured wemix test network",
+	WemixTestnetFlag = &cli.BoolFlag{
+		Name:     "testnet",
+		Usage:    "Wemix test network: pre-configured Wemix test network",
+		Category: flags.EthCategory,
 	}
 	GoerliFlag = &cli.BoolFlag{
 		Name:     "goerli",
@@ -917,6 +918,7 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 var (
 	// TestnetFlags is the flag group of all built-in supported testnets.
 	TestnetFlags = []cli.Flag{
+		WemixTestnetFlag,
 		GoerliFlag,
 		SepoliaFlag,
 		HoleskyFlag,
@@ -997,7 +999,7 @@ func setNodeUserIdent(ctx *cli.Context, cfg *node.Config) {
 // 3. Network preset flags (e.g. --goerli)
 // 4. default to mainnet nodes
 func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
-	urls := params.MainnetBootnodes
+	urls := params.WemixMainnetBootnodes
 	if ctx.IsSet(BootnodesFlag.Name) {
 		urls = SplitAndTrim(ctx.String(BootnodesFlag.Name))
 	} else {
@@ -1005,6 +1007,8 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 			return // Already set by config file, don't apply defaults.
 		}
 		switch {
+		case ctx.Bool(WemixTestnetFlag.Name):
+			urls = params.WemixTestnetBootnodes
 		case ctx.Bool(HoleskyFlag.Name):
 			urls = params.HoleskyBootnodes
 		case ctx.Bool(SepoliaFlag.Name):
@@ -1589,7 +1593,7 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
-	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, GoerliFlag, SepoliaFlag, HoleskyFlag)
+	CheckExclusive(ctx, MainnetFlag, WemixTestnetFlag, DeveloperFlag, GoerliFlag, SepoliaFlag, HoleskyFlag)
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
 
 	// Set configurations from CLI flags
@@ -1736,10 +1740,16 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
-			cfg.NetworkId = 1
+			cfg.NetworkId = 1111
 		}
-		cfg.Genesis = core.DefaultGenesisBlock()
-		SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
+		cfg.Genesis = core.DefaultWemixMainnetGenesisBlock()
+		SetDNSDiscoveryDefaults(cfg, params.WemixMainnetGenesisHash)
+	case ctx.Bool(WemixTestnetFlag.Name):
+		if !ctx.IsSet(NetworkIdFlag.Name) {
+			cfg.NetworkId = 1112
+		}
+		cfg.Genesis = core.DefaultWemixTestnetGenesisBlock()
+		SetDNSDiscoveryDefaults(cfg, params.WemixTestnetGenesisHash)
 	case ctx.Bool(HoleskyFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 17000

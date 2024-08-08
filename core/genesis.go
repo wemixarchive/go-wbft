@@ -249,7 +249,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	if (stored == common.Hash{}) {
 		if genesis == nil {
 			log.Info("Writing default main-net genesis block")
-			genesis = DefaultGenesisBlock()
+			genesis = DefaultWemixMainnetGenesisBlock()
 		} else {
 			log.Info("Writing custom genesis block")
 		}
@@ -267,7 +267,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	header := rawdb.ReadHeader(db, stored, 0)
 	if header.Root != types.EmptyRootHash && !triedb.Initialized(header.Root) {
 		if genesis == nil {
-			genesis = DefaultGenesisBlock()
+			genesis = DefaultWemixMainnetGenesisBlock()
 		}
 		applyOverrides(genesis.Config)
 		// Ensure the stored genesis matches with the given one.
@@ -496,6 +496,7 @@ func DefaultWemixMainnetGenesisBlock() *Genesis {
 	if err := json.NewDecoder(strings.NewReader(wemixMainnetGenesisJson)).Decode(genesis); err != nil {
 		panic("Cannot parse default wemix mainnet genesis.")
 	}
+	genesis.Config = params.WemixMainnetChainConfig
 	return genesis
 }
 
@@ -504,6 +505,7 @@ func DefaultWemixTestnetGenesisBlock() *Genesis {
 	if err := json.NewDecoder(strings.NewReader(wemixTestnetGenesisJson)).Decode(genesis); err != nil {
 		panic("Cannot parse default wemix mainnet genesis.")
 	}
+	genesis.Config = params.WemixTestnetChainConfig
 	return genesis
 }
 

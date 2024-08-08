@@ -360,7 +360,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 
 	// initialize WEMIX info on starting
 	if err := wpoa.StartWemix(); err != nil {
-		panic("cannot start wemix")
+		panic(fmt.Sprintf("cannot start wemix: %v", err))
 	}
 
 	// Unlock any account specifically requested

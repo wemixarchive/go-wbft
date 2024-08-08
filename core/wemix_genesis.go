@@ -161,6 +161,7 @@ var (
     "eip155Block": 0,
     "eip158Block": 0,
     "homesteadBlock": 0,
+	"petersburgBlock": 0,
     "istanbulBlock": 0,
     "londonBlock": 0,
     "muirGlacierBlock": 0
@@ -314,6 +315,7 @@ var (
     "eip155Block": 0,
     "eip158Block": 0,
     "homesteadBlock": 0,
+	"petersburgBlock": 0,
     "istanbulBlock": 0,
     "londonBlock": 0,
     "muirGlacierBlock": 0

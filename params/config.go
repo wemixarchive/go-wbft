@@ -44,33 +44,31 @@ var (
 	MainnetTerminalTotalDifficulty, _ = new(big.Int).SetString("58_750_000_000_000_000_000_000", 0)
 
 	WemixMainnetChainConfig = &ChainConfig{
-		ChainID:                       big.NewInt(1111),
-		HomesteadBlock:                big.NewInt(0),
-		DAOForkBlock:                  big.NewInt(0), // We shouldn't have applied DAO hard fork because we didn't have to
-		DAOForkSupport:                true,          // Why on earth?
-		EIP150Block:                   big.NewInt(0),
-		EIP155Block:                   big.NewInt(0),
-		EIP158Block:                   big.NewInt(0),
-		ByzantiumBlock:                big.NewInt(0),
-		ConstantinopleBlock:           big.NewInt(0),
-		PetersburgBlock:               big.NewInt(0),
-		IstanbulBlock:                 big.NewInt(0),
-		MuirGlacierBlock:              big.NewInt(0),
-		BerlinBlock:                   big.NewInt(0),
-		LondonBlock:                   big.NewInt(0),
-		ArrowGlacierBlock:             big.NewInt(0),
-		GrayGlacierBlock:              big.NewInt(0),
-		MergeNetsplitBlock:            nil,
-		ShanghaiTime:                  nil,
-		CancunTime:                    nil,
-		PragueTime:                    nil,
-		VerkleTime:                    nil,
-		TerminalTotalDifficulty:       nil,
-		TerminalTotalDifficultyPassed: true,
-		PangyoBlock:                   big.NewInt(0),
-		ApplepieBlock:                 big.NewInt(20_476_911),
-		BriocheBlock:                  big.NewInt(53_525_500), // target date: 24-07-01 00:00:00 (GMT+09)
-		Ethash:                        new(EthashConfig),
+		ChainID:             big.NewInt(1111),
+		HomesteadBlock:      big.NewInt(0),
+		DAOForkBlock:        big.NewInt(0), // We shouldn't have applied DAO hard fork because we didn't have to
+		DAOForkSupport:      true,          // Why on earth?
+		EIP150Block:         big.NewInt(0),
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
+		IstanbulBlock:       big.NewInt(0),
+		MuirGlacierBlock:    big.NewInt(0),
+		BerlinBlock:         big.NewInt(0),
+		LondonBlock:         big.NewInt(0),
+		ArrowGlacierBlock:   big.NewInt(0),
+		GrayGlacierBlock:    big.NewInt(0),
+		MergeNetsplitBlock:  nil,
+		ShanghaiTime:        nil,
+		CancunTime:          nil,
+		PragueTime:          nil,
+		VerkleTime:          nil,
+		PangyoBlock:         big.NewInt(0),
+		ApplepieBlock:       big.NewInt(20_476_911),
+		BriocheBlock:        big.NewInt(53_525_500), // target date: 24-07-01 00:00:00 (GMT+09)
+		Ethash:              new(EthashConfig),
 		Brioche: &BriocheConfig{
 			BlockReward:       big.NewInt(1e18),
 			FirstHalvingBlock: big.NewInt(53_525_500),
