@@ -214,10 +214,6 @@ func CreateQBFTConsensusEngine(config *params.ChainConfig, qbftCfg *qbft.Config,
 		}
 
 		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
-		if config.QBFT.Ceil2Nby3Block != nil {
-			qbftCfg.Ceil2Nby3Block = config.QBFT.Ceil2Nby3Block
-		}
-
 		qbftCfg.BlockReward = config.QBFT.BlockReward
 		qbftCfg.BeneficiaryMode = config.QBFT.BeneficiaryMode
 		qbftCfg.MiningBeneficiary = config.QBFT.MiningBeneficiary
