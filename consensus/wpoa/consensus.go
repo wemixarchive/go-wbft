@@ -36,7 +36,6 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	mapset "github.com/deckarep/golang-set/v2"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -81,6 +80,7 @@ var (
 	errInvalidMixDigest = errors.New("invalid mix digest")
 	errInvalidPoW       = errors.New("invalid proof-of-work")
 	errInvalidEnode     = errors.New("invalid enode")
+	errNotFound         = errors.New("not found")
 )
 
 type WemixPoA struct {
@@ -1056,7 +1056,7 @@ func (wpoa *WemixPoA) verifyBlockSig(height *big.Int, coinbase common.Address, n
 	num := new(big.Int).Sub(height, common.Big1)
 	contracts, err := wpoa.getRegGovEnvContracts(ctx, num)
 	if err != nil {
-		return err == errNotInitialized || errors.Is(err, ethereum.NotFound)
+		return err == errNotInitialized || errors.Is(err, errNotFound)
 	} else if count, err := contracts.GovImp.GetMemberLength(&bind.CallOpts{Context: ctx, BlockNumber: num}); err != nil || count.Sign() == 0 {
 		return err == errNotInitialized || count.Sign() == 0
 	}
@@ -1179,7 +1179,7 @@ func (wpoa *WemixPoA) enodeExists(ctx context.Context, height *big.Int, gov *gov
 	}
 	ix, ok := e.enode2index[string(enode)]
 	if !ok {
-		return common.Address{}, ethereum.NotFound
+		return common.Address{}, errNotFound
 	}
 	return e.nodes[ix-1].Addr, nil
 }
