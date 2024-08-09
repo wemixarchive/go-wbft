@@ -127,7 +127,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 			govMem1 := getTxOpt(t, "govMem1")
 			// staking first
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -547,7 +547,7 @@ func TestGov(t *testing.T) {
 		})
 		t.Run("can addProposal to change governance", func(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
-			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend, gov.owner))
+			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend.Client(), gov.owner))
 			require.NoError(t, err)
 			gov.ExpectedOk(gov.GovImp.Transact(gov.owner, "addProposalToChangeGov", newGovImp, []byte("memo"), big.NewInt(86400)))
 
@@ -604,7 +604,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -660,7 +660,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = new(big.Int).Div(LOCK_AMOUNT, common.Big2)
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -703,7 +703,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -746,7 +746,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -783,7 +783,7 @@ func TestGov(t *testing.T) {
 			require.True(t, isFinalized)
 
 			govMem2 := getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem2, "deposit"))
 			govMem2.Value = nil
@@ -909,7 +909,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = new(big.Int).Sub(LOCK_AMOUNT, big.NewInt(1000000000))
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -955,7 +955,7 @@ func TestGov(t *testing.T) {
 			require.NoError(t, gov.EnvStorageImp.Call(callOpts, &getGasLimitAndBaseFee, "getGasLimitAndBaseFee"))
 			require.NoError(t, gov.EnvStorageImp.Call(callOpts, &[]interface{}{&MBF}, "getMaxBaseFee"))
 
-			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend, gov.owner))
+			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend.Client(), gov.owner))
 			require.NoError(t, err)
 
 			gov.ExpectedOk(gov.GovImp.Transact(gov.owner, "addProposalToChangeGov", newGovImp, []byte("memo"), big.NewInt(86400)))
@@ -1032,7 +1032,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = new(big.Int).Sub(LOCK_AMOUNT, big.NewInt(1000000000))
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -1090,7 +1090,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -1182,7 +1182,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -1264,10 +1264,10 @@ func TestGov(t *testing.T) {
 			gov = NewGovernance(t).DeployContracts(t)
 			voter = getTxOpt(t, "voter")
 			user1 := getTxOpt(t, "user1")
-			balance, err := gov.backend.BalanceAt(context.TODO(), gov.owner.From, nil)
+			balance, err := gov.backend.Client().BalanceAt(context.TODO(), gov.owner.From, nil)
 			require.NoError(t, err)
 
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Div(balance, common.Big2), &voter.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Div(balance, common.Big2), &voter.From))
 
 			node := gov.nodeInfos[0]
 			info := MemberInfo{
@@ -1492,7 +1492,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -1563,7 +1563,7 @@ func TestGov(t *testing.T) {
 		t.Run("cannot addProposal to add member which is already voter", func(t *testing.T) {
 			gov, voter := deployGovernance(t)
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -1643,7 +1643,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -1746,7 +1746,7 @@ func TestGov(t *testing.T) {
 		})
 		t.Run("can addProposal to change governance", func(t *testing.T) {
 			gov, voter := deployGovernance(t)
-			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend, gov.owner))
+			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend.Client(), gov.owner))
 			require.NoError(t, err)
 			gov.ExpectedOk(gov.GovImp.Transact(voter, "addProposalToChangeGov", newGovImp, []byte("memo"), big.NewInt(86400)))
 
@@ -1803,7 +1803,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -1858,7 +1858,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = new(big.Int).Div(LOCK_AMOUNT, common.Big2)
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 
@@ -1901,7 +1901,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			info := MemberInfo{
@@ -1938,7 +1938,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -1975,7 +1975,7 @@ func TestGov(t *testing.T) {
 			require.True(t, isFinalized)
 
 			govMem2 := getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem2, "deposit"))
 			govMem2.Value = nil
@@ -2102,7 +2102,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = new(big.Int).Sub(LOCK_AMOUNT, big.NewInt(1000000000))
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -2148,7 +2148,7 @@ func TestGov(t *testing.T) {
 			require.NoError(t, gov.EnvStorageImp.Call(callOpts, &getGasLimitAndBaseFee, "getGasLimitAndBaseFee"))
 			require.NoError(t, gov.EnvStorageImp.Call(callOpts, &[]interface{}{&MBF}, "getMaxBaseFee"))
 
-			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend, gov.owner))
+			newGovImp, _, err := gov.Deploy(compiled.GovImp.Deploy(gov.backend.Client(), gov.owner))
 			require.NoError(t, err)
 
 			gov.ExpectedOk(gov.GovImp.Transact(voter, "addProposalToChangeGov", newGovImp, []byte("memo"), big.NewInt(86400)))
@@ -2225,7 +2225,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem1.From))
 			govMem1.Value = new(big.Int).Sub(LOCK_AMOUNT, big.NewInt(1000000000))
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -2253,7 +2253,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = new(big.Int).Sub(LOCK_AMOUNT, big.NewInt(1000000000))
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 
@@ -2280,7 +2280,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = new(big.Int).Sub(LOCK_AMOUNT, big.NewInt(1000000000))
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 
@@ -2338,7 +2338,7 @@ func TestGov(t *testing.T) {
 		deployGovernance := func(t *testing.T) (gov *Governance, govMem1 *bind.TransactOpts) {
 			gov = NewGovernance(t).DeployContracts(t)
 			govMem1 = getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem1, "deposit"))
 			govMem1.Value = nil
@@ -2376,8 +2376,8 @@ func TestGov(t *testing.T) {
 
 			node := gov.nodeInfos[0]
 			voter, voter1, user1 := getTxOpt(t, "voter"), getTxOpt(t, "voter1"), getTxOpt(t, "user1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, towei(1), &voter.From))
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, towei(1), &voter1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, towei(1), &voter.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, towei(1), &voter1.From))
 
 			gov.ExpectedOk(gov.GovImp.Transact(gov.owner, "addProposalToChangeMember", MemberInfo{
 				Staker:     gov.owner.From,
@@ -2507,7 +2507,7 @@ func TestGov(t *testing.T) {
 
 			t.Log("member removed")
 			govMem2 := getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem2, "deposit"))
 			govMem2.Value = nil
@@ -2541,7 +2541,7 @@ func TestGov(t *testing.T) {
 			gov, govMem1 := deployGovernance(t)
 
 			govMem2 := getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem2, "deposit"))
 			govMem2.Value = nil
@@ -2592,7 +2592,7 @@ func TestGov(t *testing.T) {
 			gov, govMem1 := deployGovernance(t)
 
 			govMem2 := getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem2, "deposit"))
 			govMem2.Value = nil
@@ -2751,7 +2751,7 @@ func TestGov(t *testing.T) {
 			gov, _ := deployGovernance(t)
 
 			govMem2 := getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem2, "deposit"))
 			govMem2.Value = nil
@@ -2770,7 +2770,7 @@ func TestGov(t *testing.T) {
 			}))
 
 			govMem3 := getTxOpt(t, "govMem3")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem3.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem3.From))
 			govMem3.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem3, "deposit"))
 			govMem3.Value = nil
@@ -2811,7 +2811,7 @@ func TestGov(t *testing.T) {
 			gov, govMem1 := deployGovernance(t)
 
 			govMem2 := getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Mul(LOCK_AMOUNT, common.Big2), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(govMem2, "deposit"))
 			govMem2.Value = nil
@@ -2941,7 +2941,7 @@ func TestGov(t *testing.T) {
 				"Expired",
 			)
 			govMem3 := getTxOpt(t, "getMem3")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, towei(1), &govMem3.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, towei(1), &govMem3.From))
 			ExpectedRevert(t,
 				gov.ExpectedFail(gov.GovImp.Transact(govMem3, "finalizeEndedVote")),
 				"No Permission",
@@ -3018,7 +3018,7 @@ func TestGov(t *testing.T) {
 		t.Run("cannot init", func(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 			govMem1 := getTxOpt(t, "govMem1")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -3050,8 +3050,8 @@ func TestGov(t *testing.T) {
 		t.Run("cannot addProposal", func(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 			govMem1, govMem2 := getTxOpt(t, "govMem1"), getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, towei(1), &govMem1.From))
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, towei(1), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, towei(1), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, towei(1), &govMem2.From))
 
 			node := gov.nodeInfos[0]
 			ExpectedRevert(t,
@@ -3074,7 +3074,7 @@ func TestGov(t *testing.T) {
 				"No Permission",
 			)
 
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem1.From))
 			govMem1.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem1"), "deposit"))
 			govMem1.Value = nil
@@ -3106,8 +3106,8 @@ func TestGov(t *testing.T) {
 		t.Run("cannot vote", func(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 			govMem1, govMem2 := getTxOpt(t, "govMem1"), getTxOpt(t, "govMem2")
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, towei(1), &govMem1.From))
-			gov.ExpectedOk(TransferCoin(gov.backend, gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem2.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, towei(1), &govMem1.From))
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Add(LOCK_AMOUNT, towei(1)), &govMem2.From))
 			govMem2.Value = LOCK_AMOUNT
 			gov.ExpectedOk(gov.StakingImp.Transact(getTxOpt(t, "govMem2"), "deposit"))
 			govMem2.Value = nil

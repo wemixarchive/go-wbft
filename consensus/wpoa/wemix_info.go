@@ -17,8 +17,8 @@ func SetWemixPoA(wpoa *WemixPoA) {
 	wemixPoA = wpoa
 }
 
-func StartWemix() error {
-	return wemixPoA.SetBootInfo()
+func StartWemix(currentBlock *types.Header) error {
+	return wemixPoA.SetBootInfo(currentBlock)
 }
 
 func GetLegacyBlockRewardAmount(height *big.Int) (*big.Int, error) {
@@ -58,14 +58,14 @@ func CalcBaseFee(config *params.ChainConfig, parent *types.Header) *big.Int {
 	return wemixPoA.CalcBaseFee(config, parent)
 }
 
-func Info() interface{} {
+func Info(block *types.Header) interface{} {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	contracts, err := wemixPoA.getRegGovEnvContracts(ctx, nil)
 	if err != nil {
 		return ""
 	}
-	govInfo, err := wemixPoA.GovInfo()
+	govInfo, err := wemixPoA.GovInfo(block)
 	if err != nil {
 		return ""
 	}

@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
@@ -187,7 +188,8 @@ func CreateConsensusEngine(stack *node.Node, config *params.ChainConfig, db ethd
 	}
 
 	// WEMIX consensus engine
-	engine := wpoa.NewWemixEngine(stack.Server().PrivateKey, stack.Attach())
+	rpcCli := stack.Attach()
+	engine := wpoa.NewWemixEngine(ethclient.NewClient(rpcCli), stack.Server().PrivateKey, rpcCli)
 	return beacon.New(engine), nil
 }
 

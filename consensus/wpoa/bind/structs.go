@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/wpoa/metclient"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -159,7 +159,7 @@ func DeployGovContracts(opts *bind.TransactOpts, backend iBackend, optionDomains
 	// setup registry
 	logger.Info("Setting Domains...")
 	for name, address := range optionDomains {
-		if err := txPool.AppendTx(gov.Registry.SetContractDomain(opts, metclient.ToBytes32(name), address)); err != nil {
+		if err := txPool.AppendTx(gov.Registry.SetContractDomain(opts, ToBytes32(name), address)); err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("SetContractDomain(%s)", name))
 		}
 	}
@@ -374,16 +374,16 @@ func (members InitMembers) GovInitOnce() ([]byte, error) {
 			return nil, err
 		}
 
-		datas.Write(metclient.PackNum(reflect.ValueOf(staker)))
-		datas.Write(metclient.PackNum(reflect.ValueOf(voter)))
-		datas.Write(metclient.PackNum(reflect.ValueOf(reward)))
-		datas.Write(metclient.PackNum(reflect.ValueOf(len(m.Name))))
+		datas.Write(PackNum(reflect.ValueOf(staker)))
+		datas.Write(PackNum(reflect.ValueOf(voter)))
+		datas.Write(PackNum(reflect.ValueOf(reward)))
+		datas.Write(PackNum(reflect.ValueOf(len(m.Name))))
 		datas.Write([]byte(m.Name))
-		datas.Write(metclient.PackNum(reflect.ValueOf(len(id))))
+		datas.Write(PackNum(reflect.ValueOf(len(id))))
 		datas.Write(id)
-		datas.Write(metclient.PackNum(reflect.ValueOf(len(m.Ip))))
+		datas.Write(PackNum(reflect.ValueOf(len(m.Ip))))
 		datas.Write([]byte(m.Ip))
-		datas.Write(metclient.PackNum(reflect.ValueOf(m.Port)))
+		datas.Write(PackNum(reflect.ValueOf(m.Port)))
 	}
 
 	return datas.Bytes(), nil
@@ -393,8 +393,8 @@ func (members InitMembers) StakingInit() []byte {
 	var datas bytes.Buffer
 	for _, m := range members {
 		staker := new(big.Int).SetBytes(m.Staker[:])
-		datas.Write(metclient.PackNum(reflect.ValueOf(staker)))
-		datas.Write(metclient.PackNum(reflect.ValueOf(m.Deposit)))
+		datas.Write(PackNum(reflect.ValueOf(staker)))
+		datas.Write(PackNum(reflect.ValueOf(m.Deposit)))
 	}
 	return datas.Bytes()
 }
@@ -415,7 +415,7 @@ func newUUPSContracts[P, L any](
 	newProxy func(common.Address, bind.ContractBackend) (*P, error),
 	newLogic func(common.Address, bind.ContractBackend) (*L, error),
 ) (common.Address, *P, *L, error) {
-	if address, err := cfg.registry.GetContractAddress(cfg.callOpts, metclient.ToBytes32(name)); err != nil {
+	if address, err := cfg.registry.GetContractAddress(cfg.callOpts, ToBytes32(name)); err != nil {
 		return common.Address{}, nil, nil, errors.Wrap(err, "GetContractAddress")
 	} else if proxy, err := newProxy(address, cfg.backend); err != nil {
 		return common.Address{}, nil, nil, errors.Wrap(err, "newProxy")
@@ -423,6 +423,29 @@ func newUUPSContracts[P, L any](
 		return common.Address{}, nil, nil, errors.Wrap(err, "newLogic")
 	} else {
 		return address, proxy, imp, nil
+	}
+}
+
+func ToBytes32(b string) [32]byte {
+	var b32 [32]byte
+	if len(b) > len(b32) {
+		b = b[len(b)-len(b32):]
+	}
+	copy(b32[:], []byte(b))
+	return b32
+}
+
+// packNum packs the given number (using the reflect value) and will cast it to appropriate number representation
+func PackNum(value reflect.Value) []byte {
+	switch value.Kind() {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return math.U256Bytes(new(big.Int).SetUint64(value.Uint()))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return math.U256Bytes(big.NewInt(value.Int()))
+	case reflect.Ptr:
+		return math.U256Bytes(new(big.Int).Set(value.Interface().(*big.Int)))
+	default:
+		panic("abi: fatal error")
 	}
 }
 

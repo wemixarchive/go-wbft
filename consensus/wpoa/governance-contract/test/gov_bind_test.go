@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	gov "github.com/ethereum/go-ethereum/consensus/wpoa/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDeploy(t *testing.T) {
-	client, opts := func() (*backends.SimulatedBackend, *bind.TransactOpts) {
+	client, opts := func() (*simulated.Backend, *bind.TransactOpts) {
 		g := NewGovernance(t)
 		return g.backend, g.owner
 	}()
@@ -25,10 +25,10 @@ func TestDeploy(t *testing.T) {
 			client.Commit()
 		}
 	}()
-	contracts, err := gov.DeployGovContracts(opts, client, nil)
+	contracts, err := gov.DeployGovContracts(opts, client.Client(), nil)
 	require.NoError(t, err)
 	lockAmount := gov.DefaultInitEnvStorage.STAKING_MIN
-	gov.ExecuteInitialize(contracts, opts, client, lockAmount, gov.DefaultInitEnvStorage, gov.InitMembers{
+	gov.ExecuteInitialize(contracts, opts, client.Client(), lockAmount, gov.DefaultInitEnvStorage, gov.InitMembers{
 		{
 			Staker:  opts.From,
 			Voter:   opts.From,

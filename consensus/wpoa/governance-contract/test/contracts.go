@@ -10,21 +10,19 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/compiler"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core"
+	compile "github.com/ethereum/go-ethereum/consensus/wpoa/governance-contract"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
-	compile "github.com/ethereum/go-ethereum/wemix/governance-contract"
+	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
 type Governance struct {
-	backend   *backends.SimulatedBackend
+	backend   *simulated.Backend
 	owner     *bind.TransactOpts
 	nodeInfos []nodeInfo
 
@@ -46,9 +44,9 @@ type nodeInfo struct {
 
 func NewGovernance(t *testing.T) *Governance {
 	owner := getTxOpt(t, "owner")
-	backend := backends.NewSimulatedBackend(core.GenesisAlloc{
+	backend := simulated.NewBackend(types.GenesisAlloc{
 		owner.From: {Balance: new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 128), common.Big1)},
-	}, params.MaxGasLimit)
+	})
 
 	return &Governance{
 		backend: backend,
@@ -64,30 +62,30 @@ func NewGovernance(t *testing.T) *Governance {
 
 func (g *Governance) DeployContracts(t *testing.T) *Governance {
 	// deploy registry
-	registry, Registry, err := g.Deploy(compiled.Registry.Deploy(g.backend, g.owner))
+	registry, Registry, err := g.Deploy(compiled.Registry.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
 	// deploy impls
-	govImp, _, err := g.Deploy(compiled.GovImp.Deploy(g.backend, g.owner))
+	govImp, _, err := g.Deploy(compiled.GovImp.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
-	ncpExitImp, _, err := g.Deploy(compiled.NCPExitImp.Deploy(g.backend, g.owner))
+	ncpExitImp, _, err := g.Deploy(compiled.NCPExitImp.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
-	stakingImp, _, err := g.Deploy(compiled.StakingImp.Deploy(g.backend, g.owner))
+	stakingImp, _, err := g.Deploy(compiled.StakingImp.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
-	ballotStorageImp, _, err := g.Deploy(compiled.BallotStorageImp.Deploy(g.backend, g.owner))
+	ballotStorageImp, _, err := g.Deploy(compiled.BallotStorageImp.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
-	envStorageImp, _, err := g.Deploy(compiled.EnvStorageImp.Deploy(g.backend, g.owner))
+	envStorageImp, _, err := g.Deploy(compiled.EnvStorageImp.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
 
 	// deploy proxies
-	gov, Gov, err := g.Deploy(compiled.Gov.Deploy(g.backend, g.owner, govImp))
+	gov, Gov, err := g.Deploy(compiled.Gov.Deploy(g.backend.Client(), g.owner, govImp))
 	require.NoError(t, err)
-	ncpExit, NCPExit, err := g.Deploy(compiled.NCPExit.Deploy(g.backend, g.owner, ncpExitImp))
+	ncpExit, NCPExit, err := g.Deploy(compiled.NCPExit.Deploy(g.backend.Client(), g.owner, ncpExitImp))
 	require.NoError(t, err)
-	staking, Staking, err := g.Deploy(compiled.Staking.Deploy(g.backend, g.owner, stakingImp))
+	staking, Staking, err := g.Deploy(compiled.Staking.Deploy(g.backend.Client(), g.owner, stakingImp))
 	require.NoError(t, err)
-	ballotStorage, BallotStorage, err := g.Deploy(compiled.BallotStorage.Deploy(g.backend, g.owner, ballotStorageImp))
+	ballotStorage, BallotStorage, err := g.Deploy(compiled.BallotStorage.Deploy(g.backend.Client(), g.owner, ballotStorageImp))
 	require.NoError(t, err)
-	envStorage, EnvStorage, err := g.Deploy(compiled.EnvStorage.Deploy(g.backend, g.owner, envStorageImp))
+	envStorage, EnvStorage, err := g.Deploy(compiled.EnvStorage.Deploy(g.backend.Client(), g.owner, envStorageImp))
 	require.NoError(t, err)
 
 	// set up g
@@ -99,11 +97,11 @@ func (g *Governance) DeployContracts(t *testing.T) *Governance {
 	g.BallotStorage = BallotStorage
 	g.EnvStorage = EnvStorage
 
-	g.GovImp = compiled.GovImp.New(g.backend, gov)
-	g.NCPExitImp = compiled.NCPExitImp.New(g.backend, ncpExit)
-	g.StakingImp = compiled.StakingImp.New(g.backend, staking)
-	g.BallotStorageImp = compiled.BallotStorageImp.New(g.backend, ballotStorage)
-	g.EnvStorageImp = compiled.EnvStorageImp.New(g.backend, envStorage)
+	g.GovImp = compiled.GovImp.New(g.backend.Client(), gov)
+	g.NCPExitImp = compiled.NCPExitImp.New(g.backend.Client(), ncpExit)
+	g.StakingImp = compiled.StakingImp.New(g.backend.Client(), staking)
+	g.BallotStorageImp = compiled.BallotStorageImp.New(g.backend.Client(), ballotStorage)
+	g.EnvStorageImp = compiled.EnvStorageImp.New(g.backend.Client(), envStorage)
 
 	// set Domains
 	require.NoError(t, g.ExpectedOk(g.Registry.Transact(g.owner, "setContractDomain", ToBytes32("GovernanceContract"), gov)))
@@ -159,7 +157,7 @@ func (r *Governance) ExpectedOk(tx *types.Transaction, err error) error {
 	r.backend.Commit()
 	if err != nil {
 		return err
-	} else if receipt, err := bind.WaitMined(context.TODO(), r.backend, tx); err != nil {
+	} else if receipt, err := bind.WaitMined(context.TODO(), r.backend.Client(), tx); err != nil {
 		return err
 	} else if receipt.Status != types.ReceiptStatusSuccessful {
 		panic(vm.ErrExecutionReverted)
@@ -172,7 +170,7 @@ func (r *Governance) ExpectedFail(tx *types.Transaction, err error) error {
 	r.backend.Commit()
 	if err != nil {
 		return err
-	} else if receipt, err := bind.WaitMined(context.TODO(), r.backend, tx); err != nil {
+	} else if receipt, err := bind.WaitMined(context.TODO(), r.backend.Client(), tx); err != nil {
 		return err
 	} else if receipt.Status == types.ReceiptStatusSuccessful {
 		panic("execution not reverted")

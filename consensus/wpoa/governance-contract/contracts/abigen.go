@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	gov "github.com/ethereum/go-ethereum/wemix/bind"
-	compile "github.com/ethereum/go-ethereum/wemix/governance-contract"
+	gov "github.com/ethereum/go-ethereum/consensus/wpoa/bind"
+	compile "github.com/ethereum/go-ethereum/consensus/wpoa/governance-contract"
 )
 
 const pkg string = "gov"
