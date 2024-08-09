@@ -90,8 +90,7 @@ func (wpoa *WemixPoA) CalcBaseFee(config *params.ChainConfig, parent *types.Head
 		} else {
 			y = x.Div(x, parentGasTargetBig)
 		}
-		var baseFeeDelta *big.Int
-		baseFeeDelta = math.BigMax(
+		baseFeeDelta := math.BigMax(
 			x.Div(y.Mul(y, baseFeeChangeRate), big.NewInt(100)),
 			common.Big1,
 		)
@@ -102,8 +101,7 @@ func (wpoa *WemixPoA) CalcBaseFee(config *params.ChainConfig, parent *types.Head
 		gasUsedDelta := new(big.Int).SetUint64(parentGasTarget - parent.GasUsed)
 		x := new(big.Int).Mul(parent.BaseFee, gasUsedDelta)
 		y := x.Div(x, parentGasTargetBig)
-		var baseFeeDelta *big.Int
-		baseFeeDelta = x.Div(y.Mul(y, baseFeeChangeRate), big.NewInt(100))
+		baseFeeDelta := x.Div(y.Mul(y, baseFeeChangeRate), big.NewInt(100))
 		if baseFeeDelta.Cmp(common.Big0) == 0 && parent.BaseFee.Cmp(common.Big1) > 0 {
 			baseFeeDelta.SetUint64(1)
 		}

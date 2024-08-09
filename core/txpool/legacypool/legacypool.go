@@ -19,13 +19,14 @@ package legacypool
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"math"
 	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus/wpoa"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
@@ -1458,7 +1459,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
 		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), pool.currentState, addr, gasLimit)
+		drops, _ := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), pool.currentState, pool.currentState.GetBalance(addr), gasLimit)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)
@@ -1659,7 +1660,7 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), pool.currentState, addr, gasLimit)
+		drops, invalids := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), pool.currentState, pool.currentState.GetBalance(addr), gasLimit)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			log.Trace("Removed unpayable pending transaction", "hash", hash)

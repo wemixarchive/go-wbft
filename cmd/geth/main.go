@@ -19,12 +19,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/consensus/wpoa"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"

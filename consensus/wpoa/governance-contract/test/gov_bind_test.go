@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
+	gov "github.com/ethereum/go-ethereum/consensus/wpoa/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	gov "github.com/ethereum/go-ethereum/wemix/bind"
 	"github.com/stretchr/testify/require"
 )
 

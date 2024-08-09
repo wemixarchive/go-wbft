@@ -18,10 +18,10 @@ package types
 
 import (
 	"bytes"
-	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type FeeDelegateDynamicFeeTx struct {

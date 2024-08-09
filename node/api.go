@@ -19,10 +19,10 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/log"

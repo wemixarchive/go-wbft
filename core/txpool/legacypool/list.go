@@ -18,13 +18,14 @@ package legacypool
 
 import (
 	"container/heap"
-	"github.com/ethereum/go-ethereum/core/state"
 	"math"
 	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/state"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -363,9 +364,7 @@ func (l *list) Forward(threshold uint64) types.Transactions {
 // a point in calculating all the costs or if the balance covers all. If the threshold
 // is lower than the costgas cap, the caps will be reset to a new high after removing
 // the newly invalidated transactions.
-func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, transactor common.Address, gasLimit uint64) (types.Transactions, types.Transactions) {
-	costLimit := stateDB.GetBalance(transactor)
-
+func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uint256.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
 	// If all transactions are below the threshold, short circuit
 	if l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
 		return nil, nil

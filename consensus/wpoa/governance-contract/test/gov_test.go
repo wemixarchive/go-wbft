@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
@@ -11,13 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGov(t *testing.T) {
-	// for mute chain log
-	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(0), log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
 	callOpts := new(bind.CallOpts)
 
 	node1 := nodeInfo{
