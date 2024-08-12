@@ -41,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/wemixgov"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	// Force-load the tracer engines to trigger registration
@@ -360,7 +361,11 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 	utils.StartNode(ctx, stack, isConsole)
 
 	// initialize WEMIX info on starting
-	if err := wpoa.StartWemix(backend.CurrentHeader()); err != nil {
+	genesisBlock, err := backend.HeaderByNumber(ctx.Context, 0)
+	if err != nil {
+		panic(fmt.Sprintf("cannot start wemix: %v", err))
+	}
+	if err := wpoa.StartWemix(wemixgov.NewWemixGovClient(stack.Attach()), genesisBlock); err != nil {
 		panic(fmt.Sprintf("cannot start wemix: %v", err))
 	}
 

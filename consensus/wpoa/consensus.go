@@ -18,17 +18,11 @@ package wpoa
 
 import (
 	"bytes"
-	"context"
 	"crypto/ecdsa"
-	crand "crypto/rand"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"math/rand"
-	"sort"
-	"sync"
 	"time"
 
 	"github.com/holiman/uint256"
@@ -36,32 +30,20 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	mapset "github.com/deckarep/golang-set/v2"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
-	gov "github.com/ethereum/go-ethereum/consensus/wpoa/bind"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
-// Ethash proof-of-work protocol constants.
 var (
-	FrontierBlockReward           = uint256.NewInt(5e+18) // Block reward in wei for successfully mining a block
-	ByzantiumBlockReward          = uint256.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
-	ConstantinopleBlockReward     = uint256.NewInt(2e+18) // Block reward in wei for successfully mining a block upward from Constantinople
-	maxUncles                     = 2                     // Maximum number of uncles allowed in a single block
-	allowedFutureBlockTimeSeconds = int64(15)             // Max seconds from current time allowed for blocks, before they're considered future blocks
-	defaultBriocheBlockReward     = big.NewInt(1e18)
 	two256                        = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), big.NewInt(0))
+	maxUncles                     = 2         // Maximum number of uncles allowed in a single block
+	allowedFutureBlockTimeSeconds = int64(15) // Max seconds from current time allowed for blocks, before they're considered future blocks
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -69,39 +51,24 @@ var (
 // codebase, inherently breaking if the engine is swapped out. Please put common
 // error types into the consensus package.
 var (
-	errNotInitialized   = errors.New("not initialized")
-	errTooManyUncles    = errors.New("too many uncles")
-	errDuplicateUncle   = errors.New("duplicate uncle")
-	errUncleIsAncestor  = errors.New("uncle is ancestor")
-	errDanglingUncle    = errors.New("uncle's parent is not ancestor")
-	errUnauthorized     = errors.New("unauthorized block")
-	errInvalidMixDigest = errors.New("invalid mix digest")
-	errInvalidPoW       = errors.New("invalid proof-of-work")
-	errInvalidEnode     = errors.New("invalid enode")
-	errNotFound         = errors.New("not found")
+	errNotInitialized      = errors.New("not initialized")
+	errTooManyUncles       = errors.New("too many uncles")
+	errDuplicateUncle      = errors.New("duplicate uncle")
+	errUncleIsAncestor     = errors.New("uncle is ancestor")
+	errDanglingUncle       = errors.New("uncle's parent is not ancestor")
+	errUnauthorized        = errors.New("unauthorized block")
+	errInvalidMixDigest    = errors.New("invalid mix digest")
+	errInvalidPoW          = errors.New("invalid proof-of-work")
+	errInvalidGenesisBlock = errors.New("invalid genesis block extra")
 )
 
 type WemixPoA struct {
 	prvKey *ecdsa.PrivateKey
-
-	nodeInfo           *p2p.NodeInfo
-	rpcCli             *rpc.Client
-	cli                bind.ContractBackend
-	coinbaseEnodeCache *sync.Map
-	height2enode       *LruCache
-
-	self *wemixNode
-
-	rand                 *rand.Rand // Properly seeded random source for nonces
-	lock                 sync.Mutex // Ensures thread safety for the in-memory caches and mining fields
-	blockBuildParamsLock sync.Mutex
-	blockBuildParams     *blockBuildParameters
-
-	bootNodeId  string // allowed to generate block without admin contract
-	bootAccount common.Address
+	rpcCli *rpc.Client
+	govCli WemixGovClient
 }
 
-type wemixNode struct {
+type WemixNode struct {
 	Name  string         `json:"name"`
 	Enode string         `json:"enode"`
 	Id    string         `json:"id"`
@@ -114,35 +81,30 @@ type wemixNode struct {
 }
 
 // block build parameters for caching
-type blockBuildParameters struct {
-	height               uint64
-	blockInterval        int64
-	maxBaseFee           *big.Int
-	gasLimit             *big.Int
-	baseFeeMaxChangeRate int64
-	gasTargetPercentage  int64
+type BlockBuildParameters struct {
+	Height               uint64
+	BlockInterval        int64
+	MaxBaseFee           *big.Int
+	GasLimit             *big.Int
+	BaseFeeMaxChangeRate int64
+	GasTargetPercentage  int64
 }
 
-// cached governance data to derive miner's enode
-type coinbaseEnodeEntry struct {
-	modifiedBlock  *big.Int
-	nodes          []*wemixNode
-	coinbase2enode map[string][]byte // string(common.Address[:]) => []byte
-	enode2index    map[string]int    // string([]byte) => int
-}
-
-type wemixMember struct {
+type WemixMember struct {
 	Staker common.Address `json:"address"`
 	Reward common.Address `json:"reward"`
 	Stake  *big.Int       `json:"stake"`
 }
 
-type rewardParameters struct {
-	rewardAmount                                 *big.Int
-	staker, ecoSystem, maintenance, feeCollector *common.Address
-	members                                      []*wemixMember
-	distributionMethod                           []*big.Int
-	blocksPer                                    int64
+type RewardParameters struct {
+	RewardAmount       *big.Int
+	Staker             *common.Address
+	EcoSystem          *common.Address
+	Maintenance        *common.Address
+	FeeCollector       *common.Address
+	Members            []*WemixMember
+	DistributionMethod []*big.Int
+	BlocksPer          int64
 }
 
 type reward struct {
@@ -151,6 +113,9 @@ type reward struct {
 }
 
 type WemixGovInfo struct {
+	Registry                  common.Address
+	Gov                       common.Address
+	Staking                   common.Address
 	ModifiedBlock             *big.Int
 	BlockInterval             *big.Int
 	BlocksPer                 *big.Int
@@ -161,121 +126,37 @@ type WemixGovInfo struct {
 	BaseFeeMaxChangeRate      *big.Int
 	GasTargetPercentage       *big.Int
 	DefaultBriocheBlockReward *big.Int
-	Nodes                     []*wemixNode
+	Nodes                     []*WemixNode
 }
 
-func NewWemixEngine(cli bind.ContractBackend, prvKey *ecdsa.PrivateKey, rpcCli *rpc.Client) consensus.Engine {
+type WemixGovClient interface {
+	SetBootAccount(bootAccount common.Address) error
+	GetGovInfo(blockNumber *big.Int) (WemixGovInfo, error)
+	GetRewardParams(height *big.Int) (*RewardParameters, error)
+	GetLegacyBlockRewardAmount(height *big.Int) (*big.Int, error)
+	GetMaxPriorityFeePerGas(height *big.Int) (*big.Int, error)
+	VerifyBlockSig(height *big.Int, chain consensus.ChainHeaderReader, coinbase common.Address, nodeId []byte, hash common.Hash, sig []byte, checkMinerLimit bool) bool
+	GetBlockBuildParameters(height *big.Int) (blockInterval int64, maxBaseFee, gasLimit *big.Int, baseFeeMaxChangeRate, gasTargetPercentage int64, err error)
+}
+
+func NewWemixEngine(prvKey *ecdsa.PrivateKey, rpcCli *rpc.Client) consensus.Engine {
 	wpoa := &WemixPoA{}
 	wpoa.prvKey = prvKey
 	wpoa.rpcCli = rpcCli
-	wpoa.cli = cli
-	wpoa.coinbaseEnodeCache = &sync.Map{}
-	wpoa.height2enode = NewLruCache(10000, true)
 
 	SetWemixPoA(wpoa)
 	return wpoa
 }
 
-func (wpoa *WemixPoA) SetBootInfo(block *types.Header) error {
-	var nodeId string
-	if len(block.Extra) < 64 {
-		return fmt.Errorf("invalid bootnode id in the genesis block")
-	} else if len(block.Extra) == 64 {
-		nodeId = hex.EncodeToString(block.Extra)
-	} else if len(block.Extra) <= 128 {
-		return fmt.Errorf("invalid bootnode id in the genesis block")
-	} else {
-		nodeId = string(block.Extra[len(block.Extra)-128:])
+func StartWemix(govCli WemixGovClient, genesisBlock *types.Header) error {
+	wemixPoA.govCli = govCli
+
+	if len(genesisBlock.Extra) < 64 {
+		return errInvalidGenesisBlock
+	} else if len(genesisBlock.Extra) <= 128 {
+		return errInvalidGenesisBlock
 	}
-	wpoa.bootNodeId, _ = toIdv4(nodeId)
-	wpoa.bootAccount = block.Coinbase
-
-	return nil
-}
-
-func (wpoa *WemixPoA) GovInfo(block *types.Header) (WemixGovInfo, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	contracts, err := wpoa.getRegGovEnvContracts(ctx, block.Number)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: block.Number}
-	result := WemixGovInfo{}
-	result.ModifiedBlock, err = contracts.GovImp.ModifiedBlock(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	result.BlockInterval, err = contracts.EnvStorageImp.GetBlockCreationTime(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	result.BlocksPer, err = contracts.EnvStorageImp.GetBlocksPer(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	result.BlockReward, err = contracts.EnvStorageImp.GetBlockRewardAmount(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	result.MaxPriorityFeePerGas, err = contracts.EnvStorageImp.GetMaxPriorityFeePerGas(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	result.MaxBaseFee, err = contracts.EnvStorageImp.GetMaxBaseFee(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	result.GasLimit, result.BaseFeeMaxChangeRate, result.BaseFeeMaxChangeRate, err = contracts.EnvStorageImp.GetGasLimitAndBaseFee(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-
-	result.DefaultBriocheBlockReward = new(big.Int).Set(defaultBriocheBlockReward)
-
-	nodes := make([]*wemixNode, 0)
-	nodeLength, err := contracts.GovImp.GetNodeLength(opts)
-	if err != nil {
-		return WemixGovInfo{}, err
-	}
-	count := nodeLength.Int64()
-	for i := int64(1); i <= count; i++ {
-		node, err := contracts.GovImp.GetNode(opts, big.NewInt(i))
-		if err != nil {
-			return WemixGovInfo{}, err
-		}
-		member, err := contracts.GovImp.GetMember(opts, big.NewInt(i))
-		if err != nil {
-			return WemixGovInfo{}, err
-		}
-
-		sid := hex.EncodeToString(node.Enode)
-		if len(sid) != 128 {
-			return WemixGovInfo{}, errInvalidEnode
-		}
-		idv4, _ := toIdv4(sid)
-		nodes = append(nodes, &wemixNode{
-			Name:  string(node.Name),
-			Enode: sid,
-			Ip:    string(node.Ip),
-			Id:    idv4,
-			Port:  int(node.Port.Int64()),
-			Addr:  member,
-		})
-	}
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].Name < nodes[j].Name
-	})
-	result.Nodes = nodes
-	return result, nil
+	return wemixPoA.govCli.SetBootAccount(genesisBlock.Coinbase)
 }
 
 // Author implements consensus.Engine, returning the header's coinbase as the
@@ -436,7 +317,7 @@ func (wpoa *WemixPoA) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 			return err
 		}
 	} else {
-		_, _, _, _, gasTargetPercentage, err := wpoa.getBlockBuildParameters(parent.Number)
+		_, _, _, _, gasTargetPercentage, err := wpoa.govCli.GetBlockBuildParameters(parent.Number)
 		if errors.Is(err, errNotInitialized) {
 			return nil
 		}
@@ -478,7 +359,7 @@ func (wpoa *WemixPoA) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	// WEMIX doesn't verify dao extra data
 	// if err := misc.VerifyDAOHeaderExtraData(chain.Config(), header); err != nil {return err}
 	// WEMIX: Check if it's generated and signed by a registered node
-	if wpoa.verifyBlockSig(header.Number, chain, header.Coinbase, header.MinerNodeId, header.Root, header.MinerNodeSig, chain.Config().IsPangyo(header.Number)) {
+	if !wpoa.govCli.VerifyBlockSig(header.Number, chain, header.Coinbase, header.MinerNodeId, header.Root, header.MinerNodeSig, chain.Config().IsPangyo(header.Number)) {
 		return errUnauthorized
 	}
 	return nil
@@ -518,54 +399,16 @@ func (wpoa *WemixPoA) Finalize(chain consensus.ChainHeaderReader, header *types.
 
 // FinalizeAndAssemble implements consensus.Engine, accumulating the block and
 // uncle rewards, setting the final state and assembling the block.
-func (wpoa *WemixPoA) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-	uncles []*types.Header, receipts []*types.Receipt, withdrawals []*types.Withdrawal) (*types.Block, error) {
-	if len(withdrawals) > 0 {
-		return nil, errors.New("ethash does not support withdrawals")
-	}
-	// Finalize block
-	wpoa.Finalize(chain, header, state, txs, uncles, withdrawals)
-
-	// Assign the final state root to header.
-	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-
-	// sign header.Root with node's private key
-	coinbase, sig, err := wpoa.signBlock(header.Number, header.Root)
-	if err != nil {
-		return nil, err
-	} else {
-		header.Coinbase = coinbase
-		header.MinerNodeSig = sig
-	}
-
-	// Header seems complete, assemble into a block and return
-	return types.NewBlock(header, txs, uncles, receipts, trie.NewStackTrie(nil)), nil
+func (wpoa *WemixPoA) FinalizeAndAssemble(consensus.ChainHeaderReader, *types.Header, *state.StateDB, []*types.Transaction,
+	[]*types.Header, []*types.Receipt, []*types.Withdrawal) (*types.Block, error) {
+	panic("WemixPoA.FinalizeAndAssemble should not be called")
 }
 
-func (wpoa *WemixPoA) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
-	wpoa.lock.Lock()
-	if wpoa.rand == nil {
-		seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-		if err != nil {
-			wpoa.lock.Unlock()
-			return err
-		}
-		wpoa.rand = rand.New(rand.NewSource(seed.Int64()))
-	}
-	wpoa.lock.Unlock()
-	abort := make(chan struct{})
-	found := make(chan *types.Block)
-	go wpoa.mine(block, 0, uint64(wpoa.rand.Int63()), abort, found)
-	result := <-found
-	select {
-	case results <- result:
-	default:
-		log.Warn("Sealing result is not read by miner", "sealhash", wpoa.SealHash(block.Header()))
-	}
-	return nil
+func (wpoa *WemixPoA) Seal(consensus.ChainHeaderReader, *types.Block, chan<- *types.Block, <-chan struct{}) error {
+	panic("WemixPoA.Seal should not be called")
 }
 
-func (wpoa *WemixPoA) APIs(chain consensus.ChainHeaderReader) []rpc.API {
+func (wpoa *WemixPoA) APIs(consensus.ChainHeaderReader) []rpc.API {
 	return []rpc.API{}
 }
 
@@ -573,91 +416,9 @@ func (wpoa *WemixPoA) Close() error {
 	return nil
 }
 
-// mine is the actual proof-of-work miner that searches for a nonce starting from
-// seed that results in correct final block difficulty.
-func (wpoa *WemixPoA) mine(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
-	// Extract some data from the header
-	var (
-		header = block.Header()
-		hash   = wpoa.SealHash(header).Bytes()
-		target = new(big.Int).Div(two256, header.Difficulty)
-	)
-	// Start generating random nonces until we abort or find a good one
-	var (
-		nonce     = seed
-		powBuffer = new(big.Int)
-	)
-	log.Trace("Started ethash search for new nonces", "seed", seed)
-search:
-	for {
-		select {
-		case <-abort:
-			// Mining terminated, update stats and abort
-			log.Trace("Ethash nonce search aborted", "attempts", nonce-seed)
-			break search
-
-		default:
-			// We don't have to update hash rate on every nonce, so update after after 2^X nonces
-			// Compute the PoW value of this nonce
-			var digest, result []byte
-			digest, result = hashimeta(hash, nonce)
-			if powBuffer.SetBytes(result).Cmp(target) <= 0 {
-				// Correct nonce found, create a new header with it
-				header = types.CopyHeader(header)
-				header.Nonce = types.EncodeNonce(nonce)
-				header.MixDigest = common.BytesToHash(digest)
-
-				// Seal and return a block (if still needed)
-				select {
-				case found <- block.WithSeal(header):
-					log.Trace("Ethash nonce found and reported", "attempts", nonce-seed, "nonce", nonce)
-				case <-abort:
-					log.Trace("Ethash nonce found but discarded", "attempts", nonce-seed, "nonce", nonce)
-				}
-				break search
-			}
-			nonce++
-		}
-	}
-}
-
 // SealHash returns the hash of a block prior to it being sealed.
-func (wpoa *WemixPoA) SealHash(header *types.Header) (hash common.Hash) {
-	hasher := sha3.NewLegacyKeccak256()
-
-	enc := []interface{}{
-		header.ParentHash,
-		header.UncleHash,
-		header.Coinbase,
-		header.Root,
-		header.TxHash,
-		header.ReceiptHash,
-		header.Bloom,
-		header.Difficulty,
-		header.Number,
-		header.GasLimit,
-		header.GasUsed,
-		header.Time,
-		header.Extra,
-	}
-	if header.BaseFee != nil {
-		enc = append(enc, header.BaseFee)
-	}
-	if header.WithdrawalsHash != nil {
-		panic("withdrawal hash set on ethash")
-	}
-	if header.ExcessBlobGas != nil {
-		panic("excess blob gas set on ethash")
-	}
-	if header.BlobGasUsed != nil {
-		panic("blob gas used set on ethash")
-	}
-	if header.ParentBeaconRoot != nil {
-		panic("parent beacon root set on ethash")
-	}
-	rlp.Encode(hasher, enc)
-	hasher.Sum(hash[:0])
-	return hash
+func (wpoa *WemixPoA) SealHash(*types.Header) (hash common.Hash) {
+	panic("WemixPoA.SealHash should not be called")
 }
 
 // accumulateRewards credits the coinbase of the given block with the mining
@@ -683,10 +444,7 @@ func (wpoa *WemixPoA) accumulateRewards(config *params.ChainConfig, stateDB *sta
 }
 
 func (wpoa *WemixPoA) calculateRewards(config *params.ChainConfig, num, fees *big.Int, addBalance func(common.Address, *big.Int)) ([]byte, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	rp, err := wpoa.getRewardParams(ctx, big.NewInt(num.Int64()-1))
+	rp, err := wpoa.govCli.GetRewardParams(big.NewInt(num.Int64() - 1))
 	if err != nil {
 		// all goes to the coinbase
 		return nil, errNotInitialized
@@ -695,8 +453,8 @@ func (wpoa *WemixPoA) calculateRewards(config *params.ChainConfig, num, fees *bi
 	return wpoa.calculateRewardsWithParams(config, rp, num, fees, addBalance)
 }
 
-func (wpoa *WemixPoA) calculateRewardsWithParams(config *params.ChainConfig, rp *rewardParameters, num, fees *big.Int, addBalance func(common.Address, *big.Int)) (rewards []byte, err error) {
-	if (rp.staker == nil && rp.ecoSystem == nil && rp.maintenance == nil) || len(rp.members) == 0 {
+func (wpoa *WemixPoA) calculateRewardsWithParams(config *params.ChainConfig, rp *RewardParameters, num, fees *big.Int, addBalance func(common.Address, *big.Int)) (rewards []byte, err error) {
+	if (rp.Staker == nil && rp.EcoSystem == nil && rp.Maintenance == nil) || len(rp.Members) == 0 {
 		// handle testnet block 94 rewards
 		if rewards94 := wpoa.handleBlock94Rewards(num, rp); rewards94 != nil {
 			if addBalance != nil {
@@ -713,10 +471,10 @@ func (wpoa *WemixPoA) calculateRewardsWithParams(config *params.ChainConfig, rp 
 
 	var blockReward *big.Int
 	if config.IsBrioche(num) {
-		blockReward = config.Brioche.GetBriocheBlockReward(defaultBriocheBlockReward, num)
+		blockReward = config.Brioche.GetBriocheBlockReward(params.DefaultBriocheBlockReward, num)
 	} else {
-		// if the wemix chain is not on brioche hard fork, use the `rewardAmount` from gov contract
-		blockReward = new(big.Int).Set(rp.rewardAmount)
+		// if the wemix chain is not on brioche hard fork, use the `RewardAmount` from gov contract
+		blockReward = new(big.Int).Set(rp.RewardAmount)
 	}
 
 	// block reward
@@ -756,106 +514,22 @@ var testnetBlock94Rewards = []reward{
 	},
 }
 
-func (wpoa *WemixPoA) handleBlock94Rewards(height *big.Int, rp *rewardParameters) []reward {
-	if height.Int64() == 94 && len(rp.members) == 0 &&
-		bytes.Equal(rp.staker[:], testnetBlock94Rewards[0].Addr[:]) &&
-		bytes.Equal(rp.ecoSystem[:], testnetBlock94Rewards[1].Addr[:]) &&
-		bytes.Equal(rp.maintenance[:], testnetBlock94Rewards[2].Addr[:]) {
+func (wpoa *WemixPoA) handleBlock94Rewards(height *big.Int, rp *RewardParameters) []reward {
+	if height.Int64() == 94 && len(rp.Members) == 0 &&
+		bytes.Equal(rp.Staker[:], testnetBlock94Rewards[0].Addr[:]) &&
+		bytes.Equal(rp.EcoSystem[:], testnetBlock94Rewards[1].Addr[:]) &&
+		bytes.Equal(rp.Maintenance[:], testnetBlock94Rewards[2].Addr[:]) {
 		return testnetBlock94Rewards
 	}
 	return nil
 }
 
-func (wpoa *WemixPoA) getRegGovEnvContracts(ctx context.Context, height *big.Int) (*gov.GovContracts, error) {
-	if ctx == nil {
-		var cancel func()
-		ctx, cancel = context.WithCancel(context.Background())
-		defer cancel()
-	}
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-	return gov.GetGovContractsByOwner(opts, wpoa.cli, wpoa.bootAccount)
-}
-
-func (wpoa *WemixPoA) getRewardParams(ctx context.Context, height *big.Int) (*rewardParameters, error) {
-	rp := &rewardParameters{}
-	contracts, err := wpoa.getRegGovEnvContracts(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-
-	rp.rewardAmount, err = contracts.EnvStorageImp.GetBlockRewardAmount(opts)
-	if err != nil {
-		return nil, err
-	}
-
-	distributionMethod1, distributionMethod2, distributionMethod3, distributionMethod4, err := contracts.EnvStorageImp.GetBlockRewardDistributionMethod(opts)
-	if err != nil {
-		return nil, err
-	}
-	rp.distributionMethod = []*big.Int{distributionMethod1, distributionMethod2, distributionMethod3, distributionMethod4}
-
-	staker, err := contracts.Registry.GetContractAddress(opts, ToBytes32(gov.DOMAIN_StakingReward))
-	if err != nil {
-		return nil, errors.Wrap(err, gov.DOMAIN_Staking)
-	}
-	rp.staker = &staker
-
-	ecoSystem, err := contracts.Registry.GetContractAddress(opts, ToBytes32(gov.DOMAIN_Ecosystem))
-	if err != nil {
-		return nil, errors.Wrap(err, gov.DOMAIN_Ecosystem)
-	}
-	rp.ecoSystem = &ecoSystem
-
-	maintenance, err := contracts.Registry.GetContractAddress(opts, ToBytes32(gov.DOMAIN_Maintenance))
-	if err != nil {
-		return nil, errors.Wrap(err, gov.DOMAIN_Maintenance)
-	}
-	rp.maintenance = &maintenance
-
-	feeCollector, err := contracts.Registry.GetContractAddress(opts, ToBytes32(gov.DOMAIN_FeeCollector))
-	if err != nil {
-		rp.feeCollector = nil
-	} else {
-		rp.feeCollector = &feeCollector
-	}
-
-	blocksPer, err := contracts.EnvStorageImp.GetBlocksPer(opts)
-	if err != nil {
-		return nil, err
-	}
-	rp.blocksPer = blocksPer.Int64()
-
-	if countBig, err := contracts.GovImp.GetMemberLength(opts); err != nil {
-		return nil, err
-	} else {
-		count := countBig.Int64()
-		for i := int64(1); i <= count; i++ {
-			index := big.NewInt(i)
-			if member, err := contracts.GovImp.GetMember(opts, index); err != nil {
-				return nil, err
-			} else if reward, err := contracts.GovImp.GetReward(opts, index); err != nil {
-				return nil, err
-			} else if stake, err := contracts.StakingImp.LockedBalanceOf(opts, member); err != nil {
-				return nil, err
-			} else {
-				rp.members = append(rp.members, &wemixMember{
-					Staker: member,
-					Reward: reward,
-					Stake:  stake,
-				})
-			}
-		}
-	}
-	return rp, nil
-}
-
-// distributeRewards divides the rewardAmount among members according to their
-// stakes, and allocates rewards to staker, ecoSystem, and maintenance accounts.
-func (wpoa *WemixPoA) distributeRewards(height *big.Int, rp *rewardParameters, blockReward *big.Int, fees *big.Int) ([]reward, error) {
+// distributeRewards divides the RewardAmount among Members according to their
+// stakes, and allocates rewards to Staker, EcoSystem, and Maintenance accounts.
+func (wpoa *WemixPoA) distributeRewards(height *big.Int, rp *RewardParameters, blockReward *big.Int, fees *big.Int) ([]reward, error) {
 	dm := new(big.Int)
-	for i := 0; i < len(rp.distributionMethod); i++ {
-		dm.Add(dm, rp.distributionMethod[i])
+	for i := 0; i < len(rp.DistributionMethod); i++ {
+		dm.Add(dm, rp.DistributionMethod[i])
 	}
 	if dm.Int64() != 10000 {
 		return nil, errNotInitialized
@@ -863,30 +537,30 @@ func (wpoa *WemixPoA) distributeRewards(height *big.Int, rp *rewardParameters, b
 
 	v10000 := big.NewInt(10000)
 	minerAmount := new(big.Int).Set(blockReward)
-	minerAmount.Div(minerAmount.Mul(minerAmount, rp.distributionMethod[0]), v10000)
+	minerAmount.Div(minerAmount.Mul(minerAmount, rp.DistributionMethod[0]), v10000)
 	stakerAmount := new(big.Int).Set(blockReward)
-	stakerAmount.Div(stakerAmount.Mul(stakerAmount, rp.distributionMethod[1]), v10000)
+	stakerAmount.Div(stakerAmount.Mul(stakerAmount, rp.DistributionMethod[1]), v10000)
 	ecoSystemAmount := new(big.Int).Set(blockReward)
-	ecoSystemAmount.Div(ecoSystemAmount.Mul(ecoSystemAmount, rp.distributionMethod[2]), v10000)
-	// the rest goes to maintenance
+	ecoSystemAmount.Div(ecoSystemAmount.Mul(ecoSystemAmount, rp.DistributionMethod[2]), v10000)
+	// the rest goes to Maintenance
 	maintenanceAmount := new(big.Int).Set(blockReward)
 	maintenanceAmount.Sub(maintenanceAmount, minerAmount)
 	maintenanceAmount.Sub(maintenanceAmount, stakerAmount)
 	maintenanceAmount.Sub(maintenanceAmount, ecoSystemAmount)
 
-	// if feeCollector is not specified, i.e. nil, fees go to maintenance
-	if rp.feeCollector == nil {
+	// if FeeCollector is not specified, i.e. nil, fees go to Maintenance
+	if rp.FeeCollector == nil {
 		maintenanceAmount.Add(maintenanceAmount, fees)
 	}
 
 	var rewards []reward
-	if n := len(rp.members); n > 0 {
+	if n := len(rp.Members); n > 0 {
 		stakeTotal, equalStakes := big.NewInt(0), true
 		for i := 0; i < n; i++ {
-			if equalStakes && i < n-1 && rp.members[i].Stake.Cmp(rp.members[i+1].Stake) != 0 {
+			if equalStakes && i < n-1 && rp.Members[i].Stake.Cmp(rp.Members[i+1].Stake) != 0 {
 				equalStakes = false
 			}
-			stakeTotal.Add(stakeTotal, rp.members[i].Stake)
+			stakeTotal.Add(stakeTotal, rp.Members[i].Stake)
 		}
 
 		if equalStakes {
@@ -897,7 +571,7 @@ func (wpoa *WemixPoA) distributeRewards(height *big.Int, rp *rewardParameters, b
 			d.Div(b, vn)
 			for i := 0; i < n; i++ {
 				rewards = append(rewards, reward{
-					Addr:   rp.members[i].Reward,
+					Addr:   rp.Members[i].Reward,
 					Reward: new(big.Int).Set(d),
 				})
 			}
@@ -912,11 +586,11 @@ func (wpoa *WemixPoA) distributeRewards(height *big.Int, rp *rewardParameters, b
 			v0, v1 := big.NewInt(0), big.NewInt(1)
 			remainder := new(big.Int).Set(minerAmount)
 			for i := 0; i < n; i++ {
-				memberReward := new(big.Int).Mul(minerAmount, rp.members[i].Stake)
+				memberReward := new(big.Int).Mul(minerAmount, rp.Members[i].Stake)
 				memberReward.Div(memberReward, stakeTotal)
 				remainder.Sub(remainder, memberReward)
 				rewards = append(rewards, reward{
-					Addr:   rp.members[i].Reward,
+					Addr:   rp.Members[i].Reward,
 					Reward: memberReward,
 				})
 			}
@@ -927,20 +601,20 @@ func (wpoa *WemixPoA) distributeRewards(height *big.Int, rp *rewardParameters, b
 		}
 	}
 	rewards = append(rewards, reward{
-		Addr:   *rp.staker,
+		Addr:   *rp.Staker,
 		Reward: stakerAmount,
 	})
 	rewards = append(rewards, reward{
-		Addr:   *rp.ecoSystem,
+		Addr:   *rp.EcoSystem,
 		Reward: ecoSystemAmount,
 	})
 	rewards = append(rewards, reward{
-		Addr:   *rp.maintenance,
+		Addr:   *rp.Maintenance,
 		Reward: maintenanceAmount,
 	})
-	if rp.feeCollector != nil {
+	if rp.FeeCollector != nil {
 		rewards = append(rewards, reward{
-			Addr:   *rp.feeCollector,
+			Addr:   *rp.FeeCollector,
 			Reward: fees,
 		})
 	}
@@ -994,338 +668,4 @@ func hashimeta(hash []byte, nonce uint64) ([]byte, []byte) {
 
 	result := crypto.Keccak256(seed)
 	return result, result
-}
-
-func (wpoa *WemixPoA) signBlock(height *big.Int, hash common.Hash) (common.Address, []byte, error) {
-	sig, err := crypto.Sign(crypto.Keccak256(append(height.Bytes(), hash.Bytes()...)), wpoa.prvKey)
-	if err != nil {
-		return common.Address{}, nil, err
-	}
-
-	if wpoa.nodeInfo == nil {
-		nodeInfo, err := wpoa.getNodeInfo()
-		if err != nil {
-			log.Error("Failed to get node info", "error", err)
-		} else {
-			wpoa.nodeInfo = nodeInfo
-		}
-	}
-	if wpoa.nodeInfo != nil && wpoa.nodeInfo.ID == wpoa.bootNodeId {
-		return wpoa.bootAccount, sig, nil
-	} else if wpoa.self != nil {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		num := new(big.Int).Sub(height, common.Big1)
-		contracts, err := wpoa.getRegGovEnvContracts(ctx, num)
-		if err != nil {
-			return common.Address{}, nil, err
-		}
-
-		nodeId := crypto.FromECDSAPub(&wpoa.prvKey.PublicKey)[1:]
-		if addr, err := wpoa.enodeExists(ctx, height, contracts.GovImp, nodeId); err != nil {
-			return common.Address{}, nil, err
-		} else {
-			return addr, sig, nil
-		}
-	} else {
-		return common.Address{}, sig, errNotInitialized
-	}
-}
-
-func (wpoa *WemixPoA) verifyBlockSig(height *big.Int, chain consensus.ChainHeaderReader, coinbase common.Address, nodeId []byte, hash common.Hash, sig []byte, checkMinerLimit bool) bool {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// get nodeid from the coinbase
-	num := new(big.Int).Sub(height, common.Big1)
-	contracts, err := wpoa.getRegGovEnvContracts(ctx, num)
-	if err != nil {
-		return err == errNotInitialized || errors.Is(err, errNotFound)
-	} else if count, err := contracts.GovImp.GetMemberLength(&bind.CallOpts{Context: ctx, BlockNumber: num}); err != nil || count.Sign() == 0 {
-		return err == errNotInitialized || count.Sign() == 0
-	}
-	gov := contracts.GovImp
-	// if minerNodeId is given, i.e. present in block header, use it,
-	// otherwise, derive it from the codebase
-	var data []byte
-	if len(nodeId) == 0 {
-		nodeId, err = wpoa.coinbaseExists(ctx, height, gov, &coinbase)
-		if err != nil || len(nodeId) == 0 {
-			return false
-		}
-		data = append(height.Bytes(), hash.Bytes()...)
-		data = crypto.Keccak256(data)
-	} else {
-		if _, err := wpoa.enodeExists(ctx, height, gov, nodeId); err != nil {
-			return false
-		}
-		data = hash.Bytes()
-	}
-	pubKey, err := crypto.Ecrecover(data, sig)
-	if err != nil || len(pubKey) < 1 || !bytes.Equal(nodeId, pubKey[1:]) {
-		return false
-	}
-	// check miner limit
-	if !checkMinerLimit {
-		return true
-	}
-	ok, err := wpoa.verifyMinerLimit(ctx, chain, height, gov, &coinbase, nodeId)
-	return err == nil && ok
-}
-
-func (wpoa *WemixPoA) getCoinbaseEnodeCache(ctx context.Context, height *big.Int, gov *gov.GovImp) (*coinbaseEnodeEntry, error) {
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-	modifiedBlock, err := gov.ModifiedBlock(opts)
-	if err != nil {
-		return nil, err
-	}
-	if modifiedBlock.Sign() == 0 {
-		return nil, errNotInitialized
-	}
-
-	// if found in cache, use it
-	if e, ok := wpoa.coinbaseEnodeCache.Load(modifiedBlock.Int64()); ok {
-		return e.(*coinbaseEnodeEntry), nil
-	}
-	// otherwise, load it from the governance
-	var (
-		count       *big.Int
-		addr        common.Address
-		name, enode []byte
-		e           = &coinbaseEnodeEntry{
-			modifiedBlock:  modifiedBlock,
-			coinbase2enode: map[string][]byte{},
-			enode2index:    map[string]int{},
-		}
-	)
-	if count, err = gov.GetNodeLength(opts); err != nil {
-		return nil, err
-	}
-	for i := int64(1); i <= count.Int64(); i++ {
-		ix := big.NewInt(i)
-		if addr, err = gov.GetReward(opts, ix); err != nil {
-			return nil, err
-		}
-
-		if output, err := gov.GetNode(opts, ix); err != nil {
-			return nil, err
-		} else {
-			name, enode = output.Name, output.Enode
-		}
-
-		idv4, _ := toIdv4(hex.EncodeToString(enode))
-		e.nodes = append(e.nodes, &wemixNode{
-			Name:  string(name),
-			Enode: string(enode), // note that this is not in hex unlike wemixAdmin
-			Id:    idv4,
-			Addr:  addr,
-		})
-		e.coinbase2enode[string(addr[:])] = enode
-		e.enode2index[string(enode)] = int(i) // 1-based, not 0-based
-	}
-	wpoa.coinbaseEnodeCache.Store(modifiedBlock.Int64(), e)
-	return e, nil
-}
-
-func toIdv4(id string) (string, error) {
-	if len(id) == 64 {
-		return id, nil
-	} else if len(id) == 128 {
-		idv4, err := enode.ParseV4(fmt.Sprintf("enode://%v@127.0.0.1:8589", id))
-		if err != nil {
-			return "", err
-		} else {
-			return idv4.ID().String(), nil
-		}
-	} else {
-		return "", fmt.Errorf("invalid V5 Identifier")
-	}
-}
-
-func ToBytes32(b string) [32]byte {
-	var b32 [32]byte
-	if len(b) > len(b32) {
-		b = b[len(b)-len(b32):]
-	}
-	copy(b32[:], []byte(b))
-	return b32
-}
-
-// returns coinbase's enode if exists in governance at given height - 1
-func (wpoa *WemixPoA) coinbaseExists(ctx context.Context, height *big.Int, gov *gov.GovImp, coinbase *common.Address) ([]byte, error) {
-	e, err := wpoa.getCoinbaseEnodeCache(ctx, new(big.Int).Sub(height, common.Big1), gov)
-	if err != nil {
-		return nil, err
-	}
-	enode, ok := e.coinbase2enode[string(coinbase[:])]
-	if !ok {
-		return nil, nil
-	}
-	return enode, nil
-}
-
-// returns true if enode exists in governance at given height-1
-func (wpoa *WemixPoA) enodeExists(ctx context.Context, height *big.Int, gov *gov.GovImp, enode []byte) (common.Address, error) {
-	e, err := wpoa.getCoinbaseEnodeCache(ctx, new(big.Int).Sub(height, common.Big1), gov)
-	if err != nil {
-		return common.Address{}, err
-	}
-	ix, ok := e.enode2index[string(enode)]
-	if !ok {
-		return common.Address{}, errNotFound
-	}
-	return e.nodes[ix-1].Addr, nil
-}
-
-func (wpoa *WemixPoA) verifyMinerLimit(ctx context.Context, chain consensus.ChainHeaderReader, height *big.Int, gov *gov.GovImp, coinbase *common.Address, enode []byte) (bool, error) {
-	// parent block number
-	prev := new(big.Int).Sub(height, common.Big1)
-	e, err := wpoa.getCoinbaseEnodeCache(ctx, prev, gov)
-	if err != nil {
-		return false, err
-	}
-	// if count <= 2, not enforced
-	if len(e.nodes) <= 2 {
-		return true, nil
-	}
-	// if enode is not given, derive it from the coinbase
-	if len(enode) == 0 {
-		enode2, ok := e.coinbase2enode[string(coinbase[:])]
-		if !ok {
-			return false, nil
-		}
-		enode = enode2
-	}
-	// the enode should not appear within the last (member count / 2) blocks
-	limit := len(e.nodes) / 2
-	if limit > int(height.Int64()-e.modifiedBlock.Int64()-1) {
-		limit = int(height.Int64() - e.modifiedBlock.Int64() - 1)
-	}
-	for h := new(big.Int).Set(prev); limit > 0; h, limit = h.Sub(h, common.Big1), limit-1 {
-		blockMinerEnode, err := wpoa.getBlockMiner(chain, e, h)
-		if err != nil {
-			return false, err
-		}
-		if bytes.Equal(enode[:], blockMinerEnode[:]) {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
-// return block's miner node id
-func (wpoa *WemixPoA) getBlockMiner(chain consensus.ChainHeaderReader, entry *coinbaseEnodeEntry, height *big.Int) ([]byte, error) {
-	// if already cached, use it
-	if enode := wpoa.height2enode.Get(height.Uint64()); enode != nil {
-		return enode.([]byte), nil
-	}
-	block := chain.GetHeaderByNumber(height.Uint64())
-	if len(block.MinerNodeId) == 0 {
-		enode, ok := entry.coinbase2enode[string(block.Coinbase[:])]
-		if !ok {
-			return nil, nil
-		}
-		wpoa.height2enode.Put(height.Uint64(), enode)
-		return enode, nil
-	} else {
-		if _, ok := entry.enode2index[string(block.MinerNodeId)]; !ok {
-			return nil, nil
-		}
-		wpoa.height2enode.Put(height.Uint64(), block.MinerNodeId)
-		return block.MinerNodeId, nil
-	}
-}
-
-func (wpoa *WemixPoA) getNodeInfo() (*p2p.NodeInfo, error) {
-	var nodeInfo *p2p.NodeInfo
-	ctx, cancel := context.WithCancel(context.Background())
-	err := wpoa.rpcCli.CallContext(ctx, &nodeInfo, "admin_nodeInfo")
-	cancel()
-	if err != nil {
-		log.Error("Cannot get node info", "error", err)
-	}
-	return nodeInfo, err
-}
-
-func (wpoa *WemixPoA) getBlockBuildParameters(height *big.Int) (blockInterval int64, maxBaseFee, gasLimit *big.Int, baseFeeMaxChangeRate, gasTargetPercentage int64, err error) {
-	err = errNotInitialized
-
-	wpoa.blockBuildParamsLock.Lock()
-	if wpoa.blockBuildParams != nil && wpoa.blockBuildParams.height == height.Uint64() {
-		// use cached
-		blockInterval = wpoa.blockBuildParams.blockInterval
-		maxBaseFee = wpoa.blockBuildParams.maxBaseFee
-		gasLimit = wpoa.blockBuildParams.gasLimit
-		baseFeeMaxChangeRate = wpoa.blockBuildParams.baseFeeMaxChangeRate
-		gasTargetPercentage = wpoa.blockBuildParams.gasTargetPercentage
-		wpoa.blockBuildParamsLock.Unlock()
-		err = nil
-		return
-	}
-	wpoa.blockBuildParamsLock.Unlock()
-
-	// default values
-	blockInterval = 15
-	maxBaseFee = big.NewInt(0)
-	gasLimit = big.NewInt(0)
-	baseFeeMaxChangeRate = 0
-	gasTargetPercentage = 100
-
-	if wpoa.self == nil {
-		return
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var (
-		env *gov.EnvStorageImp
-		gov *gov.GovImp
-	)
-	if contracts, err2 := wpoa.getRegGovEnvContracts(ctx, height); err2 != nil {
-		err = errNotInitialized
-		return
-	} else {
-		env, gov = contracts.EnvStorageImp, contracts.GovImp
-	}
-
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-	if count, err2 := gov.GetMemberLength(opts); err2 != nil || count.Sign() == 0 {
-		err = errNotInitialized
-		return
-	}
-	if v, err2 := env.GetBlockCreationTime(opts); err2 != nil {
-		err = errNotInitialized
-		return
-	} else {
-		blockInterval = v.Int64()
-	}
-
-	if GasLimit, BaseFeeMaxChangeRate, GasTargetPercentage, err2 := env.GetGasLimitAndBaseFee(opts); err2 != nil {
-		err = errNotInitialized
-		return
-	} else {
-		gasLimit = GasLimit
-		baseFeeMaxChangeRate = BaseFeeMaxChangeRate.Int64()
-		gasTargetPercentage = GasTargetPercentage.Int64()
-	}
-
-	if maxBaseFee, err = env.GetMaxBaseFee(opts); err != nil {
-		err = errNotInitialized
-		return
-	}
-
-	// cache it
-	wpoa.blockBuildParamsLock.Lock()
-	wpoa.blockBuildParams = &blockBuildParameters{
-		height:               height.Uint64(),
-		blockInterval:        blockInterval,
-		maxBaseFee:           maxBaseFee,
-		gasLimit:             gasLimit,
-		baseFeeMaxChangeRate: baseFeeMaxChangeRate,
-		gasTargetPercentage:  gasTargetPercentage,
-	}
-	wpoa.blockBuildParamsLock.Unlock()
-	err = nil
-	return
 }

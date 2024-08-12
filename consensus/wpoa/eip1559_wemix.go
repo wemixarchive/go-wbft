@@ -64,7 +64,7 @@ func (wpoa *WemixPoA) CalcBaseFee(config *params.ChainConfig, parent *types.Head
 		maxBaseFee         *big.Int
 	)
 	// NB: in Wemix both elasticityMultiplier & baseFeeChangeDenominator are percentage numbers
-	_, maxBaseFeeGov, _, baseFeeMaxChangeRate, gasTargetPercentage, err := wpoa.getBlockBuildParameters(parent.Number)
+	_, maxBaseFeeGov, _, baseFeeMaxChangeRate, gasTargetPercentage, err := wpoa.govCli.GetBlockBuildParameters(parent.Number)
 	if errors.Is(err, errNotInitialized) {
 		return new(big.Int).Set(parent.BaseFee)
 	}

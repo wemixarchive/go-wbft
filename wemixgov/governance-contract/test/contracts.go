@@ -13,10 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/compiler"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	compile "github.com/ethereum/go-ethereum/consensus/wpoa/governance-contract"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
+	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
