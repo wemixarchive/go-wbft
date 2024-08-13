@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -20,12 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	"github.com/pkg/errors"
-)
-
-var (
-	errInvalidEnode   = errors.New("invalid enode")
-	errNotInitialized = errors.New("not initialized")
-	errNotFound       = errors.New("not found")
 )
 
 type WemixGov struct {
@@ -131,7 +126,7 @@ func (wg *WemixGov) GetGovInfo(blockNumber *big.Int) (wpoa.WemixGovInfo, error) 
 
 		sid := hex.EncodeToString(node.Enode)
 		if len(sid) != 128 {
-			return wpoa.WemixGovInfo{}, errInvalidEnode
+			return wpoa.WemixGovInfo{}, wpoa.ErrInvalidEnode
 		}
 		idv4, _ := toIdv4(sid)
 		nodes = append(nodes, &wpoa.WemixNode{
@@ -266,9 +261,9 @@ func (wg *WemixGov) VerifyBlockSig(height *big.Int, chain consensus.ChainHeaderR
 	num := new(big.Int).Sub(height, common.Big1)
 	contracts, err := wg.getRegGovEnvContracts(ctx, num)
 	if err != nil {
-		return err == errNotInitialized || errors.Is(err, errNotFound)
+		return err == wpoa.ErrNotInitialized || errors.Is(err, ethereum.NotFound)
 	} else if count, err := contracts.GovImp.GetMemberLength(&bind.CallOpts{Context: ctx, BlockNumber: num}); err != nil || count.Sign() == 0 {
-		return err == errNotInitialized || count.Sign() == 0
+		return err == wpoa.ErrNotInitialized || count.Sign() == 0
 	}
 	gov := contracts.GovImp
 	// if minerNodeId is given, i.e. present in block header, use it,
@@ -300,7 +295,7 @@ func (wg *WemixGov) VerifyBlockSig(height *big.Int, chain consensus.ChainHeaderR
 }
 
 func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int64, maxBaseFee, gasLimit *big.Int, baseFeeMaxChangeRate, gasTargetPercentage int64, err error) {
-	err = errNotInitialized
+	err = wpoa.ErrNotInitialized
 
 	wg.blockBuildParamsLock.Lock()
 	if wg.blockBuildParams != nil && wg.blockBuildParams.Height == height.Uint64() {
@@ -331,7 +326,7 @@ func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int6
 		gov *gov.GovImp
 	)
 	if contracts, err2 := wg.getRegGovEnvContracts(ctx, height); err2 != nil {
-		err = errNotInitialized
+		err = wpoa.ErrNotInitialized
 		return
 	} else {
 		env, gov = contracts.EnvStorageImp, contracts.GovImp
@@ -339,18 +334,18 @@ func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int6
 
 	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
 	if count, err2 := gov.GetMemberLength(opts); err2 != nil || count.Sign() == 0 {
-		err = errNotInitialized
+		err = wpoa.ErrNotInitialized
 		return
 	}
 	if v, err2 := env.GetBlockCreationTime(opts); err2 != nil {
-		err = errNotInitialized
+		err = wpoa.ErrNotInitialized
 		return
 	} else {
 		blockInterval = v.Int64()
 	}
 
 	if GasLimit, BaseFeeMaxChangeRate, GasTargetPercentage, err2 := env.GetGasLimitAndBaseFee(opts); err2 != nil {
-		err = errNotInitialized
+		err = wpoa.ErrNotInitialized
 		return
 	} else {
 		gasLimit = GasLimit
@@ -359,7 +354,7 @@ func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int6
 	}
 
 	if maxBaseFee, err = env.GetMaxBaseFee(opts); err != nil {
-		err = errNotInitialized
+		err = wpoa.ErrNotInitialized
 		return
 	}
 
@@ -467,7 +462,7 @@ func (wg *WemixGov) getCoinbaseEnodeCache(ctx context.Context, height *big.Int, 
 		return nil, err
 	}
 	if modifiedBlock.Sign() == 0 {
-		return nil, errNotInitialized
+		return nil, wpoa.ErrNotInitialized
 	}
 
 	// if found in cache, use it
@@ -522,7 +517,7 @@ func (wg *WemixGov) enodeExists(ctx context.Context, height *big.Int, gov *gov.G
 	}
 	ix, ok := e.enode2index[string(enode)]
 	if !ok {
-		return common.Address{}, errNotFound
+		return common.Address{}, wpoa.ErrNotFound
 	}
 	return e.nodes[ix-1].Addr, nil
 }

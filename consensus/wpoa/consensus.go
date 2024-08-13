@@ -51,7 +51,10 @@ var (
 // codebase, inherently breaking if the engine is swapped out. Please put common
 // error types into the consensus package.
 var (
-	errNotInitialized      = errors.New("not initialized")
+	ErrNotInitialized = errors.New("not initialized")
+	ErrInvalidEnode   = errors.New("invalid enode")
+	ErrNotFound       = errors.New("not found")
+
 	errTooManyUncles       = errors.New("too many uncles")
 	errDuplicateUncle      = errors.New("duplicate uncle")
 	errUncleIsAncestor     = errors.New("uncle is ancestor")
@@ -318,7 +321,7 @@ func (wpoa *WemixPoA) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		}
 	} else {
 		_, _, _, _, gasTargetPercentage, err := wpoa.govCli.GetBlockBuildParameters(parent.Number)
-		if errors.Is(err, errNotInitialized) {
+		if errors.Is(err, ErrNotInitialized) {
 			return nil
 		}
 		if err := wpoa.VerifyDynamicGasHeader(chain.Config(), parent, header, uint64(gasTargetPercentage)); err != nil {
@@ -433,7 +436,7 @@ func (wpoa *WemixPoA) accumulateRewards(config *params.ChainConfig, stateDB *sta
 	if err == nil {
 		header.Rewards = rewards
 	} else {
-		if errors.Is(err, errNotInitialized) {
+		if errors.Is(err, ErrNotInitialized) {
 			reward := new(big.Int)
 			if header.Fees != nil {
 				reward.Add(reward, header.Fees)
@@ -447,7 +450,7 @@ func (wpoa *WemixPoA) calculateRewards(config *params.ChainConfig, num, fees *bi
 	rp, err := wpoa.govCli.GetRewardParams(big.NewInt(num.Int64() - 1))
 	if err != nil {
 		// all goes to the coinbase
-		return nil, errNotInitialized
+		return nil, ErrNotInitialized
 	}
 
 	return wpoa.calculateRewardsWithParams(config, rp, num, fees, addBalance)
@@ -465,7 +468,7 @@ func (wpoa *WemixPoA) calculateRewardsWithParams(config *params.ChainConfig, rp 
 			rewards, err = json.Marshal(rewards94)
 			return
 		}
-		err = errNotInitialized
+		err = ErrNotInitialized
 		return
 	}
 
@@ -532,7 +535,7 @@ func (wpoa *WemixPoA) distributeRewards(height *big.Int, rp *RewardParameters, b
 		dm.Add(dm, rp.DistributionMethod[i])
 	}
 	if dm.Int64() != 10000 {
-		return nil, errNotInitialized
+		return nil, ErrNotInitialized
 	}
 
 	v10000 := big.NewInt(10000)
