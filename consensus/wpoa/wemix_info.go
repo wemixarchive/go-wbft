@@ -21,6 +21,9 @@ func GetLegacyBlockRewardAmount(height *big.Int) (*big.Int, error) {
 
 func SuggestGasPrice() *big.Int {
 	defaultFee := big.NewInt(100 * params.GWei)
+	if wemixPoA == nil || wemixPoA.govCli == nil {
+		return defaultFee
+	}
 	amount, err := wemixPoA.govCli.GetMaxPriorityFeePerGas(nil)
 	if err != nil {
 		return defaultFee
