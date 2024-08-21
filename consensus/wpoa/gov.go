@@ -1,4 +1,4 @@
-package wemixgov
+package wpoa
 
 import (
 	"bytes"
@@ -10,126 +10,114 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
-	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
+	"github.com/ethereum/go-ethereum/wemixgov"
 	"github.com/pkg/errors"
 )
 
 type WemixGov struct {
-	cli                  bind.ContractBackend
-	bootAccount          common.Address
 	coinbaseEnodeCache   *sync.Map
 	height2enode         *LruCache
 	blockBuildParamsLock sync.Mutex
-	blockBuildParams     *wpoa.BlockBuildParameters
+	blockBuildParams     *BlockBuildParameters
+	backend              wemixgov.GovBackend
 }
 
-func NewWemixGovClient(rpcCli *rpc.Client) *WemixGov {
+func NewWemixGov(backend wemixgov.GovBackend) *WemixGov {
 	wg := &WemixGov{}
-	wg.cli = ethclient.NewClient(rpcCli)
 	wg.coinbaseEnodeCache = &sync.Map{}
 	wg.height2enode = NewLruCache(10000, true)
-	wg.blockBuildParams = &wpoa.BlockBuildParameters{}
+	wg.blockBuildParams = &BlockBuildParameters{}
+	wg.backend = backend
 	return wg
-}
-
-func (wg *WemixGov) SetBootAccount(bootAccount common.Address) error {
-	wg.bootAccount = bootAccount
-	return nil
 }
 
 // cached governance data to derive miner's enode
 type coinbaseEnodeEntry struct {
 	modifiedBlock  *big.Int
-	nodes          []*wpoa.WemixNode
+	nodes          []*WemixNode
 	coinbase2enode map[string][]byte // string(common.Address[:]) => []byte
 	enode2index    map[string]int    // string([]byte) => int
 }
 
-func (wg *WemixGov) GetGovInfo(blockNumber *big.Int) (wpoa.WemixGovInfo, error) {
+func (wg *WemixGov) GetGovInfo(blockNumber *big.Int) (WemixGovInfo, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	contracts, err := wg.getRegGovEnvContracts(ctx, blockNumber)
+	govApi, err := wg.backend.GetGovApiWithHeight(ctx, blockNumber)
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: blockNumber}
-	result := wpoa.WemixGovInfo{}
+	result := WemixGovInfo{}
 
-	contractAddresses := contracts.Address()
-	result.Registry = contractAddresses.Registry
-	result.Gov = contractAddresses.Gov
-	result.Staking = contractAddresses.Staking
+	result.Registry = govApi.GetRegistryAddress()
+	result.Gov = govApi.GetGovAddress()
+	result.Staking = govApi.GetStakingAddress()
 
-	result.ModifiedBlock, err = contracts.GovImp.ModifiedBlock(opts)
+	result.ModifiedBlock, err = govApi.GetModifiedBlock()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
-	result.BlockInterval, err = contracts.EnvStorageImp.GetBlockCreationTime(opts)
+	result.BlockInterval, err = govApi.GetBlockCreationTime()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
-	result.BlocksPer, err = contracts.EnvStorageImp.GetBlocksPer(opts)
+	result.BlocksPer, err = govApi.GetBlocksPer()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
-	result.BlockReward, err = contracts.EnvStorageImp.GetBlockRewardAmount(opts)
+	result.BlockReward, err = govApi.GetBlockRewardAmount()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
-	result.MaxPriorityFeePerGas, err = contracts.EnvStorageImp.GetMaxPriorityFeePerGas(opts)
+	result.MaxPriorityFeePerGas, err = govApi.GetMaxPriorityFeePerGas()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
-	result.MaxBaseFee, err = contracts.EnvStorageImp.GetMaxBaseFee(opts)
+	result.MaxBaseFee, err = govApi.GetMaxBaseFee()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
-	result.GasLimit, result.BaseFeeMaxChangeRate, result.BaseFeeMaxChangeRate, err = contracts.EnvStorageImp.GetGasLimitAndBaseFee(opts)
+	result.GasLimit, result.BaseFeeMaxChangeRate, result.BaseFeeMaxChangeRate, err = govApi.GetGasLimitAndBaseFee()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 
 	result.DefaultBriocheBlockReward = new(big.Int).Set(params.DefaultBriocheBlockReward)
 
-	nodes := make([]*wpoa.WemixNode, 0)
-	nodeLength, err := contracts.GovImp.GetNodeLength(opts)
+	nodes := make([]*WemixNode, 0)
+	nodeLength, err := govApi.GetNodeLength()
 	if err != nil {
-		return wpoa.WemixGovInfo{}, err
+		return WemixGovInfo{}, err
 	}
 	count := nodeLength.Int64()
 	for i := int64(1); i <= count; i++ {
-		node, err := contracts.GovImp.GetNode(opts, big.NewInt(i))
+		node, err := govApi.GetNode(big.NewInt(i))
 		if err != nil {
-			return wpoa.WemixGovInfo{}, err
+			return WemixGovInfo{}, err
 		}
-		member, err := contracts.GovImp.GetMember(opts, big.NewInt(i))
+		member, err := govApi.GetMember(big.NewInt(i))
 		if err != nil {
-			return wpoa.WemixGovInfo{}, err
+			return WemixGovInfo{}, err
 		}
 
 		sid := hex.EncodeToString(node.Enode)
 		if len(sid) != 128 {
-			return wpoa.WemixGovInfo{}, wpoa.ErrInvalidEnode
+			return WemixGovInfo{}, ErrInvalidEnode
 		}
 		idv4, _ := toIdv4(sid)
-		nodes = append(nodes, &wpoa.WemixNode{
+		nodes = append(nodes, &WemixNode{
 			Name:  string(node.Name),
 			Enode: sid,
 			Ip:    string(node.Ip),
@@ -148,14 +136,12 @@ func (wg *WemixGov) GetGovInfo(blockNumber *big.Int) (wpoa.WemixGovInfo, error) 
 func (wg *WemixGov) GetLegacyBlockRewardAmount(height *big.Int) (*big.Int, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-
-	contracts, err := wg.getRegGovEnvContracts(ctx, height)
+	govApi, err := wg.backend.GetGovApiWithHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
-	rewardAmount, err := contracts.EnvStorageImp.GetBlockRewardAmount(opts)
+
+	rewardAmount, err := govApi.GetBlockRewardAmount()
 	if err != nil {
 		return nil, err
 	}
@@ -165,84 +151,84 @@ func (wg *WemixGov) GetLegacyBlockRewardAmount(height *big.Int) (*big.Int, error
 func (wg *WemixGov) GetMaxPriorityFeePerGas(height *big.Int) (*big.Int, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	contracts, err := wg.getRegGovEnvContracts(ctx, height)
+	govApi, err := wg.backend.GetGovApiWithHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
-	fee, err := contracts.EnvStorageImp.GetMaxPriorityFeePerGas(nil)
+
+	fee, err := govApi.GetMaxPriorityFeePerGas()
 	if err != nil {
 		return nil, err
 	}
 	return fee, nil
 }
 
-func (wg *WemixGov) GetRewardParams(height *big.Int) (*wpoa.RewardParameters, error) {
+func (wg *WemixGov) GetRewardParams(height *big.Int) (*RewardParameters, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rp := &wpoa.RewardParameters{}
-	contracts, err := wg.getRegGovEnvContracts(ctx, height)
-	if err != nil {
-		return nil, err
-	}
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-
-	rp.RewardAmount, err = contracts.EnvStorageImp.GetBlockRewardAmount(opts)
+	rp := &RewardParameters{}
+	govApi, err := wg.backend.GetGovApiWithHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
 
-	distributionMethod1, distributionMethod2, distributionMethod3, distributionMethod4, err := contracts.EnvStorageImp.GetBlockRewardDistributionMethod(opts)
+	rp.RewardAmount, err = govApi.GetBlockRewardAmount()
+	if err != nil {
+		return nil, err
+	}
+
+	distributionMethod1, distributionMethod2, distributionMethod3, distributionMethod4, err := govApi.GetBlockRewardDistributionMethod()
 	if err != nil {
 		return nil, err
 	}
 	rp.DistributionMethod = []*big.Int{distributionMethod1, distributionMethod2, distributionMethod3, distributionMethod4}
 
-	staker, err := contracts.Registry.GetContractAddress(opts, toBytes32(gov.DOMAIN_StakingReward))
+	staker, err := govApi.GetStakingRewardAddress()
 	if err != nil {
-		return nil, errors.Wrap(err, gov.DOMAIN_Staking)
+		return nil, err
 	}
 	rp.Staker = &staker
 
-	ecoSystem, err := contracts.Registry.GetContractAddress(opts, toBytes32(gov.DOMAIN_Ecosystem))
+	ecoSystem, err := govApi.GetEcosystemAddress()
 	if err != nil {
-		return nil, errors.Wrap(err, gov.DOMAIN_Ecosystem)
+		return nil, err
 	}
 	rp.EcoSystem = &ecoSystem
 
-	maintenance, err := contracts.Registry.GetContractAddress(opts, toBytes32(gov.DOMAIN_Maintenance))
+	maintenance, err := govApi.GetMaintenanceAddress()
 	if err != nil {
-		return nil, errors.Wrap(err, gov.DOMAIN_Maintenance)
+		return nil, err
 	}
 	rp.Maintenance = &maintenance
 
-	feeCollector, err := contracts.Registry.GetContractAddress(opts, toBytes32(gov.DOMAIN_FeeCollector))
+	feeCollector, err := govApi.GetFeeCollectorAddress()
 	if err != nil {
 		rp.FeeCollector = nil
 	} else {
 		rp.FeeCollector = &feeCollector
 	}
 
-	blocksPer, err := contracts.EnvStorageImp.GetBlocksPer(opts)
+	blocksPer, err := govApi.GetBlocksPer()
 	if err != nil {
 		return nil, err
 	}
 	rp.BlocksPer = blocksPer.Int64()
 
-	if countBig, err := contracts.GovImp.GetMemberLength(opts); err != nil {
+	if countBig, err := govApi.GetMemberLength(); err != nil {
 		return nil, err
 	} else {
 		count := countBig.Int64()
 		for i := int64(1); i <= count; i++ {
 			index := big.NewInt(i)
-			if member, err := contracts.GovImp.GetMember(opts, index); err != nil {
+			if member, err := govApi.GetMember(index); err != nil {
 				return nil, err
-			} else if reward, err := contracts.GovImp.GetReward(opts, index); err != nil {
+			} else if reward, err := govApi.GetReward(index); err != nil {
 				return nil, err
-			} else if stake, err := contracts.StakingImp.LockedBalanceOf(opts, member); err != nil {
+			} else if stake, err := govApi.GetLockedBalanceOf(member); err != nil {
 				return nil, err
 			} else {
-				rp.Members = append(rp.Members, &wpoa.WemixMember{
+				rp.Members = append(rp.Members, &WemixMember{
 					Staker: member,
 					Reward: reward,
 					Stake:  stake,
@@ -259,25 +245,24 @@ func (wg *WemixGov) VerifyBlockSig(height *big.Int, chain consensus.ChainHeaderR
 
 	// get nodeid from the coinbase
 	num := new(big.Int).Sub(height, common.Big1)
-	contracts, err := wg.getRegGovEnvContracts(ctx, num)
+	govApi, err := wg.backend.GetGovApiWithHeight(ctx, num)
 	if err != nil {
-		return err == wpoa.ErrNotInitialized || errors.Is(err, ethereum.NotFound)
-	} else if count, err := contracts.GovImp.GetMemberLength(&bind.CallOpts{Context: ctx, BlockNumber: num}); err != nil || count.Sign() == 0 {
-		return err == wpoa.ErrNotInitialized || count.Sign() == 0
+		return err == ErrNotInitialized || errors.Is(err, ethereum.NotFound)
+	} else if count, err := govApi.GetMemberLength(); err != nil || count.Sign() == 0 {
+		return err == ErrNotInitialized || count.Sign() == 0
 	}
-	gov := contracts.GovImp
 	// if minerNodeId is given, i.e. present in block header, use it,
 	// otherwise, derive it from the codebase
 	var data []byte
 	if len(nodeId) == 0 {
-		nodeId, err = wg.coinbaseExists(ctx, height, gov, &coinbase)
+		nodeId, err = wg.coinbaseExists(govApi, &coinbase)
 		if err != nil || len(nodeId) == 0 {
 			return false
 		}
 		data = append(height.Bytes(), hash.Bytes()...)
 		data = crypto.Keccak256(data)
 	} else {
-		if _, err := wg.enodeExists(ctx, height, gov, nodeId); err != nil {
+		if _, err := wg.enodeExists(govApi, nodeId); err != nil {
 			return false
 		}
 		data = hash.Bytes()
@@ -290,12 +275,12 @@ func (wg *WemixGov) VerifyBlockSig(height *big.Int, chain consensus.ChainHeaderR
 	if !checkMinerLimit {
 		return true
 	}
-	ok, err := wg.verifyMinerLimit(ctx, chain, height, gov, &coinbase, nodeId)
+	ok, err := wg.verifyMinerLimit(chain, height, govApi, &coinbase, nodeId)
 	return err == nil && ok
 }
 
 func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int64, maxBaseFee, gasLimit *big.Int, baseFeeMaxChangeRate, gasTargetPercentage int64, err error) {
-	err = wpoa.ErrNotInitialized
+	err = ErrNotInitialized
 
 	wg.blockBuildParamsLock.Lock()
 	if wg.blockBuildParams != nil && wg.blockBuildParams.Height == height.Uint64() {
@@ -321,31 +306,25 @@ func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int6
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var (
-		env *gov.EnvStorageImp
-		gov *gov.GovImp
-	)
-	if contracts, err2 := wg.getRegGovEnvContracts(ctx, height); err2 != nil {
-		err = wpoa.ErrNotInitialized
+	govApi, err2 := wg.backend.GetGovApiWithHeight(ctx, height)
+	if err2 != nil {
+		err = ErrNotInitialized
 		return
-	} else {
-		env, gov = contracts.EnvStorageImp, contracts.GovImp
 	}
 
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-	if count, err2 := gov.GetMemberLength(opts); err2 != nil || count.Sign() == 0 {
-		err = wpoa.ErrNotInitialized
+	if count, err2 := govApi.GetMemberLength(); err2 != nil || count.Sign() == 0 {
+		err = ErrNotInitialized
 		return
 	}
-	if v, err2 := env.GetBlockCreationTime(opts); err2 != nil {
-		err = wpoa.ErrNotInitialized
+	if v, err2 := govApi.GetBlockCreationTime(); err2 != nil {
+		err = ErrNotInitialized
 		return
 	} else {
 		blockInterval = v.Int64()
 	}
 
-	if GasLimit, BaseFeeMaxChangeRate, GasTargetPercentage, err2 := env.GetGasLimitAndBaseFee(opts); err2 != nil {
-		err = wpoa.ErrNotInitialized
+	if GasLimit, BaseFeeMaxChangeRate, GasTargetPercentage, err2 := govApi.GetGasLimitAndBaseFee(); err2 != nil {
+		err = ErrNotInitialized
 		return
 	} else {
 		gasLimit = GasLimit
@@ -353,14 +332,14 @@ func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int6
 		gasTargetPercentage = GasTargetPercentage.Int64()
 	}
 
-	if maxBaseFee, err = env.GetMaxBaseFee(opts); err != nil {
-		err = wpoa.ErrNotInitialized
+	if maxBaseFee, err = govApi.GetMaxBaseFee(); err != nil {
+		err = ErrNotInitialized
 		return
 	}
 
 	// cache it
 	wg.blockBuildParamsLock.Lock()
-	wg.blockBuildParams = &wpoa.BlockBuildParameters{
+	wg.blockBuildParams = &BlockBuildParameters{
 		Height:               height.Uint64(),
 		BlockInterval:        blockInterval,
 		MaxBaseFee:           maxBaseFee,
@@ -373,10 +352,10 @@ func (wg *WemixGov) GetBlockBuildParameters(height *big.Int) (blockInterval int6
 	return
 }
 
-func (wg *WemixGov) verifyMinerLimit(ctx context.Context, chain consensus.ChainHeaderReader, height *big.Int, gov *gov.GovImp, coinbase *common.Address, enode []byte) (bool, error) {
+func (wg *WemixGov) verifyMinerLimit(chain consensus.ChainHeaderReader, height *big.Int, govApi wemixgov.GovContractApi, coinbase *common.Address, enode []byte) (bool, error) {
 	// parent block number
 	prev := new(big.Int).Sub(height, common.Big1)
-	e, err := wg.getCoinbaseEnodeCache(ctx, prev, gov)
+	e, err := wg.getCoinbaseEnodeCache(govApi)
 	if err != nil {
 		return false, err
 	}
@@ -432,19 +411,9 @@ func (wg *WemixGov) getBlockMiner(chain consensus.ChainHeaderReader, entry *coin
 	}
 }
 
-func (wg *WemixGov) getRegGovEnvContracts(ctx context.Context, height *big.Int) (*gov.GovContracts, error) {
-	if ctx == nil {
-		var cancel func()
-		ctx, cancel = context.WithCancel(context.Background())
-		defer cancel()
-	}
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-	return gov.GetGovContractsByOwner(opts, wg.cli, wg.bootAccount)
-}
-
 // returns coinbase's enode if exists in governance at given height - 1
-func (wg *WemixGov) coinbaseExists(ctx context.Context, height *big.Int, gov *gov.GovImp, coinbase *common.Address) ([]byte, error) {
-	e, err := wg.getCoinbaseEnodeCache(ctx, new(big.Int).Sub(height, common.Big1), gov)
+func (wg *WemixGov) coinbaseExists(govApi wemixgov.GovContractApi, coinbase *common.Address) ([]byte, error) {
+	e, err := wg.getCoinbaseEnodeCache(govApi)
 	if err != nil {
 		return nil, err
 	}
@@ -455,14 +424,13 @@ func (wg *WemixGov) coinbaseExists(ctx context.Context, height *big.Int, gov *go
 	return enode, nil
 }
 
-func (wg *WemixGov) getCoinbaseEnodeCache(ctx context.Context, height *big.Int, gov *gov.GovImp) (*coinbaseEnodeEntry, error) {
-	opts := &bind.CallOpts{Context: ctx, BlockNumber: height}
-	modifiedBlock, err := gov.ModifiedBlock(opts)
+func (wg *WemixGov) getCoinbaseEnodeCache(govApi wemixgov.GovContractApi) (*coinbaseEnodeEntry, error) {
+	modifiedBlock, err := govApi.GetModifiedBlock()
 	if err != nil {
 		return nil, err
 	}
 	if modifiedBlock.Sign() == 0 {
-		return nil, wpoa.ErrNotInitialized
+		return nil, ErrNotInitialized
 	}
 
 	// if found in cache, use it
@@ -480,23 +448,23 @@ func (wg *WemixGov) getCoinbaseEnodeCache(ctx context.Context, height *big.Int, 
 			enode2index:    map[string]int{},
 		}
 	)
-	if count, err = gov.GetNodeLength(opts); err != nil {
+	if count, err = govApi.GetNodeLength(); err != nil {
 		return nil, err
 	}
 	for i := int64(1); i <= count.Int64(); i++ {
 		ix := big.NewInt(i)
-		if addr, err = gov.GetReward(opts, ix); err != nil {
+		if addr, err = govApi.GetReward(ix); err != nil {
 			return nil, err
 		}
 
-		if output, err := gov.GetNode(opts, ix); err != nil {
+		if output, err := govApi.GetNode(ix); err != nil {
 			return nil, err
 		} else {
 			name, enode = output.Name, output.Enode
 		}
 
 		idv4, _ := toIdv4(hex.EncodeToString(enode))
-		e.nodes = append(e.nodes, &wpoa.WemixNode{
+		e.nodes = append(e.nodes, &WemixNode{
 			Name:  string(name),
 			Enode: string(enode), // note that this is not in hex unlike wemixAdmin
 			Id:    idv4,
@@ -510,14 +478,14 @@ func (wg *WemixGov) getCoinbaseEnodeCache(ctx context.Context, height *big.Int, 
 }
 
 // returns true if enode exists in governance at given height-1
-func (wg *WemixGov) enodeExists(ctx context.Context, height *big.Int, gov *gov.GovImp, enode []byte) (common.Address, error) {
-	e, err := wg.getCoinbaseEnodeCache(ctx, new(big.Int).Sub(height, common.Big1), gov)
+func (wg *WemixGov) enodeExists(govApi wemixgov.GovContractApi, enode []byte) (common.Address, error) {
+	e, err := wg.getCoinbaseEnodeCache(govApi)
 	if err != nil {
 		return common.Address{}, err
 	}
 	ix, ok := e.enode2index[string(enode)]
 	if !ok {
-		return common.Address{}, wpoa.ErrNotFound
+		return common.Address{}, ErrNotFound
 	}
 	return e.nodes[ix-1].Addr, nil
 }
@@ -535,13 +503,4 @@ func toIdv4(id string) (string, error) {
 	} else {
 		return "", fmt.Errorf("invalid V5 Identifier")
 	}
-}
-
-func toBytes32(b string) [32]byte {
-	var b32 [32]byte
-	if len(b) > len(b32) {
-		b = b[len(b)-len(b32):]
-	}
-	copy(b32[:], []byte(b))
-	return b32
 }

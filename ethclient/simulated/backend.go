@@ -21,6 +21,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -95,17 +96,19 @@ func NewBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Config,
 	if err != nil {
 		panic(err) // this should never happen
 	}
+
 	sim, err := newWithNode(stack, &ethConf, 0)
 	if err != nil {
 		panic(err) // this should never happen
 	}
+
 	return sim
 }
 
 // newWithNode sets up a simulated backend on an existing node. The provided node
 // must not be started and will be started by this method.
 func newWithNode(stack *node.Node, conf *eth.Config, blockPeriod uint64) (*Backend, error) {
-	backend, err := eth.New(stack, conf)
+	backend, err := eth.New(stack, conf, true)
 	if err != nil {
 		return nil, err
 	}
@@ -148,6 +151,10 @@ func (n *Backend) Close() error {
 		return err
 	}
 	return nil
+}
+
+func (n *Backend) Engine() consensus.Engine {
+	return n.eth.Engine()
 }
 
 // Commit seals a block and moves the chain forward to a new empty block.

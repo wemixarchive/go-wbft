@@ -22,6 +22,7 @@
 package ethconfig
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"time"
 
@@ -42,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/wemixgov"
 )
 
 // FullNodeGPO contains default gasprice oracle settings for full node.
@@ -180,15 +182,23 @@ type Config struct {
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
-func CreateConsensusEngine(stack *node.Node, config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
+func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
 	// If proof-of-authority is requested, set it up
 	if config.Clique != nil {
 		return beacon.New(clique.New(config.Clique, db)), nil
 	}
 
-	// WEMIX consensus engine
-	rpcCli := stack.Attach()
-	engine := wpoa.NewWemixEngine(stack.Server().PrivateKey, rpcCli)
+	engine := wpoa.NewWemixEngine(govCli)
+	return beacon.New(engine), nil
+}
+
+func CreateFakeConsensusEngine(prvKey *ecdsa.PrivateKey, govCli wemixgov.GovBackend, config *params.ChainConfig, db ethdb.Database) (consensus.Engine, error) {
+	// If proof-of-authority is requested, set it up
+	if config.Clique != nil {
+		return beacon.New(clique.New(config.Clique, db)), nil
+	}
+
+	engine := wpoa.NewWemixFakeEngine(prvKey, govCli)
 	return beacon.New(engine), nil
 }
 

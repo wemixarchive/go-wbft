@@ -131,17 +131,17 @@ func (sb *Backend) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64
 	return sb.Engine().CalcDifficulty(chain, time, parent)
 }
 
-// Address implements qbft.Backend.Address
+// Address implements qbft.backend.Address
 func (sb *Backend) Address() common.Address {
 	return sb.Engine().Address()
 }
 
-// Validators implements qbft.Backend.Validators
+// Validators implements qbft.backend.Validators
 func (sb *Backend) Validators(proposal qbft.Proposal) qbft.ValidatorSet {
 	return sb.getValidators(proposal.Number().Uint64(), proposal.Hash())
 }
 
-// Broadcast implements qbft.Backend.Broadcast
+// Broadcast implements qbft.backend.Broadcast
 func (sb *Backend) Broadcast(valSet qbft.ValidatorSet, code uint64, payload []byte) error {
 	// send to others
 	sb.Gossip(valSet, code, payload)
@@ -154,7 +154,7 @@ func (sb *Backend) Broadcast(valSet qbft.ValidatorSet, code uint64, payload []by
 	return nil
 }
 
-// Gossip implements qbft.Backend.Gossip
+// Gossip implements qbft.backend.Gossip
 func (sb *Backend) Gossip(valSet qbft.ValidatorSet, code uint64, payload []byte) error {
 	hash := qbft.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
@@ -191,7 +191,7 @@ func (sb *Backend) Gossip(valSet qbft.ValidatorSet, code uint64, payload []byte)
 	return nil
 }
 
-// Commit implements qbft.Backend.Commit
+// Commit implements qbft.backend.Commit
 func (sb *Backend) Commit(proposal qbft.Proposal, seals [][]byte, round *big.Int) (err error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
@@ -234,12 +234,12 @@ func (sb *Backend) Commit(proposal qbft.Proposal, seals [][]byte, round *big.Int
 	return nil
 }
 
-// EventMux implements qbft.Backend.EventMux
+// EventMux implements qbft.backend.EventMux
 func (sb *Backend) EventMux() *event.TypeMux {
 	return sb.istanbulEventMux
 }
 
-// Verify implements qbft.Backend.Verify
+// Verify implements qbft.backend.Verify
 func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
@@ -263,18 +263,18 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	return sb.Engine().VerifyBlockProposal(sb.chain, block, snap.ValSet)
 }
 
-// Sign implements qbft.Backend.Sign
+// Sign implements qbft.backend.Sign
 func (sb *Backend) Sign(data []byte) ([]byte, error) {
 	hashData := crypto.Keccak256(data)
 	return crypto.Sign(hashData, sb.privateKey)
 }
 
-// SignWithoutHashing implements qbft.Backend.SignWithoutHashing and signs input data with the backend's private key without hashing the input data
+// SignWithoutHashing implements qbft.backend.SignWithoutHashing and signs input data with the backend's private key without hashing the input data
 func (sb *Backend) SignWithoutHashing(data []byte) ([]byte, error) {
 	return crypto.Sign(data, sb.privateKey)
 }
 
-// CheckSignature implements qbft.Backend.CheckSignature
+// CheckSignature implements qbft.backend.CheckSignature
 func (sb *Backend) CheckSignature(data []byte, address common.Address, sig []byte) error {
 	signer, err := qbft.GetSignatureAddress(data, sig)
 	if err != nil {
@@ -288,12 +288,12 @@ func (sb *Backend) CheckSignature(data []byte, address common.Address, sig []byt
 	return nil
 }
 
-// HasPropsal implements qbft.Backend.HashBlock
+// HasPropsal implements qbft.backend.HashBlock
 func (sb *Backend) HasPropsal(hash common.Hash, number *big.Int) bool {
 	return sb.chain.GetHeader(hash, number.Uint64()) != nil
 }
 
-// GetProposer implements qbft.Backend.GetProposer
+// GetProposer implements qbft.backend.GetProposer
 func (sb *Backend) GetProposer(number uint64) common.Address {
 	if h := sb.chain.GetHeaderByNumber(number); h != nil {
 		a, _ := sb.Author(h)
@@ -302,7 +302,7 @@ func (sb *Backend) GetProposer(number uint64) common.Address {
 	return common.Address{}
 }
 
-// ParentValidators implements qbft.Backend.GetParentValidators
+// ParentValidators implements qbft.backend.GetParentValidators
 func (sb *Backend) ParentValidators(proposal qbft.Proposal) qbft.ValidatorSet {
 	if block, ok := proposal.(*types.Block); ok {
 		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())

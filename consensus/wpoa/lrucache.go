@@ -1,6 +1,6 @@
 // lrucache.go
 
-package wemixgov
+package wpoa
 
 import (
 	"container/list"

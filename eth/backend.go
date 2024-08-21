@@ -110,7 +110,7 @@ type Ethereum struct {
 
 // New creates a new Ethereum object (including the
 // initialisation of the common Ethereum object)
-func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
+func New(stack *node.Node, config *ethconfig.Config, fakeMode bool) (*Ethereum, error) {
 	// Ensure configuration values are compatible and sane
 	if config.SyncMode == downloader.LightSync {
 		return nil, errors.New("can't run eth.Ethereum in light sync mode, light mode has been deprecated")
@@ -153,7 +153,12 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
-	engine, err := ethconfig.CreateConsensusEngine(stack, chainConfig, chainDb)
+	var engine consensus.Engine
+	if fakeMode {
+		engine, err = ethconfig.CreateFakeConsensusEngine(stack.Server().PrivateKey, stack.GovBackend(), chainConfig, chainDb)
+	} else {
+		engine, err = ethconfig.CreateConsensusEngine(stack.GovBackend(), chainConfig, chainDb)
+	}
 	//engine, err := ethconfig.CreateConsensusEngine(chainConfig, &config.Istanbul, stack, chainDb) // ## Quorum QBFT
 	if err != nil {
 		return nil, err

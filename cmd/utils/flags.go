@@ -1874,7 +1874,7 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 // RegisterEthService adds an Ethereum client to the stack.
 // The second return value is the full node instance.
 func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend, *eth.Ethereum) {
-	backend, err := eth.New(stack, cfg)
+	backend, err := eth.New(stack, cfg, false)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
@@ -2095,7 +2095,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	if err != nil {
 		Fatalf("%v", err)
 	}
-	engine, err := ethconfig.CreateConsensusEngine(stack, config, chainDb)
+	engine, err := ethconfig.CreateFakeConsensusEngine(stack.Server().PrivateKey, stack.GovBackend(), config, chainDb)
 	//engine, err := ethconfig.CreateQBFTConsensusEngine(config, nil, stack, chainDb) // ## Quorum QBFT
 	if err != nil {
 		Fatalf("%v", err)

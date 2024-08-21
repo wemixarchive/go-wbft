@@ -18,7 +18,6 @@ package wpoa
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -38,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/wemixgov"
 )
 
 var (
@@ -55,20 +55,17 @@ var (
 	ErrInvalidEnode   = errors.New("invalid enode")
 	ErrNotFound       = errors.New("not found")
 
-	errTooManyUncles       = errors.New("too many uncles")
-	errDuplicateUncle      = errors.New("duplicate uncle")
-	errUncleIsAncestor     = errors.New("uncle is ancestor")
-	errDanglingUncle       = errors.New("uncle's parent is not ancestor")
-	errUnauthorized        = errors.New("unauthorized block")
-	errInvalidMixDigest    = errors.New("invalid mix digest")
-	errInvalidPoW          = errors.New("invalid proof-of-work")
-	errInvalidGenesisBlock = errors.New("invalid genesis block extra")
+	errTooManyUncles    = errors.New("too many uncles")
+	errDuplicateUncle   = errors.New("duplicate uncle")
+	errUncleIsAncestor  = errors.New("uncle is ancestor")
+	errDanglingUncle    = errors.New("uncle's parent is not ancestor")
+	errUnauthorized     = errors.New("unauthorized block")
+	errInvalidMixDigest = errors.New("invalid mix digest")
+	errInvalidPoW       = errors.New("invalid proof-of-work")
 )
 
 type WemixPoA struct {
-	prvKey *ecdsa.PrivateKey
-	rpcCli *rpc.Client
-	govCli WemixGovClient
+	govCli *WemixGov
 }
 
 type WemixNode struct {
@@ -132,34 +129,13 @@ type WemixGovInfo struct {
 	Nodes                     []*WemixNode
 }
 
-type WemixGovClient interface {
-	SetBootAccount(bootAccount common.Address) error
-	GetGovInfo(blockNumber *big.Int) (WemixGovInfo, error)
-	GetRewardParams(height *big.Int) (*RewardParameters, error)
-	GetLegacyBlockRewardAmount(height *big.Int) (*big.Int, error)
-	GetMaxPriorityFeePerGas(height *big.Int) (*big.Int, error)
-	VerifyBlockSig(height *big.Int, chain consensus.ChainHeaderReader, coinbase common.Address, nodeId []byte, hash common.Hash, sig []byte, checkMinerLimit bool) bool
-	GetBlockBuildParameters(height *big.Int) (blockInterval int64, maxBaseFee, gasLimit *big.Int, baseFeeMaxChangeRate, gasTargetPercentage int64, err error)
-}
-
-func NewWemixEngine(prvKey *ecdsa.PrivateKey, rpcCli *rpc.Client) consensus.Engine {
-	wpoa := &WemixPoA{}
-	wpoa.prvKey = prvKey
-	wpoa.rpcCli = rpcCli
+func NewWemixEngine(backend wemixgov.GovBackend) consensus.Engine {
+	wpoa := &WemixPoA{
+		govCli: NewWemixGov(backend),
+	}
 
 	SetWemixPoA(wpoa)
 	return wpoa
-}
-
-func StartWemix(govCli WemixGovClient, genesisBlock *types.Header) error {
-	wemixPoA.govCli = govCli
-
-	if len(genesisBlock.Extra) < 64 {
-		return errInvalidGenesisBlock
-	} else if len(genesisBlock.Extra) <= 128 {
-		return errInvalidGenesisBlock
-	}
-	return wemixPoA.govCli.SetBootAccount(genesisBlock.Coinbase)
 }
 
 // Author implements consensus.Engine, returning the header's coinbase as the
