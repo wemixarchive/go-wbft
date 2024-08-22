@@ -57,27 +57,28 @@ func (wfpoa *WemixFakePoA) Finalize(chain consensus.ChainHeaderReader, header *t
 
 func (wfpoa *WemixFakePoA) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt, withdrawals []*types.Withdrawal) (*types.Block, error) {
+	header.Coinbase = crypto.PubkeyToAddress(wfpoa.prvKey.PublicKey)
 	wfpoa.wpoa.Finalize(chain, header, state, txs, uncles, withdrawals)
+	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 
 	var err error
-	header.Coinbase, header.MinerNodeSig, err = wfpoa.signBlock(header.Number, header.Root)
+	header.MinerNodeSig, err = crypto.Sign(crypto.Keccak256(append(header.Number.Bytes(), header.Root.Bytes()...)), wfpoa.prvKey)
 	if err != nil {
 		return nil, err
 	}
 	return types.NewBlock(header, txs, uncles, receipts, trie.NewStackTrie(nil)), nil
 }
 
-func (wfpoa *WemixFakePoA) signBlock(height *big.Int, hash common.Hash) (common.Address, []byte, error) {
-	sig, err := crypto.Sign(crypto.Keccak256(append(height.Bytes(), hash.Bytes()...)), wfpoa.prvKey)
-	if err != nil {
-		return common.Address{}, nil, err
-	}
-
-	return crypto.PubkeyToAddress(wfpoa.prvKey.PublicKey), sig, nil
-}
-
 func (wfpoa *WemixFakePoA) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
-	return wfpoa.wpoa.Seal(chain, block, results, stop)
+	header := types.CopyHeader(block.Header())
+	nonce := block.NumberU64()
+	header.Nonce = types.EncodeNonce(nonce)
+
+	hash := sealHash(block.Header()).Bytes()
+	digest, _ := hashimeta(hash, nonce)
+	header.MixDigest = common.BytesToHash(digest)
+	go func() { results <- block.WithSeal(header) }()
+	return nil
 }
 
 func (wfpoa *WemixFakePoA) SealHash(header *types.Header) common.Hash {

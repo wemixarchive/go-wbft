@@ -289,7 +289,9 @@ func (wpoa *WemixPoA) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	// Verify the block's gas usage and (if applicable) verify the base fee.
 	if !chain.Config().IsLondon(header.Number) {
 		// Verify BaseFee not present before EIP-1559 fork.
-		if header.BaseFee != nil {
+		if header.BaseFee != nil && header.BaseFee.Cmp(new(big.Int)) > 0 {
+			// A block before london hard fork may have `BaseFee` field in WEMIX because
+			// rlp.Decode generates the zero big.Int field for `BaseFee` instead of nil.
 			return fmt.Errorf("invalid baseFee before fork: have %d, expected 'nil'", header.BaseFee)
 		}
 		if err := wpoa.VerifyGasLimit(parent.GasLimit, header.GasLimit); err != nil {

@@ -350,6 +350,14 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			panic(err)
 		}
 
+		results := make(chan *types.Block, 1)
+		err = b.engine.Seal(nil, block, results, nil)
+		block = <-results
+
+		if err != nil {
+			panic(err)
+		}
+
 		// Write state changes to db
 		root, err := statedb.Commit(b.header.Number.Uint64(), config.IsEIP158(b.header.Number))
 		if err != nil {
@@ -436,6 +444,11 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 			parentGasLimit := parent.GasLimit()
 			header.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
 		}
+	} else {
+		// In WEMIX chain, `BaseFee` field should not be nil.
+		// Because `Fees`, `Rewards`, `MinerNodeId`, and `MinerNodeSig` is not nil in WEMIX,
+		// so rlp.Decode generates the zero big.Int for a WEMIX block.
+		header.BaseFee = new(big.Int)
 	}
 	if cm.config.IsCancun(header.Number, header.Time) {
 		var (
