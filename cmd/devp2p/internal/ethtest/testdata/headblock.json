@@ -1,7 +1,7 @@
 {
-  "parentHash": "0xdc39140281d69e72922a6d2ad427f799d6e818cd8cc2dd15c54f8a46eb4ca3d2",
+  "parentHash": "0x430a513834b3922632c8545a46666efb14471510f8ade1854ad6f24e7a73234b",
   "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
-  "miner": "0x38ee844dda6f42ac53952a97b83f18d8c9bd55ca",
+  "miner": "0x6600d9cad8ee0dd6c746417f1e2490b484b03987",
   "stateRoot": "0x2ac9e932f0daef8a0f6bb5eb96f49b4dbfaaba2df22a72b8a189b2547dc49b8c",
   "transactionsRoot": "0x736774640ff2185e19c3532585cb87cbcfba5e4d7fc62f4a5c3e1c6ac6d9df89",
   "receiptsRoot": "0xcddd066ee57644f7b43b7160e41e355df62ab73295a23395b8173c629456c417",
@@ -12,16 +12,16 @@
   "gasUsed": "0xca9c",
   "timestamp": "0x1388",
   "extraData": "0x",
-  "mixHash": "0xd815b6f171f798fcdc2c88ecaa3770cf53a25e891abc4790ba00e8a36fb25ec6",
+  "mixHash": "0x089d00f5e119970db2c539122d39666b2c613aa8ea8025face559b42dbbd1871",
   "nonce": "0x00000000000001f4",
   "baseFeePerGas": "0x8",
   "fees": "0x0",
   "rewards": "0x",
   "minerNodeId": "0x",
-  "minerNodeSig": "0x32e137ca1c341381cd950ec0390e5037d77d9ebed02a78c130f1b3eff6e732d138c9820d1af58414feff4c8e728b5e00600ad4c0a615eb83fef24e4b41b57aad01",
+  "minerNodeSig": "0x82769f0abe7d29531c9a41203bf6958db0614d8718db67c092dc650df4e6cdd22ed89d9c8f800516ee7752ce4e299c083b3d73b5a07415ec44276d1636b3d6db01",
   "withdrawalsRoot": null,
   "blobGasUsed": null,
   "excessBlobGas": null,
   "parentBeaconBlockRoot": null,
-  "hash": "0xe400b6db5ce908c312940e1f4a22e27d3502d44f1919cda7b7da6bc99c335485"
+  "hash": "0xc7a03a5dd5ed6dfcd99176ec77f0621489991bf8379cad607cb98caa58278fbf"
 }

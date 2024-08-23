@@ -12,6 +12,7 @@
     "muirGlacierBlock": 42,
     "berlinBlock": 48,
     "londonBlock": 54,
+    "terminalTotalDifficulty": 131572,
     "ethash": {}
   },
   "nonce": "0x0",
