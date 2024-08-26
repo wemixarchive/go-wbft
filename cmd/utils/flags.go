@@ -2095,7 +2095,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	if err != nil {
 		Fatalf("%v", err)
 	}
-	engine, err := ethconfig.CreateFakeConsensusEngine(stack.Server().PrivateKey, stack.GovBackend(), config, chainDb)
+	engine, err := ethconfig.CreateEthashFakeEngine(config)
 	//engine, err := ethconfig.CreateQBFTConsensusEngine(config, nil, stack, chainDb) // ## Quorum QBFT
 	if err != nil {
 		Fatalf("%v", err)

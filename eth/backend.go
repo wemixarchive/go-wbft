@@ -155,11 +155,10 @@ func New(stack *node.Node, config *ethconfig.Config, fakeMode bool) (*Ethereum, 
 	}
 	var engine consensus.Engine
 	if fakeMode {
-		engine, err = ethconfig.CreateFakeConsensusEngine(stack.Server().PrivateKey, stack.GovBackend(), chainConfig, chainDb)
+		engine, err = ethconfig.CreateEthashFakeEngine(chainConfig)
 	} else {
-		engine, err = ethconfig.CreateConsensusEngine(stack.GovBackend(), chainConfig, chainDb)
+		engine, err = ethconfig.CreateConsensusEngine(stack.GovBackend(), chainConfig, &config.Istanbul, stack, chainDb)
 	}
-	//engine, err := ethconfig.CreateConsensusEngine(chainConfig, &config.Istanbul, stack, chainDb) // ## Quorum QBFT
 	if err != nil {
 		return nil, err
 	}

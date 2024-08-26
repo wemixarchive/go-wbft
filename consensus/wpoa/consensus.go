@@ -129,7 +129,7 @@ type WemixGovInfo struct {
 	Nodes                     []*WemixNode
 }
 
-func NewWemixEngine(backend wemixgov.GovBackend) consensus.Engine {
+func NewWemixPoAEngine(backend wemixgov.GovBackend) consensus.Engine {
 	wpoa := &WemixPoA{
 		govCli: NewWemixGov(backend),
 	}

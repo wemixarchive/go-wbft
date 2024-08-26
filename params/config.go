@@ -240,39 +240,23 @@ var (
 	}
 
 	AllDevChainProtocolChanges = &ChainConfig{
-		ChainID:                 big.NewInt(1337),
-		HomesteadBlock:          big.NewInt(0),
-		DAOForkBlock:            big.NewInt(0),
-		DAOForkSupport:          true,
-		EIP150Block:             big.NewInt(0),
-		EIP155Block:             big.NewInt(0),
-		EIP158Block:             big.NewInt(0),
-		ByzantiumBlock:          big.NewInt(0),
-		ConstantinopleBlock:     big.NewInt(0),
-		PetersburgBlock:         big.NewInt(0),
-		IstanbulBlock:           big.NewInt(0),
-		MuirGlacierBlock:        big.NewInt(0),
-		BerlinBlock:             big.NewInt(0),
-		LondonBlock:             big.NewInt(0),
-		ArrowGlacierBlock:       big.NewInt(0),
-		GrayGlacierBlock:        big.NewInt(0),
-		ShanghaiTime:            newUint64(0),
-		CancunTime:              nil,
-		PragueTime:              nil,
-		VerkleTime:              nil,
-		TerminalTotalDifficulty: big.NewInt(0),
-		PangyoBlock:             big.NewInt(0),
-		ApplepieBlock:           big.NewInt(5),
-		BriocheBlock:            big.NewInt(10),
-		Ethash:                  new(EthashConfig),
-		Brioche: &BriocheConfig{
-			BlockReward:       big.NewInt(1e18),
-			FirstHalvingBlock: big.NewInt(10),
-			HalvingPeriod:     big.NewInt(10),
-			FinishRewardBlock: big.NewInt(100),
-			HalvingTimes:      8,
-			HalvingRate:       50,
-		},
+		ChainID:                       big.NewInt(1337),
+		HomesteadBlock:                big.NewInt(0),
+		EIP150Block:                   big.NewInt(0),
+		EIP155Block:                   big.NewInt(0),
+		EIP158Block:                   big.NewInt(0),
+		ByzantiumBlock:                big.NewInt(0),
+		ConstantinopleBlock:           big.NewInt(0),
+		PetersburgBlock:               big.NewInt(0),
+		IstanbulBlock:                 big.NewInt(0),
+		MuirGlacierBlock:              big.NewInt(0),
+		BerlinBlock:                   big.NewInt(0),
+		LondonBlock:                   big.NewInt(0),
+		ArrowGlacierBlock:             big.NewInt(0),
+		GrayGlacierBlock:              big.NewInt(0),
+		ShanghaiTime:                  newUint64(0),
+		TerminalTotalDifficulty:       big.NewInt(0),
+		TerminalTotalDifficultyPassed: true,
 	}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
@@ -434,9 +418,10 @@ type ChainConfig struct {
 	ArrowGlacierBlock   *big.Int `json:"arrowGlacierBlock,omitempty"`   // Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already activated)
 	GrayGlacierBlock    *big.Int `json:"grayGlacierBlock,omitempty"`    // Eip-5133 (bomb delay) switch block (nil = no fork, 0 = already activated)
 	MergeNetsplitBlock  *big.Int `json:"mergeNetsplitBlock,omitempty"`  // Virtual fork after The Merge to use as a network splitter
-	PangyoBlock         *big.Int `json:"pangyoBlock,omitempty"`         // Pangyo switch block (nil = no fork, 0 = already on pangyo)
-	ApplepieBlock       *big.Int `json:"applepieBlock,omitempty"`       // Applepie switch block (nil = no fork, 0 = already on applepie)
-	BriocheBlock        *big.Int `json:"briocheBlock,omitempty"`        // Brioche switch block (nil = no fork, 0 = already on brioche)
+	PangyoBlock         *big.Int `json:"pangyoBlock,omitempty"`         // Pangyo switch block (nil = no fork, 0 = already on Pangyo)
+	ApplepieBlock       *big.Int `json:"applepieBlock,omitempty"`       // Applepie switch block (nil = no fork, 0 = already on Applepie)
+	BriocheBlock        *big.Int `json:"briocheBlock,omitempty"`        // Brioche switch block (nil = no fork, 0 = already on Brioche)
+	MontBlancBlock      *big.Int `json:"montBlancBlock,omitempty"`      // MontBlanc switch block (nil = no fork, 0 = already on MontBlanc)
 
 	// Fork scheduling was switched from blocks to timestamps here
 
@@ -718,6 +703,10 @@ func (c *ChainConfig) IsApplepie(num *big.Int) bool {
 
 func (c *ChainConfig) IsBrioche(num *big.Int) bool {
 	return isBlockForked(c.BriocheBlock, num)
+}
+
+func (c *ChainConfig) IsMontBlanc(num *big.Int) bool {
+	return isBlockForked(c.MontBlancBlock, num)
 }
 
 // IsArrowGlacier returns whether num is either equal to the Arrow Glacier (EIP-4345) fork block or greater.
