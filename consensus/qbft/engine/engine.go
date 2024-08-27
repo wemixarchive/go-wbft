@@ -364,10 +364,18 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		}
 	}
 	validatorsList := validator.SortedAddresses(validators.List())
-	// add validators in snapshot to extraData's validators section
+
+	lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
+	committers, err := e.Signers(lastCanonicalHeader)
+	if err != nil {
+		//TODO : how to handle err here ?
+	}
+
+	// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's reward section
 	return ApplyHeaderQBFTExtra(
 		header,
 		WriteValidators(validatorsList),
+		WriteReward(committers),
 	)
 	// } // ## Wemix QBFT : removed
 }
@@ -375,6 +383,13 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 	return func(qbftExtra *types.QBFTExtra) error {
 		qbftExtra.Validators = validators
+		return nil
+	}
+}
+
+func WriteReward(rewards []common.Address) ApplyQBFTExtra {
+	return func(qbftExtra *types.QBFTExtra) error {
+		qbftExtra.Rewards = rewards
 		return nil
 	}
 }
@@ -536,6 +551,7 @@ func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 		return &types.QBFTExtra{
 			VanityData:    vanity,
 			Validators:    []common.Address{},
+			Rewards:       []common.Address{},
 			CommittedSeal: [][]byte{},
 			Round:         0,
 			Vote:          nil,
@@ -551,6 +567,10 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 	if err != nil {
 		return err
 	}
+	//
+	//check := new(types.QBFTExtra)
+	//rlp.DecodeBytes(payload[:], check)
+	//fmt.Println(check)
 
 	h.Extra = payload
 	return nil
@@ -568,5 +588,28 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		log.Trace("QBFT: accumulate rewards to", "rewardAccount", rewardAccount, "blockReward", blockReward)
 
 		state.AddBalance(rewardAccount, uint256.MustFromBig(&blockReward))
+
+		if err := e.calculateRewards(chain, header, func(addr common.Address, amt *big.Int) {
+			state.AddBalance(addr, uint256.MustFromBig(amt))
+		}); err != nil {
+			// TODO: how to handle err here?
+			log.Warn("Error while calculating rewards", "err", err)
+		}
 	}
+}
+
+func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, addBalance func(common.Address, *big.Int)) error {
+	//get committedSeal arr of header.Number from consensus
+	extra, err := types.ExtractQBFTExtra(header)
+	reward := extra.Rewards
+	if err != nil {
+		return err
+	}
+	log.Info("JENN CHECK", "header", header.Number, "reward", reward)
+	if addBalance != nil {
+		for _, addr := range reward {
+			addBalance(addr, big.NewInt(0)) // need proper calculation
+		}
+	}
+	return nil
 }

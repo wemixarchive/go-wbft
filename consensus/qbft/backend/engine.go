@@ -145,7 +145,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		return err
 	}
 
-	err = sb.Engine().Prepare(chain, header, snap.ValSet)
+	err = sb.Engine().Prepare(chain, header, snap.ValSet) // 여기서 헤더에 벨리 리스트 추가
 	if err != nil {
 		return err
 	}
@@ -165,13 +165,14 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if len(addresses) > 0 {
 		index := rand.Intn(len(addresses))
 
-		err = sb.Engine().WriteVote(header, addresses[index], authorizes[index])
+		err = sb.Engine().WriteVote(header, addresses[index], authorizes[index]) //여기서 헤더에 vote 추가
 		if err != nil {
 			log.Error("BFT: error writing validator vote", "err", err)
 			return err
 		}
 	}
-
+	testHeader, _ := types.ExtractQBFTExtra(header)
+	log.Info("CHECK", "reward", testHeader.Rewards)
 	return nil
 }
 
