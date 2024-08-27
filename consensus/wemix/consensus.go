@@ -9,25 +9,66 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/consensus/wpoa"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/wemixgov"
 )
 
 type WemixConsensus struct {
-	wpoa consensus.Engine
-	wbft consensus.Engine
+	wpoa   consensus.Engine
+	wbft   consensus.Engine
+	stopCh chan struct{}
 }
 
 func NewWemixEngine(backend wemixgov.GovBackend, config *qbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Engine {
 	wpoa := wpoa.NewWemixPoAEngine(backend)
 	wbft := qbftBackend.New(config, privateKey, db)
+
 	return &WemixConsensus{
-		wpoa: wpoa,
-		wbft: wbft,
+		wpoa:   wpoa,
+		wbft:   wbft,
+		stopCh: make(chan struct{}),
 	}
+}
+
+func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.ChainHeaderReader, currentBlock func() *types.Block, subscribeChainHead func(ch chan<- core.ChainHeadEvent) event.Subscription) {
+	chainHeadCh := make(chan core.ChainHeadEvent, 10)
+	chainHeadSub := subscribeChainHead(chainHeadCh)
+
+	// WEMIX engine is waiting for MontBlanc hard fork then triggers qbft engine and quits its loop
+	go func() {
+	loop:
+		for {
+			select {
+			case head := <-chainHeadCh:
+				if config.IsMontBlanc(head.Block.Number()) {
+					log.Info("MontBlanc hard fork is activated. Starting WEMIX BFT engine")
+					err := we.wbft.(*qbftBackend.Backend).Start(chain, currentBlock, rawdb.HasBadBlock)
+					if err != nil {
+						log.Error("cannot start WEMIX consensus engine", "err", err)
+					}
+					break loop
+				}
+			case err := <-chainHeadSub.Err():
+				log.Warn("wemix consensus engine loop exits abnormally", "err", err)
+				break loop
+			case <-we.stopCh:
+				break loop
+			}
+		}
+		chainHeadSub.Unsubscribe()
+	}()
+}
+
+func (we *WemixConsensus) Stop() {
+	close(we.stopCh)
 }
 
 func (we *WemixConsensus) Author(header *types.Header) (common.Address, error) {

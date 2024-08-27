@@ -382,11 +382,12 @@ func (wpoa *WemixPoA) Finalize(chain consensus.ChainHeaderReader, header *types.
 // uncle rewards, setting the final state and assembling the block.
 func (wpoa *WemixPoA) FinalizeAndAssemble(consensus.ChainHeaderReader, *types.Header, *state.StateDB, []*types.Transaction,
 	[]*types.Header, []*types.Receipt, []*types.Withdrawal) (*types.Block, error) {
-	panic("WemixPoA.FinalizeAndAssemble should not be called")
+	// Wpoa mining is disabled. If this function returns an error, miner worker will not do anything
+	return nil, errors.New("wpoa `FinalizeAndAssemble` is disabled")
 }
 
 func (wpoa *WemixPoA) Seal(consensus.ChainHeaderReader, *types.Block, chan<- *types.Block, <-chan struct{}) error {
-	panic("WemixPoA.Seal should not be called")
+	return errors.New("wpoa `Seal` is disabled")
 }
 
 func (wpoa *WemixPoA) APIs(consensus.ChainHeaderReader) []rpc.API {
@@ -399,7 +400,8 @@ func (wpoa *WemixPoA) Close() error {
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (wpoa *WemixPoA) SealHash(*types.Header) (hash common.Hash) {
-	panic("WemixPoA.SealHash should not be called")
+	// wpoa `SealHash` is disabled
+	return common.Hash{}
 }
 
 // accumulateRewards credits the coinbase of the given block with the mining

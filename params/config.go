@@ -594,20 +594,19 @@ func (c *ChainConfig) Description() string {
 		banner += fmt.Sprintf("   - HalvingTimes:              %-8v\n", c.Brioche.HalvingTimes)
 		banner += fmt.Sprintf("   - HalvingRate:               %-8v\n", c.Brioche.HalvingRate)
 	}
-	banner += "\n"
-
-	// Add a special section for the merge as it's non-obvious
-	if c.TerminalTotalDifficulty == nil {
-		banner += "The Merge is not yet available for this network!\n"
-		banner += " - Hard-fork specification: https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/paris.md\n"
-	} else {
-		banner += "Merge configured:\n"
-		banner += " - Hard-fork specification:    https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/paris.md\n"
-		banner += fmt.Sprintf(" - Network known to be merged: %v\n", c.TerminalTotalDifficultyPassed)
-		banner += fmt.Sprintf(" - Total terminal difficulty:  %v\n", c.TerminalTotalDifficulty)
-		if c.MergeNetsplitBlock != nil {
-			banner += fmt.Sprintf(" - Merge netsplit block:       #%-8v\n", c.MergeNetsplitBlock)
-		}
+	banner += fmt.Sprintf(" - MontBlanc:                   #%-8v\n", c.MontBlancBlock)
+	if c.QBFT != nil {
+		banner += fmt.Sprintf("   - EpochLength:               %-8v\n", c.QBFT.EpochLength)
+		banner += fmt.Sprintf("   - BlockPeriodSeconds:        %-8v\n", c.QBFT.BlockPeriodSeconds)
+		banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", *c.QBFT.EmptyBlockPeriodSeconds)
+		banner += fmt.Sprintf("   - RequestTimeoutSeconds:     %-8v\n", c.QBFT.RequestTimeoutSeconds)
+		banner += fmt.Sprintf("   - ProposerPolicy:            %-8v\n", c.QBFT.ProposerPolicy)
+		banner += fmt.Sprintf("   - BlockReward:               %-8v\n", ((*big.Int)(c.QBFT.BlockReward)).Int64())
+		banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", *c.QBFT.BeneficiaryMode)
+		banner += fmt.Sprintf("   - MiningBeneficiary:         %v\n", c.QBFT.MiningBeneficiary)
+		banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", *c.QBFT.ValidatorSelectionMode)
+		banner += fmt.Sprintf("   - Validators:                %v\n", c.QBFT.Validators)
+		banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", *c.QBFT.MaxRequestTimeoutSeconds)
 	}
 	banner += "\n"
 
