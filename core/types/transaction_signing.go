@@ -310,6 +310,9 @@ func (s feeDelegateSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s feeDelegateSigner) Hash(tx *Transaction) common.Hash {
+	if tx.Type() != FeeDelegateDynamicFeeTxType {
+		return s.londonSigner.Hash(tx)
+	}
 	senderV, senderR, senderS := tx.RawSignatureValues()
 	return prefixedRlpHash(
 		tx.Type(),

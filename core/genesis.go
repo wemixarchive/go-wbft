@@ -503,7 +503,7 @@ func DefaultWemixMainnetGenesisBlock() *Genesis {
 func DefaultWemixTestnetGenesisBlock() *Genesis {
 	genesis := new(Genesis)
 	if err := json.NewDecoder(strings.NewReader(wemixTestnetGenesisJson)).Decode(genesis); err != nil {
-		panic("Cannot parse default wemix mainnet genesis.")
+		panic("Cannot parse default wemix testnet genesis.")
 	}
 	genesis.Config = params.WemixTestnetChainConfig
 	return genesis

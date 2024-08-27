@@ -33,17 +33,17 @@ func main() {
 		filepath.Join(root, "storage", "EnvStorageImp.sol"),
 	); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_registry_abi.go"), gov.REGISTRY); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_registry_abi.go"), gov.CONTRACT_REGISTRY); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_gov_abi.go"), gov.GOV, gov.GOV_IMP); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_gov_abi.go"), gov.CONTRACT_GOV, gov.CONTRACT_GOV_IMP); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_ncpExit_abi.go"), gov.NCPEXIT, gov.NCPEXIT_IMP); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_ncpExit_abi.go"), gov.CONTRACT_NCPEXIT, gov.CONTRACT_NCPEXIT_IMP); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_staking_abi.go"), gov.STAKING, gov.STAKING_IMP); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_staking_abi.go"), gov.CONTRACT_STAKING, gov.CONTRACT_STAKING_IMP); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_ballotStorage_abi.go"), gov.BALLOTSTORAGE, gov.BALLOTSTORAGE_IMP); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_ballotStorage_abi.go"), gov.CONTRACT_BALLOTSTORAGE, gov.CONTRACT_BALLOTSTORAGE_IMP); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_envStorage_abi.go"), gov.ENVSTORAGE, gov.ENVSTORAGE_IMP); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_envStorage_abi.go"), gov.CONTRACT_ENVSTORAGE, gov.CONTRACT_ENVSTORAGE_IMP); err != nil {
 		panic(err)
 	} else {
 		fmt.Println("success!")

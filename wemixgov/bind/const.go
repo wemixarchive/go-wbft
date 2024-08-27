@@ -1,18 +1,22 @@
 package gov
 
+type GovContract string
+
 const (
-	REGISTRY          = "Registry"
-	GOV               = "Gov"
-	GOV_IMP           = "GovImp"
-	NCPEXIT           = "NCPExit"
-	NCPEXIT_IMP       = "NCPExitImp"
-	STAKING           = "Staking"
-	STAKING_IMP       = "StakingImp"
-	BALLOTSTORAGE     = "BallotStorage"
-	BALLOTSTORAGE_IMP = "BallotStorageImp"
-	ENVSTORAGE        = "EnvStorage"
-	ENVSTORAGE_IMP    = "EnvStorageImp"
+	CONTRACT_REGISTRY          = "Registry"
+	CONTRACT_GOV               = "Gov"
+	CONTRACT_GOV_IMP           = "GovImp"
+	CONTRACT_NCPEXIT           = "NCPExit"
+	CONTRACT_NCPEXIT_IMP       = "NCPExitImp"
+	CONTRACT_STAKING           = "Staking"
+	CONTRACT_STAKING_IMP       = "StakingImp"
+	CONTRACT_BALLOTSTORAGE     = "BallotStorage"
+	CONTRACT_BALLOTSTORAGE_IMP = "BallotStorageImp"
+	CONTRACT_ENVSTORAGE        = "EnvStorage"
+	CONTRACT_ENVSTORAGE_IMP    = "EnvStorageImp"
 )
+
+type GovDomain string
 
 const (
 	DOMAIN_Gov           = "GovernanceContract"
