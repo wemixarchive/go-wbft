@@ -22,6 +22,21 @@ import (
 // 1. remove ibft engine related test code
 // ## Wemix QBFT END
 
+func GensissWithRewards(validators, rewards []common.Address) *core.Genesis {
+	// generate genesis block
+	genesis := core.DefaultGenesisBlock()
+	genesis.Config = params.TestChainConfig
+	// force enable QBFT engine
+	genesis.Config.QBFT = &params.QBFTConfig{}
+	genesis.Config.Ethash = nil
+	genesis.Difficulty = types.QBFTDefaultDifficulty
+	genesis.Nonce = qbftcommon.EmptyBlockNonce.Uint64()
+
+	appendValidatorsAndRewards(genesis, validators, rewards)
+
+	return genesis
+}
+
 func Genesis(validators []common.Address) *core.Genesis {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
@@ -57,6 +72,25 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	ist := &types.QBFTExtra{
 		VanityData:    vanity,
 		Validators:    addrs,
+		Rewards:       make([]common.Address, 0),
+		Vote:          nil,
+		CommittedSeal: [][]byte{},
+		Round:         0,
+	}
+
+	istPayload, err := rlp.EncodeToBytes(&ist)
+	if err != nil {
+		panic("failed to encode qbft extra")
+	}
+	genesis.ExtraData = istPayload
+}
+
+func appendValidatorsAndRewards(genesis *core.Genesis, validators []common.Address, rewards []common.Address) {
+	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
+	ist := &types.QBFTExtra{
+		VanityData:    vanity,
+		Validators:    validators,
+		Rewards:       rewards,
 		Vote:          nil,
 		CommittedSeal: [][]byte{},
 		Round:         0,

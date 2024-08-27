@@ -1228,11 +1228,6 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 		// https://github.com/ethereum/go-ethereum/issues/24299
 		env := env.copy()
 
-		//JENN - FOR TEST
-		extra, err := types.ExtractQBFTExtra(env.header)
-		reward := extra.Rewards
-		log.Info("JENN CHECK HERE", "reward", reward)
-
 		// Withdrawals are set to nil here, because this is only called in PoW.
 		block, err := w.engine.FinalizeAndAssemble(w.chain, env.header, env.state, env.txs, nil, env.receipts, nil)
 		if err != nil {

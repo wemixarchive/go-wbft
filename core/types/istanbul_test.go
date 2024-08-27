@@ -21,11 +21,16 @@
 package types
 
 import (
+	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // ## Quorum QBFT START
@@ -46,6 +51,39 @@ func TestHeaderHash(t *testing.T) {
 	if !reflect.DeepEqual(header.Hash(), rlpHash(header)) {
 		t.Errorf("expected: %v, but got: %v", rlpHash(header).Hex(), header.Hash().Hex())
 	}
+}
+
+func Genesis(validators []common.Address) *core.Genesis {
+	// generate genesis block
+	genesis := core.DefaultGenesisBlock()
+	genesis.Config = params.TestChainConfig
+	// force enable QBFT engine
+	genesis.Config.QBFT = &params.QBFTConfig{}
+	genesis.Config.Ethash = nil
+	genesis.Difficulty = QBFTDefaultDifficulty
+	genesis.Nonce = BlockNonce{}.Uint64()
+
+	appendValidators(genesis, validators)
+
+	return genesis
+}
+
+func appendValidators(genesis *core.Genesis, addrs []common.Address) {
+	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, IstanbulExtraVanity-len(genesis.ExtraData))...)
+	ist := &QBFTExtra{
+		VanityData:    vanity,
+		Validators:    addrs,
+		Rewards:       make([]common.Address, 0),
+		Vote:          nil,
+		CommittedSeal: [][]byte{},
+		Round:         0,
+	}
+
+	istPayload, err := rlp.EncodeToBytes(&ist)
+	if err != nil {
+		panic("failed to encode qbft extra")
+	}
+	genesis.ExtraData = istPayload
 }
 
 func TestExtractToQBFTExtra(t *testing.T) {
@@ -76,8 +114,33 @@ func TestExtractToQBFTExtra(t *testing.T) {
 			},
 			nil,
 		},
+		{
+			// normal case
+			hexutil.MustDecode("0xf89b80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440f83f9444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6c080c0"),
+			&QBFTExtra{
+				VanityData: []byte{},
+				Validators: []common.Address{
+					common.BytesToAddress(hexutil.MustDecode("0x76ec8c6b805bc28eb62e9ec276073c4cdf717603")),
+					common.BytesToAddress(hexutil.MustDecode("0xd5c40819e657cd7178b182b6bfc529c81e708fb1")),
+					common.BytesToAddress(hexutil.MustDecode("0x79a1f1510b845f60fa85a7dbe2bc6ad9896fd726")),
+					common.BytesToAddress(hexutil.MustDecode("0x35365eab5af106b3edaed5e2e221a3391e8b6309")),
+				},
+				Rewards: []common.Address{
+					common.BytesToAddress(hexutil.MustDecode("0x76ec8c6b805bc28eb62e9ec276073c4cdf717603")),
+					common.BytesToAddress(hexutil.MustDecode("0xd5c40819e657cd7178b182b6bfc529c81e708fb1")),
+					common.BytesToAddress(hexutil.MustDecode("0x79a1f1510b845f60fa85a7dbe2bc6ad9896fd726")),
+				},
+				CommittedSeal: [][]byte{},
+				Round:         0,
+				Vote:          nil,
+			},
+			nil,
+		},
 	}
 	for _, test := range testCases {
+		//tt, _ := rlp.EncodeToBytes(test.expectedResult)
+		//fmt.Println(hex.EncodeToString(tt))
+		fmt.Println(Genesis(test.expectedResult.Validators).ExtraData)
 		h := &Header{Extra: test.istRawData}
 		istanbulExtra, err := ExtractQBFTExtra(h)
 		if err != test.expectedErr {

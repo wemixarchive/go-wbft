@@ -567,11 +567,6 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 	if err != nil {
 		return err
 	}
-	//
-	//check := new(types.QBFTExtra)
-	//rlp.DecodeBytes(payload[:], check)
-	//fmt.Println(check)
-
 	h.Extra = payload
 	return nil
 }
@@ -605,10 +600,9 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 	if err != nil {
 		return err
 	}
-	log.Info("JENN CHECK", "header", header.Number, "reward", reward)
 	if addBalance != nil {
 		for _, addr := range reward {
-			addBalance(addr, big.NewInt(0)) // need proper calculation
+			addBalance(addr, big.NewInt(0)) // TODO :  need proper calculation when distribution rule is decided
 		}
 	}
 	return nil
