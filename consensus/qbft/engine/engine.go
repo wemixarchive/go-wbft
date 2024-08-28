@@ -595,11 +595,13 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 
 func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, addBalance func(common.Address, *big.Int)) error {
 	//get committedSeal arr of header.Number from consensus
-	extra, err := types.ExtractQBFTExtra(header)
+	lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
+	extra, err := types.ExtractQBFTExtra(lastCanonicalHeader)
 	reward := extra.Rewards
 	if err != nil {
 		return err
 	}
+	log.Info("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", lastCanonicalHeader.Number, "reward", reward)
 	if addBalance != nil {
 		for _, addr := range reward {
 			addBalance(addr, big.NewInt(0)) // TODO :  need proper calculation when distribution rule is decided
