@@ -171,8 +171,6 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 			return err
 		}
 	}
-	testHeader, _ := types.ExtractQBFTExtra(header)
-	log.Info("CHECK", "reward", testHeader.Rewards)
 	return nil
 }
 
