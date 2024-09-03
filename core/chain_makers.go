@@ -351,7 +351,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 
 		results := make(chan *types.Block, 1)
-		err = b.engine.Seal(nil, block, results, nil)
+		err = b.engine.Seal(cm, block, results, nil)
 		block = <-results
 
 		if err != nil {

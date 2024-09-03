@@ -43,7 +43,6 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/miner"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/wemixgov"
 )
@@ -184,7 +183,7 @@ type Config struct {
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
-func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfig, qbftCfg *qbft.Config, stack *node.Node, db ethdb.Database) (consensus.Engine, error) {
+func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfig, qbftCfg *qbft.Config, privKey *ecdsa.PrivateKey, db ethdb.Database) (consensus.Engine, error) {
 	// If proof-of-authority is requested, set it up
 	if config.Clique != nil {
 		return beacon.New(clique.New(config.Clique, db)), nil
@@ -225,10 +224,10 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		}
 		if config.IsMontBlanc(new(big.Int)) {
 			// only wbft engine
-			return qbftBackend.New(qbftCfg, stack.Config().NodeKey(), db), nil
+			return qbftBackend.New(qbftCfg, privKey, db), nil
 		}
 		// wemix engine which can do `MontBlanc` hard fork
-		return wemix.NewWemixEngine(govCli, qbftCfg, stack.Config().NodeKey(), db), nil
+		return wemix.NewWemixEngine(govCli, qbftCfg, privKey, db), nil
 	}
 	// only WemixPoA engine; cannot mine a block
 	return wpoa.NewWemixPoAEngine(govCli), nil

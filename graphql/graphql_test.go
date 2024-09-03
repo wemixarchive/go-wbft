@@ -464,7 +464,7 @@ func newGQLService(t *testing.T, stack *node.Node, shanghai bool, gspec *core.Ge
 		shanghaiTime := uint64(5)
 		chainCfg.ShanghaiTime = &shanghaiTime
 	}
-	ethBackend, err := eth.New(stack, ethConf, true)
+	ethBackend, err := eth.New(stack, ethConf)
 	if err != nil {
 		t.Fatalf("could not create eth backend: %v", err)
 	}

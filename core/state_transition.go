@@ -247,8 +247,8 @@ func (st *StateTransition) buyGas() error {
 		if st.msg.GasFeeCap != nil {
 			balanceCheck.SetUint64(st.msg.GasLimit)
 			balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
+			balanceCheck.Add(balanceCheck, st.msg.Value)
 		}
-		balanceCheck.Add(balanceCheck, st.msg.Value)
 
 		if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 			if blobGas := st.blobGasUsed(); blobGas > 0 {
@@ -286,11 +286,12 @@ func (st *StateTransition) buyGas() error {
 		mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 		mgval.Mul(mgval, st.msg.GasPrice)
 		feeCheck := new(big.Int).Set(mgval)
+		valCheck := new(big.Int)
 		if st.msg.GasFeeCap != nil {
 			feeCheck.SetUint64(st.msg.GasLimit)
 			feeCheck = feeCheck.Mul(feeCheck, st.msg.GasFeeCap)
+			valCheck.Set(st.msg.Value)
 		}
-		valCheck := new(big.Int).Set(st.msg.Value)
 
 		if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 			if blobGas := st.blobGasUsed(); blobGas > 0 {
