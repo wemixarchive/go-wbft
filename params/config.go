@@ -25,6 +25,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params/forks"
 )
 
@@ -239,24 +240,51 @@ var (
 		Clique:                        nil,
 	}
 
+	ebps = uint64(6)
+	bm   = "validator"
+	vsm  = "blockheader"
+	mb   = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	mrts = uint64(4)
+
+	// customized for WEMIX chain
 	AllDevChainProtocolChanges = &ChainConfig{
-		ChainID:                       big.NewInt(1337),
-		HomesteadBlock:                big.NewInt(0),
-		EIP150Block:                   big.NewInt(0),
-		EIP155Block:                   big.NewInt(0),
-		EIP158Block:                   big.NewInt(0),
-		ByzantiumBlock:                big.NewInt(0),
-		ConstantinopleBlock:           big.NewInt(0),
-		PetersburgBlock:               big.NewInt(0),
-		IstanbulBlock:                 big.NewInt(0),
-		MuirGlacierBlock:              big.NewInt(0),
-		BerlinBlock:                   big.NewInt(0),
-		LondonBlock:                   big.NewInt(0),
-		ArrowGlacierBlock:             big.NewInt(0),
-		GrayGlacierBlock:              big.NewInt(0),
-		ShanghaiTime:                  newUint64(0),
-		TerminalTotalDifficulty:       big.NewInt(0),
-		TerminalTotalDifficultyPassed: true,
+		ChainID:             big.NewInt(1337),
+		HomesteadBlock:      big.NewInt(0),
+		EIP150Block:         big.NewInt(0),
+		EIP155Block:         big.NewInt(0),
+		EIP158Block:         big.NewInt(0),
+		ByzantiumBlock:      big.NewInt(0),
+		ConstantinopleBlock: big.NewInt(0),
+		PetersburgBlock:     big.NewInt(0),
+		IstanbulBlock:       big.NewInt(0),
+		MuirGlacierBlock:    big.NewInt(0),
+		BerlinBlock:         big.NewInt(0),
+		LondonBlock:         big.NewInt(0),
+		ArrowGlacierBlock:   big.NewInt(0),
+		GrayGlacierBlock:    big.NewInt(0),
+		BriocheBlock:        big.NewInt(0),
+		MontBlancBlock:      big.NewInt(0),
+		Brioche: &BriocheConfig{
+			BlockReward:       big.NewInt(1e18),
+			FirstHalvingBlock: big.NewInt(50),
+			HalvingPeriod:     big.NewInt(50),
+			FinishRewardBlock: big.NewInt(450),
+			HalvingTimes:      8,
+			HalvingRate:       50,
+		},
+		QBFT: &QBFTConfig{
+			EpochLength:              10,
+			BlockPeriodSeconds:       3,
+			EmptyBlockPeriodSeconds:  &ebps,
+			RequestTimeoutSeconds:    1000,
+			ProposerPolicy:           0,
+			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
+			BeneficiaryMode:          &bm,
+			MiningBeneficiary:        &mb,
+			ValidatorSelectionMode:   &vsm,
+			MaxRequestTimeoutSeconds: &mrts,
+			// You should assign `Validators` before using
+		},
 	}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced

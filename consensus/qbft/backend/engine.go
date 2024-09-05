@@ -328,6 +328,27 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 			return qbftcommon.ErrInvalidSpecificCall
 		}
 		return sb.Start(chain, currentBlock, hasBadBlock)
+	case "SetExtra":
+		if len(args) != 2 {
+			return qbftcommon.ErrInvalidSpecificCall
+		}
+		val, ok := args[0].(common.Address)
+		if !ok {
+			return qbftcommon.ErrInvalidSpecificCall
+		}
+		header, ok := args[1].(*types.Header)
+		if !ok {
+			return qbftcommon.ErrInvalidSpecificCall
+		}
+		vals := make([]common.Address, 1)
+		vals[0] = val
+		qbftengine.ApplyHeaderQBFTExtra(
+			header,
+			func(qbftExtra *types.QBFTExtra) error {
+				qbftExtra.Validators = vals
+				return nil
+			})
+		return nil
 	case "InheritExtra":
 		if len(args) != 2 {
 			return qbftcommon.ErrInvalidSpecificCall
@@ -348,6 +369,8 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 				return nil
 			})
 		return nil
+	case "NewChainHead":
+		return sb.NewChainHead()
 	default:
 		return qbftcommon.ErrInvalidSpecificCall
 	}

@@ -411,10 +411,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 
 		// Advance the chain.
 		cm.add(block, receipts)
-		var handler consensus.Handler
-		if handler, _ = engine.(consensus.Handler); handler != nil {
-			handler.NewChainHead()
-		}
+		engine.CallEngineSpecific("NewChainHead")
 		parent = block
 	}
 	return cm.chain, cm.receipts
