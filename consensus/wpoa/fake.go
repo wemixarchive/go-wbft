@@ -96,3 +96,7 @@ func (wfpoa *WemixFakePoA) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 func (wfpoa *WemixFakePoA) Close() error {
 	return wfpoa.wpoa.Close()
 }
+
+func (wfpoa *WemixFakePoA) CallEngineSpecific(method string, args ...interface{}) interface{} {
+	return nil
+}

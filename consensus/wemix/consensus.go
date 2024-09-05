@@ -179,3 +179,8 @@ func (we *WemixConsensus) Close() error {
 	}
 	return we.wbft.Close()
 }
+
+// CallEngineSpecific implements consensus.Engine
+func (we *WemixConsensus) CallEngineSpecific(method string, args ...interface{}) interface{} {
+	return nil
+}

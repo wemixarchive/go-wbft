@@ -398,6 +398,11 @@ func (wpoa *WemixPoA) Close() error {
 	return nil
 }
 
+// CallEngineSpecific implements consensus.Engine
+func (wpoa *WemixPoA) CallEngineSpecific(method string, args ...interface{}) interface{} {
+	return nil
+}
+
 // SealHash returns the hash of a block prior to it being sealed.
 func (wpoa *WemixPoA) SealHash(*types.Header) (hash common.Hash) {
 	// wpoa `SealHash` is disabled
