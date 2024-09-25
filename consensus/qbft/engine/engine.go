@@ -366,16 +366,18 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	validatorsList := validator.SortedAddresses(validators.List())
 
 	lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
-	committers, err := e.Signers(lastCanonicalHeader)
-	if err != nil {
-		//TODO : how to handle err here ?
-	}
 
-	// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's reward section
+	extra, err := types.ExtractQBFTExtra(lastCanonicalHeader)
+	if err != nil || extra.CommittedSeal == nil {
+		// TODO: monblanc 하드포크 이후 첫번쨰 블록의 경우 config의 validator 값으로 대체
+	}
+	prevCommittedSeal := extra.CommittedSeal
+
+	// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 	return ApplyHeaderQBFTExtra(
 		header,
 		WriteValidators(validatorsList),
-		WriteReward(committers),
+		WritePrevCommittedSeal(prevCommittedSeal),
 	)
 	// } // ## Wemix QBFT : removed
 }
@@ -387,9 +389,9 @@ func WriteValidators(validators []common.Address) ApplyQBFTExtra {
 	}
 }
 
-func WriteReward(rewards []common.Address) ApplyQBFTExtra {
+func WritePrevCommittedSeal(prevCommittedSeal [][]byte) ApplyQBFTExtra {
 	return func(qbftExtra *types.QBFTExtra) error {
-		qbftExtra.Rewards = rewards
+		qbftExtra.PrevCommittedSeal = prevCommittedSeal
 		return nil
 	}
 }
@@ -594,17 +596,16 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 }
 
 func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, addBalance func(common.Address, *big.Int)) error {
-	//get committedSeal arr of header.Number from consensus
+	// TODO : need proper calculation when distribution rule is decided
 	lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
-	extra, err := types.ExtractQBFTExtra(lastCanonicalHeader)
-	reward := extra.Rewards
+	lastBlockCommitters, err := e.Signers(lastCanonicalHeader)
 	if err != nil {
 		return err
 	}
-	log.Info("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", lastCanonicalHeader.Number, "reward", reward)
+	log.Info("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", lastCanonicalHeader.Number, "reward", lastBlockCommitters)
 	if addBalance != nil {
-		for _, addr := range reward {
-			addBalance(addr, big.NewInt(0)) // TODO :  need proper calculation when distribution rule is decided
+		for _, addr := range lastBlockCommitters {
+			addBalance(addr, big.NewInt(0))
 		}
 	}
 	return nil

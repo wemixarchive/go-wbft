@@ -47,12 +47,12 @@ var (
 
 // QBFTExtra represents header extradata for qbft protocol
 type QBFTExtra struct {
-	VanityData    []byte
-	Validators    []common.Address
-	Rewards       []common.Address // committedSeal of previous local block
-	Vote          *ValidatorVote
-	Round         uint32
-	CommittedSeal [][]byte
+	VanityData        []byte
+	Validators        []common.Address
+	Vote              *ValidatorVote
+	Round             uint32
+	CommittedSeal     [][]byte
+	PrevCommittedSeal [][]byte // committedSeal of previous local block
 }
 
 type ValidatorVote struct {
@@ -65,28 +65,28 @@ func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		qst.VanityData,
 		qst.Validators,
-		qst.Rewards,
 		qst.Vote,
 		qst.Round,
 		qst.CommittedSeal,
+		qst.PrevCommittedSeal,
 	})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the QBFTExtra fields from a RLP stream.
 func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
-		VanityData    []byte
-		Validators    []common.Address
-		Rewards       []common.Address
-		Vote          *ValidatorVote `rlp:"nil"`
-		Round         uint32
-		CommittedSeal [][]byte
+		VanityData        []byte
+		Validators        []common.Address
+		Vote              *ValidatorVote `rlp:"nil"`
+		Round             uint32
+		CommittedSeal     [][]byte
+		PrevCommittedSeal [][]byte
 	}
 	if err := s.Decode(&qbftExtra); err != nil {
 		return err
 	}
 
-	qst.VanityData, qst.Validators, qst.Rewards, qst.Vote, qst.Round, qst.CommittedSeal = qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Rewards, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal
+	qst.VanityData, qst.Validators, qst.Vote, qst.Round, qst.CommittedSeal, qst.PrevCommittedSeal = qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal, qbftExtra.PrevCommittedSeal
 
 	return nil
 }

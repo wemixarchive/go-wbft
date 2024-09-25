@@ -22,7 +22,7 @@ import (
 // 1. remove ibft engine related test code
 // ## Wemix QBFT END
 
-func GensissWithRewards(validators, rewards []common.Address) *core.Genesis {
+func GensissWithCommittedSeal(validators []common.Address) *core.Genesis {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig
@@ -32,7 +32,7 @@ func GensissWithRewards(validators, rewards []common.Address) *core.Genesis {
 	genesis.Difficulty = types.QBFTDefaultDifficulty
 	genesis.Nonce = qbftcommon.EmptyBlockNonce.Uint64()
 
-	appendValidatorsAndRewards(genesis, validators, rewards)
+	appendValidatorsAndPrevCommittedSeal(genesis, validators)
 
 	return genesis
 }
