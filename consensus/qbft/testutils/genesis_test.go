@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"

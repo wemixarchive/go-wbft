@@ -551,12 +551,12 @@ func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 		// In this scenario, the header extradata only contains client specific information, hence create a new qbftExtra and set vanity
 		vanity := append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
 		return &types.QBFTExtra{
-			VanityData:    vanity,
-			Validators:    []common.Address{},
-			Rewards:       []common.Address{},
-			CommittedSeal: [][]byte{},
-			Round:         0,
-			Vote:          nil,
+			VanityData:        vanity,
+			Validators:        []common.Address{},
+			CommittedSeal:     [][]byte{},
+			PrevCommittedSeal: [][]byte{},
+			Round:             0,
+			Vote:              nil,
 		}, nil
 	}
 

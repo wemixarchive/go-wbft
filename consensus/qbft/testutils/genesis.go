@@ -70,12 +70,12 @@ func GenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
 func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
 	ist := &types.QBFTExtra{
-		VanityData:    vanity,
-		Validators:    addrs,
-		Rewards:       make([]common.Address, 0),
-		Vote:          nil,
-		CommittedSeal: [][]byte{},
-		Round:         0,
+		VanityData:        vanity,
+		Validators:        addrs,
+		Vote:              nil,
+		CommittedSeal:     [][]byte{},
+		PrevCommittedSeal: [][]byte{},
+		Round:             0,
 	}
 
 	istPayload, err := rlp.EncodeToBytes(&ist)
@@ -85,15 +85,15 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	genesis.ExtraData = istPayload
 }
 
-func appendValidatorsAndRewards(genesis *core.Genesis, validators []common.Address, rewards []common.Address) {
+func appendValidatorsAndPrevCommittedSeal(genesis *core.Genesis, validators []common.Address) {
 	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
 	ist := &types.QBFTExtra{
-		VanityData:    vanity,
-		Validators:    validators,
-		Rewards:       rewards,
-		Vote:          nil,
-		CommittedSeal: [][]byte{},
-		Round:         0,
+		VanityData:        vanity,
+		Validators:        validators,
+		Vote:              nil,
+		CommittedSeal:     [][]byte{},
+		PrevCommittedSeal: [][]byte{},
+		Round:             0,
 	}
 
 	istPayload, err := rlp.EncodeToBytes(&ist)
