@@ -74,12 +74,15 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	// Assemble the voting snapshot
-	snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents)
-	if err != nil {
+	var snap, prevSnap *Snapshot
+	var err error
+	if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, header.ParentHash, parents); err != nil {
+		return err
+	} else if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
 		return err
 	}
 
-	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet)
+	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, prevSnap.ValSet)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -430,7 +433,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		// If we're at block zero, make a snapshot
 		if number == 0 {
 			genesis := chain.GetHeaderByNumber(0)
-			if err := sb.Engine().VerifyHeader(chain, genesis, nil, nil); err != nil {
+			if err := sb.Engine().VerifyHeader(chain, genesis, nil, nil, nil); err != nil {
 				sb.logger.Error("BFT: invalid genesis block", "err", err)
 				return nil, err
 			}

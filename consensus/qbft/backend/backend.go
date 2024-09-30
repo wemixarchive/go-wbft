@@ -255,12 +255,16 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	}
 
 	header := block.Header()
-	snap, err := sb.snapshot(sb.chain, header.Number.Uint64()-1, header.ParentHash, nil)
-	if err != nil {
+	var snap, prevSnap *Snapshot
+	var err error
+
+	if snap, err = sb.snapshot(sb.chain, header.Number.Uint64()-1, header.ParentHash, nil); err != nil {
+		return 0, err
+	} else if prevSnap, err = sb.snapshot(sb.chain, header.Number.Uint64()-2, header.ParentHash, nil); err != nil {
 		return 0, err
 	}
 
-	return sb.Engine().VerifyBlockProposal(sb.chain, block, snap.ValSet)
+	return sb.Engine().VerifyBlockProposal(sb.chain, block, snap.ValSet, prevSnap.ValSet)
 }
 
 // Sign implements qbft.Backend.Sign

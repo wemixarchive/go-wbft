@@ -56,8 +56,14 @@ var (
 	// ErrInvalidCommittedSeals is returned if the committed seal is not signed by any of parent validators.
 	ErrInvalidCommittedSeals = errors.New("invalid committed seals")
 
+	// ErrInvalidPrevCommittedSeals is returned if the prev committed seal is not signed by any of parent validators or not enough seals.
+	ErrInvalidPrevCommittedSeals = errors.New("invalid prev committed seals")
+
 	// ErrEmptyCommittedSeals is returned if the field of committed seals is zero.
 	ErrEmptyCommittedSeals = errors.New("zero committed seals")
+
+	// ErrEmptyPrevCommittedSeals is returned if the field of committed seals is zero.
+	ErrEmptyPrevCommittedSeals = errors.New("zero prev committed seals")
 
 	// ErrMismatchTxhashes is returned if the TxHash in header is mismatch.
 	ErrMismatchTxhashes = errors.New("mismatch transactions hashes")

@@ -86,7 +86,7 @@ func writeRoundNumber(round *big.Int) ApplyQBFTExtra {
 	}
 }
 
-func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (time.Duration, error) {
+func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet, prevValidators qbft.ValidatorSet) (time.Duration, error) {
 	// check block body
 	txnHash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil))
 	if txnHash != block.Header().TxHash {
@@ -99,7 +99,7 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 	}
 
 	// verify the header of proposed block
-	err := e.VerifyHeader(chain, block.Header(), nil, validators)
+	err := e.VerifyHeader(chain, block.Header(), nil, validators, prevValidators)
 	if err == nil || err == qbftcommon.ErrEmptyCommittedSeals {
 		// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
 		return 0, nil
@@ -119,15 +119,15 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 	return 0, err
 }
 
-func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
-	return e.verifyHeader(chain, header, parents, validators)
+func (e *Engine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet, prevValidators qbft.ValidatorSet) error {
+	return e.verifyHeader(chain, header, parents, validators, prevValidators)
 }
 
 // verifyHeader checks whether a header conforms to the consensus rules.The
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
-func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet, prevValidators qbft.ValidatorSet) error {
 	if header.Number == nil {
 		return qbftcommon.ErrUnknownBlock
 	}
@@ -157,10 +157,10 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return qbftcommon.ErrInvalidDifficulty
 	}
 
-	return e.verifyCascadingFields(chain, header, validators, parents)
+	return e.verifyCascadingFields(chain, header, validators, prevValidators, parents)
 }
 
-func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool, validators qbft.ValidatorSet) (chan<- struct{}, <-chan error) {
+func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool, validators qbft.ValidatorSet, prevValidators qbft.ValidatorSet) (chan<- struct{}, <-chan error) {
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 	go func() {
@@ -170,7 +170,7 @@ func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*typ
 			if errored {
 				err = consensus.ErrUnknownAncestor
 			} else {
-				err = e.verifyHeader(chain, header, headers[:i], validators)
+				err = e.verifyHeader(chain, header, headers[:i], validators, prevValidators) // BUG? 헤더마다 valset 다를텐데 검증 가능한지..? 해당 함수가 사용되는 부분은 없어보임.
 			}
 
 			if err != nil {
@@ -191,7 +191,7 @@ func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*typ
 // rather depend on a batch of previous headers. The caller may optionally pass
 // in a batch of parents (ascending order) to avoid looking those up from the
 // database. This is useful for concurrently verifying a batch of new headers.
-func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, parents []*types.Header) error {
+func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, prevValidators qbft.ValidatorSet, parents []*types.Header) error {
 	// The genesis block is the always valid dead-end
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -223,7 +223,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return err
 	}
 
-	return e.verifyCommittedSeals(chain, header, parents, validators)
+	return e.verifyCommittedSeals(chain, header, parents, validators, prevValidators)
 }
 
 func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
@@ -248,7 +248,7 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 }
 
 // verifyCommittedSeals checks whether every committed seal is signed by one of the parent's validators
-func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet, prevValidators qbft.ValidatorSet) error {
 	number := header.Number.Uint64()
 
 	if number == 0 {
@@ -260,6 +260,43 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 	if err != nil {
 		return err
 	}
+
+	prevCommittedSeal := extra.PrevCommittedSeal
+
+	if len(prevCommittedSeal) == 0 {
+		// TODO: monblanc 블록이면 chain config에서 넣어주기. chain config가 import 할 수 없을 경우 다른 방법 찾아야함. validation은 생략함
+		// if number == monblancBlockNumber {...}
+		// TODO : committedSeal 을 못모았을 케이스는 이후에 생각해야함.
+		return qbftcommon.ErrEmptyPrevCommittedSeals
+	} else {
+		//check whether prevCommitted seals are generated by prevValidators
+		var prevCommitters []common.Address
+		prevHeader := chain.GetHeaderByNumber(number - 1)
+		prevCommitters, err = e.Signers(prevHeader)
+		if err != nil {
+			return err
+		}
+		// TODO : monblanc 블록이면 config 값에 잇는 valset으로 검증함
+		// if number == monblancBlockNumber { prevCommitters = config.Validators ..} else { prevCommitters = e.Singers(prevHeader }
+
+		prevValidatorsCpy := prevValidators.Copy()
+		prevValidSeal := 0
+
+		for _, addr := range prevCommitters {
+			if prevValidatorsCpy.RemoveValidator(addr) {
+				prevValidSeal++
+				continue
+			}
+			return qbftcommon.ErrInvalidPrevCommittedSeals
+		}
+
+		// The length of validSeal should be larger than number of faulty node + 1
+		if prevValidSeal <= prevValidators.F() {
+			return qbftcommon.ErrInvalidPrevCommittedSeals
+		}
+	}
+
+	// Check whether the committed seals are generated by validators
 	committedSeal := extra.CommittedSeal
 
 	// The length of Committed seals should be larger than 0
@@ -269,7 +306,6 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 
 	validatorsCpy := validators.Copy()
 
-	// Check whether the committed seals are generated by validators
 	validSeal := 0
 	committers, err := e.Signers(header)
 	if err != nil {
