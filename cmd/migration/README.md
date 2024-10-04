@@ -1,0 +1,119 @@
+Migrate chaindata for `gwemix` to chaindata for `gwemix-qbft`.
+
+**First of all, check which db engine is used to manage `gwemix` chaindata.**
+
+```shell
+ls <path-to-gwemix-datadir>/geth/chaindata
+```
+
+`gwemix` manages chaindata with file extension either `*.sst` or `*.ldb`.
+If LevelDB (`*.ldb`) is used, just run `gwemix-qbft` with `--db.engine leveldb` option added.
+
+```shell
+gwemix-qbft \
+  --db.engine leveldb \
+  --datadir <path-to-gwemix-datadir>/geth/chaindata \
+  ...
+```
+
+The below migration guide is for chaindata managed by RocksDB (`*.sst`) to migrate into Pebble.
+
+## Prerequisites
+
+Secure enough free storage space.
+
+Migrating chaindata *including* ancient chaindata requires as much free space as datadir occupied. (**recommended**)
+
+Migrating chaindata *excluding* ancient chaindata requires as much free space as datadir occupied excluding ancient chaindata.
+After migration, you need to move ancient chaindata into migrated datadir, or run `gwemix-qbft` with `--datadir.ancient <path-to-gwemix-ancient-chaindata>` option added.
+
+## Preparing migration tool
+
+Setup environment variables.
+
+```shell
+export GWEMIX_REPO=<path-to-gwemix-repo>
+export GWEMIX_QBFT_REPO=<path-to-gwemix-qbft-repo>
+
+export GWEMIX_DATADIR=<path-to-gwemix-datadir>
+export GWEMIX_QBFT_DATADIR=<path-to-gwemix-qbft-datadir>
+```
+
+### Getting migration tool from releases (**recommended**)
+
+Link:
+
+### Building migration tool from the source
+
+If rocksdb is not built, build it first from go-wemix repo.
+
+```shell
+cd $GWEMIX_REPO
+make rocksdb
+```
+
+Build `migration`.
+
+```shell
+sudo apt install -y libjemalloc-dev liblz4-dev libsnappy-dev libzstd-dev libudev-dev zlib1g-dev
+
+cd $GWEMIX_QBFT_REPO
+CGO_CFLAGS="-I$GWEMIX_REPO/rocksdb/include" CGO_LDFLAGS="-L$GWEMIX_REPO/rocksdb -lm -lstdc++ -lpthread -lrt -ldl -lsnappy -llz4 -lzstd -ljemalloc" go build ./cmd/migration
+```
+
+Note that the latest `gwemix` v0.10.8 uses RocksDB v6.27.3 and the corresponding grocksdb (RocksDB wrapper) v1.6.44.
+If `gwemix` uses other RocksDB version, adjusting grocksdb version would be needed.
+
+## Migration including ancient chaindata
+
+Before migration, stop running gwemix to prevent DB inconsistent issues.
+
+Get current chaindata info.
+
+```shell
+gwemix db inspect --datadir $GWEMIX_DATADIR --syncmode snap
+gwemix db metadata --datadir $GWEMIX_DATADIR --syncmode snap
+```
+
+Copy datadir containing node info, keystores, and chaindata to setup datadir for gwemix-qbft.
+
+```shell
+cp -a $GWEMIX_DATADIR $GWEMIX_QBFT_DATADIR
+```
+
+Keep ancient chaindata then remove all the rest chaindata.
+
+```shell
+mv $GWEMIX_QBFT_DATADIR/geth/chaindata/ancient $GWEMIX_QBFT_DATADIR/geth
+rm -r $GWEMIX_QBFT_DATADIR/geth/chaindata
+```
+
+Migrate chaindata by using `migration`.
+
+```shell
+$GWEMIX_QBFT_REPO/migration -src $GWEMIX_DATADIR -dst $GWEMIX_QBFT_DATADIR
+```
+
+Restore ancient chaindata.
+
+```shell
+mv $GWEMIX_QBFT_DATADIR/geth/ancient $GWEMIX_QBFT_DATADIR/geth/chaindata
+```
+
+Check migrated chaindata if it is same info for `$GWEMIX_DATADIR`.
+
+```shell
+geth db inspect --datadir $GWEMIX_QBFT_DATADIR --syncmode snap
+geth db metadata --datadir $GWEMIX_QBFT_DATADIR --syncmode snap
+```
+
+Migration has done.
+
+Run `gwemix-qbft` with `--datadir $GWEMIX_QBFT_DATADIR` option added.
+The default value for `--db.engine` is `pebble` so it can be omitted.
+
+```shell
+gwemix-qbft \
+  --datadir $GWEMIX_QBFT_DATADIR \
+  ...
+```
