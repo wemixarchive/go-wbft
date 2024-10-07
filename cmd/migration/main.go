@@ -39,22 +39,7 @@ func main() {
 		panic(fmt.Errorf("batch count must be positive number"))
 	}
 
-	fmt.Println("Migrating datadir", *srcDataDir, "to", *dstDataDir)
-
-	migrateNodedata()
 	migrateChaindata()
-	migrateChaindataAncient()
-}
-
-func migrateNodedata() {
-	srcNodedataDir := *srcDataDir
-	dstNodedataDir := *dstDataDir
-
-	fmt.Println("Migrating nodedata", srcNodedataDir, "to", dstNodedataDir)
-
-	// TODO
-
-	fmt.Println("Done")
 }
 
 func migrateChaindata() {
@@ -125,17 +110,6 @@ func migrateChaindata() {
 		panic(err)
 	}
 	fmt.Println("Write", count, "pairs", batch.ValueSize(), "bytes")
-
-	fmt.Println("Done")
-}
-
-func migrateChaindataAncient() {
-	srcChaindataAncientDir := *srcDataDir + "/geth/chaindata/ancient"
-	dstChaindataAncientDir := *dstDataDir + "/geth/chaindata/ancient"
-
-	fmt.Println("Migrating chaindata (ancient)", srcChaindataAncientDir, "to", dstChaindataAncientDir)
-
-	// TODO
 
 	fmt.Println("Done")
 }
