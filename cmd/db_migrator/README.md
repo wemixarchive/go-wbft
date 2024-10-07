@@ -1,4 +1,4 @@
-Migrate chaindata for `gwemix` to chaindata for `gwemix-qbft`.
+Migrate chaindata for `gwemix` to chaindata for `geth`.
 
 **First of all, check which db engine is used to manage `gwemix` chaindata.**
 
@@ -7,10 +7,10 @@ ls <path-to-gwemix-datadir>/geth/chaindata
 ```
 
 `gwemix` manages chaindata with file extension either `*.sst` or `*.ldb`.
-If LevelDB (`*.ldb`) is used, just run `gwemix-qbft` with `--db.engine leveldb` option added.
+If LevelDB (`*.ldb`) is used, just run `geth` with `--db.engine leveldb` option added.
 
 ```shell
-gwemix-qbft \
+geth \
   --db.engine leveldb \
   --datadir <path-to-gwemix-datadir>/geth/chaindata \
   ...
@@ -25,18 +25,18 @@ Secure enough free storage space.
 Migrating chaindata *including* ancient chaindata requires as much free space as datadir occupied. (**recommended**)
 
 Migrating chaindata *excluding* ancient chaindata requires as much free space as datadir occupied excluding ancient chaindata.
-After migration, you need to move ancient chaindata into migrated datadir, or run `gwemix-qbft` with `--datadir.ancient <path-to-gwemix-ancient-chaindata>` option added.
+After migration, you need to move ancient chaindata into migrated datadir, or run `geth` with `--datadir.ancient <path-to-gwemix-ancient-chaindata>` option added.
 
 ## Preparing migration tool
 
-Setup environment variables.
+Setup environment variables for preparing migration tool `db_migrator`.
 
 ```shell
-export GWEMIX_REPO=<path-to-gwemix-repo>
-export GWEMIX_QBFT_REPO=<path-to-gwemix-qbft-repo>
+export GWEMIX_REPO=<path-to-go-wemix-repo>
+export GWEMIX_QBFT_REPO=<path-to-go-wemix-qbft-repo>
 
 export GWEMIX_DATADIR=<path-to-gwemix-datadir>
-export GWEMIX_QBFT_DATADIR=<path-to-gwemix-qbft-datadir>
+export GWEMIX_QBFT_DATADIR=<path-to-geth-datadir> # Create new directory
 ```
 
 ### Getting migration tool from releases (**recommended**)
@@ -52,13 +52,13 @@ cd $GWEMIX_REPO
 make rocksdb
 ```
 
-Build `migration`.
+Build `db_migrator`.
 
 ```shell
 sudo apt install -y libjemalloc-dev liblz4-dev libsnappy-dev libzstd-dev libudev-dev zlib1g-dev
 
 cd $GWEMIX_QBFT_REPO
-CGO_CFLAGS="-I$GWEMIX_REPO/rocksdb/include" CGO_LDFLAGS="-L$GWEMIX_REPO/rocksdb -lm -lstdc++ -lpthread -lrt -ldl -lsnappy -llz4 -lzstd -ljemalloc" go build -tags migration ./cmd/migration
+CGO_CFLAGS="-I$GWEMIX_REPO/rocksdb/include" CGO_LDFLAGS="-L$GWEMIX_REPO/rocksdb -lm -lstdc++ -lpthread -lrt -ldl -lsnappy -llz4 -lzstd -ljemalloc" go build -tags db_migrator ./cmd/db_migrator
 ```
 
 Note that the latest `gwemix` v0.10.8 uses RocksDB v6.27.3 and the corresponding grocksdb (RocksDB wrapper) v1.6.44.
@@ -75,7 +75,7 @@ gwemix db inspect --datadir $GWEMIX_DATADIR --syncmode snap
 gwemix db metadata --datadir $GWEMIX_DATADIR --syncmode snap
 ```
 
-Copy datadir containing node info, keystores, and chaindata to setup datadir for gwemix-qbft.
+Copy datadir containing node info, keystores, and chaindata to setup datadir for `geth`.
 
 ```shell
 cp -a $GWEMIX_DATADIR $GWEMIX_QBFT_DATADIR
@@ -88,10 +88,10 @@ mv $GWEMIX_QBFT_DATADIR/geth/chaindata/ancient $GWEMIX_QBFT_DATADIR/geth
 rm -r $GWEMIX_QBFT_DATADIR/geth/chaindata
 ```
 
-Migrate chaindata by using `migration`.
+Migrate chaindata by using `db_migrator`.
 
 ```shell
-$GWEMIX_QBFT_REPO/migration -src $GWEMIX_DATADIR -dst $GWEMIX_QBFT_DATADIR
+$GWEMIX_QBFT_REPO/db_migrator -src $GWEMIX_DATADIR -dst $GWEMIX_QBFT_DATADIR
 ```
 
 Restore ancient chaindata.
@@ -109,11 +109,11 @@ geth db metadata --datadir $GWEMIX_QBFT_DATADIR --syncmode snap
 
 Migration has done.
 
-Run `gwemix-qbft` with `--datadir $GWEMIX_QBFT_DATADIR` option added.
+Run `geth` with `--datadir $GWEMIX_QBFT_DATADIR` option added.
 The default value for `--db.engine` is `pebble` so it can be omitted.
 
 ```shell
-gwemix-qbft \
+geth \
   --datadir $GWEMIX_QBFT_DATADIR \
   ...
 ```

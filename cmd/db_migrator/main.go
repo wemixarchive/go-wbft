@@ -1,4 +1,4 @@
-//go:build migration
+//go:build db_migrator
 
 package main
 
