@@ -58,7 +58,7 @@ Build `migration`.
 sudo apt install -y libjemalloc-dev liblz4-dev libsnappy-dev libzstd-dev libudev-dev zlib1g-dev
 
 cd $GWEMIX_QBFT_REPO
-CGO_CFLAGS="-I$GWEMIX_REPO/rocksdb/include" CGO_LDFLAGS="-L$GWEMIX_REPO/rocksdb -lm -lstdc++ -lpthread -lrt -ldl -lsnappy -llz4 -lzstd -ljemalloc" go build ./cmd/migration
+CGO_CFLAGS="-I$GWEMIX_REPO/rocksdb/include" CGO_LDFLAGS="-L$GWEMIX_REPO/rocksdb -lm -lstdc++ -lpthread -lrt -ldl -lsnappy -llz4 -lzstd -ljemalloc" go build -tags migration ./cmd/migration
 ```
 
 Note that the latest `gwemix` v0.10.8 uses RocksDB v6.27.3 and the corresponding grocksdb (RocksDB wrapper) v1.6.44.
