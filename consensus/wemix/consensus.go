@@ -44,23 +44,30 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 
 	// WEMIX engine is waiting for MontBlanc hard fork then triggers qbft engine and quits its loop
 	go func() {
-	loop:
-		for {
-			select {
-			case head := <-chainHeadCh:
-				if config.IsMontBlanc(head.Block.Number()) {
-					log.Info("MontBlanc hard fork is activated. Starting WEMIX BFT engine")
-					err := we.wbft.(*qbftBackend.Backend).Start(chain, currentBlock, rawdb.HasBadBlock)
-					if err != nil {
-						log.Error("cannot start WEMIX consensus engine", "err", err)
+		if config.IsMontBlanc(new(big.Int).Add(currentBlock().Number(), common.Big1)) {
+			err := we.wbft.(*qbftBackend.Backend).Start(chain, currentBlock, rawdb.HasBadBlock)
+			if err != nil {
+				log.Error("cannot start WEMIX BFT engine", "err", err)
+			}
+		} else {
+		loop:
+			for {
+				select {
+				case head := <-chainHeadCh:
+					if config.IsMontBlanc(new(big.Int).Add(head.Block.Number(), common.Big1)) {
+						log.Info("MontBlanc hard fork is activated. Starting WEMIX BFT engine")
+						err := we.wbft.(*qbftBackend.Backend).Start(chain, currentBlock, rawdb.HasBadBlock)
+						if err != nil {
+							log.Error("cannot start WEMIX BFT engine", "err", err)
+						}
+						break loop
 					}
+				case err := <-chainHeadSub.Err():
+					log.Warn("wemix consensus engine loop exits abnormally", "err", err)
+					break loop
+				case <-we.stopCh:
 					break loop
 				}
-			case err := <-chainHeadSub.Err():
-				log.Warn("wemix consensus engine loop exits abnormally", "err", err)
-				break loop
-			case <-we.stopCh:
-				break loop
 			}
 		}
 		chainHeadSub.Unsubscribe()
