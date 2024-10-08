@@ -17,22 +17,24 @@ import (
 // A QBFT PREPARE message.
 type Prepare struct {
 	CommonPayload
-	Digest common.Hash
+	Digest      common.Hash
+	PrepareSeal []byte
 }
 
-func NewPrepare(sequence *big.Int, round *big.Int, digest common.Hash) *Prepare {
+func NewPrepare(sequence *big.Int, round *big.Int, digest common.Hash, seal []byte) *Prepare {
 	return &Prepare{
 		CommonPayload: CommonPayload{
 			code:     PrepareCode,
 			Sequence: sequence,
 			Round:    round,
 		},
-		Digest: digest,
+		Digest:      digest,
+		PrepareSeal: seal,
 	}
 }
 
-func NewPrepareWithSigAndSource(sequence *big.Int, round *big.Int, digest common.Hash, signature []byte, source common.Address) *Prepare {
-	prepare := NewPrepare(sequence, round, digest)
+func NewPrepareWithSigAndSource(sequence *big.Int, round *big.Int, digest common.Hash, signature []byte, source common.Address, seal []byte) *Prepare {
+	prepare := NewPrepare(sequence, round, digest, seal)
 	prepare.signature = signature
 	prepare.source = source
 	return prepare

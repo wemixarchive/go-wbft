@@ -50,12 +50,33 @@ func (e *Engine) Author(header *types.Header) (common.Address, error) {
 	return header.Coinbase, nil
 }
 
-func (e *Engine) CommitHeader(header *types.Header, seals [][]byte, round *big.Int) error {
+func (e *Engine) CommitHeader(header *types.Header, preparedSeals, committedSeals [][]byte, round *big.Int) error {
 	return ApplyHeaderQBFTExtra(
 		header,
-		writeCommittedSeals(seals),
+		writePreparedSeals(preparedSeals),
+		writeCommittedSeals(committedSeals),
 		writeRoundNumber(round),
 	)
+}
+
+// writePreparedSeals writes the extra-data field of a block header with given prepared seals.
+func writePreparedSeals(preparedSeals [][]byte) ApplyQBFTExtra {
+	return func(qbftExtra *types.QBFTExtra) error {
+		if len(preparedSeals) == 0 {
+			return qbftcommon.ErrInvalidPreparedSeals
+		}
+
+		for _, seal := range preparedSeals {
+			if len(seal) != types.IstanbulExtraSeal {
+				return qbftcommon.ErrInvalidPreparedSeals
+			}
+		}
+
+		qbftExtra.PreparedSeal = make([][]byte, len(preparedSeals))
+		copy(qbftExtra.PreparedSeal, preparedSeals)
+
+		return nil
+	}
 }
 
 // writeCommittedSeals writes the extra-data field of a block header with given committed seals.
@@ -223,7 +244,17 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return err
 	}
 
-	return e.verifyCommittedSeals(chain, header, parents, validators, prevValidators)
+	// Verify prepared seals
+	if err := e.verifyPreparedSeals(chain, header, parents, validators, prevValidators); err != nil {
+		return err
+	}
+
+	// Verify committed seals
+	if err := e.verifyCommittedSeals(chain, header, parents, validators, prevValidators); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {

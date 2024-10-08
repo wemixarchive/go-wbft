@@ -186,7 +186,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		if _, ok := ev.Data.(qbft.RequestEvent); !ok {
 			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
-		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
+		if err := engine.Commit(otherBlock, nil, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil { // TODO: prepared seal
 			t.Error(err.Error())
 		}
 		eventSub.Unsubscribe()
