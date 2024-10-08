@@ -625,15 +625,15 @@ func (c *ChainConfig) Description() string {
 	if c.QBFT != nil {
 		banner += fmt.Sprintf("   - EpochLength:               %-8v\n", c.QBFT.EpochLength)
 		banner += fmt.Sprintf("   - BlockPeriodSeconds:        %-8v\n", c.QBFT.BlockPeriodSeconds)
-		banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", *c.QBFT.EmptyBlockPeriodSeconds)
+		banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", c.QBFT.EmptyBlockPeriodSeconds)
 		banner += fmt.Sprintf("   - RequestTimeoutSeconds:     %-8v\n", c.QBFT.RequestTimeoutSeconds)
 		banner += fmt.Sprintf("   - ProposerPolicy:            %-8v\n", c.QBFT.ProposerPolicy)
 		banner += fmt.Sprintf("   - BlockReward:               %-8v\n", ((*big.Int)(c.QBFT.BlockReward)).Int64())
-		banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", *c.QBFT.BeneficiaryMode)
+		banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", c.QBFT.BeneficiaryMode)
 		banner += fmt.Sprintf("   - MiningBeneficiary:         %v\n", c.QBFT.MiningBeneficiary)
-		banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", *c.QBFT.ValidatorSelectionMode)
+		banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", c.QBFT.ValidatorSelectionMode)
 		banner += fmt.Sprintf("   - Validators:                %v\n", c.QBFT.Validators)
-		banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", *c.QBFT.MaxRequestTimeoutSeconds)
+		banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", c.QBFT.MaxRequestTimeoutSeconds)
 	}
 	banner += "\n"
 
