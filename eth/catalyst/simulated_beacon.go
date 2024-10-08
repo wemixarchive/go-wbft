@@ -88,7 +88,7 @@ type SimulatedBeacon struct {
 //
 //   - If period is set to 0, a block is produced on every transaction.
 //     via Commit, Fork and AdjustTime.
-func NewSimulatedBeacon(period uint64, eth *eth.Ethereum) (*SimulatedBeacon, error) {
+func NewSimulatedBeacon(period uint64, eth *eth.Ethereum, coinbase common.Address) (*SimulatedBeacon, error) {
 	block := eth.BlockChain().CurrentBlock()
 	current := engine.ForkchoiceStateV1{
 		HeadBlockHash:      block.Hash(),
@@ -111,6 +111,7 @@ func NewSimulatedBeacon(period uint64, eth *eth.Ethereum) (*SimulatedBeacon, err
 		lastBlockTime:      block.Time,
 		curForkchoiceState: current,
 		withdrawals:        withdrawalQueue{make(chan *types.Withdrawal, 20)},
+		feeRecipient:       coinbase,
 	}, nil
 }
 

@@ -17,6 +17,7 @@
 package simulated
 
 import (
+	qbftengine "github.com/ethereum/go-ethereum/consensus/qbft/engine"
 	"math/big"
 	"time"
 
@@ -105,14 +106,20 @@ func NewBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Config,
 		panic(err) // this should never happen
 	}
 
-	sim, err := newWithNode(stack, &ethConf, 0)
+	// set extra field for QBFT engine
+	header := ethConf.Genesis.ToBlock().Header()
+	qbftengine.ApplyHeaderQBFTExtra(
+		header,
+		func(qbftExtra *types.QBFTExtra) error {
+			qbftExtra.Validators = ethConf.Genesis.Config.QBFT.Validators
+			return nil
+		})
+	ethConf.Genesis.ExtraData = header.Extra
+
+	sim, err := newWithNode(stack, &ethConf, 0, ethConf.Genesis.Config.QBFT.Validators[0])
 	if err != nil {
 		panic(err) // this should never happen
 	}
-
-	header := ethConf.Genesis.ToBlock().Header()
-	sim.Engine().CallEngineSpecific("SetExtra", ethConf.Genesis.Config.QBFT.Validators[0], header)
-	ethConf.Genesis.ExtraData = header.Extra
 
 	// start consensus engine
 	sim.Engine().CallEngineSpecific("Start", sim.eth.BlockChain(), sim.eth.BlockChain().CurrentFullBlock(), rawdb.HasBadBlock)
@@ -122,8 +129,9 @@ func NewBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Config,
 
 // newWithNode sets up a simulated backend on an existing node. The provided node
 // must not be started and will be started by this method.
-func newWithNode(stack *node.Node, conf *eth.Config, blockPeriod uint64) (*Backend, error) {
+func newWithNode(stack *node.Node, conf *eth.Config, blockPeriod uint64, coinbase common.Address) (*Backend, error) {
 	backend, err := eth.New(stack, conf)
+
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +146,7 @@ func newWithNode(stack *node.Node, conf *eth.Config, blockPeriod uint64) (*Backe
 		return nil, err
 	}
 	// Set up the simulated beacon
-	beacon, err := catalyst.NewSimulatedBeacon(blockPeriod, backend)
+	beacon, err := catalyst.NewSimulatedBeacon(blockPeriod, backend, coinbase)
 	if err != nil {
 		return nil, err
 	}

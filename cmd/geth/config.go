@@ -215,7 +215,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	// Start the dev mode if requested, or launch the engine API for
 	// interacting with external consensus client.
 	if ctx.IsSet(utils.DeveloperFlag.Name) {
-		simBeacon, err := catalyst.NewSimulatedBeacon(ctx.Uint64(utils.DeveloperPeriodFlag.Name), eth)
+		simBeacon, err := catalyst.NewSimulatedBeacon(ctx.Uint64(utils.DeveloperPeriodFlag.Name), eth, common.Address{})
 		if err != nil {
 			utils.Fatalf("failed to register dev mode catalyst service: %v", err)
 		}

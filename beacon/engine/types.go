@@ -203,9 +203,10 @@ func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash,
 	if err != nil {
 		return nil, err
 	}
-	if len(params.ExtraData) > 32 {
-		return nil, fmt.Errorf("invalid extradata length: %v", len(params.ExtraData))
-	}
+	// for QBFT block; it has longer extra data than 32 bytes
+	//if len(params.ExtraData) > 32 {
+	//	return nil, fmt.Errorf("invalid extradata length: %v", len(params.ExtraData))
+	//}
 	if len(params.LogsBloom) != 256 {
 		return nil, fmt.Errorf("invalid logsBloom length: %v", len(params.LogsBloom))
 	}
@@ -241,7 +242,7 @@ func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash,
 		TxHash:           types.DeriveSha(types.Transactions(txs), trie.NewStackTrie(nil)),
 		ReceiptHash:      params.ReceiptsRoot,
 		Bloom:            types.BytesToBloom(params.LogsBloom),
-		Difficulty:       common.Big0,
+		Difficulty:       new(big.Int).SetUint64(1), // for QBFT
 		Number:           new(big.Int).SetUint64(params.Number),
 		GasLimit:         params.GasLimit,
 		GasUsed:          params.GasUsed,

@@ -590,11 +590,11 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 		ttd  = api.eth.BlockChain().Config().TerminalTotalDifficulty
 		gptd = api.eth.BlockChain().GetTd(parent.ParentHash(), parent.NumberU64()-1)
 	)
-	if ptd.Cmp(ttd) < 0 {
+	if ttd != nil && ptd.Cmp(ttd) < 0 {
 		log.Warn("Ignoring pre-merge payload", "number", params.Number, "hash", params.BlockHash, "td", ptd, "ttd", ttd)
 		return engine.INVALID_TERMINAL_BLOCK, nil
 	}
-	if parent.Difficulty().BitLen() > 0 && gptd != nil && gptd.Cmp(ttd) >= 0 {
+	if parent.Difficulty().BitLen() > 0 && gptd != nil && ttd != nil && gptd.Cmp(ttd) >= 0 {
 		log.Error("Ignoring pre-merge parent block", "number", params.Number, "hash", params.BlockHash, "td", ptd, "ttd", ttd)
 		return engine.INVALID_TERMINAL_BLOCK, nil
 	}
