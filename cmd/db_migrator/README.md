@@ -41,7 +41,7 @@ export GWEMIX_QBFT_DATADIR=<path-to-geth-datadir> # Create new directory
 
 ### Getting migration tool from releases (**recommended**)
 
-Link:
+Get `db_migrator` from releases and locate it to `$GWEMIX_QBFT_REPO`.
 
 ### Building migration tool from the source
 
@@ -61,8 +61,8 @@ cd $GWEMIX_QBFT_REPO
 CGO_CFLAGS="-I$GWEMIX_REPO/rocksdb/include" CGO_LDFLAGS="-L$GWEMIX_REPO/rocksdb -lm -lstdc++ -lpthread -lrt -ldl -lsnappy -llz4 -lzstd -ljemalloc" go build -tags db_migrator ./cmd/db_migrator
 ```
 
-Note that the latest `gwemix` v0.10.8 uses RocksDB v6.27.3 and the corresponding grocksdb (RocksDB wrapper) v1.6.44.
-If `gwemix` uses other RocksDB version, adjusting grocksdb version would be needed.
+Note that `gwemix` v0.10.9 uses RocksDB v6.28.2 and the corresponding grocksdb (RocksDB wrapper) v1.6.46.
+If `gwemix` uses other RocksDB version, adjusting grocksdb version might be needed.
 
 ## Migration including ancient chaindata
 

@@ -148,4 +148,4 @@ require (
 )
 
 // go-wemix-qbft
-require github.com/linxGnu/grocksdb v1.6.44
+require github.com/linxGnu/grocksdb v1.6.46
