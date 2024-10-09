@@ -174,7 +174,6 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	otherBlock := makeBlockWithoutSeal(chain, engine, block)
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
@@ -186,6 +185,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		if _, ok := ev.Data.(qbft.RequestEvent); !ok {
 			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
+		otherBlock := makeBlockWithoutSeal(chain, engine, block)
 		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
 			t.Error(err.Error())
 		}

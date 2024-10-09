@@ -7,6 +7,7 @@ package params
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -22,11 +23,11 @@ const (
 )
 
 type QBFTConfig struct {
-	EpochLength              uint64                `json:"epochlength"`                       // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds       uint64                `json:"blockperiodseconds"`                // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
-	EmptyBlockPeriodSeconds  *uint64               `json:"emptyblockperiodseconds,omitempty"` // Minimum time between two consecutive QBFT a block and empty block’ timestamps in seconds
-	RequestTimeoutSeconds    uint64                `json:"requesttimeoutseconds"`             // Minimum request timeout for each QBFT round in milliseconds
-	ProposerPolicy           uint64                `json:"policy"`                            // The policy for proposer selection
+	EpochLength              uint64                `json:"epochLength"`                       // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64                `json:"blockPeriodSeconds"`                // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
+	EmptyBlockPeriodSeconds  *uint64               `json:"emptyBlockPeriodSeconds,omitempty"` // Minimum time between two consecutive QBFT a block and empty block’ timestamps in seconds
+	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds"`             // Minimum request timeout for each QBFT round in milliseconds
+	ProposerPolicy           uint64                `json:"proposerPolicy"`                    // The policy for proposer selection
 	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`             // Reward from start, works only on QBFT consensus protocol
 	BeneficiaryMode          *string               `json:"beneficiaryMode,omitempty"`         // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
 	MiningBeneficiary        *common.Address       `json:"miningBeneficiary,omitempty"`       // Wallet address that benefits at every new block (besu mode)
@@ -35,8 +36,20 @@ type QBFTConfig struct {
 	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"`          // The max round time
 }
 
-func (c QBFTConfig) String() string {
-	return "qbft"
+func (c *QBFTConfig) String() string {
+	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v EmptyBlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BeneficiaryMode: %v, MiningBeneficiary: %v, ValidatorSelectionMode: %v, Validators: %v, MaxRequestTimeoutSeconds: %v}",
+		c.EpochLength,
+		c.BlockPeriodSeconds,
+		c.EmptyBlockPeriodSeconds,
+		c.RequestTimeoutSeconds,
+		c.ProposerPolicy,
+		c.BlockReward,
+		c.BeneficiaryMode,
+		c.MiningBeneficiary,
+		c.ValidatorSelectionMode,
+		c.Validators,
+		c.MaxRequestTimeoutSeconds,
+	)
 }
 
 type Transition struct {
