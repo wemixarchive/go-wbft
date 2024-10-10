@@ -176,7 +176,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
-	engine.EventMux().Stop()
+	engine.EventMux().Stop() // prevents consensus step to progress
 	blockOutputChannel := make(chan *types.Block)
 	stopChannel := make(chan struct{})
 
@@ -197,7 +197,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	select {
 	case <-blockOutputChannel:
 		t.Error("Wrong block found!")
-	case <-time.After(3 * time.Second):
+	case <-time.After(time.Second):
 		//no block found, stop the sealing
 		close(stopChannel)
 	}
