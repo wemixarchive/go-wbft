@@ -181,22 +181,20 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	stopChannel := make(chan struct{})
 
 	go func() {
-		ev := <-eventSub.Chan()
-		if _, ok := ev.Data.(qbft.RequestEvent); !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-		}
-		otherBlock := makeBlockWithoutSeal(chain, engine, block)
-		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
-			t.Error(err.Error())
-		}
-		eventSub.Unsubscribe()
-	}()
-
-	go func() {
 		if err := engine.Seal(chain, block, blockOutputChannel, stopChannel); err != nil {
 			t.Error(err.Error())
 		}
 	}()
+
+	ev := <-eventSub.Chan()
+	if _, ok := ev.Data.(qbft.RequestEvent); !ok {
+		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+	}
+	otherBlock := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
+		t.Error(err.Error())
+	}
+	eventSub.Unsubscribe()
 
 	select {
 	case <-blockOutputChannel:
