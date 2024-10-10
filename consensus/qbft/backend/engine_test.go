@@ -176,7 +176,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
-	engine.EventMux().Stop() // prevents consensus step to progress
+	engine.EventMux().Stop() // prevents consensus step progressing
 	blockOutputChannel := make(chan *types.Block)
 	stopChannel := make(chan struct{})
 
