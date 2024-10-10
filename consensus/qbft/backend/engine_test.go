@@ -171,7 +171,7 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(2) // 2 validators setting makes the engine not to commit
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
@@ -190,7 +190,11 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	if _, ok := ev.Data.(qbft.RequestEvent); !ok {
 		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 	}
+	time.Sleep(time.Second) // for other time of block
 	otherBlock := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	if block.Hash() == otherBlock.Hash() {
+		t.Errorf("other block is same to normal block")
+	}
 	if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
 		t.Error(err.Error())
 	}
