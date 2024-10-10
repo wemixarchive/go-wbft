@@ -45,7 +45,7 @@ func (c *Core) broadcastPrepare() {
 	// Create Prepare Seal
 	prepareSeal, err := c.backend.SignWithoutHashing(PrepareCommittedSeal(header, uint32(c.currentView().Round.Uint64())))
 	if err != nil {
-		logger.Error("QBFT: failed to create COMMIT seal", "sub", sub, "err", err)
+		logger.Error("QBFT: failed to create PREPARE seal", "sub", sub, "err", err)
 		return
 	}
 
