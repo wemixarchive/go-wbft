@@ -35,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft/testutils"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -109,8 +108,7 @@ func makeHeader(parent *types.Block, config *qbft.Config) *types.Header {
 }
 
 func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
-	staedb, _ := chain.State()
-	block := makeBlockWithoutSeal(chain, engine, parent, staedb)
+	block := makeBlockWithoutSeal(chain, engine, parent)
 	stopCh := make(chan struct{})
 	resultCh := make(chan *types.Block, 10)
 	go engine.Seal(chain, block, resultCh, stopCh)
@@ -118,10 +116,10 @@ func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *ty
 	return blk
 }
 
-func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types.Block, state *state.StateDB) *types.Block {
+func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
-	//state, _ := chain.StateAt(parent.Root())
+	state, _ := chain.StateAt(parent.Root())
 	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil, nil)
 	return block
 }
@@ -145,8 +143,7 @@ func TestQBFTPrepare(t *testing.T) {
 func TestSealStopChannel(t *testing.T) {
 	chain, engine := newBlockChain(1)
 	defer engine.Stop()
-	statedb, _ := chain.State()
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	stop := make(chan struct{}, 1)
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
 	eventLoop := func() {
@@ -176,36 +173,31 @@ func TestSealStopChannel(t *testing.T) {
 func TestSealCommittedOtherHash(t *testing.T) {
 	chain, engine := newBlockChain(1)
 	defer engine.Stop()
-	statedb, _ := chain.State()
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
-	otherBlock := makeBlockWithoutSeal(chain, engine, block, statedb)
+	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
-	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
+	engine.EventMux().Stop() // prevents consensus step progressing
 	blockOutputChannel := make(chan *types.Block)
 	stopChannel := make(chan struct{})
 
-	go func() {
-		ev := <-eventSub.Chan()
-		if _, ok := ev.Data.(qbft.RequestEvent); !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-		}
-		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
-			t.Error(err.Error())
-		}
-		eventSub.Unsubscribe()
-	}()
+	if err := engine.Seal(chain, block, blockOutputChannel, stopChannel); err != nil {
+		t.Error(err.Error())
+	}
 
-	go func() {
-		if err := engine.Seal(chain, block, blockOutputChannel, stopChannel); err != nil {
-			t.Error(err.Error())
-		}
-	}()
+	time.Sleep(time.Second) // for other time of block
+	otherBlock := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	if block.Hash() == otherBlock.Hash() {
+		t.Errorf("other block is same to normal block")
+	}
+
+	if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
+		t.Error(err.Error())
+	}
 
 	select {
 	case <-blockOutputChannel:
 		t.Error("Wrong block found!")
-	default:
+	case <-time.After(time.Second):
 		//no block found, stop the sealing
 		close(stopChannel)
 	}
@@ -225,8 +217,7 @@ func updateQBFTBlock(block *types.Block, addr common.Address) *types.Block {
 func TestSealCommitted(t *testing.T) {
 	chain, engine := newBlockChain(1)
 	defer engine.Stop()
-	statedb, _ := chain.State()
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedBlock := updateQBFTBlock(block, engine.Address())
 
 	resultCh := make(chan *types.Block, 10)
@@ -249,8 +240,7 @@ func TestVerifyHeader(t *testing.T) {
 	defer engine.Stop()
 
 	// qbftcommon.ErrEmptyCommittedSeals case
-	statedb, _ := chain.State()
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	block = updateQBFTBlock(block, engine.Address())
 	err := engine.VerifyHeader(chain, block.Header())
 	if err != qbftcommon.ErrEmptyCommittedSeals {
@@ -282,7 +272,7 @@ func TestVerifyHeader(t *testing.T) {
 	}*/
 
 	// invalid uncles hash
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
 	header.UncleHash = common.BytesToHash([]byte("123456789"))
 	err = engine.VerifyHeader(chain, header)
@@ -291,7 +281,7 @@ func TestVerifyHeader(t *testing.T) {
 	}
 
 	// invalid difficulty
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
 	header.Difficulty = big.NewInt(2)
 	err = engine.VerifyHeader(chain, header)
@@ -300,7 +290,7 @@ func TestVerifyHeader(t *testing.T) {
 	}
 
 	// invalid timestamp
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
 	header.Time = chain.Genesis().Time() + (engine.config.GetConfig(block.Number()).BlockPeriod - 1)
 	err = engine.VerifyHeader(chain, header)
@@ -309,7 +299,7 @@ func TestVerifyHeader(t *testing.T) {
 	}
 
 	// future block
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
 	header.Time = uint64(time.Now().Unix() + 10)
 	err = engine.VerifyHeader(chain, header)
@@ -318,7 +308,7 @@ func TestVerifyHeader(t *testing.T) {
 	}
 
 	// future block which is within AllowedFutureBlockTime
-	block = makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
 	header.Time = new(big.Int).Add(big.NewInt(time.Now().Unix()), new(big.Int).SetUint64(10)).Uint64()
 	priorValue := engine.config.AllowedFutureBlockTime
@@ -350,15 +340,14 @@ func TestVerifyHeaders(t *testing.T) {
 	headers := []*types.Header{}
 	blocks := []*types.Block{}
 	size := 100
-	statedb, _ := chain.State()
+
 	for i := 0; i < size; i++ {
 		var b *types.Block
 		if i == 0 {
-			b = makeBlockWithoutSeal(chain, engine, genesis, statedb)
+			b = makeBlockWithoutSeal(chain, engine, genesis)
 			b = updateQBFTBlock(b, engine.Address())
-
 		} else {
-			b = makeBlockWithoutSeal(chain, engine, blocks[i-1], statedb)
+			b = makeBlockWithoutSeal(chain, engine, blocks[i-1])
 			b = updateQBFTBlock(b, engine.Address())
 		}
 		blocks = append(blocks, b)

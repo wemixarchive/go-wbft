@@ -136,8 +136,7 @@ func TestCommit(t *testing.T) {
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
 				chain, engine := newBlockChain(1)
-				statedb, _ := chain.State()
-				block := makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
 		},
@@ -147,8 +146,7 @@ func TestCommit(t *testing.T) {
 			nil,
 			func() *types.Block {
 				chain, engine := newBlockChain(1)
-				statedb, _ := chain.State()
-				block := makeBlockWithoutSeal(chain, engine, chain.Genesis(), statedb)
+				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
 		},
