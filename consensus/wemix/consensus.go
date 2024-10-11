@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/wemixgov"
@@ -23,7 +24,7 @@ import (
 
 type WemixConsensus struct {
 	wpoa   consensus.Engine
-	wbft   consensus.Engine
+	wbft   *qbftBackend.Backend
 	stopCh chan struct{}
 }
 
@@ -44,23 +45,30 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 
 	// WEMIX engine is waiting for MontBlanc hard fork then triggers qbft engine and quits its loop
 	go func() {
-	loop:
-		for {
-			select {
-			case head := <-chainHeadCh:
-				if config.IsMontBlanc(head.Block.Number()) {
-					log.Info("MontBlanc hard fork is activated. Starting WEMIX BFT engine")
-					err := we.wbft.(*qbftBackend.Backend).Start(chain, currentBlock, rawdb.HasBadBlock)
-					if err != nil {
-						log.Error("cannot start WEMIX consensus engine", "err", err)
+		if config.IsMontBlanc(new(big.Int).Add(currentBlock().Number(), common.Big1)) {
+			err := we.wbft.Start(chain, currentBlock, rawdb.HasBadBlock)
+			if err != nil {
+				log.Error("cannot start WEMIX BFT engine", "err", err)
+			}
+		} else {
+		loop:
+			for {
+				select {
+				case head := <-chainHeadCh:
+					if config.IsMontBlanc(new(big.Int).Add(head.Block.Number(), common.Big1)) {
+						log.Info("MontBlanc hard fork is activated. Starting WEMIX BFT engine")
+						err := we.wbft.Start(chain, currentBlock, rawdb.HasBadBlock)
+						if err != nil {
+							log.Error("cannot start WEMIX BFT engine", "err", err)
+						}
+						break loop
 					}
+				case err := <-chainHeadSub.Err():
+					log.Warn("wemix consensus engine loop exits abnormally", "err", err)
+					break loop
+				case <-we.stopCh:
 					break loop
 				}
-			case err := <-chainHeadSub.Err():
-				log.Warn("wemix consensus engine loop exits abnormally", "err", err)
-				break loop
-			case <-we.stopCh:
-				break loop
 			}
 		}
 		chainHeadSub.Unsubscribe()
@@ -183,4 +191,16 @@ func (we *WemixConsensus) Close() error {
 // CallEngineSpecific implements consensus.Engine
 func (we *WemixConsensus) CallEngineSpecific(method string, args ...interface{}) interface{} {
 	return nil
+}
+
+func (we *WemixConsensus) NewChainHead() error {
+	return we.wbft.NewChainHead()
+}
+
+func (we *WemixConsensus) HandleMsg(address common.Address, data p2p.Msg) (bool, error) {
+	return we.wbft.HandleMsg(address, data)
+}
+
+func (we *WemixConsensus) SetBroadcaster(broadcaster consensus.Broadcaster) {
+	we.wbft.SetBroadcaster(broadcaster)
 }

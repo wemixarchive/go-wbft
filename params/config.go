@@ -337,6 +337,8 @@ var (
 		ArrowGlacierBlock:             big.NewInt(0),
 		GrayGlacierBlock:              big.NewInt(0),
 		MergeNetsplitBlock:            nil,
+		BriocheBlock:                  big.NewInt(0),
+		MontBlancBlock:                big.NewInt(0),
 		ShanghaiTime:                  nil,
 		CancunTime:                    nil,
 		PragueTime:                    nil,
@@ -345,6 +347,27 @@ var (
 		TerminalTotalDifficultyPassed: false,
 		Ethash:                        new(EthashConfig),
 		Clique:                        nil,
+		Brioche: &BriocheConfig{
+			BlockReward:       big.NewInt(1e18),
+			FirstHalvingBlock: big.NewInt(50),
+			HalvingPeriod:     big.NewInt(50),
+			FinishRewardBlock: big.NewInt(450),
+			HalvingTimes:      8,
+			HalvingRate:       50,
+		},
+		QBFT: &QBFTConfig{
+			EpochLength:              10,
+			BlockPeriodSeconds:       3,
+			EmptyBlockPeriodSeconds:  &ebps,
+			RequestTimeoutSeconds:    1000,
+			ProposerPolicy:           0,
+			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
+			BeneficiaryMode:          &bm,
+			MiningBeneficiary:        &mb,
+			ValidatorSelectionMode:   &vsm,
+			MaxRequestTimeoutSeconds: &mrts,
+			// You should assign `Validators` before using
+		},
 	}
 
 	// MergedTestChainConfig contains every protocol change (EIPs) introduced
@@ -625,15 +648,35 @@ func (c *ChainConfig) Description() string {
 	if c.QBFT != nil {
 		banner += fmt.Sprintf("   - EpochLength:               %-8v\n", c.QBFT.EpochLength)
 		banner += fmt.Sprintf("   - BlockPeriodSeconds:        %-8v\n", c.QBFT.BlockPeriodSeconds)
-		banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", *c.QBFT.EmptyBlockPeriodSeconds)
+		if c.QBFT.EmptyBlockPeriodSeconds == nil {
+			banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", 0)
+		} else {
+			banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", *c.QBFT.EmptyBlockPeriodSeconds)
+		}
 		banner += fmt.Sprintf("   - RequestTimeoutSeconds:     %-8v\n", c.QBFT.RequestTimeoutSeconds)
 		banner += fmt.Sprintf("   - ProposerPolicy:            %-8v\n", c.QBFT.ProposerPolicy)
-		banner += fmt.Sprintf("   - BlockReward:               %-8v\n", ((*big.Int)(c.QBFT.BlockReward)).Int64())
-		banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", *c.QBFT.BeneficiaryMode)
+		if c.QBFT.BlockReward == nil {
+			banner += fmt.Sprintf("   - BlockReward:               %-8v\n", 0)
+		} else {
+			banner += fmt.Sprintf("   - BlockReward:               %-8v\n", ((*big.Int)(c.QBFT.BlockReward)).Int64())
+		}
+		if c.QBFT.BeneficiaryMode == nil {
+			banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", "validator")
+		} else {
+			banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", *c.QBFT.BeneficiaryMode)
+		}
 		banner += fmt.Sprintf("   - MiningBeneficiary:         %v\n", c.QBFT.MiningBeneficiary)
-		banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", *c.QBFT.ValidatorSelectionMode)
+		if c.QBFT.ValidatorSelectionMode == nil {
+			banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", "blockheader")
+		} else {
+			banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", *c.QBFT.ValidatorSelectionMode)
+		}
 		banner += fmt.Sprintf("   - Validators:                %v\n", c.QBFT.Validators)
-		banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", *c.QBFT.MaxRequestTimeoutSeconds)
+		if c.QBFT.MaxRequestTimeoutSeconds == nil {
+			banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", 0)
+		} else {
+			banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", *c.QBFT.MaxRequestTimeoutSeconds)
+		}
 	}
 	banner += "\n"
 

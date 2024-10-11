@@ -83,9 +83,17 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	// Assemble the voting snapshot
 	var snap, prevSnap *Snapshot
 	var err error
-	if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, header.ParentHash, parents); err != nil {
+
+	if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
 		return err
-	} else if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
+	} else if header.Number.Uint64() < 2 {
+		//TODO: related to genesis block's valset
+		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet)
+	} else if len(parents) < 1 {
+		if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, chain.GetHeaderByNumber(header.Number.Uint64()-2).Hash(), nil); err != nil {
+			return err
+		}
+	} else if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, parents[0].Hash(), parents[:1]); err != nil {
 		return err
 	}
 

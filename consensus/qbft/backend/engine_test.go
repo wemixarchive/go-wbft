@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 )
 
@@ -109,9 +110,10 @@ func makeHeader(parent *types.Block, config *qbft.Config) *types.Header {
 
 func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	block := makeBlockWithoutSeal(chain, engine, parent)
-	stopCh := make(chan struct{})
+	state, _ := chain.StateAt(parent.Root())
+	block, _ = engine.FinalizeAndAssemble(chain, block.Header(), state, nil, nil, nil, nil)
 	resultCh := make(chan *types.Block, 10)
-	go engine.Seal(chain, block, resultCh, stopCh)
+	engine.Seal(chain, block, resultCh, nil)
 	blk := <-resultCh
 	return blk
 }
@@ -119,8 +121,7 @@ func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *ty
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
-	state, _ := chain.StateAt(parent.Root())
-	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil, nil)
+	block := types.NewBlock(header, nil, nil, nil, trie.NewStackTrie(nil))
 	return block
 }
 
@@ -171,37 +172,34 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(2)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
+	defer eventSub.Unsubscribe()
 	blockOutputChannel := make(chan *types.Block)
 	stopChannel := make(chan struct{})
 
-	go func() {
-		ev := <-eventSub.Chan()
-		if _, ok := ev.Data.(qbft.RequestEvent); !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-		}
-		if err := engine.Commit(otherBlock, nil, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil { // TODO: prepared seal
-			t.Error(err.Error())
-		}
-		eventSub.Unsubscribe()
-	}()
+	if err := engine.Seal(chain, block, blockOutputChannel, stopChannel); err != nil {
+		t.Error(err.Error())
+	}
 
-	go func() {
-		if err := engine.Seal(chain, block, blockOutputChannel, stopChannel); err != nil {
-			t.Error(err.Error())
-		}
-	}()
+	ev := <-eventSub.Chan()
+	if _, ok := ev.Data.(qbft.RequestEvent); !ok {
+		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+	}
+
+	if err := engine.Commit(otherBlock, nil, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil { //TODO: add prepare
+		t.Error(err.Error())
+	}
 
 	select {
 	case <-blockOutputChannel:
 		t.Error("Wrong block found!")
-	default:
+	case <-time.After(time.Second):
 		//no block found, stop the sealing
 		close(stopChannel)
 	}
