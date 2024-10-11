@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 )
 
@@ -119,8 +120,7 @@ func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *ty
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
-	state, _ := chain.StateAt(parent.Root())
-	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil, nil)
+	block := types.NewBlock(header, nil, nil, nil, trie.NewStackTrie(nil))
 	return block
 }
 
@@ -171,12 +171,14 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(2)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	otherBlock := makeBlockWithoutSeal(chain, engine, block)
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
-	engine.EventMux().Stop() // prevents consensus step progressing
+	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
+	defer eventSub.Unsubscribe()
 	blockOutputChannel := make(chan *types.Block)
 	stopChannel := make(chan struct{})
 
@@ -184,10 +186,9 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	time.Sleep(time.Second) // for other time of block
-	otherBlock := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	if block.Hash() == otherBlock.Hash() {
-		t.Errorf("other block is same to normal block")
+	ev := <-eventSub.Chan()
+	if _, ok := ev.Data.(qbft.RequestEvent); !ok {
+		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 	}
 
 	if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
