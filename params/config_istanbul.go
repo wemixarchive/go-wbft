@@ -37,18 +37,56 @@ type QBFTConfig struct {
 }
 
 func (c *QBFTConfig) String() string {
+	var emptyBlockPeriodSeconds, blockReward, beneficiaryMode, miningBeneficiary, validatorSelectionMode, maxRequestTimeoutSeconds string
+
+	if c.EmptyBlockPeriodSeconds != nil {
+		emptyBlockPeriodSeconds = fmt.Sprintf("%v", *c.EmptyBlockPeriodSeconds)
+	} else {
+		emptyBlockPeriodSeconds = "<nil>"
+	}
+
+	if c.BlockReward != nil {
+		blockReward = fmt.Sprintf("%v", c.BlockReward)
+	} else {
+		blockReward = "<nil>"
+	}
+
+	if c.BeneficiaryMode != nil {
+		beneficiaryMode = fmt.Sprintf("%v", *c.BeneficiaryMode)
+	} else {
+		beneficiaryMode = "<nil>"
+	}
+
+	if c.MiningBeneficiary != nil {
+		miningBeneficiary = fmt.Sprintf("%v", *c.MiningBeneficiary)
+	} else {
+		miningBeneficiary = "<nil>"
+	}
+
+	if c.ValidatorSelectionMode != nil {
+		validatorSelectionMode = fmt.Sprintf("%v", *c.ValidatorSelectionMode)
+	} else {
+		validatorSelectionMode = "<nil>"
+	}
+
+	if c.MaxRequestTimeoutSeconds != nil {
+		maxRequestTimeoutSeconds = fmt.Sprintf("%v", *c.MaxRequestTimeoutSeconds)
+	} else {
+		maxRequestTimeoutSeconds = "<nil>"
+	}
+
 	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v EmptyBlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BeneficiaryMode: %v, MiningBeneficiary: %v, ValidatorSelectionMode: %v, Validators: %v, MaxRequestTimeoutSeconds: %v}",
 		c.EpochLength,
 		c.BlockPeriodSeconds,
-		c.EmptyBlockPeriodSeconds,
+		emptyBlockPeriodSeconds,
 		c.RequestTimeoutSeconds,
 		c.ProposerPolicy,
-		c.BlockReward,
-		c.BeneficiaryMode,
-		c.MiningBeneficiary,
-		c.ValidatorSelectionMode,
+		blockReward,
+		beneficiaryMode,
+		miningBeneficiary,
+		validatorSelectionMode,
 		c.Validators,
-		c.MaxRequestTimeoutSeconds,
+		maxRequestTimeoutSeconds,
 	)
 }
 
