@@ -192,7 +192,7 @@ func (sb *Backend) Gossip(valSet qbft.ValidatorSet, code uint64, payload []byte)
 }
 
 // Commit implements qbft.Backend.Commit
-func (sb *Backend) Commit(proposal qbft.Proposal, seals [][]byte, round *big.Int) (err error) {
+func (sb *Backend) Commit(proposal qbft.Proposal, preparedSeals, committedSeals [][]byte, round *big.Int) (err error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
@@ -202,7 +202,7 @@ func (sb *Backend) Commit(proposal qbft.Proposal, seals [][]byte, round *big.Int
 
 	// Commit header
 	h := block.Header()
-	err = sb.Engine().CommitHeader(h, seals, round)
+	err = sb.Engine().CommitHeader(h, preparedSeals, committedSeals, round)
 	if err != nil {
 		return
 	}

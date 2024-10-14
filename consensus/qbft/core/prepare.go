@@ -23,6 +23,7 @@ package core
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -36,7 +37,19 @@ func (c *Core) broadcastPrepare() {
 
 	// Create PREPARE message from the current proposal
 	sub := c.current.Subject()
-	prepare := qbftmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest)
+
+	var header *types.Header
+	if block, ok := c.current.Proposal().(*types.Block); ok {
+		header = block.Header()
+	}
+	// Create Prepare Seal
+	prepareSeal, err := c.backend.SignWithoutHashing(PrepareCommittedSeal(header, uint32(c.currentView().Round.Uint64())))
+	if err != nil {
+		logger.Error("QBFT: failed to create PREPARE seal", "sub", sub, "err", err)
+		return
+	}
+
+	prepare := qbftmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
 	prepare.SetSource(c.Address())
 
 	// Sign Message
@@ -105,7 +118,7 @@ func (c *Core) handlePrepareMsg(prepare *qbftmessage.Prepare) error {
 			c.QBFTPreparedPrepares = append(
 				c.QBFTPreparedPrepares,
 				qbftmessage.NewPrepareWithSigAndSource(
-					m.View().Sequence, m.View().Round, m.(*qbftmessage.Prepare).Digest, m.Signature(), m.Source()))
+					m.View().Sequence, m.View().Round, m.(*qbftmessage.Prepare).Digest, m.Signature(), m.Source(), m.(*qbftmessage.Prepare).PrepareSeal))
 		}
 
 		if c.current.Proposal() != nil && c.current.Proposal().Hash() == prepare.Digest {

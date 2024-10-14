@@ -192,7 +192,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 	}
 
-	if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
+	if err := engine.Commit(otherBlock, nil, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil { //TODO: add prepare
 		t.Error(err.Error())
 	}
 

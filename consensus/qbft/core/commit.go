@@ -128,6 +128,14 @@ func (c *Core) commitQBFT() {
 
 	proposal := c.current.Proposal()
 	if proposal != nil {
+		// Compute prepared seals
+		preparedSeals := make([][]byte, c.current.QBFTPrepares.Size())
+		for i, msg := range c.current.QBFTPrepares.Values() {
+			preparedSeals[i] = make([]byte, types.IstanbulExtraSeal)
+			prepareMsg := msg.(*qbftmessage.Prepare)
+			copy(preparedSeals[i][:], prepareMsg.PrepareSeal[:])
+		}
+
 		// Compute committed seals
 		committedSeals := make([][]byte, c.current.QBFTCommits.Size())
 		for i, msg := range c.current.QBFTCommits.Values() {
@@ -137,7 +145,7 @@ func (c *Core) commitQBFT() {
 		}
 
 		// Commit proposal to database
-		if err := c.backend.Commit(proposal, committedSeals, c.currentView().Round); err != nil {
+		if err := c.backend.Commit(proposal, preparedSeals, committedSeals, c.currentView().Round); err != nil {
 			c.currentLogger(true, nil).Error("QBFT: error committing proposal", "err", err)
 			c.broadcastNextRoundChange()
 			return

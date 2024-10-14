@@ -58,11 +58,18 @@ func (sb *Backend) Author(header *types.Header) (common.Address, error) {
 	return sb.Engine().Author(header)
 }
 
-// Signers extracts all the addresses who have signed the given header
-// It will extract for each seal who signed it, regardless of if the seal is
-// repeated
-func (sb *Backend) Signers(header *types.Header) ([]common.Address, error) {
-	return sb.Engine().Signers(header)
+// PrepareSigners extracts all the addresses who have signed the given header
+// during the prepare phase. It will extract for each seal who signed it,
+// regardless of if the seal is repeated
+func (sb *Backend) PrepareSigners(header *types.Header) ([]common.Address, error) {
+	return sb.Engine().PrepareSigners(header)
+}
+
+// CommitSigners extracts all the addresses who have signed the given header
+// during the commit phase. It will extract for each seal who signed it,
+// regardless of if the seal is repeated
+func (sb *Backend) CommitSigners(header *types.Header) ([]common.Address, error) {
+	return sb.Engine().CommitSigners(header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a

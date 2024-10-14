@@ -53,6 +53,18 @@ var (
 	// allowed constants of 0x00..0 or 0xff..f.
 	ErrInvalidVote = errors.New("vote nonce not 0x00..0 or 0xff..f")
 
+	// ErrInvalidPreparedSeals is returned if the prepared seal is not signed by any of parent validators.
+	ErrInvalidPreparedSeals = errors.New("invalid prepared seals")
+
+	// ErrInvalidPrevPreparedSeals is returned if the prev prepared seal is not signed by any of parent validators or not enough seals.
+	ErrInvalidPrevPreparedSeals = errors.New("invalid prev prepared seals")
+
+	// ErrEmptyPreparedSeals is returned if the field of prepared seals is zero.
+	ErrEmptyPreparedSeals = errors.New("zero prepared seals")
+
+	// ErrEmptyPrevPreparedSeals is returned if the field of prepared seals is zero.
+	ErrEmptyPrevPreparedSeals = errors.New("zero prev prepared seals")
+
 	// ErrInvalidCommittedSeals is returned if the committed seal is not signed by any of parent validators.
 	ErrInvalidCommittedSeals = errors.New("invalid committed seals")
 

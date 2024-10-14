@@ -51,7 +51,9 @@ type QBFTExtra struct {
 	Validators        []common.Address
 	Vote              *ValidatorVote
 	Round             uint32
+	PreparedSeal      [][]byte
 	CommittedSeal     [][]byte
+	PrevPreparedSeal  [][]byte
 	PrevCommittedSeal [][]byte // committedSeal of previous local block
 }
 
@@ -67,7 +69,9 @@ func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 		qst.Validators,
 		qst.Vote,
 		qst.Round,
+		qst.PreparedSeal,
 		qst.CommittedSeal,
+		qst.PrevPreparedSeal,
 		qst.PrevCommittedSeal,
 	})
 }
@@ -79,14 +83,17 @@ func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 		Validators        []common.Address
 		Vote              *ValidatorVote `rlp:"nil"`
 		Round             uint32
+		PreparedSeal      [][]byte
 		CommittedSeal     [][]byte
+		PrevPreparedSeal  [][]byte
 		PrevCommittedSeal [][]byte
 	}
 	if err := s.Decode(&qbftExtra); err != nil {
 		return err
 	}
 
-	qst.VanityData, qst.Validators, qst.Vote, qst.Round, qst.CommittedSeal, qst.PrevCommittedSeal = qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.CommittedSeal, qbftExtra.PrevCommittedSeal
+	qst.VanityData, qst.Validators, qst.Vote, qst.Round, qst.PreparedSeal, qst.CommittedSeal, qst.PrevPreparedSeal, qst.PrevCommittedSeal =
+		qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.PreparedSeal, qbftExtra.CommittedSeal, qbftExtra.PrevPreparedSeal, qbftExtra.PrevCommittedSeal
 
 	return nil
 }
@@ -140,6 +147,7 @@ func QBFTFilteredHeaderWithRound(h *Header, round uint32) *Header {
 		return nil
 	}
 
+	qbftExtra.PreparedSeal = [][]byte{}
 	qbftExtra.CommittedSeal = [][]byte{}
 	qbftExtra.Round = round
 
