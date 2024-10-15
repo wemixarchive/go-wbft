@@ -126,12 +126,25 @@ func TestCommit(t *testing.T) {
 	commitCh := make(chan *types.Block)
 	// Case: it's a proposer, so the backend.commit will receive channel result from backend.Commit function
 	testCases := []struct {
-		expectedErr       error
-		expectedSignature [][]byte
-		expectedBlock     func() *types.Block
+		expectedErr              error
+		expectedPrepareSignature [][]byte
+		expectedCommitSignature  [][]byte
+		expectedBlock            func() *types.Block
 	}{
 		{
 			// normal case
+			nil,
+			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
+			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
+			func() *types.Block {
+				chain, engine := newBlockChain(1)
+				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+				return updateQBFTBlock(block, engine.Address())
+			},
+		},
+		{
+			// invalid prepared signature
+			qbftcommon.ErrInvalidPreparedSeals,
 			nil,
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
@@ -141,8 +154,9 @@ func TestCommit(t *testing.T) {
 			},
 		},
 		{
-			// invalid signature
+			// invalid commit signature
 			qbftcommon.ErrInvalidCommittedSeals,
+			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			nil,
 			func() *types.Block {
 				chain, engine := newBlockChain(1)
@@ -160,7 +174,7 @@ func TestCommit(t *testing.T) {
 		}()
 
 		backend.proposedBlockHash = expBlock.Hash()
-		if err := backend.Commit(expBlock, nil, test.expectedSignature, big.NewInt(0)); err != nil { // TODO: prepared seal
+		if err := backend.Commit(expBlock, test.expectedPrepareSignature, test.expectedCommitSignature, big.NewInt(0)); err != nil { // TODO: prepared seal
 			if err != test.expectedErr {
 				t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
 			}
