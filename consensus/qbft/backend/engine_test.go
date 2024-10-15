@@ -176,6 +176,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
+	expectedPreparedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
@@ -192,7 +193,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 	}
 
-	if err := engine.Commit(otherBlock, nil, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil { //TODO: add prepare
+	if err := engine.Commit(otherBlock, [][]byte{expectedPreparedSeal}, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
 		t.Error(err.Error())
 	}
 
@@ -217,19 +218,29 @@ func updateQBFTBlock(block *types.Block, addr common.Address) *types.Block {
 }
 
 func TestSealCommitted(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(2)
 	defer engine.Stop()
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedBlock := updateQBFTBlock(block, engine.Address())
+	expectedPreparedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
+	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 
+	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
+	defer eventSub.Unsubscribe()
 	resultCh := make(chan *types.Block, 10)
-	go func() {
-		err := engine.Seal(chain, block, resultCh, make(chan struct{}))
 
-		if err != nil {
-			t.Errorf("error mismatch: have %v, want %v", err, expectedBlock)
-		}
-	}()
+	if err := engine.Seal(chain, block, resultCh, make(chan struct{})); err != nil {
+		t.Error(err.Error())
+	}
+
+	ev := <-eventSub.Chan()
+	if _, ok := ev.Data.(qbft.RequestEvent); !ok {
+		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+	}
+
+	if err := engine.Commit(expectedBlock, [][]byte{expectedPreparedSeal}, [][]byte{expectedCommittedSeal}, big.NewInt(0)); err != nil {
+		t.Error(err.Error())
+	}
 
 	finalBlock := <-resultCh
 	if finalBlock.Hash() != expectedBlock.Hash() {
@@ -241,12 +252,12 @@ func TestVerifyHeader(t *testing.T) {
 	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 
-	// qbftcommon.ErrEmptyCommittedSeals case
+	// qbftcommon.ErrEmptyPrevPreparedSeals case
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	block = updateQBFTBlock(block, engine.Address())
 	err := engine.VerifyHeader(chain, block.Header())
-	if err != qbftcommon.ErrEmptyCommittedSeals {
-		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrEmptyCommittedSeals)
+	if err != qbftcommon.ErrEmptyPrevPreparedSeals {
+		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrEmptyPrevPreparedSeals)
 	}
 
 	// short extra data
@@ -367,7 +378,7 @@ OUT1:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != qbftcommon.ErrEmptyCommittedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					t.Errorf("error mismatch: have %v, want qbftcommon.ErrEmptyCommittedSeals|qbftcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT1
 				}
@@ -387,7 +398,7 @@ OUT2:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != qbftcommon.ErrEmptyCommittedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					t.Errorf("error mismatch: have %v, want qbftcommon.ErrEmptyCommittedSeals|qbftcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT2
 				}
@@ -408,7 +419,7 @@ OUT3:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != qbftcommon.ErrEmptyCommittedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					errors++
 				}
 			}
