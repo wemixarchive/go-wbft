@@ -121,7 +121,7 @@ func (e *Engine) VerifyBlockProposal(chain consensus.ChainHeaderReader, block *t
 
 	// verify the header of proposed block
 	err := e.VerifyHeader(chain, block.Header(), nil, validators, prevValidators)
-	if err == nil || err == qbftcommon.ErrEmptyCommittedSeals {
+	if err == nil || err == qbftcommon.ErrEmptyCommittedSeals || err == qbftcommon.ErrEmptyPreparedSeals {
 		// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
 		return 0, nil
 	} else if err == consensus.ErrFutureBlock {
