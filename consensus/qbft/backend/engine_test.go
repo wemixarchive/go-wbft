@@ -256,8 +256,15 @@ func TestVerifyHeader(t *testing.T) {
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	block = updateQBFTBlock(block, engine.Address())
 	err := engine.VerifyHeader(chain, block.Header())
-	if err != qbftcommon.ErrEmptyPrevPreparedSeals {
-		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrEmptyPrevPreparedSeals)
+
+	if !(chain.Config().MontBlancBlock.Cmp(block.Number()) < 0) {
+		if err != qbftcommon.ErrEmptyPreparedSeals {
+			t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrEmptyPreparedSeals)
+		}
+	} else {
+		if err != qbftcommon.ErrEmptyPrevPreparedSeals {
+			t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrEmptyPrevPreparedSeals)
+		}
 	}
 
 	// short extra data
@@ -378,7 +385,7 @@ OUT1:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrEmptyPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					t.Errorf("error mismatch: have %v, want qbftcommon.ErrEmptyCommittedSeals|qbftcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT1
 				}
@@ -398,7 +405,7 @@ OUT2:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrEmptyPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					t.Errorf("error mismatch: have %v, want qbftcommon.ErrEmptyCommittedSeals|qbftcommon.ErrInvalidCommittedSeals|ErrUnknownAncestor", err)
 					break OUT2
 				}
@@ -419,7 +426,7 @@ OUT3:
 		select {
 		case err := <-results:
 			if err != nil {
-				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
+				if err != qbftcommon.ErrEmptyPrevPreparedSeals && err != qbftcommon.ErrEmptyPreparedSeals && err != qbftcommon.ErrInvalidCommittedSeals && err != consensus.ErrUnknownAncestor {
 					errors++
 				}
 			}
