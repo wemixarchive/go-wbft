@@ -318,8 +318,8 @@ func (e *Engine) verifyPreparedSeals(chain consensus.ChainHeaderReader, header *
 			return qbftcommon.ErrInvalidPrevPreparedSeals
 		}
 
-		// The length of validSeal should be larger than number of faulty node + 1
-		if prevValidSeal <= prevValidators.F() {
+		// The length of validSeal should be larger than number of 2*faulty node + 1
+		if prevValidSeal <= prevValidators.F()*2 {
 			return qbftcommon.ErrInvalidPrevPreparedSeals
 		}
 	}
@@ -396,8 +396,8 @@ func (e *Engine) verifyCommittedSeals(chain consensus.ChainHeaderReader, header 
 			return qbftcommon.ErrInvalidPrevCommittedSeals
 		}
 
-		// The length of validSeal should be larger than number of faulty node + 1
-		if prevValidSeal <= prevValidators.F() {
+		// The length of validSeal should be larger than number of 2*faulty node + 1
+		if prevValidSeal <= prevValidators.F()*2 {
 			return qbftcommon.ErrInvalidPrevCommittedSeals
 		}
 	}
