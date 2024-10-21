@@ -23,6 +23,7 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"errors"
 	"math/big"
 	"reflect"
 	"testing"
@@ -32,12 +33,14 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
+	qbftengine "github.com/ethereum/go-ethereum/consensus/qbft/engine"
 	"github.com/ethereum/go-ethereum/consensus/qbft/testutils"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 )
@@ -110,7 +113,7 @@ func makeHeader(parent *types.Block, config *qbft.Config) *types.Header {
 
 func makeBlock(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
 	block := makeBlockWithoutSeal(chain, engine, parent)
-	state, _ := chain.StateAt(parent.Root())
+	state, _ := chain.State()
 	block, _ = engine.FinalizeAndAssemble(chain, block.Header(), state, nil, nil, nil, nil)
 	resultCh := make(chan *types.Block, 10)
 	engine.Seal(chain, block, resultCh, nil)
@@ -248,7 +251,160 @@ func TestSealCommitted(t *testing.T) {
 	}
 }
 
-func TestVerifyHeader(t *testing.T) {
+func TestVerifyHeaderForChainedBlock(t *testing.T) {
+	chain, engine := newBlockChain(1)
+	defer engine.Stop()
+
+	montblancBlock := makeBlock(chain, engine, chain.Genesis())
+	_, err := chain.InsertChain(types.Blocks{montblancBlock})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
+
+	qbftBlock := makeBlock(chain, engine, montblancBlock)
+	_, err = chain.InsertChain(types.Blocks{qbftBlock})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
+
+	//create chain consists of genesisblock - montblanc hardfork block - regular qbft block
+	testCases := []struct {
+		block                  *types.Block
+		headerManipulationFunc func(*types.Block) *types.Header
+		expectedError          error
+	}{
+		{
+			montblancBlock,
+			func(block *types.Block) *types.Header { return block.Header() },
+			nil,
+		},
+		{
+			qbftBlock,
+			func(block *types.Block) *types.Header { return block.Header() },
+			nil,
+		},
+		{
+			qbftBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevPreparedSeal([][]byte{})); err != nil {
+					return nil
+				}
+				return header
+			},
+			qbftcommon.ErrEmptyPrevPreparedSeals,
+		},
+		{
+			qbftBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevCommittedSeal([][]byte{})); err != nil {
+					return nil
+				}
+				return header
+			},
+			// for qbftBlock, invalid preparedSeal occurs when validating preparedSeal because header is changed and gets wrong signer address
+			qbftcommon.ErrInvalidPreparedSeals,
+		},
+		{
+			montblancBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevPreparedSeal([][]byte{})); err != nil {
+					return nil
+				}
+				return header
+			},
+			nil,
+		},
+		{
+			montblancBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevCommittedSeal([][]byte{})); err != nil {
+					return nil
+				}
+				return header
+			},
+			// for montblanc block, invalid preparedSeal "does not" occurs when validating preparedSeal because header is  "not" changed
+			nil,
+		},
+		{
+			qbftBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				qbftExtra, _ := types.ExtractQBFTExtra(header)
+				qbftExtra.PreparedSeal = [][]byte{}
+
+				payload, err := rlp.EncodeToBytes(qbftExtra)
+				if err != nil {
+					return nil
+				}
+				header.Extra = payload
+				return header
+			},
+			qbftcommon.ErrEmptyPreparedSeals,
+		},
+		{
+			qbftBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				qbftExtra, _ := types.ExtractQBFTExtra(header)
+				qbftExtra.CommittedSeal = [][]byte{}
+
+				payload, err := rlp.EncodeToBytes(qbftExtra)
+				if err != nil {
+					return nil
+				}
+				header.Extra = payload
+				return header
+			},
+			qbftcommon.ErrEmptyCommittedSeals,
+		},
+		{
+			montblancBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				qbftExtra, _ := types.ExtractQBFTExtra(header)
+				qbftExtra.PreparedSeal = [][]byte{}
+
+				payload, err := rlp.EncodeToBytes(qbftExtra)
+				if err != nil {
+					return nil
+				}
+				header.Extra = payload
+				return header
+			},
+			qbftcommon.ErrEmptyPreparedSeals,
+		},
+		{
+			montblancBlock,
+			func(block *types.Block) *types.Header {
+				header := block.Header()
+				qbftExtra, _ := types.ExtractQBFTExtra(header)
+				qbftExtra.CommittedSeal = [][]byte{}
+
+				payload, err := rlp.EncodeToBytes(qbftExtra)
+				if err != nil {
+					return nil
+				}
+				header.Extra = payload
+				return header
+			},
+			qbftcommon.ErrEmptyCommittedSeals,
+		},
+	}
+
+	for i, tc := range testCases {
+		headerToTest := tc.headerManipulationFunc(tc.block)
+		err := engine.VerifyHeader(chain, headerToTest)
+		if !errors.Is(err, tc.expectedError) {
+			t.Errorf("error mismatch for case %d: have %v, want %v", i, err, tc.expectedError)
+		}
+	}
+}
+
+func TestVerifyHeaderForSingleBlock(t *testing.T) {
 	chain, engine := newBlockChain(1)
 	defer engine.Stop()
 
@@ -280,16 +436,6 @@ func TestVerifyHeader(t *testing.T) {
 	if err != qbftcommon.ErrInvalidExtraDataFormat {
 		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrInvalidExtraDataFormat)
 	}
-
-	// TODO This test does not need anymore as we don't fix mixHash field to IstanbulDigest
-	// non zero MixDigest
-	/*block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header := block.Header()
-	header.MixDigest = common.BytesToHash([]byte("123456789"))
-	err := engine.VerifyHeader(chain, header)
-	if err != qbftcommon.ErrInvalidMixDigest {
-		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrInvalidMixDigest)
-	}*/
 
 	// invalid uncles hash
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
@@ -339,16 +485,6 @@ func TestVerifyHeader(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
-	// TODO This test does not make sense anymore as validate vote type is not stored in nonce
-	// invalid nonce
-	/*block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	header = block.Header()
-	copy(header.Nonce[:], hexutil.MustDecode("0x111111111111"))
-	header.Number = big.NewInt(int64(engine.config.Epoch))
-	err = engine.VerifyHeader(chain, header, false)
-	if err != errInvalidNonce {
-		t.Errorf("error mismatch: have %v, want %v", err, errInvalidNonce)
-	}*/
 }
 
 func TestVerifyHeaders(t *testing.T) {

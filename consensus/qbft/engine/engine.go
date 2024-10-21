@@ -333,7 +333,6 @@ func (e *Engine) verifyPreparedSeals(chain consensus.ChainHeaderReader, header *
 	}
 
 	validatorsCpy := validators.Copy()
-
 	validSeal := 0
 	preparers, err := e.PrepareSigners(header)
 	if err != nil {
@@ -776,14 +775,14 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, prepareRewardFn, commitRewardFn func(common.Address, *big.Int)) error {
 	// TODO : need proper calculation when distribution rule is decided. Current work is to get rewardee's address from preCommittedSeal
 
-	lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
-	lastQbftExtra, err := types.ExtractQBFTExtra(lastCanonicalHeader)
+	parentHeader := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+	lastQbftExtra, err := types.ExtractQBFTExtra(parentHeader)
 	if err != nil {
 		return qbftcommon.ErrInvalidExtraDataFormat
 	}
 
 	// 이전 블록의 proposal
-	proposalSeal := PrepareCommittedSeal(lastCanonicalHeader, lastQbftExtra.Round)
+	proposalSeal := PrepareCommittedSeal(parentHeader, lastQbftExtra.Round)
 
 	var prepareRewardees []common.Address
 	var commitRewardees []common.Address
@@ -811,7 +810,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 		commitRewardees = append(commitRewardees, addr)
 	}
 
-	log.Info("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", lastCanonicalHeader.Number, "prepareReward", prepareRewardees, "commitReward", commitRewardees)
+	log.Info("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", parentHeader.Number, "prepareReward", prepareRewardees, "commitReward", commitRewardees)
 
 	if prepareRewardFn != nil {
 		for _, addr := range prepareRewardees {
