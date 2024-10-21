@@ -442,3 +442,50 @@ OUT3:
 		}
 	}
 }
+
+// Test that the next block has the correct previous prepared seals and previous committed seals.
+// First, create a block with a seal and commit it.
+// Then, when creating the next block, it should have the correct previous prepared seals and previous committed seals.
+func TestPrevSeals(t *testing.T) {
+	chain, engine := newBlockChain(1)
+	defer engine.Stop()
+	// Create an insert a new block into the chain.
+	block := makeBlock(chain, engine, chain.Genesis())
+
+	blockExtra, err := types.ExtractQBFTExtra(block.Header())
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	_, err = chain.InsertChain(types.Blocks{block})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
+
+	if err = engine.NewChainHead(); err != nil {
+		t.Errorf("Error posting NewChainHead Event: %v", err)
+	}
+
+	nextBlock := makeBlockWithoutSeal(chain, engine, block)
+
+	nextBlockExtra, err := types.ExtractQBFTExtra(nextBlock.Header())
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if len(nextBlockExtra.PrevPreparedSeal) != 1 {
+		t.Errorf("prev prepared seals mismatch: have %v, want 1", len(nextBlockExtra.PrevPreparedSeal))
+	}
+
+	if !bytes.Equal(blockExtra.PreparedSeal[0], nextBlockExtra.PrevPreparedSeal[0]) {
+		t.Errorf("prev prepared seals mismatch: have %v, want %v", nextBlockExtra.PrevPreparedSeal[0], blockExtra.PreparedSeal[0])
+	}
+
+	if len(nextBlockExtra.PrevCommittedSeal) != 1 {
+		t.Errorf("committed seals mismatch: have %v, want 1", len(nextBlockExtra.PrevCommittedSeal))
+	}
+
+	if !bytes.Equal(blockExtra.CommittedSeal[0], nextBlockExtra.PrevCommittedSeal[0]) {
+		t.Errorf("committed seals mismatch: have %v, want %v", nextBlockExtra.PrevCommittedSeal[0], blockExtra.CommittedSeal[0])
+	}
+}
