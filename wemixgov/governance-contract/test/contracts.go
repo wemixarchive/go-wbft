@@ -22,7 +22,7 @@ import (
 )
 
 type Governance struct {
-	backend   *simulated.Backend
+	backend   *simulated.WbftBackend
 	owner     *bind.TransactOpts
 	nodeInfos []nodeInfo
 
@@ -44,7 +44,7 @@ type nodeInfo struct {
 
 func NewGovernance(t *testing.T) *Governance {
 	owner := getTxOpt(t, "owner")
-	backend := simulated.NewBackend(types.GenesisAlloc{
+	backend := simulated.NewWbftBackend(types.GenesisAlloc{
 		owner.From: {Balance: new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 128), common.Big1)},
 	})
 

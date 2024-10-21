@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
@@ -109,13 +108,6 @@ func NewBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Config,
 	if err != nil {
 		panic(err) // this should never happen
 	}
-
-	header := ethConf.Genesis.ToBlock().Header()
-	sim.Engine().CallEngineSpecific("SetExtra", ethConf.Genesis.Config.QBFT.Validators[0], header)
-	ethConf.Genesis.ExtraData = header.Extra
-
-	// start consensus engine
-	sim.Engine().CallEngineSpecific("Start", sim.eth.BlockChain(), sim.eth.BlockChain().CurrentFullBlock(), rawdb.HasBadBlock)
 
 	return sim
 }

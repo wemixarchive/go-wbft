@@ -46,9 +46,7 @@ func simTestBackend(testAddr common.Address) *Backend {
 	)
 }
 
-func newTx(sim *Backend, key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	client := sim.Client()
-
+func newTx(client Client, key *ecdsa.PrivateKey) (*types.Transaction, error) {
 	// create a signed transaction to send
 	head, _ := client.HeaderByNumber(context.Background(), nil) // Should be child's, good enough
 	gasPrice := new(big.Int).Add(head.BaseFee, big.NewInt(params.GWei))
@@ -118,7 +116,7 @@ func TestSendTransaction(t *testing.T) {
 	client := sim.Client()
 	ctx := context.Background()
 
-	signedTx, err := newTx(sim, testKey)
+	signedTx, err := newTx(client, testKey)
 	if err != nil {
 		t.Errorf("could not create transaction: %v", err)
 	}
@@ -209,7 +207,7 @@ func TestForkResendTx(t *testing.T) {
 	parent, _ := client.HeaderByNumber(ctx, nil)
 
 	// 2.
-	tx, err := newTx(sim, testKey)
+	tx, err := newTx(client, testKey)
 	if err != nil {
 		t.Fatalf("could not create transaction: %v", err)
 	}

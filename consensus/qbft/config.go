@@ -140,6 +140,8 @@ type Config struct {
 	Client                   bind.ContractCaller   `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`
 	Transitions              []params.Transition
+
+	SimulatedEnabled bool `toml:",omitempty"`
 }
 
 var DefaultConfig = &Config{

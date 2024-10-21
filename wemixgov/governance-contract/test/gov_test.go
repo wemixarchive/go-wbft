@@ -2891,7 +2891,6 @@ func TestGov(t *testing.T) {
 			require.False(t, isFinalized)
 
 			gov.backend.AdjustTime(time.Second * time.Duration(new(big.Int).Mul(delay_time, big.NewInt(2000)).Int64()))
-			gov.backend.Commit()
 
 			ExpectedRevert(t,
 				gov.ExpectedFail(gov.GovImp.Transact(govMem1, "vote", ballotLen, false)),
@@ -2935,7 +2934,7 @@ func TestGov(t *testing.T) {
 			require.False(t, isFinalized)
 
 			gov.backend.AdjustTime(time.Second * time.Duration(new(big.Int).Mul(delay_time, big.NewInt(2000)).Int64()))
-			gov.backend.Commit()
+
 			ExpectedRevert(t,
 				gov.ExpectedFail(gov.GovImp.Transact(govMem1, "vote", ballotLen, false)),
 				"Expired",

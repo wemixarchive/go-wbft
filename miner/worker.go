@@ -248,6 +248,10 @@ type worker struct {
 	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
+
+	// Simulated Channels
+	simCommitCh    chan int64
+	simCommittedCh chan struct{}
 }
 
 func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool, init bool) *worker {
@@ -273,6 +277,8 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		exitCh:             make(chan struct{}),
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
+		simCommitCh:        make(chan int64),
+		simCommittedCh:     make(chan struct{}),
 	}
 	// Subscribe for transaction insertion events (whether from network or resurrects)
 	worker.txsSub = eth.TxPool().SubscribeTransactions(worker.txsCh, true)
@@ -479,11 +485,18 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
+			if w.config.SimulatedEnabled {
+				continue
+			}
 			clearPending(w.chain.CurrentBlock().Number.Uint64())
 			timestamp = time.Now().Unix()
 			commit(commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
+			if w.config.SimulatedEnabled {
+				w.simCommittedCh <- struct{}{}
+				timestamp = <-w.simCommitCh
+			}
 			// ## Quorum QBFT START
 			var handler consensus.Handler
 			if handler, _ = w.engine.(consensus.Handler); handler == nil {
@@ -497,7 +510,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// ## Quorum QBFT END
 
 			clearPending(head.Block.NumberU64())
-			timestamp = time.Now().Unix()
+			if !w.config.SimulatedEnabled {
+				timestamp = time.Now().Unix()
+			}
 			commit(commitInterruptNewHead)
 
 		case <-timer.C:
@@ -507,6 +522,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				// Short circuit if no new transaction arrives.
 				if w.newTxs.Load() == 0 {
 					timer.Reset(recommit)
+					continue
+				}
+				if w.config.SimulatedEnabled {
 					continue
 				}
 				commit(commitInterruptResubmit)

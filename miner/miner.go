@@ -53,6 +53,8 @@ type Config struct {
 	Recommit  time.Duration  // The time interval for miner to re-create mining work.
 
 	NewPayloadTimeout time.Duration // The maximum time allowance for creating a new payload
+
+	SimulatedEnabled bool `toml:",omitempty"`
 }
 
 // DefaultConfig contains default settings for miner.
@@ -248,4 +250,23 @@ func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscript
 // BuildPayload builds the payload according to the provided parameters.
 func (miner *Miner) BuildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	return miner.worker.buildPayload(args)
+}
+
+// ReadyCommit is function for simulation only.
+func (miner *Miner) ReadyCommit() {
+	if !miner.worker.config.SimulatedEnabled {
+		panic("only simulated")
+	}
+	<-miner.worker.simCommittedCh
+	log.Info("Simulated: ReadyCommit")
+}
+
+// Commit is function for simulation only.
+func (miner *Miner) Commit(timestamp int64) {
+	if !miner.worker.config.SimulatedEnabled {
+		panic("only simulated")
+	}
+	miner.worker.simCommitCh <- timestamp
+	<-miner.worker.simCommittedCh
+	log.Info("Simulated: Commit")
 }

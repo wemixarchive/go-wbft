@@ -210,6 +210,9 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	}
 
 	delay := time.Until(time.Unix(int64(block.Header().Time), 0))
+	if sb.config.SimulatedEnabled {
+		delay = time.Until(time.Unix(0, 0))
+	}
 
 	go func() {
 		// wait for the timestamp of header, use this to adjust the block period
