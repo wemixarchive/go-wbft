@@ -29,7 +29,7 @@ test: all
 	$(GORUN) build/ci.go test $(SUCCESS_TESTS)
 
 test-short: all
-	$(GORUN) build/ci.go test -short
+	$(GORUN) build/ci.go test -short $(SUCCESS_TESTS)
 
 #? lint: Run certain pre-selected linters
 lint: ## Run linters.
