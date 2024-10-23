@@ -24,7 +24,6 @@ package ethconfig
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/ethereum/go-ethereum/consensus/wemix"
 	"math/big"
 	"time"
 
@@ -35,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
+	"github.com/ethereum/go-ethereum/consensus/wemix"
 	"github.com/ethereum/go-ethereum/consensus/wpoa"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
