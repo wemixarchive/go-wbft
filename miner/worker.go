@@ -485,18 +485,11 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
-			if w.config.SimulatedEnabled {
-				continue
-			}
 			clearPending(w.chain.CurrentBlock().Number.Uint64())
 			timestamp = time.Now().Unix()
 			commit(commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
-			if w.config.SimulatedEnabled {
-				w.simCommittedCh <- struct{}{}
-				timestamp = <-w.simCommitCh
-			}
 			// ## Quorum QBFT START
 			var handler consensus.Handler
 			if handler, _ = w.engine.(consensus.Handler); handler == nil {
@@ -510,7 +503,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// ## Quorum QBFT END
 
 			clearPending(head.Block.NumberU64())
-			if !w.config.SimulatedEnabled {
+			if w.config.SimulatedEnabled {
+				w.simCommittedCh <- struct{}{}
+				timestamp = <-w.simCommitCh
+			} else {
 				timestamp = time.Now().Unix()
 			}
 			commit(commitInterruptNewHead)
