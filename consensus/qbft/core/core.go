@@ -242,6 +242,10 @@ func (c *Core) setState(state State) {
 	c.processBacklog()
 }
 
+func (c *Core) GetState() State {
+	return c.state
+}
+
 func (c *Core) Address() common.Address {
 	return c.address
 }

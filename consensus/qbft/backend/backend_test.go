@@ -137,7 +137,7 @@ func TestCommit(t *testing.T) {
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
-				chain, engine := newBlockChain(1)
+				chain, engine, _ := newBlockChain(1)
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
@@ -148,7 +148,7 @@ func TestCommit(t *testing.T) {
 			nil,
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			func() *types.Block {
-				chain, engine := newBlockChain(1)
+				chain, engine, _ := newBlockChain(1)
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
@@ -159,7 +159,7 @@ func TestCommit(t *testing.T) {
 			[][]byte{append([]byte{1}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-1)...)},
 			nil,
 			func() *types.Block {
-				chain, engine := newBlockChain(1)
+				chain, engine, _ := newBlockChain(1)
 				block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 				return updateQBFTBlock(block, engine.Address())
 			},
@@ -195,7 +195,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestGetProposer(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine, _ := newBlockChain(1)
 	defer engine.Stop()
 	block := makeBlock(chain, engine, chain.Genesis())
 	_, err := chain.InsertChain(types.Blocks{block})
@@ -215,7 +215,7 @@ func TestQBFTTransitionDeadlock(t *testing.T) {
 	timeout := time.After(1 * time.Minute)
 	done := make(chan bool)
 	go func() {
-		chain, engine := newBlockChain(1)
+		chain, engine, _ := newBlockChain(1)
 		defer engine.Stop()
 		// Create an insert a new block into the chain.
 		block := makeBlock(chain, engine, chain.Genesis())
@@ -286,7 +286,7 @@ func (slice Keys) Swap(i, j int) {
 }
 
 func newBackend() (b *Backend) {
-	_, b = newBlockChain(1)
+	_, b, _ = newBlockChain(1)
 	key, _ := generatePrivateKey()
 	b.privateKey = key
 	return
