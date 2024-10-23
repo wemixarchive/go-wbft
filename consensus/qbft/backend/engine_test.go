@@ -50,8 +50,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 
 	// Use the first key as private key
 	backend := New(cfg, nodeKeys[0], memDB)
-
-	genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
+	genesisBlock := genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
 
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis, nil, backend, vm.Config{}, nil, nil)
 	if err != nil {
@@ -60,7 +59,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 
 	backend.Start(blockchain, blockchain.CurrentFullBlock, rawdb.HasBadBlock)
 
-	snap, err := backend.snapshot(blockchain, 0, common.Hash{}, nil)
+	snap, err := backend.snapshot(blockchain, 1, genesisBlock.Header().Hash(), nil)
 	if err != nil {
 		panic(err)
 	}
@@ -75,6 +74,8 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		if addr.String() == proposerAddr.String() {
 			backend.privateKey = key
 			backend.address = addr
+			// set signer to proposer
+			backend.qbftEngine = qbftengine.NewEngine(backend.config, addr, backend.Sign)
 		}
 	}
 
@@ -618,10 +619,95 @@ func TestPrevSeals(t *testing.T) {
 	}
 
 	if len(nextBlockExtra.PrevCommittedSeal) != 1 {
-		t.Errorf("committed seals mismatch: have %v, want 1", len(nextBlockExtra.PrevCommittedSeal))
+		t.Errorf("prev committed seals mismatch: have %v, want 1", len(nextBlockExtra.PrevCommittedSeal))
 	}
 
 	if !bytes.Equal(blockExtra.CommittedSeal[0], nextBlockExtra.PrevCommittedSeal[0]) {
-		t.Errorf("committed seals mismatch: have %v, want %v", nextBlockExtra.PrevCommittedSeal[0], blockExtra.CommittedSeal[0])
+		t.Errorf("prev committed seals mismatch: have %v, want %v", nextBlockExtra.PrevCommittedSeal[0], blockExtra.CommittedSeal[0])
+	}
+}
+
+func TestConsensus(t *testing.T) {
+	const (
+		PreprepareCode  = 0x12
+		PrepareCode     = 0x13
+		CommitCode      = 0x14
+		RoundChangeCode = 0x15
+	)
+
+	chain, engine := newBlockChain(2)
+	defer engine.Stop()
+	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+
+	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{}, qbft.MessageEvent{})
+	defer eventSub.Unsubscribe()
+	blockOutputChannel := make(chan *types.Block)
+	stopChannel := make(chan struct{})
+
+	if err := engine.Seal(chain, block, blockOutputChannel, stopChannel); err != nil {
+		t.Error(err.Error())
+	}
+
+	ev := <-eventSub.Chan()
+	if _, ok := ev.Data.(qbft.RequestEvent); !ok {
+		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+	}
+
+	timeout := time.After(10 * time.Second)
+
+	select {
+	case ev = <-eventSub.Chan():
+		// Preprepare
+		msgEv, ok := ev.Data.(qbft.MessageEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			return
+		}
+
+		if msgEv.Code != PreprepareCode {
+			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			return
+		}
+
+		t.Log("Preprepare message comes")
+
+		// Prepare
+		ev = <-eventSub.Chan()
+		msgEv, ok = ev.Data.(qbft.MessageEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			return
+		}
+
+		if msgEv.Code != PrepareCode {
+			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			return
+		}
+
+		t.Log("Prepare message comes")
+
+		// send another prepare message
+
+		// // Commit
+		// ev = <-eventSub.Chan()
+		// msgEv, ok = ev.Data.(qbft.MessageEvent)
+		// if !ok {
+		// 	t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+		// 	return
+		// }
+
+		// if msgEv.Code != CommitCode {
+		// 	t.Errorf("unexpected code comes: %v", msgEv.Code)
+		// 	return
+		// }
+
+		// t.Log("Commit message comes")
+
+		// send another commit message
+
+		// check whether the block is inserted
+
+	case <-timeout:
+		t.Error("test timed out")
 	}
 }
