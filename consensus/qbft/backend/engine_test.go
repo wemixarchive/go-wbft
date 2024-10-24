@@ -105,7 +105,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 
 	// Make virtual node struct for simulation
 	nodes := make([]Node, 0)
-	for i := 1; i < len(nodeKeys); i++ {
+	for i := 0; i < len(nodeKeys); i++ {
 		nodes = append(nodes, Node{crypto.PubkeyToAddress(nodeKeys[i].PublicKey), nodeKeys[i]})
 	}
 
