@@ -22,6 +22,8 @@ func TestGeneratingGenesisExtra(t *testing.T) {
 		},
 		CommittedSeal:     [][]byte{},
 		PrevCommittedSeal: [][]byte{},
+		PreparedSeal:      [][]byte{},
+		PrevPreparedSeal:  [][]byte{},
 		Round:             0,
 		Vote:              nil,
 	}
