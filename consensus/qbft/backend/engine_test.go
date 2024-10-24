@@ -909,8 +909,8 @@ func TestSimulation(t *testing.T) {
 	// TODO: verify the final block. check whether the block is inserted into the chain
 }
 
-func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []Node) (*types.Block, error) {
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []Node, parentBlock *types.Block) (*types.Block, error) {
+	block := makeBlockWithoutSeal(chain, engine, parentBlock)
 	currState, _ := chain.State()
 	block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
 	resultCh := make(chan *types.Block, 10)
@@ -986,7 +986,7 @@ func TestLackingPrevSealsFromPropagatedBlock(t *testing.T) {
 	// engine.blockFetcher.Enqueue(peer.ID(), block) 시켜서  propagate block insert 시키도록
 	chain, engine, nodes := newBlockChain(4)
 	// 1. 합의 과정 거쳐서 블록 하나 만들기
-	validBlock, err := makeBlockThroughConsensus(chain, engine, nodes)
+	validBlock, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
 	if err != nil {
 		t.Errorf("failed to make valid block through consensus. err %v", err)
 	}
