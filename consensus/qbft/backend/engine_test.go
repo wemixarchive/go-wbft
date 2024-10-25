@@ -767,78 +767,50 @@ func TestSimulation(t *testing.T) {
 		RoundChangeCode = 0x15
 	)
 
-	chain, engine, nodes := newBlockChain(3)
-	defer engine.Stop()
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	// currState, _ := chain.State()
-	// block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
+	for i := 0; i < 10; i++ {
+		chain, engine, nodes := newBlockChain(3)
+		defer engine.Stop()
+		block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+		currState, _ := chain.State()
+		block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
 
-	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{}, qbft.MessageEvent{})
-	defer eventSub.Unsubscribe()
+		eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{}, qbft.MessageEvent{})
+		defer eventSub.Unsubscribe()
 
-	resultCh := make(chan *types.Block, 10)
-	err := engine.Seal(chain, block, resultCh, nil)
-	if err != nil {
-		t.Errorf("error %v", err)
-	}
-
-	ev := <-eventSub.Chan()
-	request, ok := ev.Data.(qbft.RequestEvent)
-	if !ok {
-		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-	}
-
-	proposedBlock, ok := request.Proposal.(*types.Block)
-	if !ok {
-		t.Errorf("unexpected proposal comes: %v", reflect.TypeOf(request.Proposal))
-	}
-
-	// Preprepare
-	ev = <-eventSub.Chan()
-	msgEv, ok := ev.Data.(qbft.MessageEvent)
-	if !ok {
-		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-		return
-	}
-
-	if msgEv.Code != PreprepareCode {
-		t.Errorf("unexpected code comes: %v", msgEv.Code)
-		return
-	}
-
-	t.Log("Preprepare message comes")
-
-	// Prepare
-	totalPrepareMessages := 0
-	ev = <-eventSub.Chan()
-	msgEv, ok = ev.Data.(qbft.MessageEvent)
-	if !ok {
-		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-		return
-	}
-
-	if msgEv.Code != PrepareCode {
-		t.Errorf("unexpected code comes: %v", msgEv.Code)
-		return
-	}
-	totalPrepareMessages++
-
-	t.Log("Prepare message comes")
-	// send another prepare message
-	for _, node := range nodes {
-		if totalPrepareMessages >= engine.core.QuorumSize() {
-			break
+		resultCh := make(chan *types.Block, 10)
+		err := engine.Seal(chain, block, resultCh, nil)
+		if err != nil {
+			t.Errorf("error %v", err)
 		}
 
-		if engine.Validators(chain.Genesis()).IsProposer(node.address) {
-			continue
+		ev := <-eventSub.Chan()
+		request, ok := ev.Data.(qbft.RequestEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
 
-		t.Log("sending another prepare message", node.address)
-		if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-			t.Errorf("failed to send prepare msg. err :  %v", err)
+		proposedBlock, ok := request.Proposal.(*types.Block)
+		if !ok {
+			t.Errorf("unexpected proposal comes: %v", reflect.TypeOf(request.Proposal))
 		}
 
+		// Preprepare
+		ev = <-eventSub.Chan()
+		msgEv, ok := ev.Data.(qbft.MessageEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			return
+		}
+
+		if msgEv.Code != PreprepareCode {
+			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			return
+		}
+
+		t.Log("Preprepare message comes")
+
+		// Prepare
+		totalPrepareMessages := 0
 		ev = <-eventSub.Chan()
 		msgEv, ok = ev.Data.(qbft.MessageEvent)
 		if !ok {
@@ -851,41 +823,40 @@ func TestSimulation(t *testing.T) {
 			return
 		}
 		totalPrepareMessages++
-		t.Log("another prepare message comes")
-	}
 
-	// Commit
-	totalCommitMessages := 0
-	ev = <-eventSub.Chan()
-	msgEv, ok = ev.Data.(qbft.MessageEvent)
-	if !ok {
-		t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-		return
-	}
+		t.Log("Prepare message comes")
+		// send another prepare message
+		for _, node := range nodes {
+			if totalPrepareMessages >= engine.core.QuorumSize() {
+				break
+			}
 
-	if msgEv.Code != CommitCode {
-		t.Errorf("unexpected code comes: %v", msgEv.Code)
-		return
-	}
-	totalCommitMessages++
+			if node.address == engine.Address() {
+				continue
+			}
 
-	t.Log("Commit message comes")
+			t.Log("sending another prepare message", node.address)
+			if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				t.Errorf("failed to send prepare msg. err :  %v", err)
+			}
 
-	// send another commit message
-	for _, node := range nodes {
-		if totalCommitMessages >= engine.core.QuorumSize() {
-			break
+			ev = <-eventSub.Chan()
+			msgEv, ok = ev.Data.(qbft.MessageEvent)
+			if !ok {
+				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				return
+			}
+
+			if msgEv.Code != PrepareCode {
+				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				return
+			}
+			totalPrepareMessages++
+			t.Log("another prepare message comes")
 		}
 
-		if engine.Validators(chain.Genesis()).IsProposer(node.address) {
-			continue
-		}
-
-		t.Log("sending another commit message", node.address)
-		if err := nodeSendCommitMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-			t.Errorf("failed to send commit msg. err :  %v", err)
-		}
-
+		// Commit
+		totalCommitMessages := 0
 		ev = <-eventSub.Chan()
 		msgEv, ok = ev.Data.(qbft.MessageEvent)
 		if !ok {
@@ -898,15 +869,217 @@ func TestSimulation(t *testing.T) {
 			return
 		}
 		totalCommitMessages++
-		t.Log("another commit message comes")
+
+		t.Log("Commit message comes")
+
+		// send another commit message
+		for _, node := range nodes {
+			if totalCommitMessages >= engine.core.QuorumSize() {
+				break
+			}
+
+			if node.address == engine.Address() {
+				continue
+			}
+
+			t.Log("sending another commit message", node.address)
+			if err := nodeSendCommitMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				t.Errorf("failed to send commit msg. err :  %v", err)
+			}
+
+			ev = <-eventSub.Chan()
+			msgEv, ok = ev.Data.(qbft.MessageEvent)
+			if !ok {
+				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				return
+			}
+
+			if msgEv.Code != CommitCode {
+				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				return
+			}
+			totalCommitMessages++
+			t.Log("another commit message comes")
+		}
+
+		// check whether the block is inserted into the chain
+		finalBlock := <-resultCh
+		if finalBlock.Hash() != proposedBlock.Hash() {
+			t.Errorf("hash mismatch: have %v, want %v", finalBlock.Hash(), proposedBlock.Hash())
+		}
+		_, err = chain.InsertChain(types.Blocks{finalBlock})
+		if err != nil {
+			t.Errorf("Error inserting block: %v", err)
+		}
+
+		if err = engine.NewChainHead(); err != nil {
+			t.Errorf("Error posting NewChainHead Event: %v", err)
+		}
+
+		actual := engine.Address()
+		expected := engine.GetProposer(1)
+		if actual != expected {
+			t.Errorf("proposer mismatch: have %v, want %v", actual.Hex(), expected.Hex())
+		}
+
+		// get last block from the chain and compare with final block
+		lastBlock := chain.CurrentBlock()
+		if lastBlock.Hash() != finalBlock.Hash() {
+			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock.Hash())
+		}
+
+		// make second block
+		block = makeBlockWithoutSeal(chain, engine, finalBlock)
+		currState, err = chain.State()
+		if err != nil {
+			t.Errorf("failed to get current state. err :  %v", err)
+			return
+		}
+		block, err = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
+		if err != nil {
+			t.Errorf("failed to finalize and assemble block. err :  %v", err)
+			return
+		}
+
+		// send preprepare message
+		for _, node := range nodes {
+			if engine.Validators(finalBlock).IsProposer(node.address) {
+				header := block.Header()
+				header.Coinbase = node.address
+				proposedBlock = proposedBlock.WithSeal(header)
+				t.Log("sending preprepare message", node.address)
+				if err := nodeSendPreprepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+					t.Errorf("failed to send preprepare msg. err :  %v", err)
+				}
+				break
+			}
+		}
+
+		// Preprepare
+		ev = <-eventSub.Chan()
+		msgEv, ok = ev.Data.(qbft.MessageEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			return
+		}
+
+		if msgEv.Code != PreprepareCode {
+			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			return
+		}
+
+		// Decode data into a QBFTMessage
+		m, err := messages.Decode(msgEv.Code, msgEv.Payload)
+		if err != nil {
+			t.Errorf("failed to decode message. err :  %v", err)
+			return
+		}
+
+		preprepareMsg, ok := m.(*messages.Preprepare)
+		if !ok {
+			t.Errorf("unexpected message comes: %v", reflect.TypeOf(m))
+			return
+		}
+
+		proposedBlock, ok = preprepareMsg.Proposal.(*types.Block)
+		if !ok {
+			t.Errorf("unexpected proposal comes: %v", reflect.TypeOf(preprepareMsg.Proposal))
+			return
+		}
+
+		t.Log("Preprepare message comes")
+
+		// Prepare
+		totalPrepareMessages = 0
+		ev = <-eventSub.Chan()
+		msgEv, ok = ev.Data.(qbft.MessageEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			return
+		}
+
+		if msgEv.Code != PrepareCode {
+			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			return
+		}
+
+		totalPrepareMessages++
+		for _, node := range nodes {
+			if totalPrepareMessages >= engine.core.QuorumSize() {
+				break
+			}
+
+			if node.address == engine.Address() {
+				continue
+			}
+
+			t.Log("sending prepare message", node.address)
+			if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				t.Errorf("failed to send prepare msg. err :  %v", err)
+			}
+
+			ev = <-eventSub.Chan()
+			msgEv, ok = ev.Data.(qbft.MessageEvent)
+			if !ok {
+				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				return
+			}
+
+			if msgEv.Code != PrepareCode {
+				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				return
+			}
+			totalPrepareMessages++
+			t.Log("another prepare message comes")
+		}
+
+		// Commit
+		totalCommitMessages = 0
+		ev = <-eventSub.Chan()
+		msgEv, ok = ev.Data.(qbft.MessageEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			return
+		}
+
+		if msgEv.Code != CommitCode {
+			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			return
+		}
+		totalCommitMessages++
+
+		t.Log("Commit message comes")
+
+		// send another commit message
+		for _, node := range nodes {
+			if totalCommitMessages >= engine.core.QuorumSize() {
+				break
+			}
+
+			if node.address == engine.Address() {
+				continue
+			}
+
+			t.Log("sending another commit message", node.address)
+			if err := nodeSendCommitMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				t.Errorf("failed to send commit msg. err :  %v", err)
+			}
+
+			ev = <-eventSub.Chan()
+			msgEv, ok = ev.Data.(qbft.MessageEvent)
+			if !ok {
+				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				return
+			}
+
+			if msgEv.Code != CommitCode {
+				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				return
+			}
+			totalCommitMessages++
+			t.Log("another commit message comes")
+		}
 	}
-
-	// check whether the block is inserted
-
-	finalBlock := <-resultCh
-	fmt.Println("finalBlock", finalBlock)
-
-	// TODO: verify the final block. check whether the block is inserted into the chain
 }
 
 func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []Node, parentBlock *types.Block) (*types.Block, error) {
