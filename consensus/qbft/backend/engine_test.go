@@ -49,14 +49,14 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 )
 
-var importFailChannel chan string
+var blockEnqueueChannel chan *types.Block
 
 type fakeBroadcaster struct {
 	blockFetcher *fetcher.BlockFetcher
 }
 
 func makeFakeBroadcaster(chain *core.BlockChain) *fakeBroadcaster {
-	importFailChannel = make(chan string)
+	blockEnqueueChannel = make(chan *types.Block)
 	validator := func(header *types.Header) error {
 		return chain.Engine().VerifyHeader(chain, header)
 	}
@@ -67,29 +67,26 @@ func makeFakeBroadcaster(chain *core.BlockChain) *fakeBroadcaster {
 		return chain.CurrentBlock().Number.Uint64()
 	}
 
-	inserter := func(blocks types.Blocks) (int, error) {
-		idx, err := chain.InsertChain(blocks)
-		if err == nil {
-			header := blocks[len(blocks)-1].Header()
-			chain.SetFinalized(header)
-			chain.SetSafe(header)
-		}
-		// ## Wemix END
-		return idx, err
-	}
-
-	dropPeer := func(peer string) {
-		importFailChannel <- peer
-	}
+	//inserter := func(blocks types.Blocks) (int, error) {
+	//	idx, err := chain.InsertChain(blocks)
+	//	if err == nil {
+	//		header := blocks[len(blocks)-1].Header()
+	//		chain.SetFinalized(header)
+	//		chain.SetSafe(header)
+	//	}
+	//	// ## Wemix END
+	//	return idx, err
+	//}
 
 	fb := fakeBroadcaster{
-		blockFetcher: fetcher.NewBlockFetcher(false, nil, chain.GetBlockByHash, validator, broadcastBlock, heighter, nil, inserter, dropPeer),
+		blockFetcher: fetcher.NewBlockFetcher(false, nil, chain.GetBlockByHash, validator, broadcastBlock, heighter, nil, nil, nil),
 	}
 	fb.blockFetcher.Start()
 	return &fb
 }
 func (fb *fakeBroadcaster) Enqueue(id string, block *types.Block) {
-	fb.blockFetcher.Enqueue(id, block)
+	blockEnqueueChannel <- block
+	//fb.blockFetcher.Enqueue(id, block)
 }
 
 func (fb *fakeBroadcaster) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
@@ -136,7 +133,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		if addr.String() == proposerAddr.String() {
 			backend.privateKey = key
 			backend.address = addr
-			backend.qbftEngine = qbftengine.NewEngine(backend.config, addr, backend.Sign)
+			//backend.qbftEngine = qbftengine.NewEngine(backend.config, addr, backend.Sign)
 		}
 	}
 
@@ -1083,6 +1080,9 @@ func TestSimulation(t *testing.T) {
 }
 
 func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []Node, parentBlock *types.Block) (*types.Block, error) {
+	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
+	defer eventSub.Unsubscribe()
+
 	block := makeBlockWithoutSeal(chain, engine, parentBlock)
 	currState, _ := chain.State()
 	block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
@@ -1090,9 +1090,6 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 	go func() {
 		engine.Seal(chain, block, resultCh, make(chan struct{}))
 	}()
-
-	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
-	defer eventSub.Unsubscribe()
 
 	ev := <-eventSub.Chan()
 	request, ok := ev.Data.(qbft.RequestEvent)
@@ -1147,12 +1144,43 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 		}(node)
 	}
 
-	finalBlock := <-resultCh
-	return finalBlock, nil
+	select {
+	case blockFromResultCh := <-resultCh:
+		return blockFromResultCh, nil
+	case blockFromEnquequeCh := <-blockEnqueueChannel:
+		return blockFromEnquequeCh, nil
+	}
+
+}
+
+func TestMakingBlock(t *testing.T) {
+	chain, engine, nodes := newBlockChain(4)
+	// 1. 합의 과정 거쳐서 블록 하나 만들기
+	block1, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
+	if err != nil {
+		t.Errorf("failed to make block1 through consensus. err %v", err)
+	}
+
+	if _, err := chain.InsertChain(types.Blocks{block1}); err != nil {
+		fmt.Println(err)
+	}
+
+	if err := engine.NewChainHead(); err != nil {
+		fmt.Printf("Error posting NewChainHead Event: %v", err)
+	}
+
+	block2, err := makeBlockThroughConsensus(chain, engine, nodes, block1)
+	if err != nil {
+		t.Errorf("failed to make block2 through consensus. err %v", err)
+	}
+
+	if _, err := chain.InsertChain(types.Blocks{block2}); err != nil {
+		fmt.Println(err)
+	}
+
 }
 
 func TestLackingPrevSealsFromPropagatedBlock(t *testing.T) {
-	const BADPEER = "bad peer!!"
 	// 난 아직 commit 단계가 아닌데 block이 braodcast 되엇을때, block의 preparedSeal 과 committedSeal은 전파된 블록의 것으로 insert 된다.
 	// prepare seal 이 2f+1 개 이하인 상태로 블록을 커밋하고 전파햇다면 ? > faulty가 전파한 것이므로 invalid block으로 insert 되면 안됨!
 
@@ -1177,13 +1205,10 @@ func TestLackingPrevSealsFromPropagatedBlock(t *testing.T) {
 	header.Extra = payload
 	malformedBlock := validBlock.WithSeal(header)
 
-	// 4. block을 전파받아서 상황 broadcaster의 Enqueue가 호출된 상황
-	engine.broadcaster.Enqueue(BADPEER, malformedBlock)
-
-	// 5. malfromed block이 verifyHeader에서 실패해서 peer drop
-	droppedPeer := <-importFailChannel
-
-	if droppedPeer != BADPEER {
-		t.Errorf("unexpected bad peer. expected %v, result %v", BADPEER, droppedPeer)
+	// 블록이 전파되어서 insertchain 이 시도된 상황
+	_, err = chain.InsertChain(types.Blocks{malformedBlock})
+	if !errors.Is(err, qbftcommon.ErrInvalidPreparedSeals) {
+		t.Errorf("unexpected error. expect %v, got %v", qbftcommon.ErrInvalidPreparedSeals, err)
 	}
+
 }
