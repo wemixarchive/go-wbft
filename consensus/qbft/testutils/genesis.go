@@ -22,7 +22,7 @@ import (
 // 1. remove ibft engine related test code
 // ## Wemix QBFT END
 
-func GensissWithCommittedSeal(validators []common.Address) *core.Genesis {
+func GenesisWithCommittedSeal(validators []common.Address) *core.Genesis {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig

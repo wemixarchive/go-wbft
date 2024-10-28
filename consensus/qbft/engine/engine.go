@@ -765,7 +765,12 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 
 		state.AddBalance(rewardAccount, uint256.MustFromBig(&blockReward))
 
-		if err := e.calculateRewards(chain, header, func(addr common.Address, amt *big.Int) { state.AddBalance(addr, uint256.MustFromBig(amt)) }, func(addr common.Address, amt *big.Int) { state.AddBalance(addr, uint256.MustFromBig(amt)) }); err != nil {
+		if err := e.calculateRewards(
+			chain,
+			header,
+			func(addr common.Address, amt *big.Int) { state.AddBalance(addr, uint256.MustFromBig(amt)) },
+			func(addr common.Address, amt *big.Int) { state.AddBalance(addr, uint256.MustFromBig(amt)) },
+		); err != nil {
 			// TODO: how to handle err here?
 			log.Warn("Error while calculating rewards", "err", err)
 		}
@@ -812,16 +817,19 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 
 	log.Info("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", parentHeader.Number, "prepareReward", prepareRewardees, "commitReward", commitRewardees)
 
+	prepareReward := chain.Config().GetPrepareReward(header.Number)
+	commitReward := chain.Config().GetCommitReward(header.Number)
+
 	if prepareRewardFn != nil {
 		for _, addr := range prepareRewardees {
-			prepareRewardFn(addr, big.NewInt(0))
+			prepareRewardFn(addr, &prepareReward)
 		}
 
 	}
 
 	if commitRewardFn != nil {
 		for _, addr := range commitRewardees {
-			commitRewardFn(addr, big.NewInt(0))
+			commitRewardFn(addr, &commitReward)
 		}
 	}
 

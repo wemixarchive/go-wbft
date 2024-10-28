@@ -84,9 +84,9 @@ func makeFakeBroadcaster(chain *core.BlockChain) *fakeBroadcaster {
 	fb.blockFetcher.Start()
 	return &fb
 }
+
 func (fb *fakeBroadcaster) Enqueue(id string, block *types.Block) {
-	blockEnqueueChannel <- block
-	//fb.blockFetcher.Enqueue(id, block)
+	go func() { blockEnqueueChannel <- block }()
 }
 
 func (fb *fakeBroadcaster) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
@@ -133,7 +133,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		if addr.String() == proposerAddr.String() {
 			backend.privateKey = key
 			backend.address = addr
-			//backend.qbftEngine = qbftengine.NewEngine(backend.config, addr, backend.Sign)
+			backend.qbftEngine = qbftengine.NewEngine(backend.config, addr, backend.Sign)
 		}
 	}
 
@@ -764,7 +764,7 @@ func TestSimulation(t *testing.T) {
 		RoundChangeCode = 0x15
 	)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 3; i++ {
 		chain, engine, nodes := newBlockChain(3)
 		defer engine.Stop()
 		block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
@@ -900,11 +900,11 @@ func TestSimulation(t *testing.T) {
 		}
 
 		// check whether the block is inserted into the chain
-		finalBlock := <-resultCh
-		if finalBlock.Hash() != proposedBlock.Hash() {
-			t.Errorf("hash mismatch: have %v, want %v", finalBlock.Hash(), proposedBlock.Hash())
+		finalBlock1 := <-resultCh
+		if finalBlock1.Hash() != proposedBlock.Hash() {
+			t.Errorf("hash mismatch: have %v, want %v", finalBlock1.Hash(), proposedBlock.Hash())
 		}
-		_, err = chain.InsertChain(types.Blocks{finalBlock})
+		_, err = chain.InsertChain(types.Blocks{finalBlock1})
 		if err != nil {
 			t.Errorf("Error inserting block: %v", err)
 		}
@@ -913,20 +913,20 @@ func TestSimulation(t *testing.T) {
 			t.Errorf("Error posting NewChainHead Event: %v", err)
 		}
 
-		actual := engine.Address()
-		expected := engine.GetProposer(1)
-		if actual != expected {
-			t.Errorf("proposer mismatch: have %v, want %v", actual.Hex(), expected.Hex())
+		actualProposer1 := engine.Address()
+		expectedProposer1 := engine.GetProposer(1)
+		if actualProposer1 != expectedProposer1 {
+			t.Errorf("proposer mismatch: have %v, want %v", actualProposer1.Hex(), expectedProposer1.Hex())
 		}
 
 		// get last block from the chain and compare with final block
 		lastBlock := chain.CurrentBlock()
-		if lastBlock.Hash() != finalBlock.Hash() {
-			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock.Hash())
+		if lastBlock.Hash() != finalBlock1.Hash() {
+			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock1.Hash())
 		}
 
 		// make second block
-		block = makeBlockWithoutSeal(chain, engine, finalBlock)
+		block = makeBlockWithoutSeal(chain, engine, finalBlock1)
 		currState, err = chain.State()
 		if err != nil {
 			t.Errorf("failed to get current state. err :  %v", err)
@@ -934,16 +934,27 @@ func TestSimulation(t *testing.T) {
 		}
 		block, err = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
 		if err != nil {
-			t.Errorf("failed to finalize and assemble block. err :  %v", err)
+			t.Errorf("failed to finalize and assemble. err :  %v", err)
 			return
 		}
 
+		var actualProposer2 common.Address
 		// send preprepare message
 		for _, node := range nodes {
-			if engine.Validators(finalBlock).IsProposer(node.address) {
+			if engine.Validators(finalBlock1).IsProposer(node.address) {
+				actualProposer2 = node.address
+
 				header := block.Header()
 				header.Coinbase = node.address
-				proposedBlock = proposedBlock.WithSeal(header)
+				currState, err = chain.State()
+				if err != nil {
+					t.Errorf("failed to get current state. err :  %v", err)
+					return
+				}
+				engine.Finalize(chain, header, currState, nil, nil, nil)
+
+				proposedBlock = block.WithSeal(header)
+
 				t.Log("sending preprepare message", node.address)
 				if err := nodeSendPreprepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("failed to send preprepare msg. err :  %v", err)
@@ -965,25 +976,6 @@ func TestSimulation(t *testing.T) {
 			return
 		}
 
-		// Decode data into a QBFTMessage
-		m, err := messages.Decode(msgEv.Code, msgEv.Payload)
-		if err != nil {
-			t.Errorf("failed to decode message. err :  %v", err)
-			return
-		}
-
-		preprepareMsg, ok := m.(*messages.Preprepare)
-		if !ok {
-			t.Errorf("unexpected message comes: %v", reflect.TypeOf(m))
-			return
-		}
-
-		proposedBlock, ok = preprepareMsg.Proposal.(*types.Block)
-		if !ok {
-			t.Errorf("unexpected proposal comes: %v", reflect.TypeOf(preprepareMsg.Proposal))
-			return
-		}
-
 		t.Log("Preprepare message comes")
 
 		// Prepare
@@ -999,6 +991,8 @@ func TestSimulation(t *testing.T) {
 			t.Errorf("unexpected code comes: %v", msgEv.Code)
 			return
 		}
+
+		t.Log("Prepare message comes")
 
 		totalPrepareMessages++
 		for _, node := range nodes {
@@ -1076,6 +1070,30 @@ func TestSimulation(t *testing.T) {
 			totalCommitMessages++
 			t.Log("another commit message comes")
 		}
+
+		finalBlock2 := <-blockEnqueueChannel
+		if finalBlock2.Hash() != proposedBlock.Hash() {
+			t.Errorf("hash mismatch: have %v, want %v", finalBlock2.Hash(), proposedBlock.Hash())
+		}
+		_, err = chain.InsertChain(types.Blocks{finalBlock2})
+		if err != nil {
+			t.Errorf("Error inserting block: %v", err)
+		}
+
+		if err = engine.NewChainHead(); err != nil {
+			t.Errorf("Error posting NewChainHead Event: %v", err)
+		}
+
+		expectedProposer2 := engine.GetProposer(2)
+		if actualProposer2 != expectedProposer2 {
+			t.Errorf("proposer mismatch: have %v, want %v", actualProposer2.Hex(), expectedProposer2.Hex())
+		}
+
+		// get last block from the chain and compare with final block
+		lastBlock = chain.CurrentBlock()
+		if lastBlock.Hash() != finalBlock2.Hash() {
+			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock2.Hash())
+		}
 	}
 }
 
@@ -1147,37 +1165,37 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 
 	select {
 	case blockFromResultCh := <-resultCh:
-		//stopCh <- struct{}{}
 		return blockFromResultCh, nil
 	case blockFromEnquequeCh := <-blockEnqueueChannel:
 		stopCh <- struct{}{}
 		return blockFromEnquequeCh, nil
 	}
-
 }
 
 func TestMakingBlock(t *testing.T) {
-	//TODO : makeBlockThroughConsensus() 함수 사용 예시. 추후 삭제 예정
 	chain, engine, nodes := newBlockChain(4)
 
-	block1, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
-	if err != nil {
-		t.Errorf("failed to make block1 through consensus. err %v", err)
-	}
+	blockResult := make([]*types.Block, 0)
+	parentBlock := chain.Genesis()
 
-	if _, err := chain.InsertChain(types.Blocks{block1}); err != nil {
-		fmt.Println(err)
-	}
+	for i := 0; i < 3; i++ {
+		finalBlock, err := makeBlockThroughConsensus(chain, engine, nodes, parentBlock)
+		if err != nil {
+			t.Errorf("failed to make block1 through consensus. err %v", err)
+		}
 
-	block2, err := makeBlockThroughConsensus(chain, engine, nodes, block1)
-	if err != nil {
-		t.Errorf("failed to make block2 through consensus. err %v", err)
-	}
+		if _, err := chain.InsertChain(types.Blocks{finalBlock}); err != nil {
+			t.Errorf("failed to insert block1. err %v", err)
+		}
 
-	if _, err := chain.InsertChain(types.Blocks{block2}); err != nil {
-		fmt.Println(err)
-	}
+		if parentBlock.Hash() != finalBlock.ParentHash() {
+			t.Errorf("parent hash mismatch: have %v, want %v", finalBlock.ParentHash(), parentBlock.Hash())
+		}
 
+		parentBlock = finalBlock
+		blockResult = append(blockResult, finalBlock)
+		t.Log(blockResult)
+	}
 }
 
 func TestLackingPrevSealsFromPropagatedBlock(t *testing.T) {

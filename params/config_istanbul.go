@@ -172,3 +172,17 @@ func (c *ChainConfig) GetBlockReward(num *big.Int) big.Int {
 }
 
 // ## Quorum QBFT END
+
+func (c *ChainConfig) GetPrepareReward(num *big.Int) big.Int {
+	// TODO: implement
+
+	prepareReward := *big.NewInt(100)
+	return big.Int(prepareReward)
+}
+
+func (c *ChainConfig) GetCommitReward(num *big.Int) big.Int {
+	// TODO: implement
+
+	commitReward := *big.NewInt(100)
+	return big.Int(commitReward)
+}

@@ -2,7 +2,6 @@ package testutils
 
 import (
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,8 +26,8 @@ func TestGeneratingGenesisExtra(t *testing.T) {
 		Round:             0,
 		Vote:              nil,
 	}
-	genesis := GensissWithCommittedSeal(QBFTExtra.Validators)
-	fmt.Println(hex.EncodeToString(genesis.ExtraData))
+	genesis := GenesisWithCommittedSeal(QBFTExtra.Validators)
+	t.Log("Genesis Extra Data: ", hex.EncodeToString(genesis.ExtraData))
 	qbftExtra := new(types.QBFTExtra)
 	err := rlp.DecodeBytes(genesis.ExtraData[:], qbftExtra)
 	if err != nil {
