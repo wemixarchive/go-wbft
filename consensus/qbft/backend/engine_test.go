@@ -1087,8 +1087,9 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 	currState, _ := chain.State()
 	block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
 	resultCh := make(chan *types.Block, 10)
+	stopCh := make(chan struct{})
 	go func() {
-		engine.Seal(chain, block, resultCh, make(chan struct{}))
+		engine.Seal(chain, block, resultCh, stopCh)
 	}()
 
 	ev := <-eventSub.Chan()
@@ -1113,7 +1114,7 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 
 				switch consensusState {
 				case "Accept request":
-					if engine.Validators(chain.Genesis()).IsProposer(node.address) {
+					if engine.Validators(parentBlock).IsProposer(node.address) {
 						header := proposedBlock.Header()
 						header.Coinbase = node.address
 						statedb, err := chain.State()
@@ -1146,16 +1147,19 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 
 	select {
 	case blockFromResultCh := <-resultCh:
+		//stopCh <- struct{}{}
 		return blockFromResultCh, nil
 	case blockFromEnquequeCh := <-blockEnqueueChannel:
+		stopCh <- struct{}{}
 		return blockFromEnquequeCh, nil
 	}
 
 }
 
 func TestMakingBlock(t *testing.T) {
+	//TODO : makeBlockThroughConsensus() 함수 사용 예시. 추후 삭제 예정
 	chain, engine, nodes := newBlockChain(4)
-	// 1. 합의 과정 거쳐서 블록 하나 만들기
+
 	block1, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
 	if err != nil {
 		t.Errorf("failed to make block1 through consensus. err %v", err)
@@ -1163,10 +1167,6 @@ func TestMakingBlock(t *testing.T) {
 
 	if _, err := chain.InsertChain(types.Blocks{block1}); err != nil {
 		fmt.Println(err)
-	}
-
-	if err := engine.NewChainHead(); err != nil {
-		fmt.Printf("Error posting NewChainHead Event: %v", err)
 	}
 
 	block2, err := makeBlockThroughConsensus(chain, engine, nodes, block1)
@@ -1181,10 +1181,6 @@ func TestMakingBlock(t *testing.T) {
 }
 
 func TestLackingPrevSealsFromPropagatedBlock(t *testing.T) {
-	// 난 아직 commit 단계가 아닌데 block이 braodcast 되엇을때, block의 preparedSeal 과 committedSeal은 전파된 블록의 것으로 insert 된다.
-	// prepare seal 이 2f+1 개 이하인 상태로 블록을 커밋하고 전파햇다면 ? > faulty가 전파한 것이므로 invalid block으로 insert 되면 안됨!
-
-	// engine.blockFetcher.Enqueue(peer.ID(), block) 시켜서  propagate block insert 시키도록
 	chain, engine, nodes := newBlockChain(4)
 	// 1. 합의 과정 거쳐서 블록 하나 만들기
 	validBlock, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
