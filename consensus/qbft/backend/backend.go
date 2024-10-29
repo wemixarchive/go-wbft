@@ -125,6 +125,7 @@ type Backend struct {
 type Node struct {
 	address    common.Address
 	privateKey *ecdsa.PrivateKey
+	balance    *big.Int
 }
 
 func (sb *Backend) Engine() *qbftengine.Engine {

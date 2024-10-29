@@ -100,17 +100,24 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	// Use the first key as private key
 	backend := New(cfg, nodeKeys[0], memDB)
 
-	// Make virtual node struct for simulation
-	nodes := make([]Node, 0)
-	for i := 0; i < len(nodeKeys); i++ {
-		nodes = append(nodes, Node{crypto.PubkeyToAddress(nodeKeys[i].PublicKey), nodeKeys[i]})
-	}
-
 	genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
 
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis, nil, backend, vm.Config{}, nil, nil)
 	if err != nil {
 		panic(err)
+	}
+
+	state, err := blockchain.StateAt(blockchain.Genesis().Root())
+	if state == nil || err != nil {
+		panic(err)
+	}
+
+	// Make virtual node struct for simulation
+	nodes := make([]Node, 0)
+	for i := 0; i < len(nodeKeys); i++ {
+		address := crypto.PubkeyToAddress(nodeKeys[i].PublicKey)
+		b := state.GetBalance(address).ToBig()
+		nodes = append(nodes, Node{address, nodeKeys[i], b})
 	}
 
 	fb := makeFakeBroadcaster(blockchain)
@@ -756,6 +763,15 @@ func nodeSendCommitMsg(qbftEngine *Backend, node Node, sequence, round *big.Int,
 	return nil
 }
 
+func contains(slice []common.Address, item common.Address) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
 func TestSimulation(t *testing.T) {
 	const (
 		PreprepareCode  = 0x12
@@ -923,6 +939,26 @@ func TestSimulation(t *testing.T) {
 		lastBlock := chain.CurrentBlock()
 		if lastBlock.Hash() != finalBlock1.Hash() {
 			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock1.Hash())
+		}
+
+		for i, node := range nodes {
+			if node.address == expectedProposer1 {
+				state, err := chain.StateAt(finalBlock1.Root())
+				if state == nil || err != nil {
+					panic(err)
+				}
+
+				balance := state.GetBalance(node.address).ToBig()
+				expectedBalance := node.balance
+
+				blockReward := chain.Config().GetBlockReward(finalBlock1.Number())
+				expectedBalance = big.NewInt(0).Add(expectedBalance, &blockReward)
+				if balance.Cmp(expectedBalance) != 0 {
+					t.Errorf("balance mismatch: have %v, want %v", balance, expectedBalance)
+				}
+				nodes[i].balance = balance
+				break
+			}
 		}
 
 		// make second block
@@ -1093,6 +1129,66 @@ func TestSimulation(t *testing.T) {
 		lastBlock = chain.CurrentBlock()
 		if lastBlock.Hash() != finalBlock2.Hash() {
 			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock2.Hash())
+		}
+
+		blockExtra, err := types.ExtractQBFTExtra(finalBlock2.Header())
+		if err != nil {
+			t.Error(err.Error())
+		}
+
+		h := types.CopyHeader(finalBlock1.Header())
+		proposalSeal := h.QBFTHashWithRoundNumber(0).Bytes()
+
+		var prepareRewardees []common.Address
+		var commitRewardees []common.Address
+
+		// get prev prepared address
+		for _, seal := range blockExtra.PrevPreparedSeal {
+			addr, err := qbft.GetSignatureAddressNoHashing(proposalSeal, seal)
+			if err != nil {
+				t.Errorf("failed to get signature address. err :  %v", err)
+			}
+			prepareRewardees = append(prepareRewardees, addr)
+		}
+
+		// get prev committed address
+		for _, seal := range blockExtra.PrevCommittedSeal {
+			addr, err := qbft.GetSignatureAddressNoHashing(proposalSeal, seal)
+			if err != nil {
+				t.Errorf("failed to get signature address. err :  %v", err)
+			}
+			commitRewardees = append(commitRewardees, addr)
+		}
+
+		state, err := chain.StateAt(finalBlock2.Root())
+		if state == nil || err != nil {
+			panic(err)
+		}
+
+		for _, node := range nodes {
+			balance := state.GetBalance(node.address).ToBig()
+			expectedBalance := node.balance
+
+			if node.address == expectedProposer2 {
+				blockReward := chain.Config().GetBlockReward(finalBlock2.Number())
+				expectedBalance = big.NewInt(0).Add(expectedBalance, &blockReward)
+			}
+
+			// check prepare reward
+			if contains(prepareRewardees, node.address) {
+				prepareReward := chain.Config().GetPrepareReward(finalBlock2.Number())
+				expectedBalance = big.NewInt(0).Add(expectedBalance, &prepareReward)
+			}
+
+			// check commit reward
+			if contains(commitRewardees, node.address) {
+				commitReward := chain.Config().GetCommitReward(finalBlock2.Number())
+				expectedBalance = big.NewInt(0).Add(expectedBalance, &commitReward)
+			}
+
+			if balance.Cmp(expectedBalance) != 0 {
+				t.Errorf("balance mismatch: have %v, want %v", balance, expectedBalance)
+			}
 		}
 	}
 }
