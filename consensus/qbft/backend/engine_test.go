@@ -1270,8 +1270,6 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 
 func TestMakingBlock(t *testing.T) {
 	chain, engine, nodes := newBlockChain(4)
-
-	blockResult := make([]*types.Block, 0)
 	parentBlock := chain.Genesis()
 
 	for i := 0; i < 3; i++ {
@@ -1280,33 +1278,35 @@ func TestMakingBlock(t *testing.T) {
 			t.Errorf("failed to make block1 through consensus. err %v", err)
 		}
 
-		if _, err := chain.InsertChain(types.Blocks{finalBlock}); err != nil {
-			t.Errorf("failed to insert block1. err %v", err)
-		}
-
 		if parentBlock.Hash() != finalBlock.ParentHash() {
 			t.Errorf("parent hash mismatch: have %v, want %v", finalBlock.ParentHash(), parentBlock.Hash())
 		}
 
+		if _, err := chain.InsertChain(types.Blocks{finalBlock}); err != nil {
+			t.Errorf("failed to insert block1. err %v", err)
+		}
+
+		// check if generated final block is included in chain properly
+		block := chain.GetBlockByHash(finalBlock.Hash())
+		if block == nil {
+			t.Errorf("block number %v is not generated correctly", finalBlock.Hash())
+		}
 		parentBlock = finalBlock
-		blockResult = append(blockResult, finalBlock)
-		t.Log(blockResult)
 	}
 }
 
-func TestLackingPrevSealsFromPropagatedBlock(t *testing.T) {
+func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 	chain, engine, nodes := newBlockChain(4)
-	// 1. 합의 과정 거쳐서 블록 하나 만들기
+	// 1. generate block through consensus
 	validBlock, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
 	if err != nil {
 		t.Errorf("failed to make valid block through consensus. err %v", err)
 	}
 
-	// 2. 블록의 preparedSeal 중 하나빼서 2f+1 충족하지 않도록 만들기
+	// 2. remove some preparedSeals from valid block ( len(preparedSeal) < 2F+1 ) and make malformed block
 	header := validBlock.Header()
 	qbftExtra, _ := types.ExtractQBFTExtra(header)
 
-	// 3. 두 개 seal 제거해서 2f+1 보다 부족하도록 만들기
 	qbftExtra.PreparedSeal = qbftExtra.PreparedSeal[2:]
 	payload, err := rlp.EncodeToBytes(qbftExtra)
 	if err != nil {
@@ -1315,7 +1315,7 @@ func TestLackingPrevSealsFromPropagatedBlock(t *testing.T) {
 	header.Extra = payload
 	malformedBlock := validBlock.WithSeal(header)
 
-	// 블록이 전파되어서 insertchain 이 시도된 상황
+	// 3. test the case when malformed block with lack of preparedSeal is propagated
 	_, err = chain.InsertChain(types.Blocks{malformedBlock})
 	if !errors.Is(err, qbftcommon.ErrInvalidPreparedSeals) {
 		t.Errorf("unexpected error. expect %v, got %v", qbftcommon.ErrInvalidPreparedSeals, err)
