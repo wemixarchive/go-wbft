@@ -23,7 +23,7 @@ func simTestWbftBackend(testAddr common.Address) *WbftBackend {
 }
 
 func TestNewWbftBackend(t *testing.T) {
-	sim := NewWbftBackend(types.GenesisAlloc{}, WithGlobalLogger())
+	sim := NewWbftBackend(types.GenesisAlloc{})
 	defer sim.Close()
 
 	client := sim.Client()
