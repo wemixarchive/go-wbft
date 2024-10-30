@@ -481,9 +481,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
-			if w.config.SimulatedEnabled {
-				continue
-			}
 			clearPending(w.chain.CurrentBlock().Number.Uint64())
 			timestamp = time.Now().Unix()
 			commit(commitInterruptNewHead)
