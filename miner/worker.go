@@ -450,8 +450,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	)
 
 	timer := time.NewTimer(0)
-	<-timer.C // discard the initial tick
 	defer timer.Stop()
+	<-timer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(s int32) {
