@@ -814,9 +814,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 		}
 		commitRewardees = append(commitRewardees, addr)
 	}
-
-	log.Info("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", parentHeader.Number, "prepareReward", prepareRewardees, "commitReward", commitRewardees)
-
+	log.Trace("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", parentHeader.Number, "prepareReward", prepareRewardees, "commitReward", commitRewardees)
 	prepareReward := chain.Config().GetPrepareReward(header.Number)
 	commitReward := chain.Config().GetCommitReward(header.Number)
 
