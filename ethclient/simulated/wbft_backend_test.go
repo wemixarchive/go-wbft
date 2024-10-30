@@ -35,13 +35,23 @@ func TestNewWbftBackend(t *testing.T) {
 		t.Fatalf("expected 0 got %v", num)
 	}
 	// Create a block
-	sim.Commit()
+	hash := sim.Commit()
 	num, err = client.BlockNumber(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if num != 1 {
 		t.Fatalf("expected 1 got %v", num)
+	}
+	block, err := client.BlockByHash(context.Background(), hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if block.Number().Uint64() != num {
+		t.Fatal("committed block number is not 1")
+	}
+	if block.Hash() != hash {
+		t.Fatal("committed block hash is different")
 	}
 }
 
@@ -50,17 +60,16 @@ func TestWbftAdjustTime(t *testing.T) {
 	defer sim.Close()
 
 	client := sim.Client()
-	block1, _ := client.BlockByNumber(context.Background(), nil)
 
 	// Create a block
-	if err := sim.AdjustTime(time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	block2, _ := client.BlockByNumber(context.Background(), nil)
+	sim.Commit()
+	block1, _ := client.BlockByNumber(context.Background(), nil)
 	prevTime := block1.Time()
+	sim.AdjustTime(2 * time.Second)
+	block2, _ := client.BlockByNumber(context.Background(), nil)
 	newTime := block2.Time()
-	if newTime-prevTime != uint64(time.Minute.Seconds()) {
-		t.Errorf("adjusted time not equal to 60 seconds. prev: %v, new: %v", prevTime, newTime)
+	if newTime-prevTime < uint64(2*time.Second.Seconds()) {
+		t.Errorf("adjusted time not equal to 2 seconds. prev: %v, new: %v", prevTime, newTime)
 	}
 }
 

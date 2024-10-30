@@ -249,12 +249,10 @@ type worker struct {
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 
-	// Simulated Channels
-	simCommitCh    chan int64
-	simCommittedCh chan struct{}
+	simSyncer *simSyncer
 }
 
-func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool, init bool) *worker {
+func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool) *worker {
 	worker := &worker{
 		config:             config,
 		chainConfig:        chainConfig,
@@ -277,8 +275,6 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		exitCh:             make(chan struct{}),
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
-		simCommitCh:        make(chan int64),
-		simCommittedCh:     make(chan struct{}),
 	}
 	// Subscribe for transaction insertion events (whether from network or resurrects)
 	worker.txsSub = eth.TxPool().SubscribeTransactions(worker.txsCh, true)
@@ -304,16 +300,16 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	}
 	worker.newpayloadTimeout = newpayloadTimeout
 
+	if worker.config.SimulatedEnabled {
+		worker.simSyncer = newSimSyncer(worker)
+	}
+
 	worker.wg.Add(4)
 	go worker.mainLoop()
 	go worker.newWorkLoop(recommit)
 	go worker.resultLoop()
 	go worker.taskLoop()
 
-	// Submit first work to initialize pending state.
-	if init {
-		worker.startCh <- struct{}{}
-	}
 	return worker
 }
 
@@ -503,12 +499,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			// ## Quorum QBFT END
 
 			clearPending(head.Block.NumberU64())
-			if w.config.SimulatedEnabled {
-				w.simCommittedCh <- struct{}{}
-				timestamp = <-w.simCommitCh
-			} else {
-				timestamp = time.Now().Unix()
-			}
+			timestamp = time.Now().Unix()
 			commit(commitInterruptNewHead)
 
 		case <-timer.C:
@@ -518,9 +509,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 				// Short circuit if no new transaction arrives.
 				if w.newTxs.Load() == 0 {
 					timer.Reset(recommit)
-					continue
-				}
-				if w.config.SimulatedEnabled {
 					continue
 				}
 				commit(commitInterruptResubmit)
@@ -578,6 +566,10 @@ func (w *worker) mainLoop() {
 	for {
 		select {
 		case req := <-w.newWorkCh:
+			if w.config.SimulatedEnabled {
+				w.simSyncer.queueCommitReq(req)
+				continue
+			}
 			w.commitWork(req.interrupt, req.timestamp)
 
 		case req := <-w.getWorkCh:
@@ -755,6 +747,9 @@ func (w *worker) resultLoop() {
 			// Broadcast the block and announce chain insertion event
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
+			if w.config.SimulatedEnabled {
+				w.simSyncer.nofityCommitResult(hash)
+			}
 		case <-w.exitCh:
 			return
 		}

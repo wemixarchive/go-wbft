@@ -215,7 +215,6 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		qbftCfg.MiningBeneficiary = config.QBFT.MiningBeneficiary
 		qbftCfg.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
 		qbftCfg.Validators = config.QBFT.Validators
-		qbftCfg.SimulatedEnabled = config.QBFT.SimulatedEnabled
 
 		if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {
 			qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
