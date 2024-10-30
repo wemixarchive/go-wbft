@@ -312,10 +312,6 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 	cm := newChainMaker(parent, config, engine)
 
-	err := engine.CallEngineSpecific("Start", cm, cm.CurrentBlock, rawdb.HasBadBlock)
-	if err != nil {
-		panic("invalid engine specific call")
-	}
 	genblock := func(i int, parent *types.Block, triedb *triedb.Database, statedb *state.StateDB) (*types.Block, types.Receipts) {
 		b := &BlockGen{i: i, cm: cm, parent: parent, statedb: statedb, engine: engine}
 		b.header = cm.makeHeader(parent, statedb, b.engine)
@@ -333,7 +329,6 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			}
 		}
 		// Mutate the state and block according to any hard-fork specs
-		/* We do not apply extra for DAOFork
 		if daoBlock := config.DAOForkBlock; daoBlock != nil {
 			limit := new(big.Int).Add(daoBlock, params.DAOForkExtraRange)
 			if b.header.Number.Cmp(daoBlock) >= 0 && b.header.Number.Cmp(limit) < 0 {
@@ -342,7 +337,6 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 				}
 			}
 		}
-		*/
 		if config.DAOForkSupport && config.DAOForkBlock != nil && config.DAOForkBlock.Cmp(b.header.Number) == 0 {
 			misc.ApplyDAOHardFork(statedb)
 		}
@@ -352,14 +346,6 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 
 		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, b.txs, b.uncles, b.receipts, b.withdrawals)
-		if err != nil {
-			panic(err)
-		}
-
-		results := make(chan *types.Block, 1)
-		err = b.engine.Seal(cm, block, results, nil)
-		block = <-results
-
 		if err != nil {
 			panic(err)
 		}
@@ -411,7 +397,6 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 
 		// Advance the chain.
 		cm.add(block, receipts)
-		engine.CallEngineSpecific("NewChainHead")
 		parent = block
 	}
 	return cm.chain, cm.receipts
@@ -442,7 +427,6 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 		GasLimit:   parent.GasLimit(),
 		Number:     new(big.Int).Add(parent.Number(), common.Big1),
 		Time:       time,
-		Fees:       new(big.Int),
 	}
 
 	if cm.config.IsLondon(header.Number) {
@@ -451,11 +435,6 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 			parentGasLimit := parent.GasLimit()
 			header.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
 		}
-	} else {
-		// In WEMIX chain, `BaseFee` field should not be nil.
-		// Because `Fees`, `Rewards`, `MinerNodeId`, and `MinerNodeSig` is not nil in WEMIX,
-		// so rlp.Decode generates the zero big.Int for a WEMIX block.
-		header.BaseFee = new(big.Int)
 	}
 	if cm.config.IsCancun(header.Number, header.Time) {
 		var (
