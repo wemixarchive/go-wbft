@@ -132,12 +132,10 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return qbftcommon.ErrUnknownBlock
 	}
 
-	if !e.cfg.SimulatedEnabled {
-		// Don't waste time checking blocks from the future (adjusting for allowed threshold)
-		adjustedTimeNow := time.Now().Add(time.Duration(e.cfg.AllowedFutureBlockTime) * time.Second).Unix()
-		if header.Time > uint64(adjustedTimeNow) {
-			return consensus.ErrFutureBlock
-		}
+	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
+	adjustedTimeNow := time.Now().Add(time.Duration(e.cfg.AllowedFutureBlockTime) * time.Second).Unix()
+	if header.Time > uint64(adjustedTimeNow) {
+		return consensus.ErrFutureBlock
 	}
 
 	if _, err := types.ExtractQBFTExtra(header); err != nil {
@@ -335,12 +333,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	// use the same difficulty for all blocks
 	header.Difficulty = types.QBFTDefaultDifficulty
 
-	if !e.cfg.SimulatedEnabled {
-		// set header's timestamp
-		header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod
-		if header.Time < uint64(time.Now().Unix()) {
-			header.Time = uint64(time.Now().Unix())
-		}
+	// set header's timestamp
+	header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod
+	if header.Time < uint64(time.Now().Unix()) {
+		header.Time = uint64(time.Now().Unix())
 	}
 
 	currentBlockNumber := big.NewInt(0).SetUint64(number - 1)

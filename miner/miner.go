@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -91,7 +92,7 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 		exitCh:  make(chan struct{}),
 		startCh: make(chan struct{}),
 		stopCh:  make(chan struct{}),
-		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true),
+		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock),
 	}
 	miner.wg.Add(1)
 	go miner.update()
@@ -252,21 +253,24 @@ func (miner *Miner) BuildPayload(args *BuildPayloadArgs) (*Payload, error) {
 	return miner.worker.buildPayload(args)
 }
 
-// ReadyCommit is function for simulation only.
-func (miner *Miner) ReadyCommit() {
+// Commit is function for simulation only.
+func (miner *Miner) CommitSimulated() common.Hash {
 	if !miner.worker.config.SimulatedEnabled {
 		panic("only simulated")
 	}
-	<-miner.worker.simCommittedCh
-	log.Info("Simulated: ReadyCommit")
+	return miner.worker.simSyncer.commit()
 }
 
-// Commit is function for simulation only.
-func (miner *Miner) Commit(timestamp int64) {
+func (miner *Miner) CommitSimulatedWithPeriod(duration time.Duration) common.Hash {
 	if !miner.worker.config.SimulatedEnabled {
 		panic("only simulated")
 	}
-	miner.worker.simCommitCh <- timestamp
-	<-miner.worker.simCommittedCh
-	log.Info("Simulated: Commit")
+	return miner.worker.simSyncer.commitWithPeriod(duration)
+}
+
+func (miner *Miner) InjectSimApplierTo(engine *qbftBackend.Backend) {
+	if !miner.worker.config.SimulatedEnabled {
+		panic("only simulated")
+	}
+	engine.InjectSimApplier(miner.worker.simSyncer)
 }

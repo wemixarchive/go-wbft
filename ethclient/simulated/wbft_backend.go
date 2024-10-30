@@ -1,7 +1,6 @@
 package simulated
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	qbftbackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
@@ -55,7 +53,8 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 		BaseFee:    big.NewInt(1000000000),
 	}
 	ebps := uint64(0)
-	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 0
+	ethConf.Istanbul.AllowedFutureBlockTime = 1000000  // disable time verification of a block
+	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 0 // block period must be 0 in case of simulated backend
 	ethConf.Genesis.Config.QBFT.EmptyBlockPeriodSeconds = &ebps
 	ethConf.Genesis.Config.QBFT.Validators = make([]common.Address, 1)
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
@@ -108,7 +107,8 @@ func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
 	}
 	backend.StartMining()
 	backend.APIBackend.SetHead(0)
-	backend.Miner().ReadyCommit()
+
+	backend.Miner().InjectSimApplierTo(backend.Engine().(*qbftbackend.Backend))
 	return &WbftBackend{
 		eth:    backend,
 		client: simClient{ethclient.NewClient(stack.Attach())},
@@ -136,22 +136,11 @@ func (n *WbftBackend) Engine() consensus.Engine {
 
 // Commit seals a block and moves the chain forward to a new empty block.
 func (n *WbftBackend) Commit() common.Hash {
-	n.eth.Miner().Commit(time.Now().Unix())
-	return n.eth.BlockChain().CurrentBlock().Hash()
+	return n.eth.Miner().CommitSimulated()
 }
 
-// AdjustTime changes the block timestamp and creates a new block.
-// It can only be called on empty blocks.
-func (n *WbftBackend) AdjustTime(adjustment time.Duration) error {
-	if len(n.eth.TxPool().Pending(txpool.PendingFilter{})) != 0 {
-		return errors.New("could not adjust time on non-empty block")
-	}
-	parent := n.eth.BlockChain().CurrentBlock()
-	if parent == nil {
-		return errors.New("parent not found")
-	}
-	n.eth.Miner().Commit(int64(parent.Time + uint64(adjustment.Seconds())))
-	return nil
+func (n *WbftBackend) AdjustTime(duration time.Duration) common.Hash {
+	return n.eth.Miner().CommitSimulatedWithPeriod(duration)
 }
 
 // Client returns a client that accesses the simulated chain.
