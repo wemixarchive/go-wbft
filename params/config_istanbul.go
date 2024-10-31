@@ -176,13 +176,13 @@ func (c *ChainConfig) GetBlockReward(num *big.Int) big.Int {
 func (c *ChainConfig) GetPrepareReward(num *big.Int) big.Int {
 	// TODO: implement
 
-	prepareReward := *big.NewInt(100)
+	prepareReward := *math.NewHexOrDecimal256(100)
 	return big.Int(prepareReward)
 }
 
 func (c *ChainConfig) GetCommitReward(num *big.Int) big.Int {
 	// TODO: implement
 
-	commitReward := *big.NewInt(100)
+	commitReward := *math.NewHexOrDecimal256(100)
 	return big.Int(commitReward)
 }
