@@ -550,7 +550,6 @@ func TestVerifyHeaderForSingleBlock(t *testing.T) {
 	if err == consensus.ErrFutureBlock {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
-
 }
 
 func TestVerifyHeaders(t *testing.T) {
@@ -1320,5 +1319,4 @@ func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 	if !errors.Is(err, qbftcommon.ErrInvalidPreparedSeals) {
 		t.Errorf("unexpected error. expect %v, got %v", qbftcommon.ErrInvalidPreparedSeals, err)
 	}
-
 }

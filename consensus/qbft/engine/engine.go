@@ -822,7 +822,6 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 		for _, addr := range prepareRewardees {
 			prepareRewardFn(addr, &prepareReward)
 		}
-
 	}
 
 	if commitRewardFn != nil {
