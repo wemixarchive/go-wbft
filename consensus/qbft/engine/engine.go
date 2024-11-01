@@ -191,7 +191,7 @@ func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*typ
 			if errored {
 				err = consensus.ErrUnknownAncestor
 			} else {
-				err = e.verifyHeader(chain, header, headers[:i], validators, prevValidators) // BUG? 헤더마다 valset 다를텐데 검증 가능한지..? 해당 함수가 사용되는 부분은 없어보임.
+				err = e.verifyHeader(chain, header, headers[:i], validators, prevValidators)
 			}
 
 			if err != nil {
