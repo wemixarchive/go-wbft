@@ -21,6 +21,7 @@
 package backend
 
 import (
+	"errors"
 	"math/big"
 	"math/rand"
 	"time"
@@ -88,12 +89,18 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		return err
 	} else if header.Number.Uint64() < 2 {
 		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet)
-	} else if len(parents) < 1 {
+	} else if len(parents) < 2 {
 		if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, chain.GetHeaderByNumber(header.Number.Uint64()-2).Hash(), nil); err != nil {
 			return err
 		}
-	} else if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, parents[0].Hash(), parents[:1]); err != nil {
-		return err
+	} else {
+		h := parents[len(parents)-2]
+		if h.Number.Uint64() != header.Number.Uint64()-2 {
+			return errors.New("unexpected parents block")
+		}
+		if prevSnap, err = sb.snapshot(chain, h.Number.Uint64(), h.Hash(), nil); err != nil {
+			return err
+		}
 	}
 
 	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, prevSnap.ValSet)
