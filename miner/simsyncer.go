@@ -35,6 +35,9 @@ func newSimSyncer(worker *worker) *simSyncer {
 }
 
 func (ss *simSyncer) queueCommitReq(req *newWorkReq) {
+	if work, err := ss.worker.prepareWork(&generateParams{timestamp: uint64(req.timestamp), coinbase: ss.worker.etherbase()}); err == nil {
+		ss.worker.updateSnapshot(work.copy())
+	}
 	ss.workCh <- req
 }
 

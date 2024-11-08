@@ -1,10 +1,12 @@
 package simulated
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -27,8 +29,10 @@ import (
 // other code that interacts with the Ethereum chain.
 type WbftBackend struct {
 	eth    *eth.Ethereum
-	client simClient
+	client WbftClient
 }
+
+type WbftClient simClient
 
 // NewWbftBackend creates a new simulated blockchain for WBFT that can be used as a backend for
 // contract bindings in unit tests.
@@ -53,8 +57,8 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 		BaseFee:    big.NewInt(1000000000),
 	}
 	ebps := uint64(0)
-	ethConf.Istanbul.AllowedFutureBlockTime = 1000000  // disable time verification of a block
-	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 0 // block period must be 0 in case of simulated backend
+	ethConf.Istanbul.AllowedFutureBlockTime = 2000000000 // disable time verification of a block
+	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 0   // block period must be 0 in case of simulated backend
 	ethConf.Genesis.Config.QBFT.EmptyBlockPeriodSeconds = &ebps
 	ethConf.Genesis.Config.QBFT.Validators = make([]common.Address, 1)
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
@@ -80,7 +84,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	if err != nil {
 		panic(err) // this should never happen
 	}
-
+	sim.Commit()
 	return sim
 }
 
@@ -111,7 +115,7 @@ func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
 	backend.Miner().InjectSimApplierTo(backend.Engine().(*qbftbackend.Backend))
 	return &WbftBackend{
 		eth:    backend,
-		client: simClient{ethclient.NewClient(stack.Attach())},
+		client: WbftClient{ethclient.NewClient(stack.Attach())},
 	}, nil
 }
 
@@ -120,7 +124,7 @@ func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
 func (n *WbftBackend) Close() error {
 	if n.client.Client != nil {
 		n.client.Close()
-		n.client = simClient{}
+		n.client = WbftClient{}
 	}
 	if qbftEngine, ok := n.Engine().(*qbftbackend.Backend); ok {
 		if err := qbftEngine.Stop(); err != nil {
@@ -146,4 +150,56 @@ func (n *WbftBackend) AdjustTime(duration time.Duration) common.Hash {
 // Client returns a client that accesses the simulated chain.
 func (n *WbftBackend) Client() Client {
 	return n.client
+}
+
+// EstimateGas tries to estimate the gas needed to execute a specific transaction based on
+// the current pending state of the backend blockchain. There is no guarantee that this is
+// the true gas limit requirement as other transactions may be added or removed by miners,
+// but it should provide a basis for setting a reasonable default.
+func (c WbftClient) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
+	var hex hexutil.Uint64
+	err := c.Client.Client().CallContext(ctx, &hex, "eth_estimateGas", toCallArg(msg), rpc.PendingBlockNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(hex), nil
+}
+
+func toCallArg(msg ethereum.CallMsg) interface{} {
+	arg := map[string]interface{}{
+		"from": msg.From,
+		"to":   msg.To,
+	}
+	if len(msg.Data) > 0 {
+		arg["input"] = hexutil.Bytes(msg.Data)
+	}
+	if msg.Value != nil {
+		arg["value"] = (*hexutil.Big)(msg.Value)
+	}
+	if msg.Gas != 0 {
+		arg["gas"] = hexutil.Uint64(msg.Gas)
+	}
+	if msg.GasPrice != nil {
+		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
+	}
+	if msg.GasFeeCap != nil {
+		arg["maxFeePerGas"] = (*hexutil.Big)(msg.GasFeeCap)
+	}
+	if msg.GasTipCap != nil {
+		arg["maxPriorityFeePerGas"] = (*hexutil.Big)(msg.GasTipCap)
+	}
+	if msg.AccessList != nil {
+		arg["accessList"] = msg.AccessList
+	}
+	if msg.FeePayer != nil {
+		arg["feePayer"] = msg.FeePayer
+	}
+	if msg.BlobGasFeeCap != nil {
+		arg["maxFeePerBlobGas"] = (*hexutil.Big)(msg.BlobGasFeeCap)
+	}
+	if msg.BlobHashes != nil {
+		arg["blobVersionedHashes"] = msg.BlobHashes
+	}
+	return arg
 }
