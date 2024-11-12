@@ -751,10 +751,6 @@ func (w *worker) resultLoop() {
 
 			// Broadcast the block and announce chain insertion event
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
-
-			if w.config.SimulatedEnabled {
-				w.simSyncer.notifyCommitResult(hash)
-			}
 		case <-w.exitCh:
 			return
 		}

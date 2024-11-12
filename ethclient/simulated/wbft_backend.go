@@ -84,7 +84,19 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	if err != nil {
 		panic(err) // this should never happen
 	}
-	sim.Commit()
+
+	qbft := sim.Engine().(*qbftbackend.Backend)
+	if !qbft.IsRunning() {
+		ticker := time.NewTicker(0.1e9) // 0.1s
+		for {
+			<-ticker.C
+			if qbft.IsRunning() {
+				ticker.Stop()
+				break
+			}
+		}
+	}
+
 	return sim
 }
 
