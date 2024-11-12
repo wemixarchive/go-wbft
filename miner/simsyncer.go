@@ -64,6 +64,6 @@ func (ss *simSyncer) commitWithPeriod(duration time.Duration) common.Hash {
 	}
 }
 
-func (ss *simSyncer) nofityCommitResult(head common.Hash) {
+func (ss *simSyncer) notifyCommitResult(head common.Hash) {
 	ss.resultCh <- head
 }

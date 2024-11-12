@@ -753,7 +753,7 @@ func (w *worker) resultLoop() {
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 			if w.config.SimulatedEnabled {
-				w.simSyncer.nofityCommitResult(hash)
+				w.simSyncer.notifyCommitResult(hash)
 			}
 		case <-w.exitCh:
 			return
