@@ -82,6 +82,10 @@ type Core struct {
 	backlogs   map[common.Address]*prque.Prque[int64, qbftmessage.QBFTMessage]
 	backlogsMu *sync.Mutex
 
+	extraseals   map[common.Address]*prque.Prque[int64, qbftmessage.QBFTMessage]
+	extrasealsMu *sync.Mutex
+	priorRound   *big.Int // commit 된 가장 최근의 round
+
 	current      *roundState
 	currentMutex sync.Mutex
 	handlerWg    *sync.WaitGroup
@@ -221,6 +225,7 @@ func (c *Core) startNewRound(round *big.Int) {
 // updateRoundState updates round state by checking if locking block is necessary
 func (c *Core) updateRoundState(view *qbft.View, validatorSet qbft.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
+		c.priorRound = c.current.Round()
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {
 		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)

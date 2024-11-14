@@ -199,6 +199,7 @@ func (c *Core) handleDecodedMessage(m qbftmessage.QBFTMessage) error {
 		if err == errFutureMessage {
 			c.addToBacklog(m)
 		}
+		// if err == errExtraSealMessage { c.addToExtraSeal(m) }
 		return err
 	}
 

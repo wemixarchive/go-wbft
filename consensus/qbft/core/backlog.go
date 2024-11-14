@@ -75,6 +75,8 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 	}
 
 	if view.Cmp(c.currentView()) < 0 {
+		// if 시퀀스는 current.Sequence 보다 하나 작고 (바로이전블록) 라운드는 priorRound 와 같은 Prepare, Commit 메세지면
+		// return err extraSealMessage
 		return errOldMessage
 	}
 
@@ -103,6 +105,8 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 		}
 		return nil
 	case StateCommitted:
+		// if current 시퀀스, 라운드와 같은 prepare, commit 메세지면
+		// return err extraSealMessage
 		// StateCommit rejects all messages other than msgRoundChange
 		return errInvalidMessage
 	}

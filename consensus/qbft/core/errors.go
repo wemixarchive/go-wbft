@@ -38,6 +38,8 @@ var (
 	errInvalidSigner = errors.New("message not signed by the sender")
 	// errInvalidPreparedBlock is returned when prepared block is not validated in round change messages
 	errInvalidPreparedBlock = errors.New("invalid prepared block in round change messages")
+	// messages after current view is committed which will be added to next block's prevSeals
+	errExtraSealMessage = errors.New("extra seal message")
 
 	errCurrentIsNil = errors.New("current is nil")
 )
