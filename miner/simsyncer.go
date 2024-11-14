@@ -13,6 +13,7 @@ type simSyncer struct {
 	worker              *worker
 	workCh              chan *newWorkReq
 	resultCh            chan common.Hash
+	latestBlockNum      *big.Int
 	adjustedBlockPeriod map[uint64]uint64
 }
 
@@ -30,11 +31,20 @@ func newSimSyncer(worker *worker) *simSyncer {
 		worker:              worker,
 		workCh:              make(chan *newWorkReq),
 		resultCh:            make(chan common.Hash),
+		latestBlockNum:      new(big.Int),
 		adjustedBlockPeriod: make(map[uint64]uint64),
 	}
 }
 
 func (ss *simSyncer) queueCommitReq(req *newWorkReq) {
+	if work, err := ss.worker.prepareWork(&generateParams{timestamp: uint64(req.timestamp), coinbase: ss.worker.etherbase()}); err == nil {
+		ss.worker.updateSnapshot(work.copy())
+	}
+	currentBlock := ss.worker.chain.CurrentBlock()
+	if currentBlock.Number.Cmp(ss.latestBlockNum) > 0 {
+		ss.latestBlockNum = new(big.Int).Set(currentBlock.Number)
+		ss.notifyCommitResult(currentBlock.Hash())
+	}
 	ss.workCh <- req
 }
 
@@ -61,6 +71,6 @@ func (ss *simSyncer) commitWithPeriod(duration time.Duration) common.Hash {
 	}
 }
 
-func (ss *simSyncer) nofityCommitResult(head common.Hash) {
+func (ss *simSyncer) notifyCommitResult(head common.Hash) {
 	ss.resultCh <- head
 }

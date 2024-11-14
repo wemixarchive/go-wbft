@@ -475,6 +475,7 @@ var NetworkNames = map[string]string{
 	GoerliChainConfig.ChainID.String():       "goerli",
 	SepoliaChainConfig.ChainID.String():      "sepolia",
 	HoleskyChainConfig.ChainID.String():      "holesky",
+	MainnetChainConfig.ChainID.String():      "ethmainnet",
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
