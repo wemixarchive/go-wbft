@@ -805,6 +805,7 @@ func TestSimulation(t *testing.T) {
 			t.Errorf("unexpected proposal comes: %v, want %v", reflect.TypeOf(request.Proposal), request.Proposal)
 		}
 
+		quorumSize := engine.Validators(chain.Genesis()).QuorumSize()
 		// Preprepare
 		ev = <-eventSub.Chan()
 		msgEv, ok := ev.Data.(qbft.MessageEvent)
@@ -845,7 +846,7 @@ func TestSimulation(t *testing.T) {
 
 		// send another prepare message
 		for _, node := range nodes {
-			if totalPrepareMessages >= engine.core.QuorumSize() {
+			if totalPrepareMessages >= quorumSize {
 				break
 			}
 
@@ -895,7 +896,7 @@ func TestSimulation(t *testing.T) {
 
 		// send another commit message
 		for _, node := range nodes {
-			if totalCommitMessages >= engine.core.QuorumSize() {
+			if totalCommitMessages >= quorumSize {
 				break
 			}
 
@@ -969,6 +970,8 @@ func TestSimulation(t *testing.T) {
 				break
 			}
 		}
+
+		quorumSize = engine.Validators(finalBlock1).QuorumSize()
 
 		// make second block
 		block = makeBlockWithoutSeal(chain, engine, finalBlock1)
@@ -1048,7 +1051,7 @@ func TestSimulation(t *testing.T) {
 
 		// send another prepare message
 		for _, node := range nodes {
-			if totalPrepareMessages >= engine.core.QuorumSize() {
+			if totalPrepareMessages >= quorumSize {
 				break
 			}
 
@@ -1098,7 +1101,7 @@ func TestSimulation(t *testing.T) {
 
 		// send another commit message
 		for _, node := range nodes {
-			if totalCommitMessages >= engine.core.QuorumSize() {
+			if totalCommitMessages >= quorumSize {
 				break
 			}
 

@@ -290,7 +290,7 @@ func verifySealers(sealers []common.Address, validators qbft.ValidatorSet) error
 		return fmt.Errorf("sealer is not validator")
 	}
 
-	if validSealCnt <= validators.F()*2 {
+	if validSealCnt < validators.QuorumSize() {
 		return fmt.Errorf("lack of seal count")
 	}
 	return nil

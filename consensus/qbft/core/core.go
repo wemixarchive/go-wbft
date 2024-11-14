@@ -311,10 +311,10 @@ func (c *Core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 	return qbft.CheckValidatorSignature(c.valSet, data, sig)
 }
 
-func (c *Core) QuorumSize() int {
-	c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used ceil(2N/3)")
-	return int(math.Ceil(float64(2*c.valSet.Size()) / 3))
-}
+//func (c *Core) QuorumSize() int {
+//	c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used ceil(2N/3)")
+//	return int(math.Ceil(float64(c.valSet.Size()) - c.valSet.F()))
+//}
 
 // PrepareCommittedSeal returns a committed seal for the given header and takes current round under consideration
 func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
