@@ -780,14 +780,13 @@ func TestSimulation(t *testing.T) {
 	)
 
 	for i := 0; i < 3; i++ {
-		chain, engine, nodes := newBlockChain(3)
-		defer engine.Stop()
+		// TODO: 디버깅 끝나면 go routine 으로 바꾸기. engine.Stop, eventSubClose 를 defer 문으로 빼서 에러가 나도 무조건 타도록 변경하는 것이 바람직해 보임.
+		chain, engine, nodes := newBlockChain(5)
 		block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 		currState, _ := chain.State()
 		block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
 
 		eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{}, qbft.MessageEvent{})
-		defer eventSub.Unsubscribe()
 
 		resultCh := make(chan *types.Block, 10)
 		err := engine.Seal(chain, block, resultCh, nil)
@@ -798,45 +797,52 @@ func TestSimulation(t *testing.T) {
 		ev := <-eventSub.Chan()
 		request, ok := ev.Data.(qbft.RequestEvent)
 		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			t.Errorf("unexpected event comes: %v, want request event", reflect.TypeOf(ev.Data))
 		}
 
 		proposedBlock, ok := request.Proposal.(*types.Block)
 		if !ok {
-			t.Errorf("unexpected proposal comes: %v", reflect.TypeOf(request.Proposal))
+			t.Errorf("unexpected proposal comes: %v, want %v", reflect.TypeOf(request.Proposal), request.Proposal)
 		}
 
 		// Preprepare
 		ev = <-eventSub.Chan()
 		msgEv, ok := ev.Data.(qbft.MessageEvent)
 		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 			return
 		}
 
 		if msgEv.Code != PreprepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+			t.Errorf("unexpected code comes: %v, sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, PreprepareCode, proposedBlock.Number())
 			return
 		}
 
-		t.Log("Preprepare message comes")
+		//decode msg
+		m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+		t.Logf("Preprepare message comes for block %v, round %v", m.View().Sequence, m.View().Round)
 
 		// Prepare
 		totalPrepareMessages := 0
 		ev = <-eventSub.Chan()
 		msgEv, ok = ev.Data.(qbft.MessageEvent)
 		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 			return
 		}
 
 		if msgEv.Code != PrepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+			t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, PrepareCode, proposedBlock.Number())
 			return
 		}
 		totalPrepareMessages++
 
-		t.Log("Prepare message comes")
+		//decode msg
+		m, _ = messages.Decode(msgEv.Code, msgEv.Payload)
+		t.Logf("Local prepare message comes for block %v, round %v", m.View().Sequence, m.View().Round)
+
 		// send another prepare message
 		for _, node := range nodes {
 			if totalPrepareMessages >= engine.core.QuorumSize() {
@@ -855,16 +861,17 @@ func TestSimulation(t *testing.T) {
 			ev = <-eventSub.Chan()
 			msgEv, ok = ev.Data.(qbft.MessageEvent)
 			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				t.Errorf("unexpected event comes: %v, want event message", reflect.TypeOf(ev.Data))
 				return
 			}
 
 			if msgEv.Code != PrepareCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+				t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, PrepareCode, proposedBlock.Number())
 				return
 			}
 			totalPrepareMessages++
-			t.Log("another prepare message comes")
+			t.Logf("another prepare message comes, total count : %d", totalPrepareMessages)
 		}
 
 		// Commit
@@ -872,17 +879,19 @@ func TestSimulation(t *testing.T) {
 		ev = <-eventSub.Chan()
 		msgEv, ok = ev.Data.(qbft.MessageEvent)
 		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 			return
 		}
 
 		if msgEv.Code != CommitCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+			t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, CommitCode, proposedBlock.Number())
 			return
 		}
 		totalCommitMessages++
 
-		t.Log("Commit message comes")
+		m, _ = messages.Decode(msgEv.Code, msgEv.Payload)
+		t.Logf("Local commit message comes for block %v, round %v", m.View().Sequence, m.View().Round)
 
 		// send another commit message
 		for _, node := range nodes {
@@ -902,16 +911,17 @@ func TestSimulation(t *testing.T) {
 			ev = <-eventSub.Chan()
 			msgEv, ok = ev.Data.(qbft.MessageEvent)
 			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 				return
 			}
 
 			if msgEv.Code != CommitCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+				t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, CommitCode, proposedBlock.Number())
 				return
 			}
 			totalCommitMessages++
-			t.Log("another commit message comes")
+			t.Logf("another commit message comes, total count : %d", totalCommitMessages)
 		}
 
 		// check whether the block is inserted into the chain
@@ -1002,34 +1012,41 @@ func TestSimulation(t *testing.T) {
 		ev = <-eventSub.Chan()
 		msgEv, ok = ev.Data.(qbft.MessageEvent)
 		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 			return
 		}
 
 		if msgEv.Code != PreprepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+			t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, PreprepareCode, proposedBlock.Number())
 			return
 		}
 
-		t.Log("Preprepare message comes")
+		//decode msg
+		m, _ = messages.Decode(msgEv.Code, msgEv.Payload)
+		t.Logf("Preprepare message comes for block %v, round %v", m.View().Sequence, m.View().Round)
 
 		// Prepare
 		totalPrepareMessages = 0
 		ev = <-eventSub.Chan()
 		msgEv, ok = ev.Data.(qbft.MessageEvent)
 		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 			return
 		}
 
 		if msgEv.Code != PrepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+			t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, PrepareCode, proposedBlock.Number())
 			return
 		}
-
-		t.Log("Prepare message comes")
-
 		totalPrepareMessages++
+
+		//decode msg
+		m, _ = messages.Decode(msgEv.Code, msgEv.Payload)
+		t.Logf("Local prepare message comes for block %v, round %v", m.View().Sequence, m.View().Round)
+
+		// send another prepare message
 		for _, node := range nodes {
 			if totalPrepareMessages >= engine.core.QuorumSize() {
 				break
@@ -1039,7 +1056,7 @@ func TestSimulation(t *testing.T) {
 				continue
 			}
 
-			t.Log("sending prepare message", node.address)
+			t.Log("sending another prepare message", node.address)
 			if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 				t.Errorf("failed to send prepare msg. err :  %v", err)
 			}
@@ -1047,16 +1064,17 @@ func TestSimulation(t *testing.T) {
 			ev = <-eventSub.Chan()
 			msgEv, ok = ev.Data.(qbft.MessageEvent)
 			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				t.Errorf("unexpected event comes: %v, want event message", reflect.TypeOf(ev.Data))
 				return
 			}
 
 			if msgEv.Code != PrepareCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+				t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, PrepareCode, proposedBlock.Number())
 				return
 			}
 			totalPrepareMessages++
-			t.Log("another prepare message comes")
+			t.Logf("another prepare message comes, total count : %d", totalPrepareMessages)
 		}
 
 		// Commit
@@ -1064,17 +1082,19 @@ func TestSimulation(t *testing.T) {
 		ev = <-eventSub.Chan()
 		msgEv, ok = ev.Data.(qbft.MessageEvent)
 		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+			t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 			return
 		}
 
 		if msgEv.Code != CommitCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
+			m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+			t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, CommitCode, proposedBlock.Number())
 			return
 		}
 		totalCommitMessages++
 
-		t.Log("Commit message comes")
+		m, _ = messages.Decode(msgEv.Code, msgEv.Payload)
+		t.Logf("Local commit message comes for block %v, round %v", m.View().Sequence, m.View().Round)
 
 		// send another commit message
 		for _, node := range nodes {
@@ -1094,16 +1114,17 @@ func TestSimulation(t *testing.T) {
 			ev = <-eventSub.Chan()
 			msgEv, ok = ev.Data.(qbft.MessageEvent)
 			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+				t.Errorf("unexpected event comes: %v, want message event", reflect.TypeOf(ev.Data))
 				return
 			}
 
 			if msgEv.Code != CommitCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
+				m, _ := messages.Decode(msgEv.Code, msgEv.Payload)
+				t.Errorf("unexpected code comes: %v , sequence %v, want %v, sequence %v", msgEv.Code, m.View().Sequence, CommitCode, proposedBlock.Number())
 				return
 			}
 			totalCommitMessages++
-			t.Log("another commit message comes")
+			t.Logf("another commit message comes, total count : %d", totalCommitMessages)
 		}
 
 		finalBlock2 := <-blockEnqueueChannel
@@ -1189,6 +1210,8 @@ func TestSimulation(t *testing.T) {
 				t.Errorf("balance mismatch: have %v, want %v", balance, expectedBalance)
 			}
 		}
+		engine.Stop()
+		eventSub.Unsubscribe()
 	}
 }
 
