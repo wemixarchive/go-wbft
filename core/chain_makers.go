@@ -312,6 +312,11 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 	cm := newChainMaker(parent, config, engine)
 
+	err := engine.CallEngineSpecific("Start", cm, cm.CurrentBlock, rawdb.HasBadBlock)
+	if err != nil {
+		panic("invalid engine specific call")
+	}
+
 	genblock := func(i int, parent *types.Block, triedb *triedb.Database, statedb *state.StateDB) (*types.Block, types.Receipts) {
 		b := &BlockGen{i: i, cm: cm, parent: parent, statedb: statedb, engine: engine}
 		b.header = cm.makeHeader(parent, statedb, b.engine)
@@ -350,6 +355,15 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			panic(err)
 		}
 
+		engine.CallEngineSpecific("NewChainHead")
+
+		results := make(chan *types.Block, 1)
+		err = b.engine.Seal(cm, block, results, nil)
+		block = <-results
+		if err != nil {
+			panic(err)
+		}
+
 		// Write state changes to db
 		root, err := statedb.Commit(b.header.Number.Uint64(), config.IsEIP158(b.header.Number))
 		if err != nil {
@@ -358,6 +372,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		if err = triedb.Commit(root, false); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
+
 		return block, b.receipts
 	}
 

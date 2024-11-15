@@ -177,7 +177,6 @@ func expectedOk(backend *simulated.WbftBackend, tx *types.Transaction, err error
 	}
 
 	return receipt, nil
-
 }
 
 func expectedFail(backend *simulated.WbftBackend, tx *types.Transaction, err error) (*types.Receipt, error) {
