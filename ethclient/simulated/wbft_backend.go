@@ -58,7 +58,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	}
 	ebps := uint64(0)
 	ethConf.Istanbul.AllowedFutureBlockTime = 2000000000 // disable time verification of a block
-	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 0   // block period must be 0 in case of simulated backend
+	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 1
 	ethConf.Genesis.Config.QBFT.EmptyBlockPeriodSeconds = &ebps
 	ethConf.Genesis.Config.QBFT.Validators = make([]common.Address, 1)
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
@@ -68,6 +68,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
 	ethConf.Miner.SimulatedEnabled = true
+	ethConf.Miner.Recommit = 10 * time.Second // prevent block interruption
 	ethConf.TxPool.NoLocals = true
 
 	for _, option := range options {
@@ -121,10 +122,10 @@ func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
 	if err := stack.Start(); err != nil {
 		return nil, err
 	}
-	backend.StartMining()
-	backend.APIBackend.SetHead(0)
 
+	backend.StartMining()
 	backend.Miner().InjectSimApplierTo(backend.Engine().(*qbftbackend.Backend))
+
 	return &WbftBackend{
 		eth:    backend,
 		client: WbftClient{ethclient.NewClient(stack.Attach())},
