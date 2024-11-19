@@ -26,6 +26,15 @@ func (ss *simSyncer) Apply(config *qbft.Config, num *big.Int) {
 	}
 }
 
+func (ss *simSyncer) close() {
+	close(ss.resultCh)
+	select {
+	case <-ss.workCh:
+	default:
+	}
+	close(ss.workCh)
+}
+
 func newSimSyncer(worker *worker) *simSyncer {
 	return &simSyncer{
 		worker:              worker,

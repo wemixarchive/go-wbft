@@ -143,6 +143,9 @@ func (n *WbftBackend) Close() error {
 			return err
 		}
 	}
+	if n.eth.Miner().Mining() {
+		n.eth.Miner().Close()
+	}
 	return nil
 }
 

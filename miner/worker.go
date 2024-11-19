@@ -420,6 +420,11 @@ func (w *worker) isRunning() bool {
 func (w *worker) close() {
 	w.running.Store(false)
 	close(w.exitCh)
+
+	if w.config.SimulatedEnabled {
+		w.simSyncer.close()
+	}
+
 	w.wg.Wait()
 }
 
