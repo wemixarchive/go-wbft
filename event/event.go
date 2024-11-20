@@ -161,7 +161,7 @@ type TypeMuxSubscription struct {
 }
 
 func newsub(mux *TypeMux) *TypeMuxSubscription {
-	c := make(chan *TypeMuxEvent)
+	c := make(chan *TypeMuxEvent, 10)
 	return &TypeMuxSubscription{
 		mux:     mux,
 		created: time.Now(),

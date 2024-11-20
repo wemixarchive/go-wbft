@@ -779,8 +779,7 @@ func TestSimulation(t *testing.T) {
 		RoundChangeCode = 0x15
 	)
 
-	for i := 0; i < 3; i++ {
-		// TODO: 디버깅 끝나면 go routine 으로 바꾸기. engine.Stop, eventSubClose 를 defer 문으로 빼서 에러가 나도 무조건 타도록 변경하는 것이 바람직해 보임.
+	for i := 0; i < 48; i++ {
 		chain, engine, nodes := newBlockChain(5)
 		block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 		currState, _ := chain.State()
@@ -930,6 +929,7 @@ func TestSimulation(t *testing.T) {
 		if finalBlock1.Hash() != proposedBlock.Hash() {
 			t.Errorf("hash mismatch: have %v, want %v", finalBlock1.Hash(), proposedBlock.Hash())
 		}
+
 		_, err = chain.InsertChain(types.Blocks{finalBlock1})
 		if err != nil {
 			t.Errorf("Error inserting block: %v", err)
@@ -951,7 +951,7 @@ func TestSimulation(t *testing.T) {
 			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock1.Hash())
 		}
 
-		for i, node := range nodes {
+		for j, node := range nodes {
 			if node.address == expectedProposer1 {
 				state, err := chain.StateAt(finalBlock1.Root())
 				if state == nil || err != nil {
@@ -966,7 +966,14 @@ func TestSimulation(t *testing.T) {
 				if balance.Cmp(expectedBalance) != 0 {
 					t.Errorf("balance mismatch: have %v, want %v", balance, expectedBalance)
 				}
-				nodes[i].balance = balance
+				nodes[j].balance = balance
+				break
+			}
+		}
+
+		// wait until the engine is ready to accept the next block
+		for {
+			if engine.core.GetState() == 0 { // StateAcceptRequest
 				break
 			}
 		}
@@ -1000,7 +1007,6 @@ func TestSimulation(t *testing.T) {
 					return
 				}
 				engine.Finalize(chain, header, currState, nil, nil, nil)
-
 				proposedBlock = block.WithSeal(header)
 
 				t.Log("sending preprepare message", node.address)
