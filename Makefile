@@ -12,7 +12,6 @@ SUCCESS_TESTS = github.com/ethereum/go-ethereum/accounts github.com/ethereum/go-
 
 # TODO: move this cases to SUCCESS_TESTS one by one after making it to be success
 FAILURE_TESTS = github.com/ethereum/go-ethereum/tests
-=======
 
 #? geth: Build geth
 geth:
