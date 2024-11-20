@@ -252,7 +252,7 @@ type worker struct {
 	simSyncer *simSyncer
 }
 
-func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool) *worker {
+func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(header *types.Header) bool, init bool) *worker {
 	worker := &worker{
 		config:             config,
 		chainConfig:        chainConfig,
@@ -309,6 +309,11 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	go worker.newWorkLoop(recommit)
 	go worker.resultLoop()
 	go worker.taskLoop()
+
+	// init
+	if init {
+		worker.startCh <- struct{}{}
+	}
 
 	return worker
 }
@@ -746,10 +751,6 @@ func (w *worker) resultLoop() {
 
 			// Broadcast the block and announce chain insertion event
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
-
-			if w.config.SimulatedEnabled {
-				w.simSyncer.nofityCommitResult(hash)
-			}
 		case <-w.exitCh:
 			return
 		}
