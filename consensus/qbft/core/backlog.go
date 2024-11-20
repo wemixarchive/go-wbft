@@ -54,7 +54,6 @@ var (
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view
 func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
-	logger := c.logger.New("currentSequence", c.current.Sequence(), "currentRound", c.current.Round(), "messageSequence", view.Sequence, "messageRound", view.Round)
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
 	}
