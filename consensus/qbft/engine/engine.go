@@ -427,7 +427,7 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 	return e.verifySigner(chain, header, nil, validators)
 }
 
-func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal [][]byte) error {
 	header.Coinbase = common.Address{}
 	header.Nonce = qbftcommon.EmptyBlockNonce
 
@@ -492,8 +492,11 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			return qbftcommon.ErrEmptyCommittedSeals
 		}
 
-		prevPreparedSeal := extra.PreparedSeal
-		prevCommittedSeal := extra.CommittedSeal
+		prevPreparedSeal := mergeSeals(extra.PreparedSeal, extraPreparedSeal)
+		log.Info("PrevPreparedSeals", "existing preparedSeals", extra.PreparedSeal, "extra seals", extraPreparedSeal, "merged seals", prevPreparedSeal)
+		prevCommittedSeal := mergeSeals(extra.CommittedSeal, extraCommittedSeal)
+		log.Info("PrevCommittedSeals", "existing committedSeals", extra.CommittedSeal, "extra seals", extraCommittedSeal, "merged seals", prevCommittedSeal)
+
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		return ApplyHeaderQBFTExtra(
 			header,
@@ -502,6 +505,31 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			WritePrevCommittedSeal(prevCommittedSeal),
 		)
 	}
+}
+
+func mergeSeals(seals1, seals2 [][]byte) [][]byte {
+	mergedSeals := [][]byte{}
+
+	contains := func(slices [][]byte, item []byte) bool {
+		for _, s := range slices {
+			if bytes.Equal(s, item) { // Directly compare []byte
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, s1 := range seals1 {
+		if !contains(mergedSeals, s1) {
+			mergedSeals = append(mergedSeals, s1)
+		}
+	}
+	for _, s2 := range seals2 {
+		if !contains(mergedSeals, s2) {
+			mergedSeals = append(mergedSeals, s2)
+		}
+	}
+	return mergedSeals
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {

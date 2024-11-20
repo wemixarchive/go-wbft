@@ -53,6 +53,8 @@ func New(backend Backend, config *qbft.Config) *Core {
 		backend:            backend,
 		backlogs:           make(map[common.Address]*prque.Prque[int64, qbftmessage.QBFTMessage]),
 		backlogsMu:         new(sync.Mutex),
+		extraSeals:         prque.New[int64, qbftmessage.QBFTMessage](nil),
+		extraSealsMu:       new(sync.Mutex),
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
@@ -82,8 +84,8 @@ type Core struct {
 	backlogs   map[common.Address]*prque.Prque[int64, qbftmessage.QBFTMessage]
 	backlogsMu *sync.Mutex
 
-	extraseals   map[common.Address]*prque.Prque[int64, qbftmessage.QBFTMessage]
-	extrasealsMu *sync.Mutex
+	extraSeals   *prque.Prque[int64, qbftmessage.QBFTMessage]
+	extraSealsMu *sync.Mutex
 	priorRound   *big.Int // commit 된 가장 최근의 round
 
 	current      *roundState

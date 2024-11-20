@@ -170,7 +170,17 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		return err
 	}
 
-	err = sb.Engine().Prepare(chain, header, snap.ValSet)
+	// get ExtraSeals.
+	// sb.core 는 qbftengine 이 start 될 때인데,
+	// montblanc block 을 1 로 두고 돌릴 때 qbftengine start 되는 시점은 newCHainHead 이벤트가 들어올 때여서
+	// worker 시작될때 startCh로 시작된 Prepare 시점에서 sb.core 가 nil 이여서 ProcessExtraSeal 할때 nil pointer 에러가 나는 문제
+	var extraPreparedSeal [][]byte
+	var extraCommittedSeal [][]byte
+	if sb.core != nil {
+		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal()
+	}
+
+	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraCommittedSeal)
 	if err != nil {
 		return err
 	}

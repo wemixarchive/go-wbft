@@ -21,6 +21,9 @@
 package core
 
 import (
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
@@ -51,6 +54,7 @@ var (
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view
 func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
+	logger := c.logger.New("currentSequence", c.current.Sequence(), "currentRound", c.current.Round(), "messageSequence", view.Sequence, "messageRound", view.Round)
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
 	}
@@ -75,8 +79,14 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 	}
 
 	if view.Cmp(c.currentView()) < 0 {
-		// if 시퀀스는 current.Sequence 보다 하나 작고 (바로이전블록) 라운드는 priorRound 와 같은 Prepare, Commit 메세지면
-		// return err extraSealMessage
+		// save prepare and commit message to extraSeal under below condition
+		// 1. view's sequence is right before current.Sequence &&
+		// 2. view's round is same as prior round &&
+		// 3. c.state is AcceptRequest
+		if new(big.Int).Sub(c.currentView().Sequence, view.Sequence).Cmp(common.Big1) == 0 && view.Round.Cmp(c.priorRound) == 0 && c.state == StateAcceptRequest {
+			logger.Info("ExtraSeal message came while preparing for next block", "msg", msgCode)
+			return errExtraSealMessage
+		}
 		return errOldMessage
 	}
 
@@ -101,12 +111,20 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 		// StatePrepared only accepts msgCommit and msgRoundChange
 		// other messages are invalid messages
 		if msgCode < qbftmessage.CommitCode {
+			if msgCode == qbftmessage.PrepareCode {
+				logger.Info("ExtraSeal message came while state prepared", "msg", msgCode)
+				return errExtraSealMessage
+			}
 			return errInvalidMessage
 		}
 		return nil
 	case StateCommitted:
 		// if current 시퀀스, 라운드와 같은 prepare, commit 메세지면
 		// return err extraSealMessage
+		if msgCode >= qbftmessage.PrepareCode {
+			logger.Info("ExtraSeal message came while state committed", "msg", msgCode)
+			return errExtraSealMessage
+		}
 		// StateCommit rejects all messages other than msgRoundChange
 		return errInvalidMessage
 	}
@@ -136,7 +154,7 @@ func (c *Core) addToBacklog(msg qbftmessage.QBFTMessage) {
 		c.backlogs[src] = backlog
 	}
 	view := msg.View()
-	backlog.Push(msg, toPriority(msg.Code(), &view))
+	backlog.Push(msg, toNegatePriority(msg.Code(), &view))
 }
 
 // processBacklog lookup for future messages that have been backlogged and post it on
@@ -198,7 +216,7 @@ func (c *Core) processBacklog() {
 }
 
 // ## Wemix QBFT : change return type from float32 to int64
-func toPriority(msgCode uint64, view *qbft.View) int64 {
+func toNegatePriority(msgCode uint64, view *qbft.View) int64 {
 	if msgCode == qbftmessage.RoundChangeCode {
 		// For msgRoundChange, set the message priority based on its sequence
 		return -int64(view.Sequence.Uint64() * 1000)
