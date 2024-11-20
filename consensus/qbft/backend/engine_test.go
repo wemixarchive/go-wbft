@@ -55,6 +55,12 @@ type fakeBroadcaster struct {
 	blockFetcher *fetcher.BlockFetcher
 }
 
+type otherNode struct {
+	address    common.Address
+	privateKey *ecdsa.PrivateKey
+	balance    *big.Int
+}
+
 func makeFakeBroadcaster(chain *core.BlockChain) *fakeBroadcaster {
 	blockEnqueueChannel = make(chan *types.Block)
 	validator := func(header *types.Header) error {
@@ -94,7 +100,7 @@ func (fb *fakeBroadcaster) FindPeers(targets map[common.Address]bool) map[common
 	return m
 }
 
-func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *qbft.Config) (*core.BlockChain, *Backend, []Node) {
+func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *qbft.Config) (*core.BlockChain, *Backend, []otherNode) {
 	memDB := rawdb.NewMemoryDatabase()
 
 	// Use the first key as private key
@@ -113,11 +119,11 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	}
 
 	// Make virtual node struct for simulation
-	nodes := make([]Node, 0)
+	nodes := make([]otherNode, 0)
 	for i := 0; i < len(nodeKeys); i++ {
 		address := crypto.PubkeyToAddress(nodeKeys[i].PublicKey)
 		b := state.GetBalance(address).ToBig()
-		nodes = append(nodes, Node{address, nodeKeys[i], b})
+		nodes = append(nodes, otherNode{address, nodeKeys[i], b})
 	}
 
 	fb := makeFakeBroadcaster(blockchain)
@@ -150,7 +156,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 // in this test, we can set n to 1, and it means we can process Istanbul and commit a
 // block by one node. Otherwise, if n is larger than 1, we have to generate
 // other fake events to process Istanbul.
-func newBlockChain(n int) (*core.BlockChain, *Backend, []Node) {
+func newBlockChain(n int) (*core.BlockChain, *Backend, []otherNode) {
 	genesis, nodeKeys := testutils.GenesisAndKeys(n)
 
 	config := copyConfig(qbft.DefaultConfig)
@@ -701,7 +707,7 @@ func postMsgEventToBackend(qbftEngine *Backend, message messages.QBFTMessage, pa
 	return nil
 }
 
-func makeQBFTMessagePayload(message messages.QBFTMessage, node Node) ([]byte, error) {
+func makeQBFTMessagePayload(message messages.QBFTMessage, node otherNode) ([]byte, error) {
 	// set source of the message
 	message.SetSource(node.address)
 	encodedPayload, err := message.EncodePayloadForSigning()
@@ -721,7 +727,7 @@ func makeQBFTMessagePayload(message messages.QBFTMessage, node Node) ([]byte, er
 	return payload, nil
 }
 
-func nodeSendPreprepareMsg(qbftEngine *Backend, node Node, sequence, round *big.Int, targetBlock *types.Block) error {
+func nodeSendPreprepareMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	preprepare := messages.NewPreprepare(sequence, round, targetBlock)
 	payload, err := makeQBFTMessagePayload(preprepare, node)
 	if err != nil {
@@ -732,7 +738,7 @@ func nodeSendPreprepareMsg(qbftEngine *Backend, node Node, sequence, round *big.
 	return nil
 }
 
-func nodeSendPrepareMsg(qbftEngine *Backend, node Node, sequence, round *big.Int, targetBlock *types.Block) error {
+func nodeSendPrepareMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	prepareSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
 	if err != nil {
 		return err
@@ -747,7 +753,7 @@ func nodeSendPrepareMsg(qbftEngine *Backend, node Node, sequence, round *big.Int
 	return nil
 }
 
-func nodeSendCommitMsg(qbftEngine *Backend, node Node, sequence, round *big.Int, targetBlock *types.Block) error {
+func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	commitSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
 	if err != nil {
 		return err
@@ -1224,7 +1230,7 @@ func TestSimulation(t *testing.T) {
 	}
 }
 
-func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []Node, parentBlock *types.Block) (*types.Block, error) {
+func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []otherNode, parentBlock *types.Block) (*types.Block, error) {
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
 	defer eventSub.Unsubscribe()
 
@@ -1245,7 +1251,7 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 
 	proposedBlock, _ := request.Proposal.(*types.Block)
 	for _, node := range nodes {
-		go func(node Node) error {
+		go func(node otherNode) error {
 			ticker := time.NewTicker(300 * time.Millisecond)
 			defer ticker.Stop()
 

@@ -122,12 +122,6 @@ type Backend struct {
 	knownMessages  *lru.Cache[common.Hash, bool]                             // the cache of self messages
 }
 
-type Node struct {
-	address    common.Address
-	privateKey *ecdsa.PrivateKey
-	balance    *big.Int
-}
-
 func (sb *Backend) Engine() *qbftengine.Engine {
 	return sb.qbftEngine // ## Wemix QBFT : currently return only qbft engine
 }
