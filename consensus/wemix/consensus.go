@@ -215,7 +215,5 @@ func (we *WemixConsensus) HandleMsg(address common.Address, data p2p.Msg) (bool,
 }
 
 func (we *WemixConsensus) SetBroadcaster(broadcaster consensus.Broadcaster) {
-	if we.wbftStarted {
-		we.wbft.SetBroadcaster(broadcaster)
-	}
+	we.wbft.SetBroadcaster(broadcaster)
 }
