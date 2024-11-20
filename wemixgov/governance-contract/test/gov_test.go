@@ -559,7 +559,7 @@ func TestGov(t *testing.T) {
 			gov := NewGovernance(t).DeployContracts(t)
 			ExpectedRevert(t,
 				gov.ExpectedFail(gov.GovImp.Transact(gov.owner, "addProposalToChangeGov", getTxOpt(t, "govMem1").From, []byte("memo"), big.NewInt(86400))),
-				"",
+				"execution reverted",
 			)
 		})
 		t.Run("can not addProposal to change governance using non-UUPS", func(t *testing.T) {
@@ -1758,7 +1758,7 @@ func TestGov(t *testing.T) {
 			gov, voter := deployGovernance(t)
 			ExpectedRevert(t,
 				gov.ExpectedFail(gov.GovImp.Transact(voter, "addProposalToChangeGov", getTxOpt(t, "govMem1").From, []byte("memo"), big.NewInt(86400))),
-				"",
+				"execution reverted",
 			)
 		})
 		t.Run("can not addProposal to change governance using non-UUPS", func(t *testing.T) {

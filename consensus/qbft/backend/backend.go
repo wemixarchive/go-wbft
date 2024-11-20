@@ -131,6 +131,10 @@ func (sb *Backend) InjectSimApplier(applier SimApplier) {
 	sb.simApplier = applier
 }
 
+func (sb *Backend) IsRunning() bool {
+	return sb.coreStarted
+}
+
 func (sb *Backend) Engine() *qbftengine.Engine {
 	return sb.qbftEngine // ## Wemix QBFT : currently return only qbft engine
 }
