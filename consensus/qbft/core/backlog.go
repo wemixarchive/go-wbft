@@ -84,7 +84,6 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 		// 2. view's round is same as prior round &&
 		// 3. c.state is AcceptRequest
 		if new(big.Int).Sub(c.currentView().Sequence, view.Sequence).Cmp(common.Big1) == 0 && view.Round.Cmp(c.priorRound) == 0 && c.state == StateAcceptRequest {
-			logger.Info("ExtraSeal message came while preparing for next block", "msg", msgCode)
 			return errExtraSealMessage
 		}
 		return errOldMessage
@@ -112,17 +111,15 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 		// other messages are invalid messages
 		if msgCode < qbftmessage.CommitCode {
 			if msgCode == qbftmessage.PrepareCode {
-				logger.Info("ExtraSeal message came while state prepared", "msg", msgCode)
 				return errExtraSealMessage
 			}
 			return errInvalidMessage
 		}
 		return nil
 	case StateCommitted:
-		// if current 시퀀스, 라운드와 같은 prepare, commit 메세지면
+		// for prepare, commit message with same view as current
 		// return err extraSealMessage
 		if msgCode >= qbftmessage.PrepareCode {
-			logger.Info("ExtraSeal message came while state committed", "msg", msgCode)
 			return errExtraSealMessage
 		}
 		// StateCommit rejects all messages other than msgRoundChange

@@ -493,9 +493,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		}
 
 		prevPreparedSeal := mergeSeals(extra.PreparedSeal, extraPreparedSeal)
-		log.Info("PrevPreparedSeals", "existing preparedSeals", extra.PreparedSeal, "extra seals", extraPreparedSeal, "merged seals", prevPreparedSeal)
 		prevCommittedSeal := mergeSeals(extra.CommittedSeal, extraCommittedSeal)
-		log.Info("PrevCommittedSeals", "existing committedSeals", extra.CommittedSeal, "extra seals", extraCommittedSeal, "merged seals", prevCommittedSeal)
 
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		return ApplyHeaderQBFTExtra(

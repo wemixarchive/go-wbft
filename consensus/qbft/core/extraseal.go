@@ -1,11 +1,12 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 )
 
-// it adds the message to extraSeals which is read when making block
+// addToExtraSeal adds the message to extraSeals which is read when making block
 func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) {
 	logger := c.currentLogger(true, msg)
 
@@ -22,15 +23,18 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) {
 	c.extraSeals.Push(msg, toPriority(&view))
 }
 
-// processExtraSeal collects prepare and commit messages that have been stored in extraSeal
-// and pass it to backend making new block
+// ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
+// and pass it to backend preparing new block
 func (c *Core) ProcessExtraSeal() ([][]byte, [][]byte) {
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 
 	var preparedSeal [][]byte
 	var committedSeal [][]byte
-	var latestView qbft.View
+	latestView := qbft.View{
+		Round:    common.Big0,
+		Sequence: common.Big0,
+	}
 
 	for !(c.extraSeals.Empty()) {
 		msg, _ := c.extraSeals.Pop()
@@ -38,28 +42,31 @@ func (c *Core) ProcessExtraSeal() ([][]byte, [][]byte) {
 		view := msg.View()
 
 		// store latestView among extraSeals
+		// when view has lower view than latestView,
+		// discard all remaining seals in queue
 		if latestView.Cmp(&view) < 0 {
 			latestView = view
 		} else if latestView.Cmp(&view) > 0 {
-			// if view has lower view than latestView,
-			// discard all remaining seals in queue
 			c.extraSeals.Reset()
 			break
-		} else {
-			if code == qbftmessage.PrepareCode {
-				prepareMsg := msg.(*qbftmessage.Prepare)
-				if prepareMsg.Digest == c.current.Proposal().Hash() {
-					preparedSeal = append(preparedSeal, prepareMsg.PrepareSeal[:])
-				}
+		}
 
-			} else if code == qbftmessage.CommitCode {
-				commitMsg := msg.(*qbftmessage.Commit)
-				if commitMsg.Digest == c.current.Proposal().Hash() {
-					committedSeal = append(committedSeal, commitMsg.CommitSeal[:])
-				}
+		lastProposal, _ := c.backend.LastProposal()
+
+		if code == qbftmessage.PrepareCode {
+			prepareMsg := msg.(*qbftmessage.Prepare)
+			if prepareMsg.Digest == lastProposal.Hash() {
+				preparedSeal = append(preparedSeal, prepareMsg.PrepareSeal[:])
+			}
+
+		} else if code == qbftmessage.CommitCode {
+			commitMsg := msg.(*qbftmessage.Commit)
+			if commitMsg.Digest == lastProposal.Hash() {
+				committedSeal = append(committedSeal, commitMsg.CommitSeal[:])
 			}
 		}
 	}
+
 	return preparedSeal, committedSeal
 }
 
