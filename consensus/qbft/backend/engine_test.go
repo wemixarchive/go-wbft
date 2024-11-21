@@ -762,15 +762,6 @@ func nodeSendCommitMsg(qbftEngine *Backend, node Node, sequence, round *big.Int,
 	return nil
 }
 
-func contains(slice []common.Address, item common.Address) bool {
-	for _, v := range slice {
-		if v == item {
-			return true
-		}
-	}
-	return false
-}
-
 func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []Node, parentBlock *types.Block) (*types.Block, error) {
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
 	defer eventSub.Unsubscribe()
