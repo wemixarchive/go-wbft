@@ -1,9 +1,64 @@
 package core
 
-import "testing"
+import (
+	"math/big"
+	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/prque"
+	"github.com/ethereum/go-ethereum/consensus/qbft/messages"
+)
 
 func TestToPriority(t *testing.T) {
-	// addToExtraSeal 에서 view priority 에 맞게 queue 에 쌓이는지 테스트
+	type testMessage struct {
+		message       messages.QBFTMessage
+		expectedIndex int
+	}
+
+	queue := prque.New[int64, testMessage](nil)
+
+	testMessages := []testMessage{
+		{
+			createPrepareMsg(common.Big2, common.Big0),
+			3,
+		},
+		{
+			createPrepareMsg(common.Big1, common.Big3),
+			4,
+		},
+		{
+			createPrepareMsg(common.Big1, common.Big1),
+			5,
+		},
+		{
+			createCommitMsg(common.Big2, common.Big0),
+			2,
+		},
+		{
+			createPrepareMsg(common.Big3, common.Big3),
+			0,
+		},
+		{
+			createCommitMsg(common.Big3, common.Big2),
+			1,
+		},
+	}
+
+	// insert the test messages to priority queue
+	for _, tm := range testMessages {
+		view := tm.message.View()
+		queue.Push(tm, toPriority(&view))
+	}
+
+	// check the test messages have index as expected
+	idx := 0
+	for !queue.Empty() {
+		tm, _ := queue.Pop()
+		if tm.expectedIndex != idx {
+			t.Errorf("unexpected index of message. have %d, want %d", idx, tm.expectedIndex)
+		}
+		idx++
+	}
 }
 
 func TestProcessExtraSeal(t *testing.T) {
@@ -16,4 +71,22 @@ func TestProcessExtraSeal(t *testing.T) {
 func TestAddingExtraSeals(t *testing.T) {
 	// 모은 extraseal이 잘 들어가는지 테스트 ( wbft 플로우 타야해서 여기서 못할 수도..?)
 	// 다양한 view, round 가정해서 테스트
+}
+
+func createPrepareMsg(sequence, round *big.Int) *messages.Prepare {
+	return &messages.Prepare{
+		CommonPayload: messages.CommonPayload{
+			Sequence: sequence,
+			Round:    round,
+		},
+	}
+}
+
+func createCommitMsg(sequence, round *big.Int) *messages.Prepare {
+	return &messages.Prepare{
+		CommonPayload: messages.CommonPayload{
+			Sequence: sequence,
+			Round:    round,
+		},
+	}
 }
