@@ -357,6 +357,9 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		if !ok {
 			return qbftcommon.ErrInvalidSpecificCall
 		}
+		if sb.coreStarted {
+			_ = sb.Stop()
+		}
 		return sb.Start(chain, currentBlock, hasBadBlock)
 	case "SetExtra":
 		if len(args) != 2 {
@@ -391,13 +394,24 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		if !ok {
 			return qbftcommon.ErrInvalidSpecificCall
 		}
-		extra, _ := types.ExtractQBFTExtra(parent)
+		extra, err := types.ExtractQBFTExtra(parent)
+		if err != nil {
+			return err
+		} else if extra.PreparedSeal == nil {
+			return qbftcommon.ErrEmptyPreparedSeals
+		} else if extra.CommittedSeal == nil {
+			// TODO : what if there is not committedSeal that node collected?
+			return qbftcommon.ErrEmptyCommittedSeals
+		}
+
+		prevPreparedSeal := extra.PreparedSeal
+		prevCommittedSeal := extra.CommittedSeal
+		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		qbftengine.ApplyHeaderQBFTExtra(
 			header,
-			func(qbftExtra *types.QBFTExtra) error {
-				qbftExtra.Validators = extra.Validators
-				return nil
-			})
+			qbftengine.WriteValidators(extra.Validators),
+			qbftengine.WritePrevPreparedSeal(prevPreparedSeal),
+			qbftengine.WritePrevCommittedSeal(prevCommittedSeal))
 		return nil
 	case "NewChainHead":
 		return sb.NewChainHead()
