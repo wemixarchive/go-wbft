@@ -317,7 +317,7 @@ func (e *Engine) verifyPreparedSeals(chain consensus.ChainHeaderReader, header *
 
 	if len(prevPreparedSeal) == 0 {
 		// prevPreparedSeal validation for monblanc block or first block after genesis is skipped because it's empty
-		if chain.Config().MontBlancBlock.Cmp(header.Number) == 1 && header.Number.Uint64() != 1 {
+		if chain.Config().MontBlancBlock.Cmp(header.Number) != 0 && header.Number.Uint64() != 1 {
 			return qbftcommon.ErrEmptyPrevPreparedSeals
 		}
 	} else {

@@ -2,7 +2,7 @@ package simulated
 
 import (
 	"context"
-	"fmt"
+	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"time"
 
@@ -101,7 +101,15 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 }
 
 func genExtraData(validator common.Address) []byte {
-	return hexutil.MustDecode(fmt.Sprintf("0xef9573696d756c6174656420636861696e20626c6f636bd594%xc080c0", validator.Bytes())) // simulated chain block
+	sampleExtra := &types.QBFTExtra{
+		VanityData: []byte("WEMIX MontBlanc chain block"),
+		Validators: []common.Address{
+			validator,
+		},
+		Round: 0,
+	}
+	b, _ := rlp.EncodeToBytes(sampleExtra)
+	return b
 }
 
 // newWithNode sets up a simulated backend on an existing node. The provided node
