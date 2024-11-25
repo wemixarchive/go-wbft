@@ -91,10 +91,6 @@ var (
 	// ErrIgnored is returned when a message was ignored.
 	ErrIgnored = errors.New("message is ignored")
 
-	// ErrFutureMessage is returned when current view is earlier than the
-	// view of the received message.
-	ErrFutureMessage = errors.New("future message")
-
 	// ErrOldMessage is returned when the received message's view is earlier
 	// than current view.
 	ErrOldMessage = errors.New("old message")

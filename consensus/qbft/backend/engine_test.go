@@ -55,6 +55,12 @@ type fakeBroadcaster struct {
 	blockFetcher *fetcher.BlockFetcher
 }
 
+type otherNode struct {
+	address    common.Address
+	privateKey *ecdsa.PrivateKey
+	balance    *big.Int
+}
+
 func makeFakeBroadcaster(chain *core.BlockChain) *fakeBroadcaster {
 	blockEnqueueChannel = make(chan *types.Block)
 	validator := func(header *types.Header) error {
@@ -94,7 +100,7 @@ func (fb *fakeBroadcaster) FindPeers(targets map[common.Address]bool) map[common
 	return m
 }
 
-func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *qbft.Config) (*core.BlockChain, *Backend, []Node) {
+func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *qbft.Config) (*core.BlockChain, *Backend, []otherNode) {
 	memDB := rawdb.NewMemoryDatabase()
 
 	// Use the first key as private key
@@ -113,11 +119,11 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	}
 
 	// Make virtual node struct for simulation
-	nodes := make([]Node, 0)
+	nodes := make([]otherNode, 0)
 	for i := 0; i < len(nodeKeys); i++ {
 		address := crypto.PubkeyToAddress(nodeKeys[i].PublicKey)
 		b := state.GetBalance(address).ToBig()
-		nodes = append(nodes, Node{address, nodeKeys[i], b})
+		nodes = append(nodes, otherNode{address, nodeKeys[i], b})
 	}
 
 	fb := makeFakeBroadcaster(blockchain)
@@ -150,7 +156,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 // in this test, we can set n to 1, and it means we can process Istanbul and commit a
 // block by one node. Otherwise, if n is larger than 1, we have to generate
 // other fake events to process Istanbul.
-func newBlockChain(n int) (*core.BlockChain, *Backend, []Node) {
+func newBlockChain(n int) (*core.BlockChain, *Backend, []otherNode) {
 	genesis, nodeKeys := testutils.GenesisAndKeys(n)
 
 	config := copyConfig(qbft.DefaultConfig)
@@ -701,7 +707,7 @@ func postMsgEventToBackend(qbftEngine *Backend, message messages.QBFTMessage, pa
 	return nil
 }
 
-func makeQBFTMessagePayload(message messages.QBFTMessage, node Node) ([]byte, error) {
+func makeQBFTMessagePayload(message messages.QBFTMessage, node otherNode) ([]byte, error) {
 	// set source of the message
 	message.SetSource(node.address)
 	encodedPayload, err := message.EncodePayloadForSigning()
@@ -721,7 +727,7 @@ func makeQBFTMessagePayload(message messages.QBFTMessage, node Node) ([]byte, er
 	return payload, nil
 }
 
-func nodeSendPreprepareMsg(qbftEngine *Backend, node Node, sequence, round *big.Int, targetBlock *types.Block) error {
+func nodeSendPreprepareMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	preprepare := messages.NewPreprepare(sequence, round, targetBlock)
 	payload, err := makeQBFTMessagePayload(preprepare, node)
 	if err != nil {
@@ -732,7 +738,7 @@ func nodeSendPreprepareMsg(qbftEngine *Backend, node Node, sequence, round *big.
 	return nil
 }
 
-func nodeSendPrepareMsg(qbftEngine *Backend, node Node, sequence, round *big.Int, targetBlock *types.Block) error {
+func nodeSendPrepareMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	prepareSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
 	if err != nil {
 		return err
@@ -747,7 +753,7 @@ func nodeSendPrepareMsg(qbftEngine *Backend, node Node, sequence, round *big.Int
 	return nil
 }
 
-func nodeSendCommitMsg(qbftEngine *Backend, node Node, sequence, round *big.Int, targetBlock *types.Block) error {
+func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	commitSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
 	if err != nil {
 		return err
@@ -762,437 +768,7 @@ func nodeSendCommitMsg(qbftEngine *Backend, node Node, sequence, round *big.Int,
 	return nil
 }
 
-func contains(slice []common.Address, item common.Address) bool {
-	for _, v := range slice {
-		if v == item {
-			return true
-		}
-	}
-	return false
-}
-
-func TestSimulation(t *testing.T) {
-	const (
-		PreprepareCode  = 0x12
-		PrepareCode     = 0x13
-		CommitCode      = 0x14
-		RoundChangeCode = 0x15
-	)
-
-	for i := 0; i < 3; i++ {
-		chain, engine, nodes := newBlockChain(3)
-		defer engine.Stop()
-		block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-		currState, _ := chain.State()
-		block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
-
-		eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{}, qbft.MessageEvent{})
-		defer eventSub.Unsubscribe()
-
-		resultCh := make(chan *types.Block, 10)
-		err := engine.Seal(chain, block, resultCh, nil)
-		if err != nil {
-			t.Errorf("error %v", err)
-		}
-
-		ev := <-eventSub.Chan()
-		request, ok := ev.Data.(qbft.RequestEvent)
-		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-		}
-
-		proposedBlock, ok := request.Proposal.(*types.Block)
-		if !ok {
-			t.Errorf("unexpected proposal comes: %v", reflect.TypeOf(request.Proposal))
-		}
-
-		// Preprepare
-		ev = <-eventSub.Chan()
-		msgEv, ok := ev.Data.(qbft.MessageEvent)
-		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			return
-		}
-
-		if msgEv.Code != PreprepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
-			return
-		}
-
-		t.Log("Preprepare message comes")
-
-		// Prepare
-		totalPrepareMessages := 0
-		ev = <-eventSub.Chan()
-		msgEv, ok = ev.Data.(qbft.MessageEvent)
-		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			return
-		}
-
-		if msgEv.Code != PrepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
-			return
-		}
-		totalPrepareMessages++
-
-		t.Log("Prepare message comes")
-		// send another prepare message
-		for _, node := range nodes {
-			if totalPrepareMessages >= engine.core.QuorumSize() {
-				break
-			}
-
-			if node.address == engine.Address() {
-				continue
-			}
-
-			t.Log("sending another prepare message", node.address)
-			if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-				t.Errorf("failed to send prepare msg. err :  %v", err)
-			}
-
-			ev = <-eventSub.Chan()
-			msgEv, ok = ev.Data.(qbft.MessageEvent)
-			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-				return
-			}
-
-			if msgEv.Code != PrepareCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
-				return
-			}
-			totalPrepareMessages++
-			t.Log("another prepare message comes")
-		}
-
-		// Commit
-		totalCommitMessages := 0
-		ev = <-eventSub.Chan()
-		msgEv, ok = ev.Data.(qbft.MessageEvent)
-		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			return
-		}
-
-		if msgEv.Code != CommitCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
-			return
-		}
-		totalCommitMessages++
-
-		t.Log("Commit message comes")
-
-		// send another commit message
-		for _, node := range nodes {
-			if totalCommitMessages >= engine.core.QuorumSize() {
-				break
-			}
-
-			if node.address == engine.Address() {
-				continue
-			}
-
-			t.Log("sending another commit message", node.address)
-			if err := nodeSendCommitMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-				t.Errorf("failed to send commit msg. err :  %v", err)
-			}
-
-			ev = <-eventSub.Chan()
-			msgEv, ok = ev.Data.(qbft.MessageEvent)
-			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-				return
-			}
-
-			if msgEv.Code != CommitCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
-				return
-			}
-			totalCommitMessages++
-			t.Log("another commit message comes")
-		}
-
-		// check whether the block is inserted into the chain
-		finalBlock1 := <-resultCh
-		if finalBlock1.Hash() != proposedBlock.Hash() {
-			t.Errorf("hash mismatch: have %v, want %v", finalBlock1.Hash(), proposedBlock.Hash())
-		}
-		_, err = chain.InsertChain(types.Blocks{finalBlock1})
-		if err != nil {
-			t.Errorf("Error inserting block: %v", err)
-		}
-
-		if err = engine.NewChainHead(); err != nil {
-			t.Errorf("Error posting NewChainHead Event: %v", err)
-		}
-
-		actualProposer1 := engine.Address()
-		expectedProposer1 := engine.GetProposer(1)
-		if actualProposer1 != expectedProposer1 {
-			t.Errorf("proposer mismatch: have %v, want %v", actualProposer1.Hex(), expectedProposer1.Hex())
-		}
-
-		// get last block from the chain and compare with final block
-		lastBlock := chain.CurrentBlock()
-		if lastBlock.Hash() != finalBlock1.Hash() {
-			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock1.Hash())
-		}
-
-		for i, node := range nodes {
-			if node.address == expectedProposer1 {
-				state, err := chain.StateAt(finalBlock1.Root())
-				if state == nil || err != nil {
-					panic(err)
-				}
-
-				balance := state.GetBalance(node.address).ToBig()
-				expectedBalance := node.balance
-
-				blockReward := chain.Config().GetBlockReward(finalBlock1.Number())
-				expectedBalance = big.NewInt(0).Add(expectedBalance, &blockReward)
-				if balance.Cmp(expectedBalance) != 0 {
-					t.Errorf("balance mismatch: have %v, want %v", balance, expectedBalance)
-				}
-				nodes[i].balance = balance
-				break
-			}
-		}
-
-		// make second block
-		block = makeBlockWithoutSeal(chain, engine, finalBlock1)
-		currState, err = chain.State()
-		if err != nil {
-			t.Errorf("failed to get current state. err :  %v", err)
-			return
-		}
-		block, err = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
-		if err != nil {
-			t.Errorf("failed to finalize and assemble. err :  %v", err)
-			return
-		}
-
-		var actualProposer2 common.Address
-		// send preprepare message
-		for _, node := range nodes {
-			if engine.Validators(finalBlock1).IsProposer(node.address) {
-				actualProposer2 = node.address
-
-				header := block.Header()
-				header.Coinbase = node.address
-				currState, err = chain.State()
-				if err != nil {
-					t.Errorf("failed to get current state. err :  %v", err)
-					return
-				}
-				engine.Finalize(chain, header, currState, nil, nil, nil)
-
-				proposedBlock = block.WithSeal(header)
-
-				t.Log("sending preprepare message", node.address)
-				if err := nodeSendPreprepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-					t.Errorf("failed to send preprepare msg. err :  %v", err)
-				}
-				break
-			}
-		}
-
-		// Preprepare
-		ev = <-eventSub.Chan()
-		msgEv, ok = ev.Data.(qbft.MessageEvent)
-		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			return
-		}
-
-		if msgEv.Code != PreprepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
-			return
-		}
-
-		t.Log("Preprepare message comes")
-
-		// Prepare
-		totalPrepareMessages = 0
-		ev = <-eventSub.Chan()
-		msgEv, ok = ev.Data.(qbft.MessageEvent)
-		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			return
-		}
-
-		if msgEv.Code != PrepareCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
-			return
-		}
-
-		t.Log("Prepare message comes")
-
-		totalPrepareMessages++
-		for _, node := range nodes {
-			if totalPrepareMessages >= engine.core.QuorumSize() {
-				break
-			}
-
-			if node.address == engine.Address() {
-				continue
-			}
-
-			t.Log("sending prepare message", node.address)
-			if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-				t.Errorf("failed to send prepare msg. err :  %v", err)
-			}
-
-			ev = <-eventSub.Chan()
-			msgEv, ok = ev.Data.(qbft.MessageEvent)
-			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-				return
-			}
-
-			if msgEv.Code != PrepareCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
-				return
-			}
-			totalPrepareMessages++
-			t.Log("another prepare message comes")
-		}
-
-		// Commit
-		totalCommitMessages = 0
-		ev = <-eventSub.Chan()
-		msgEv, ok = ev.Data.(qbft.MessageEvent)
-		if !ok {
-			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			return
-		}
-
-		if msgEv.Code != CommitCode {
-			t.Errorf("unexpected code comes: %v", msgEv.Code)
-			return
-		}
-		totalCommitMessages++
-
-		t.Log("Commit message comes")
-
-		// send another commit message
-		for _, node := range nodes {
-			if totalCommitMessages >= engine.core.QuorumSize() {
-				break
-			}
-
-			if node.address == engine.Address() {
-				continue
-			}
-
-			t.Log("sending another commit message", node.address)
-			if err := nodeSendCommitMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-				t.Errorf("failed to send commit msg. err :  %v", err)
-			}
-
-			ev = <-eventSub.Chan()
-			msgEv, ok = ev.Data.(qbft.MessageEvent)
-			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-				return
-			}
-
-			if msgEv.Code != CommitCode {
-				t.Errorf("unexpected code comes: %v", msgEv.Code)
-				return
-			}
-			totalCommitMessages++
-			t.Log("another commit message comes")
-		}
-
-		finalBlock2 := <-blockEnqueueChannel
-		if finalBlock2.Hash() != proposedBlock.Hash() {
-			t.Errorf("hash mismatch: have %v, want %v", finalBlock2.Hash(), proposedBlock.Hash())
-		}
-		_, err = chain.InsertChain(types.Blocks{finalBlock2})
-		if err != nil {
-			t.Errorf("Error inserting block: %v", err)
-		}
-
-		if err = engine.NewChainHead(); err != nil {
-			t.Errorf("Error posting NewChainHead Event: %v", err)
-		}
-
-		expectedProposer2 := engine.GetProposer(2)
-		if actualProposer2 != expectedProposer2 {
-			t.Errorf("proposer mismatch: have %v, want %v", actualProposer2.Hex(), expectedProposer2.Hex())
-		}
-
-		// get last block from the chain and compare with final block
-		lastBlock = chain.CurrentBlock()
-		if lastBlock.Hash() != finalBlock2.Hash() {
-			t.Errorf("hash mismatch: have %v, want %v", lastBlock.Hash(), finalBlock2.Hash())
-		}
-
-		blockExtra, err := types.ExtractQBFTExtra(finalBlock2.Header())
-		if err != nil {
-			t.Error(err.Error())
-		}
-
-		h := types.CopyHeader(finalBlock1.Header())
-		proposalSeal := h.QBFTHashWithRoundNumber(0).Bytes()
-
-		var prepareRewardees []common.Address
-		var commitRewardees []common.Address
-
-		// get prev prepared address
-		for _, seal := range blockExtra.PrevPreparedSeal {
-			addr, err := qbft.GetSignatureAddressNoHashing(proposalSeal, seal)
-			if err != nil {
-				t.Errorf("failed to get signature address. err :  %v", err)
-			}
-			prepareRewardees = append(prepareRewardees, addr)
-		}
-
-		// get prev committed address
-		for _, seal := range blockExtra.PrevCommittedSeal {
-			addr, err := qbft.GetSignatureAddressNoHashing(proposalSeal, seal)
-			if err != nil {
-				t.Errorf("failed to get signature address. err :  %v", err)
-			}
-			commitRewardees = append(commitRewardees, addr)
-		}
-
-		state, err := chain.StateAt(finalBlock2.Root())
-		if state == nil || err != nil {
-			panic(err)
-		}
-
-		for _, node := range nodes {
-			balance := state.GetBalance(node.address).ToBig()
-			expectedBalance := node.balance
-
-			if node.address == expectedProposer2 {
-				blockReward := chain.Config().GetBlockReward(finalBlock2.Number())
-				expectedBalance = big.NewInt(0).Add(expectedBalance, &blockReward)
-			}
-
-			// check prepare reward
-			if contains(prepareRewardees, node.address) {
-				prepareReward := chain.Config().GetPrepareReward(finalBlock2.Number())
-				expectedBalance = big.NewInt(0).Add(expectedBalance, &prepareReward)
-			}
-
-			// check commit reward
-			if contains(commitRewardees, node.address) {
-				commitReward := chain.Config().GetCommitReward(finalBlock2.Number())
-				expectedBalance = big.NewInt(0).Add(expectedBalance, &commitReward)
-			}
-
-			if balance.Cmp(expectedBalance) != 0 {
-				t.Errorf("balance mismatch: have %v, want %v", balance, expectedBalance)
-			}
-		}
-	}
-}
-
-func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []Node, parentBlock *types.Block) (*types.Block, error) {
+func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []otherNode, parentBlock *types.Block) (*types.Block, error) {
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
 	defer eventSub.Unsubscribe()
 
@@ -1213,7 +789,7 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 
 	proposedBlock, _ := request.Proposal.(*types.Block)
 	for _, node := range nodes {
-		go func(node Node) error {
+		go func(node otherNode) error {
 			ticker := time.NewTicker(300 * time.Millisecond)
 			defer ticker.Stop()
 

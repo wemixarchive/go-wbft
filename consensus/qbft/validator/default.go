@@ -72,8 +72,6 @@ func newDefaultSet(addrs []common.Address, policy *qbft.ProposerPolicy) *default
 		valSet.selector = stickyProposer
 	}
 
-	policy.RegisterValidatorSet(valSet)
-
 	return valSet
 }
 
@@ -206,6 +204,11 @@ func (valSet *defaultSet) Copy() qbft.ValidatorSet {
 	return NewSet(addresses, valSet.policy)
 }
 
-func (valSet *defaultSet) F() int { return int(math.Ceil(float64(valSet.Size())/3)) - 1 }
+func (valSet *defaultSet) F() float64 { return float64(valSet.Size()) / 3 }
 
 func (valSet *defaultSet) Policy() qbft.ProposerPolicy { return *valSet.policy }
+
+func (valSet *defaultSet) QuorumSize() int {
+	//c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used ceil(2N/3)")
+	return int(math.Ceil(float64(valSet.Size()) - valSet.F()))
+}

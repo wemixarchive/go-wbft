@@ -90,7 +90,7 @@ func (c *Core) broadcastPrepare() {
 func (c *Core) handlePrepareMsg(prepare *qbftmessage.Prepare) error {
 	logger := c.currentLogger(true, prepare).New()
 
-	logger.Info("QBFT: handle PREPARE message", "prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.QuorumSize())
+	logger.Info("QBFT: handle PREPARE message", "prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.valSet.QuorumSize())
 
 	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
@@ -104,11 +104,11 @@ func (c *Core) handlePrepareMsg(prepare *qbftmessage.Prepare) error {
 		return err
 	}
 
-	logger = logger.New("prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.QuorumSize())
+	logger = logger.New("prepares.count", c.current.QBFTPrepares.Size(), "quorum", c.valSet.QuorumSize())
 
 	// Change to "Prepared" state if we've received quorum of PREPARE messages
 	// and we are in earlier state than "Prepared"
-	if (c.current.QBFTPrepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
+	if (c.current.QBFTPrepares.Size() >= c.valSet.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
 		logger.Info("QBFT: received quorum of PREPARE messages")
 
 		// Accumulates PREPARE messages
