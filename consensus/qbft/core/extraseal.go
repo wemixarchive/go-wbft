@@ -10,11 +10,11 @@ import (
 func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) {
 	logger := c.currentLogger(true, msg)
 
-	src := msg.Source()
-	if src == c.Address() {
-		logger.Warn("QBFT: extra seal from self")
-		return
-	}
+	//src := msg.Source()
+	//if src == c.Address() {
+	//	logger.Warn("QBFT: extra seal from self")
+	//	return
+	//}
 	logger.Trace("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
 
 	c.extraSealsMu.Lock()
@@ -72,4 +72,9 @@ func (c *Core) ProcessExtraSeal() ([][]byte, [][]byte) {
 
 func toPriority(view *qbft.View) int64 {
 	return int64(view.Sequence.Uint64()*1000 + view.Round.Uint64())
+}
+
+func (c *Core) ExtraSealsLen() int {
+	// used in test code
+	return c.extraSeals.Size()
 }
