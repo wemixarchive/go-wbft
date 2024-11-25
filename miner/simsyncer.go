@@ -57,16 +57,14 @@ func (ss *simSyncer) queueCommitReq(req *newWorkReq) {
 func (ss *simSyncer) commit() common.Hash {
 	req := <-ss.workCh
 	ss.commitWork(req)
-	result := <-ss.resultCh
-	return result
+	return <-ss.resultCh
 }
 
 func (ss *simSyncer) commitWithPeriod(duration time.Duration) common.Hash {
 	req := <-ss.workCh
 	ss.adjustedBlockPeriod[ss.worker.chain.CurrentBlock().Number.Uint64()+1] = uint64(duration.Seconds())
 	ss.commitWork(req)
-	result := <-ss.resultCh
-	return result
+	return <-ss.resultCh
 }
 
 func (ss *simSyncer) commitWork(req *newWorkReq) {

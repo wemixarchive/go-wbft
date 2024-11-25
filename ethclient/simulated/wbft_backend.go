@@ -57,13 +57,12 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 		BaseFee:    big.NewInt(1000000000),
 	}
 	ebps := uint64(0)
-	ethConf.Istanbul.AllowedFutureBlockTime = 2000000000 // disable time verification of a block
+	ethConf.Istanbul.AllowedFutureBlockTime = 3153600000 // disable time verification of a block ( == 100 years )
 	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 1
 	ethConf.Genesis.Config.QBFT.EmptyBlockPeriodSeconds = &ebps
 	ethConf.Genesis.Config.QBFT.Validators = make([]common.Address, 1)
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
 	ethConf.Genesis.Config.QBFT.Validators[0] = validator
-	ethConf.Genesis.Config.QBFT.SimulatedEnabled = true
 	ethConf.Genesis.ExtraData = genExtraData(validator) // simulated chain block
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
@@ -84,18 +83,6 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	sim, err := newWbftWithNode(stack, &ethConf)
 	if err != nil {
 		panic(err) // this should never happen
-	}
-
-	qbft := sim.Engine().(*qbftbackend.Backend)
-	if !qbft.IsRunning() {
-		ticker := time.NewTicker(0.1e9) // 0.1s
-		for {
-			<-ticker.C
-			if qbft.IsRunning() {
-				ticker.Stop()
-				break
-			}
-		}
 	}
 
 	return sim
@@ -122,9 +109,19 @@ func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
 	if err := stack.Start(); err != nil {
 		return nil, err
 	}
-
+	// Start Miner & QBFT Engine
 	backend.StartMining()
-	backend.Miner().InjectSimApplierTo(backend.Engine().(*qbftbackend.Backend))
+	qbftEngine := backend.Engine().(*qbftbackend.Backend)
+	backend.Miner().InjectSimApplierTo(qbftEngine)
+	if !qbftEngine.IsRunning() {
+		ticker := time.NewTicker(0.1e9) // 0.1s
+		for range ticker.C {
+			if qbftEngine.IsRunning() {
+				ticker.Stop()
+				break
+			}
+		}
+	}
 
 	return &WbftBackend{
 		eth:    backend,
