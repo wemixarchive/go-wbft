@@ -2,7 +2,6 @@ package simulated
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
