@@ -896,3 +896,31 @@ func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 		t.Errorf("unexpected error. expect %v, got %v", qbftcommon.ErrInvalidPreparedSeals, err)
 	}
 }
+
+func TestReusePreparedSeal(t *testing.T) {
+	chain, engine, _ := newBlockChain(1)
+	defer engine.Stop()
+	normalBlock := makeBlock(chain, engine, chain.Genesis())
+
+	err := engine.VerifyHeader(chain, normalBlock.Header())
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
+
+	extra, err := types.ExtractQBFTExtra(chain.Genesis().Header())
+	prevPreparedSeal := extra.PreparedSeal
+	prepareReused := normalBlock.Header()
+	err = qbftengine.ApplyHeaderQBFTExtra(
+		prepareReused,
+		qbftengine.WriteValidators(extra.Validators),
+		qbftengine.WritePrevPreparedSeal(prevPreparedSeal),
+		qbftengine.WritePrevCommittedSeal(prevPreparedSeal),
+	)
+	if err != nil {
+		t.Fatalf("ApplyHeaderQBFTExtra error: %v", err)
+	}
+	err = engine.VerifyHeader(chain, prepareReused)
+	if err == nil {
+		t.Errorf("prepared seal can be used for committed seal as well")
+	}
+}
