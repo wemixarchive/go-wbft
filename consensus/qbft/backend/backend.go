@@ -135,12 +135,6 @@ func (sb *Backend) IsRunning() bool {
 	return sb.coreStarted
 }
 
-type Node struct {
-	address    common.Address
-	privateKey *ecdsa.PrivateKey
-	balance    *big.Int
-}
-
 func (sb *Backend) Engine() *qbftengine.Engine {
 	return sb.qbftEngine // ## Wemix QBFT : currently return only qbft engine
 }

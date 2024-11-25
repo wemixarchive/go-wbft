@@ -23,9 +23,10 @@ import (
 )
 
 type WemixConsensus struct {
-	wpoa   consensus.Engine
-	wbft   *qbftBackend.Backend
-	stopCh chan struct{}
+	wpoa        consensus.Engine
+	wbft        *qbftBackend.Backend
+	wbftStarted bool
+	stopCh      chan struct{}
 }
 
 func NewWemixEngine(backend wemixgov.GovBackend, config *qbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Engine {
@@ -33,14 +34,15 @@ func NewWemixEngine(backend wemixgov.GovBackend, config *qbft.Config, privateKey
 	wbft := qbftBackend.New(config, privateKey, db)
 
 	return &WemixConsensus{
-		wpoa:   wpoa,
-		wbft:   wbft,
-		stopCh: make(chan struct{}),
+		wpoa:        wpoa,
+		wbft:        wbft,
+		wbftStarted: false,
+		stopCh:      make(chan struct{}),
 	}
 }
 
 func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.ChainHeaderReader, currentBlock func() *types.Block, subscribeChainHead func(ch chan<- core.ChainHeadEvent) event.Subscription) {
-	chainHeadCh := make(chan core.ChainHeadEvent, 10)
+	chainHeadCh := make(chan core.ChainHeadEvent)
 	chainHeadSub := subscribeChainHead(chainHeadCh)
 
 	// WEMIX engine is waiting for MontBlanc hard fork then triggers qbft engine and quits its loop
@@ -50,6 +52,7 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 			if err != nil {
 				log.Error("cannot start WEMIX BFT engine", "err", err)
 			}
+			we.wbftStarted = true
 		} else {
 		loop:
 			for {
@@ -61,6 +64,7 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 						if err != nil {
 							log.Error("cannot start WEMIX BFT engine", "err", err)
 						}
+						we.wbftStarted = true
 						break loop
 					}
 				case err := <-chainHeadSub.Err():
@@ -190,15 +194,24 @@ func (we *WemixConsensus) Close() error {
 
 // CallEngineSpecific implements consensus.Engine
 func (we *WemixConsensus) CallEngineSpecific(method string, args ...interface{}) interface{} {
+	if we.wbftStarted {
+		return we.wbft.CallEngineSpecific(method, args)
+	}
 	return nil
 }
 
 func (we *WemixConsensus) NewChainHead() error {
-	return we.wbft.NewChainHead()
+	if we.wbftStarted {
+		return we.wbft.NewChainHead()
+	}
+	return nil
 }
 
 func (we *WemixConsensus) HandleMsg(address common.Address, data p2p.Msg) (bool, error) {
-	return we.wbft.HandleMsg(address, data)
+	if we.wbftStarted {
+		return we.wbft.HandleMsg(address, data)
+	}
+	return false, nil
 }
 
 func (we *WemixConsensus) SetBroadcaster(broadcaster consensus.Broadcaster) {
