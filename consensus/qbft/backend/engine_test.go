@@ -759,24 +759,6 @@ func nodeSendPrepareMsg(qbftEngine *Backend, node otherNode, sequence, round *bi
 	return nil
 }
 
-func nodeSendPrepareMsgAsync(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
-	prepareSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
-	if err != nil {
-		return err
-	}
-	prepare := messages.NewPrepare(sequence, round, targetBlock.Hash(), prepareSeal)
-	payload, err := makeQBFTMessagePayload(prepare, node)
-	if err != nil {
-		return err
-	}
-	err = postMsgEventToBackend(qbftEngine, prepare, payload)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	commitSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
 	if err != nil {
@@ -789,23 +771,6 @@ func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big
 	}
 	go postMsgEventToBackend(qbftEngine, commit, payload)
 
-	return nil
-}
-
-func nodeSendCommitMsgAsync(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
-	commitSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
-	if err != nil {
-		return err
-	}
-	commit := messages.NewCommit(sequence, round, targetBlock.Hash(), commitSeal)
-	payload, err := makeQBFTMessagePayload(commit, node)
-	if err != nil {
-		return err
-	}
-	err = postMsgEventToBackend(qbftEngine, commit, payload)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -914,12 +879,13 @@ func TestMakingBlock(t *testing.T) {
 func TestExtraSeals(t *testing.T) {
 	// assume 3 nodes,
 	// one is myself, two is normal node, three is slow node that sends extraSeals
+	expectedAdditionalSealCnt := 4
+
 	chain, engine, nodes := newBlockChain(3)
 	normalNode := nodes[1]
 	slowNode := nodes[2]
 
 	parentBlock := chain.Genesis()
-
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
 
 	block := makeBlockWithoutSeal(chain, engine, parentBlock)
@@ -927,10 +893,10 @@ func TestExtraSeals(t *testing.T) {
 	block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
 	resultCh := make(chan *types.Block, 10)
 	stopCh := make(chan struct{})
+
 	go func() {
 		engine.Seal(chain, block, resultCh, stopCh)
 	}()
-
 	ev := <-eventSub.Chan()
 	request, ok := ev.Data.(qbft.RequestEvent)
 	if !ok {
@@ -938,13 +904,6 @@ func TestExtraSeals(t *testing.T) {
 	}
 	eventSub.Unsubscribe()
 	proposedBlock, _ := request.Proposal.(*types.Block)
-
-	for {
-		time.Sleep(500 * time.Millisecond)
-		if engine.core.GetState().String() == "Preprepared" {
-			break
-		}
-	}
 
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
@@ -968,32 +927,36 @@ func TestExtraSeals(t *testing.T) {
 				}
 				executed[consensusState] = true
 			case "Prepared":
-				if err := nodeSendPrepareMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				// valid extra seal msg
+				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
-				} else {
-					fmt.Println("--------------------11111")
 				}
 				if err := nodeSendCommitMsg(engine, normalNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("normal node failed to send commit msg. err :  %v", err)
 				}
 				executed[consensusState] = true
 			case "Committed":
-				if err := nodeSendCommitMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				// valid extra seal msg
+				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
+				}
+				// valid extra seal msg
+				if err := nodeSendCommitMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send commit msg. err :  %v", err)
-				} else {
-					fmt.Println("--------------------22222")
 				}
 				executed[consensusState] = true
 			case "Accept request":
-				if err := nodeSendPrepareMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				// valid extra seal msg
+				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
-				} else {
-					fmt.Println("--------------------33333")
 				}
-				if err := nodeSendCommitMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				// invalid extra seal msg - wrong sequence
+				if err := nodeSendPrepareMsg(engine, slowNode, new(big.Int).Add(proposedBlock.Number(), common.Big1), big.NewInt(1), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send commit msg. err :  %v", err)
-				} else {
-					fmt.Println("--------------------444444")
+				}
+				// invalid extra seal msg - wrong round
+				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(1), proposedBlock); err != nil {
+					t.Errorf("slow node failed to send commit msg. err :  %v", err)
 				}
 				executed[consensusState] = true
 				return
@@ -1013,9 +976,14 @@ func TestExtraSeals(t *testing.T) {
 		}
 		// assume it's block time delay
 		time.Sleep(time.Second)
+	case <-stopCh:
+		t.Errorf("engine stopped")
 	}
 	wg.Wait()
-	fmt.Println("seal len : ", engine.core.ExtraSealsLen())
+
+	if engine.core.ExtraSealsLen() != expectedAdditionalSealCnt {
+		t.Errorf("unexpected addtional seals. have %d, want %d", engine.core.ExtraSealsLen(), expectedAdditionalSealCnt)
+	}
 }
 
 func TestLackingSealsFromPropagatedBlock(t *testing.T) {
