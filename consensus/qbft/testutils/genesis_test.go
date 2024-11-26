@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"encoding/hex"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,11 +27,15 @@ func TestGeneratingGenesisExtra(t *testing.T) {
 		Round:             0,
 		Vote:              nil,
 	}
-	genesis := GenesisWithCommittedSeal(QBFTExtra.Validators)
+	genesis := GenesisWithSeals(QBFTExtra.Validators)
 	t.Log("Genesis Extra Data: ", hex.EncodeToString(genesis.ExtraData))
 	qbftExtra := new(types.QBFTExtra)
 	err := rlp.DecodeBytes(genesis.ExtraData[:], qbftExtra)
 	if err != nil {
 		t.Errorf("Failed to decode genesis qbft extra data : %v", err)
+	}
+	qbftExtra.VanityData = []byte{} // clear vanity
+	if !reflect.DeepEqual(QBFTExtra, qbftExtra) {
+		t.Errorf("decoded extra object is different from origin(decoded=%v, origin=%v)", QBFTExtra, qbftExtra)
 	}
 }

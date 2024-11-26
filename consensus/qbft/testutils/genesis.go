@@ -22,7 +22,7 @@ import (
 // 1. remove ibft engine related test code
 // ## Wemix QBFT END
 
-func GenesisWithCommittedSeal(validators []common.Address) *core.Genesis {
+func GenesisWithSeals(validators []common.Address) *core.Genesis {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig
@@ -32,7 +32,7 @@ func GenesisWithCommittedSeal(validators []common.Address) *core.Genesis {
 	genesis.Difficulty = types.QBFTDefaultDifficulty
 	genesis.Nonce = qbftcommon.EmptyBlockNonce.Uint64()
 
-	appendValidatorsAndPrevCommittedSeal(genesis, validators)
+	appendValidatorsAndPrevSeals(genesis, validators)
 
 	return genesis
 }
@@ -83,13 +83,15 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	genesis.ExtraData = istPayload
 }
 
-func appendValidatorsAndPrevCommittedSeal(genesis *core.Genesis, validators []common.Address) {
+func appendValidatorsAndPrevSeals(genesis *core.Genesis, validators []common.Address) {
 	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
 	ist := &types.QBFTExtra{
 		VanityData:        vanity,
 		Validators:        validators,
 		Vote:              nil,
+		PreparedSeal:      [][]byte{},
 		CommittedSeal:     [][]byte{},
+		PrevPreparedSeal:  [][]byte{},
 		PrevCommittedSeal: [][]byte{},
 		Round:             0,
 	}
