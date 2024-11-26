@@ -992,7 +992,7 @@ func TestCall(t *testing.T) {
 }
 
 func TestSignTransaction(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	// Initialize test accounts
 	var (
 		nodeKey, _ = crypto.HexToECDSA("9c1d1ede9b6cb8cdcd1991d9cd911dfc40ca95d31451f7a2f17dd955f2f6956e")
