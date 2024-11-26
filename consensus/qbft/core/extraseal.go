@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
@@ -10,17 +12,13 @@ import (
 func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) {
 	logger := c.currentLogger(true, msg)
 
-	//src := msg.Source()
-	//if src == c.Address() {
-	//	logger.Warn("QBFT: extra seal from self")
-	//	return
-	//}
 	logger.Trace("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
 
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 	view := msg.View()
 	c.extraSeals.Push(msg, toPriority(&view))
+	fmt.Println(":!!!!!!!!!!!!!!!!!! seal added")
 }
 
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal

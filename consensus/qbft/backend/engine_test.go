@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"reflect"
 	"sync"
 	"testing"
@@ -45,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
@@ -148,8 +150,8 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 			backend.privateKey = key
 			backend.address = addr
 			backend.qbftEngine = qbftengine.NewEngine(backend.config, addr, backend.Sign)
-			// set backend's address to first index of nodeKeys for convenient
-			nodeKeys[0], nodeKeys[i] = key, nodeKeys[0]
+			// set backend's node to first index of nodes for convenient
+			nodes[0], nodes[i] = nodes[i], nodes[0]
 			break
 		}
 	}
@@ -757,18 +759,53 @@ func nodeSendPrepareMsg(qbftEngine *Backend, node otherNode, sequence, round *bi
 	return nil
 }
 
+func nodeSendPrepareMsgAsync(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
+	prepareSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
+	if err != nil {
+		return err
+	}
+	prepare := messages.NewPrepare(sequence, round, targetBlock.Hash(), prepareSeal)
+	payload, err := makeQBFTMessagePayload(prepare, node)
+	if err != nil {
+		return err
+	}
+	err = postMsgEventToBackend(qbftEngine, prepare, payload)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	commitSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
 	if err != nil {
 		return err
 	}
-	prepare := messages.NewCommit(sequence, round, targetBlock.Hash(), commitSeal)
-	payload, err := makeQBFTMessagePayload(prepare, node)
+	commit := messages.NewCommit(sequence, round, targetBlock.Hash(), commitSeal)
+	payload, err := makeQBFTMessagePayload(commit, node)
 	if err != nil {
 		return err
 	}
-	go postMsgEventToBackend(qbftEngine, prepare, payload)
+	go postMsgEventToBackend(qbftEngine, commit, payload)
 
+	return nil
+}
+
+func nodeSendCommitMsgAsync(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
+	commitSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
+	if err != nil {
+		return err
+	}
+	commit := messages.NewCommit(sequence, round, targetBlock.Hash(), commitSeal)
+	payload, err := makeQBFTMessagePayload(commit, node)
+	if err != nil {
+		return err
+	}
+	err = postMsgEventToBackend(qbftEngine, commit, payload)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -876,11 +913,10 @@ func TestMakingBlock(t *testing.T) {
 
 func TestExtraSeals(t *testing.T) {
 	// assume 3 nodes,
-	// one is myself, two is normal/fast nodes, three is slow nodes that sends extraSeals
+	// one is myself, two is normal node, three is slow node that sends extraSeals
 	chain, engine, nodes := newBlockChain(3)
-
 	normalNode := nodes[1]
-	//slowNode := nodes[2]
+	slowNode := nodes[2]
 
 	parentBlock := chain.Genesis()
 
@@ -928,15 +964,37 @@ func TestExtraSeals(t *testing.T) {
 			switch consensusState {
 			case "Preprepared":
 				if err := nodeSendPrepareMsg(engine, normalNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-					t.Errorf("failed to send prepare msg. err :  %v", err)
+					t.Errorf("normal node failed to send prepare msg. err :  %v", err)
 				}
 				executed[consensusState] = true
 			case "Prepared":
+				if err := nodeSendPrepareMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
+				} else {
+					fmt.Println("--------------------11111")
+				}
 				if err := nodeSendCommitMsg(engine, normalNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-					t.Errorf("failed to send commit msg. err :  %v", err)
+					t.Errorf("normal node failed to send commit msg. err :  %v", err)
+				}
+				executed[consensusState] = true
+			case "Committed":
+				if err := nodeSendCommitMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+					t.Errorf("slow node failed to send commit msg. err :  %v", err)
+				} else {
+					fmt.Println("--------------------22222")
 				}
 				executed[consensusState] = true
 			case "Accept request":
+				if err := nodeSendPrepareMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
+				} else {
+					fmt.Println("--------------------33333")
+				}
+				if err := nodeSendCommitMsgAsync(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+					t.Errorf("slow node failed to send commit msg. err :  %v", err)
+				} else {
+					fmt.Println("--------------------444444")
+				}
 				executed[consensusState] = true
 				return
 			}
@@ -948,16 +1006,21 @@ func TestExtraSeals(t *testing.T) {
 		if _, err := chain.InsertChain(types.Blocks{blockFromResultCh}); err != nil {
 			t.Errorf("failed to insert block1. err %v", err)
 		}
+		// give time for state Committed to be caught
+		time.Sleep(time.Second)
 		if err := engine.NewChainHead(); err != nil {
 			t.Errorf("Error posting NewChainHead Event: %v", err)
 		}
+		// assume it's block time delay
+		time.Sleep(time.Second)
 	}
 	wg.Wait()
-	fmt.Println("seal len : ", engine.core.ExtraSealLen())
+	fmt.Println("seal len : ", engine.core.ExtraSealsLen())
 }
 
 func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 	chain, engine, nodes := newBlockChain(4)
+
 	// 1. generate block through consensus
 	validBlock, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
 	if err != nil {
@@ -981,4 +1044,8 @@ func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 	if !errors.Is(err, qbftcommon.ErrInvalidPreparedSeals) {
 		t.Errorf("unexpected error. expect %v, got %v", qbftcommon.ErrInvalidPreparedSeals, err)
 	}
+}
+
+func init() {
+	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelTrace, true)))
 }
