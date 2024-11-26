@@ -106,7 +106,7 @@ func (c *Core) handleCommitMsg(commit *qbftmessage.Commit) error {
 		return errInvalidMessage
 	}
 	if verifySeal(block.Header(), uint32(commit.CommonPayload.Round.Uint64()), SealTypeCommit,
-		commit.CommitSeal, commit.Source(), c.valSet) != nil {
+		commit.CommitSeal, commit.Source()) != nil {
 		return errInvalidMessage
 	}
 

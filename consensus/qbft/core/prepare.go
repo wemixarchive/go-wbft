@@ -104,7 +104,7 @@ func (c *Core) handlePrepareMsg(prepare *qbftmessage.Prepare) error {
 		return errInvalidMessage
 	}
 	if verifySeal(block.Header(), uint32(prepare.CommonPayload.Round.Uint64()), SealTypePrepare,
-		prepare.PrepareSeal, prepare.Source(), c.valSet) != nil {
+		prepare.PrepareSeal, prepare.Source()) != nil {
 		return errInvalidMessage
 	}
 
