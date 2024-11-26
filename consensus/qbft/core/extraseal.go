@@ -1,8 +1,6 @@
 package core
 
 import (
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
@@ -18,12 +16,14 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) {
 	defer c.extraSealsMu.Unlock()
 	view := msg.View()
 	c.extraSeals.Push(msg, toPriority(&view))
-	fmt.Println(":!!!!!!!!!!!!!!!!!! seal added")
+
+	// TODO : need to validate seals before adding to extraSeals
 }
 
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
 // and pass it to backend preparing new block
-func (c *Core) ProcessExtraSeal() ([][]byte, [][]byte) {
+func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal) ([][]byte, [][]byte) {
+	// TODO : get latestView from engine.
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 
@@ -48,8 +48,6 @@ func (c *Core) ProcessExtraSeal() ([][]byte, [][]byte) {
 			c.extraSeals.Reset()
 			break
 		}
-
-		lastProposal, _ := c.backend.LastProposal()
 
 		if code == qbftmessage.PrepareCode {
 			prepareMsg := msg.(*qbftmessage.Prepare)

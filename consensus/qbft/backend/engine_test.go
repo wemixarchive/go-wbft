@@ -26,7 +26,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"reflect"
 	"sync"
 	"testing"
@@ -46,7 +45,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
@@ -876,7 +874,7 @@ func TestMakingBlock(t *testing.T) {
 	}
 }
 
-func TestExtraSeals(t *testing.T) {
+func TestAddingExtraSeals(t *testing.T) {
 	// assume 3 nodes,
 	// one is myself, two is normal node, three is slow node that sends extraSeals
 	expectedAdditionalSealCnt := 4
@@ -1012,8 +1010,4 @@ func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 	if !errors.Is(err, qbftcommon.ErrInvalidPreparedSeals) {
 		t.Errorf("unexpected error. expect %v, got %v", qbftcommon.ErrInvalidPreparedSeals, err)
 	}
-}
-
-func init() {
-	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelTrace, true)))
 }

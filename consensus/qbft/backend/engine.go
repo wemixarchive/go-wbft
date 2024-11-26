@@ -181,7 +181,8 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	var extraPreparedSeal [][]byte
 	var extraCommittedSeal [][]byte
 	if sb.core != nil {
-		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal()
+		lastProposal, _ := sb.LastProposal()
+		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal(lastProposal)
 	}
 
 	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraCommittedSeal)
