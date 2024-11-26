@@ -185,33 +185,6 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	return e.verifyCascadingFields(chain, header, validators, prevValidators, parents, checkSeals)
 }
 
-func (e *Engine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool, validators qbft.ValidatorSet, prevValidators qbft.ValidatorSet) (chan<- struct{}, <-chan error) {
-	abort := make(chan struct{})
-	results := make(chan error, len(headers))
-	go func() {
-		errored := false
-		for i, header := range headers {
-			var err error
-			if errored {
-				err = consensus.ErrUnknownAncestor
-			} else {
-				err = e.verifyHeader(chain, header, headers[:i], validators, prevValidators, false)
-			}
-
-			if err != nil {
-				errored = true
-			}
-
-			select {
-			case <-abort:
-				return
-			case results <- err:
-			}
-		}
-	}()
-	return abort, results
-}
-
 // verifyCascadingFields verifies all the header fields that are not standalone,
 // rather depend on a batch of previous headers. The caller may optionally pass
 // in a batch of parents (ascending order) to avoid looking those up from the
