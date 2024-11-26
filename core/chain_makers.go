@@ -526,7 +526,9 @@ func newChainMaker(bottom *types.Block, config *params.ChainConfig, engine conse
 		engine:      engine,
 		chainByHash: make(map[common.Hash]*types.Block),
 	}
-	cm.chainByHash[bottom.Hash()] = bottom // add genesis block hash to cache so as engine can get the parent block
+	if bottom != nil {
+		cm.chainByHash[bottom.Hash()] = bottom // add genesis block hash to cache so as engine can get the parent block
+	}
 	return cm
 }
 
