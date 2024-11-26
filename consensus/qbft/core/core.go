@@ -226,8 +226,10 @@ func (c *Core) startNewRound(round *big.Int) {
 
 // updateRoundState updates round state by checking if locking block is necessary
 func (c *Core) updateRoundState(view *qbft.View, validatorSet qbft.ValidatorSet, roundChange bool) {
-	if roundChange && c.current != nil {
+	if c.current != nil {
 		c.priorRound = c.current.Round()
+	}
+	if roundChange && c.current != nil {
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {
 		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)
