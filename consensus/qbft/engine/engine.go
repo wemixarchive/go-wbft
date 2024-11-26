@@ -752,7 +752,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 		return qbftcommon.ErrInvalidExtraDataFormat
 	}
 
-	// 이전 블록의 proposal
+	// proposal seals of prior block
 	proposalPrepareSeal := core.PrepareSeal(parentHeader, lastQbftExtra.Round, core.SealTypePrepare)
 	proposalCommitSeal := core.PrepareSeal(parentHeader, lastQbftExtra.Round, core.SealTypeCommit)
 
