@@ -739,7 +739,7 @@ func nodeSendPreprepareMsg(qbftEngine *Backend, node otherNode, sequence, round 
 }
 
 func nodeSendPrepareMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
-	prepareSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
+	prepareSeal, err := crypto.Sign(qbftcore.PrepareSeal(targetBlock.Header(), uint32(round.Uint64()), qbftcore.SealTypePrepare), node.privateKey)
 	if err != nil {
 		return err
 	}
@@ -754,7 +754,7 @@ func nodeSendPrepareMsg(qbftEngine *Backend, node otherNode, sequence, round *bi
 }
 
 func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
-	commitSeal, err := crypto.Sign(qbftcore.PrepareCommittedSeal(targetBlock.Header(), uint32(round.Uint64())), node.privateKey)
+	commitSeal, err := crypto.Sign(qbftcore.PrepareSeal(targetBlock.Header(), uint32(round.Uint64()), qbftcore.SealTypeCommit), node.privateKey)
 	if err != nil {
 		return err
 	}
@@ -897,6 +897,15 @@ func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 	}
 }
 
+func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
+	payload, err := rlp.EncodeToBytes(qbftExtra)
+	if err != nil {
+		return err
+	}
+	h.Extra = payload
+	return nil
+}
+
 func TestReusePreparedSeal(t *testing.T) {
 	chain, engine, _ := newBlockChain(1)
 	defer engine.Stop()
@@ -907,20 +916,15 @@ func TestReusePreparedSeal(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
-	extra, err := types.ExtractQBFTExtra(chain.Genesis().Header())
-	prevPreparedSeal := extra.PreparedSeal
 	prepareReused := normalBlock.Header()
-	err = qbftengine.ApplyHeaderQBFTExtra(
-		prepareReused,
-		qbftengine.WriteValidators(extra.Validators),
-		qbftengine.WritePrevPreparedSeal(prevPreparedSeal),
-		qbftengine.WritePrevCommittedSeal(prevPreparedSeal),
-	)
-	if err != nil {
-		t.Fatalf("ApplyHeaderQBFTExtra error: %v", err)
-	}
+	extra, _ := types.ExtractQBFTExtra(prepareReused)
+	preparedSeal := extra.PreparedSeal
+	extra.CommittedSeal = preparedSeal // reuse prepared seal for committed seal
+	setExtra(prepareReused, extra)
 	err = engine.VerifyHeader(chain, prepareReused)
 	if err == nil {
 		t.Errorf("prepared seal can be used for committed seal as well")
+	} else if !errors.Is(err, qbftcommon.ErrInvalidCommittedSeals) {
+		t.Errorf("error is not ErrInvalidCommittedSeals")
 	}
 }

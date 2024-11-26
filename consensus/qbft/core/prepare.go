@@ -43,7 +43,7 @@ func (c *Core) broadcastPrepare() {
 		header = block.Header()
 	}
 	// Create Prepare Seal
-	prepareSeal, err := c.backend.SignWithoutHashing(PrepareCommittedSeal(header, uint32(c.currentView().Round.Uint64())))
+	prepareSeal, err := c.backend.SignWithoutHashing(PrepareSeal(header, uint32(c.currentView().Round.Uint64()), SealTypePrepare))
 	if err != nil {
 		logger.Error("QBFT: failed to create PREPARE seal", "sub", sub, "err", err)
 		return
@@ -95,6 +95,16 @@ func (c *Core) handlePrepareMsg(prepare *qbftmessage.Prepare) error {
 	// Check digest
 	if prepare.Digest != c.current.Proposal().Hash() {
 		logger.Error("QBFT: invalid PREPARE message digest")
+		return errInvalidMessage
+	}
+
+	// Check prepareSeal
+	block, ok := c.current.Proposal().(*types.Block)
+	if !ok {
+		return errInvalidMessage
+	}
+	if verifySeal(block.Header(), uint32(prepare.CommonPayload.Round.Uint64()), SealTypePrepare,
+		prepare.PrepareSeal, prepare.Source(), c.valSet) != nil {
 		return errInvalidMessage
 	}
 
