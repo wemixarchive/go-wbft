@@ -164,6 +164,15 @@ func newBlockChain(n int) (*core.BlockChain, *Backend, []otherNode) {
 	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
 
+func newBlockChainWithCustom(n int, customizeConfig func(config *qbft.Config) *qbft.Config) (*core.BlockChain, *Backend, []otherNode) {
+	genesis, nodeKeys := testutils.GenesisAndKeys(n)
+
+	config := copyConfig(qbft.DefaultConfig)
+	config = customizeConfig(config)
+
+	return newBlockchainFromConfig(genesis, nodeKeys, config)
+}
+
 // copyConfig create a copy of qbft.Config, so that changing it does not update the original
 func copyConfig(config *qbft.Config) *qbft.Config {
 	cpy := *config
@@ -364,7 +373,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 				}
 				return header
 			},
-			qbftcommon.ErrEmptyPrevPreparedSeals,
+			qbftcommon.ErrInvalidPreparedSeals, // PrevPreparedSeal changed -> block hash changed -> prepare seal invalid
 		},
 		{
 			qbftBlock,
@@ -926,5 +935,46 @@ func TestReusePreparedSeal(t *testing.T) {
 		t.Errorf("prepared seal can be used for committed seal as well")
 	} else if !errors.Is(err, qbftcommon.ErrInvalidCommittedSeals) {
 		t.Errorf("error is not ErrInvalidCommittedSeals")
+	}
+}
+
+/*
+*
+When verifying a proposal, since the block does not contain PrepareSeal and CommitSeal,
+an error is returned from verifyCascadingFields. In VerifyBlockProposal, this error was implemented to be ignored.
+However, the issue was that the subsequent checks in the code after the error was returned were not executed.
+*/
+func TestVerifyProposalBug(t *testing.T) {
+	chain, engine, _ := newBlockChainWithCustom(1, func(config *qbft.Config) *qbft.Config {
+		config.BlockPeriod = 1
+		return config
+	})
+	defer engine.Stop()
+
+	firstBlock := makeBlock(chain, engine, chain.Genesis())
+	_, err := chain.InsertChain(types.Blocks{firstBlock})
+	if err != nil {
+		t.Errorf("Error inserting block: %v", err)
+	}
+
+	secondProposalBlock := makeBlockWithoutSeal(chain, engine, firstBlock)
+	state, _ := chain.State()
+	secondProposalBlock, _ = engine.FinalizeAndAssemble(chain, secondProposalBlock.Header(), state, nil, nil, nil, nil)
+
+	invalidPrevCommittedSealBlockHeader := secondProposalBlock.Header()
+	extra, _ := types.ExtractQBFTExtra(invalidPrevCommittedSealBlockHeader)
+	extra.PrevCommittedSeal = extra.PrevPreparedSeal // invalid prevCommittedSeal
+	setExtra(invalidPrevCommittedSealBlockHeader, extra)
+
+	snap, _ := engine.snapshot(chain, firstBlock.Number().Uint64(), firstBlock.Hash(), nil)
+	invalidBlock := types.NewBlock(invalidPrevCommittedSealBlockHeader, nil, nil, nil, trie.NewStackTrie(nil))
+	invalidBlock, _ = engine.Engine().Seal(chain, invalidBlock, snap.ValSet)
+
+	time.Sleep(time.Second) // wait for the block time
+	_, err = engine.Engine().VerifyBlockProposal(chain, invalidBlock, snap.ValSet, snap.ValSet)
+	if err == nil {
+		t.Errorf("engine fails to verify a proposal which has invalid PrevCommittedSeal")
+	} else if !errors.Is(err, qbftcommon.ErrInvalidPrevCommittedSeals) {
+		t.Errorf("error is not ErrInvalidPrevCommittedSeals: %v", err)
 	}
 }
