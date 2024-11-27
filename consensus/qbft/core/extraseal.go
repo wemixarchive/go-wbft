@@ -4,20 +4,51 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // addToExtraSeal adds the message to extraSeals which is read when making block
-func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) {
+func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 	logger := c.currentLogger(true, msg)
+	block, ok := c.current.Proposal().(*types.Block)
+	if !ok {
+		return errInvalidMessage
+	}
 
+	// validate seal
+	if prepareMsg, ok := msg.(*qbftmessage.Prepare); !ok {
+		if commitMsg, ok := msg.(*qbftmessage.Commit); !ok {
+			return errInvalidExtraSealMessage
+		} else {
+			// Check digest
+			if commitMsg.Digest != c.current.Proposal().Hash() {
+				logger.Error("QBFT: invalid COMMIT message digest")
+				return errInvalidMessage
+			}
+
+			if err := verifySeal(block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), SealTypeCommit,
+				commitMsg.CommitSeal, commitMsg.Source()); err != nil {
+				return errInvalidSeal
+			}
+		}
+	} else {
+		// Check digest
+		if prepareMsg.Digest != c.current.Proposal().Hash() {
+			logger.Error("QBFT: invalid PREPARE message digest")
+			return errInvalidMessage
+		}
+
+		if err := verifySeal(block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), SealTypePrepare,
+			prepareMsg.PrepareSeal, prepareMsg.Source()); err != nil {
+			return errInvalidSeal
+		}
+	}
 	logger.Trace("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
-
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 	view := msg.View()
 	c.extraSeals.Push(msg, toPriority(&view))
-
-	// TODO : need to validate seals before adding to extraSeals
+	return nil
 }
 
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
