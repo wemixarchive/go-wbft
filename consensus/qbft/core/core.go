@@ -66,6 +66,7 @@ func New(backend Backend, config *qbft.Config) *Core {
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
+		priorRound:         common.Big0,
 	}
 
 	c.validateFn = c.checkValidatorSignature
