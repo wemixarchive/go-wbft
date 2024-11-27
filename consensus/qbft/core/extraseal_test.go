@@ -211,7 +211,7 @@ func TestProcessExtraSeal(t *testing.T) {
 		}
 	}
 
-	preparedSeal, committedSeal := core.ProcessExtraSeal(lastProposal)
+	preparedSeal, committedSeal := core.ProcessExtraSeal(lastProposal, common.Big2)
 	if len(preparedSeal) != 1 {
 		t.Errorf("unexpected length of preparedSeal. want %d, have %d", 1, len(preparedSeal))
 	}

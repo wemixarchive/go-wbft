@@ -1,7 +1,8 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -53,7 +54,7 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
 // and pass it to backend preparing new block
-func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal) ([][]byte, [][]byte) {
+func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int) ([][]byte, [][]byte) {
 	// TODO : get latestView from engine.
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
@@ -61,8 +62,8 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal) ([][]byte, [][]byte)
 	var preparedSeal [][]byte
 	var committedSeal [][]byte
 	latestView := qbft.View{
-		Round:    common.Big0,
-		Sequence: common.Big0,
+		Round:    priorRound,
+		Sequence: lastProposal.Number(),
 	}
 
 	for !(c.extraSeals.Empty()) {
@@ -70,12 +71,9 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal) ([][]byte, [][]byte)
 		code := msg.Code()
 		view := msg.View()
 
-		// store latestView among extraSeals
 		// when view has lower view than latestView,
 		// discard all remaining seals in queue
-		if latestView.Cmp(&view) < 0 {
-			latestView = view
-		} else if latestView.Cmp(&view) > 0 {
+		if latestView.Cmp(&view) > 0 {
 			c.extraSeals.Reset()
 			break
 		}

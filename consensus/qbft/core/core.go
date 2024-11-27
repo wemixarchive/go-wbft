@@ -94,7 +94,7 @@ type Core struct {
 
 	extraSeals   *prque.Prque[int64, qbftmessage.QBFTMessage]
 	extraSealsMu *sync.Mutex
-	priorRound   *big.Int // commit 된 가장 최근의 round
+	priorRound   *big.Int // latest round that is committed
 
 	current      *roundState
 	currentMutex sync.Mutex
@@ -119,6 +119,10 @@ func (c *Core) currentView() *qbft.View {
 		Sequence: new(big.Int).Set(c.current.Sequence()),
 		Round:    new(big.Int).Set(c.current.Round()),
 	}
+}
+
+func (c *Core) PriorRound() *big.Int {
+	return c.priorRound
 }
 
 func (c *Core) IsProposer() bool {
