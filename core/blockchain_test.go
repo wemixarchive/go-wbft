@@ -3051,6 +3051,7 @@ func testDeleteRecreateSlots(t *testing.T, scheme string) {
 			},
 		},
 	}
+	gspec.Config.MontBlancBlock = nil // This test should not apply MontBlanc HF; SELFDESTRUCT instruction behaves differ
 	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 1, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 		// One transaction to AA, to kill it
@@ -3258,6 +3259,7 @@ func testDeleteRecreateSlotsAcrossManyBlocks(t *testing.T, scheme string) {
 			},
 		},
 	}
+	gspec.Config.MontBlancBlock = nil // This test should not apply MontBlanc HF; SELFDESTRUCT instruction behaves differ
 	var nonce uint64
 
 	type expectation struct {
