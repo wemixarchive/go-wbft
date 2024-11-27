@@ -30,3 +30,8 @@ const (
 	DOMAIN_Maintenance   = "Maintenance"
 	DOMAIN_FeeCollector  = "FeeCollector"
 )
+
+const (
+	CONTRACT_GOV_STAKING = "GovStaking"
+	CONTRACT_NCP_LIST    = "NCPList"
+)

@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"strings"
@@ -13,9 +14,41 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/require"
 )
+
+func commitTx(backend *simulated.WbftBackend, tx *types.Transaction, txErr error) (*types.Receipt, error) {
+	backend.Commit()
+	if txErr != nil {
+		return nil, NewRevertError(txErr)
+	}
+
+	return bind.WaitMined(context.TODO(), backend.Client(), tx)
+}
+
+func expectedOk(backend *simulated.WbftBackend, tx *types.Transaction, txErr error) (*types.Receipt, error) {
+	receipt, err := commitTx(backend, tx, txErr)
+	if err != nil {
+		return nil, err
+	} else if receipt.Status != types.ReceiptStatusSuccessful {
+		panic(vm.ErrExecutionReverted)
+	}
+
+	return receipt, nil
+}
+
+func expectedFail(backend *simulated.WbftBackend, tx *types.Transaction, txErr error) (*types.Receipt, error) {
+	receipt, err := commitTx(backend, tx, txErr)
+	if err != nil {
+		return nil, err
+	} else if receipt.Status == types.ReceiptStatusSuccessful {
+		panic("execution not reverted")
+	}
+
+	return receipt, nil
+}
 
 func ExpectedRevert(t *testing.T, err error, args ...interface{}) {
 	require.Error(t, err)
@@ -170,4 +203,27 @@ func getNonce(backend interface {
 	} else {
 		return opts.Nonce.Uint64(), nil
 	}
+}
+
+type EOA struct {
+	PrivateKey *ecdsa.PrivateKey
+	Address    common.Address
+}
+
+func NewEOA() (eoa *EOA) {
+	pk, _ := crypto.GenerateKey()
+
+	return &EOA{
+		PrivateKey: pk,
+		Address:    crypto.PubkeyToAddress(pk.PublicKey),
+	}
+}
+
+func NewTxOptsWithValue(t *testing.T, eoa *EOA, value *big.Int) *bind.TransactOpts {
+	opts, err := bind.NewKeyedTransactorWithChainID(eoa.PrivateKey, params.AllEthashProtocolChanges.ChainID)
+	require.NoError(t, err)
+	if value != nil || value.Cmp(new(big.Int)) > 0 {
+		opts.Value = new(big.Int).Set(value)
+	}
+	return opts
 }
