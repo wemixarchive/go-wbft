@@ -44,7 +44,7 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 			return errInvalidSeal
 		}
 	}
-	logger.Trace("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
+	logger.Info("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 	view := msg.View()
@@ -55,7 +55,6 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
 // and pass it to backend preparing new block
 func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int) ([][]byte, [][]byte) {
-	// TODO : get latestView from engine.
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 
