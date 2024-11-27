@@ -1,6 +1,8 @@
 package core
 
 import (
+	"crypto/ecdsa"
+	"errors"
 	"math/big"
 	"sync"
 	"testing"
@@ -23,6 +25,17 @@ var (
 	testAddress2 = "b37866a925bccd69cfa98d43b510f1d23d78a851"
 )
 
+var (
+	signer        *ecdsa.PrivateKey
+	signerAddress common.Address
+)
+
+func init() {
+	_, nodeKeys := testutils.GenesisAndKeys(1)
+	signer = nodeKeys[0]
+	signerAddress = crypto.PubkeyToAddress(signer.PublicKey)
+}
+
 func TestToPriority(t *testing.T) {
 	type testMessage struct {
 		message       messages.QBFTMessage
@@ -30,30 +43,31 @@ func TestToPriority(t *testing.T) {
 	}
 
 	queue := prque.New[int64, testMessage](nil)
+	header := types.Header{}
 	digest := []byte("abcd")
 	testMessages := []testMessage{
 		{
-			createPrepareMsg(common.Big2, common.Big0, digest),
+			createPrepareMsg(&header, common.Big2, common.Big0, digest),
 			3,
 		},
 		{
-			createPrepareMsg(common.Big1, common.Big3, digest),
+			createPrepareMsg(&header, common.Big1, common.Big3, digest),
 			4,
 		},
 		{
-			createPrepareMsg(common.Big1, common.Big1, digest),
+			createPrepareMsg(&header, common.Big1, common.Big1, digest),
 			5,
 		},
 		{
-			createCommitMsg(common.Big2, common.Big0, digest),
+			createCommitMsg(&header, common.Big2, common.Big0, digest),
 			2,
 		},
 		{
-			createPrepareMsg(common.Big3, common.Big3, digest),
+			createPrepareMsg(&header, common.Big3, common.Big3, digest),
 			0,
 		},
 		{
-			createCommitMsg(common.Big3, common.Big2, digest),
+			createCommitMsg(&header, common.Big3, common.Big2, digest),
 			1,
 		},
 	}
@@ -75,21 +89,18 @@ func TestToPriority(t *testing.T) {
 	}
 }
 
-// TestProcessExtraSeal is to test core.ProcessExtraSeal
-// 1. if mesasge have lower view than LatestView, drop it
-// 2. if wrong digest, drop it
-// 3. message other than prepare/commit, drop it
-func TestProcessExtraSeal(t *testing.T) {
-	_, nodeKeys := testutils.GenesisAndKeys(1)
-	address := crypto.PubkeyToAddress(nodeKeys[0].PublicKey)
-
-	// Make core instance  with empty backend
+// makeCoreForTest returns core object with empty backend.
+// Its purpose is to test pure qbft/core functions.
+// not recommended for testing logic that includes qbft/backend function
+func makeCoreForTest(currentSequence, currentRound *big.Int) *Core {
+	// set core with empty backend.
+	// current state is StateAcceptRequest.
 	core := &Core{
 		config:             nil,
-		address:            address,
+		address:            signerAddress,
 		state:              StateAcceptRequest,
 		handlerWg:          new(sync.WaitGroup),
-		logger:             log.New("address", address),
+		logger:             log.New("address", signerAddress),
 		backend:            nil,
 		backlogs:           make(map[common.Address]*prque.Prque[int64, messages.QBFTMessage]),
 		backlogsMu:         new(sync.Mutex),
@@ -100,40 +111,104 @@ func TestProcessExtraSeal(t *testing.T) {
 		consensusTimestamp: time.Time{},
 	}
 	core.validateFn = core.checkValidatorSignature
-
-	// Set core current view and state as seqeunce 3, round 0, state AcceptRequest
+	// Set core current view and proposal
 	core.current = newRoundState(
 		&qbft.View{
-			Round:    common.Big0,
-			Sequence: common.Big3,
+			Round:    currentRound,
+			Sequence: currentSequence,
 		}, validator.NewSet([]common.Address{
 			common.BytesToAddress([]byte("1234567894")),
 			common.BytesToAddress([]byte("1234567895")),
 		}, qbft.NewRoundRobinProposerPolicy()),
 		nil, nil, nil, nil, func(hash common.Hash) bool { return false })
 
-	core.priorRound = common.Big2
+	return core
+}
 
-	// make lastproposal
-	lastProposal := makeLastProposal(common.Big2)
-	invalidLastProposla := makeLastProposal(common.Big3)
+func TestAddToExtraSeal(t *testing.T) {
 
-	testExtraSealMessages := []messages.QBFTMessage{
-		// 1. 2 valid extra seal messages
-		createPrepareMsg(common.Big2, common.Big2, lastProposal.Hash().Bytes()),
-		createCommitMsg(common.Big2, common.Big2, lastProposal.Hash().Bytes()),
-		// 2. 3 extra seal messages with lower view than latestView
-		createPrepareMsg(common.Big2, common.Big1, lastProposal.Hash().Bytes()),
-		createCommitMsg(common.Big1, common.Big2, lastProposal.Hash().Bytes()),
-		createCommitMsg(common.Big1, common.Big2, lastProposal.Hash().Bytes()),
-		// 3. 1 extra seal message with invalid digest, with latestView
-		createCommitMsg(common.Big2, common.Big2, invalidLastProposla.Hash().Bytes()),
-		// 4. preprepare messag
-		createPreprepareMsg(common.Big2, common.Big2, lastProposal),
+	// make proposals
+	currentProposal := makeProposal(common.Big2)
+	invalidLastProposal := makeProposal(common.Big3)
+
+	// make core instance  with empty backend
+	core := makeCoreForTest(common.Big2, common.Big0)
+	// set current proposal
+	core.current.SetPreprepare(createPreprepareMsg(common.Big2, common.Big2, currentProposal))
+
+	type testMessage struct {
+		message       messages.QBFTMessage
+		expectedError error
+	}
+
+	malformedSeal := func(commitMsg *messages.Commit) *messages.Commit {
+		seal := []byte("malformedSeal")
+		commitMsg.CommitSeal = seal
+		return commitMsg
+	}
+
+	testExtraSealMessages := []testMessage{
+		{
+			createPrepareMsg(currentProposal.Header(), common.Big2, common.Big2, currentProposal.Hash().Bytes()),
+			nil,
+		},
+		{
+			createCommitMsg(currentProposal.Header(), common.Big2, common.Big2, currentProposal.Hash().Bytes()),
+			nil,
+		},
+		{
+			createPreprepareMsg(common.Big2, common.Big2, currentProposal),
+			errInvalidExtraSealMessage,
+		},
+		{
+			// fail to verify digest -  message's proposal is not same with currentProposal
+			createPrepareMsg(invalidLastProposal.Header(), common.Big2, common.Big2, invalidLastProposal.Hash().Bytes()),
+			errInvalidMessage,
+		},
+		{
+			// fail to verify seal -  seal doesn't match with message
+			malformedSeal(createCommitMsg(currentProposal.Header(), common.Big2, common.Big1, currentProposal.Hash().Bytes())),
+			errInvalidSeal,
+		},
 	}
 
 	for _, tm := range testExtraSealMessages {
-		core.addToExtraSeal(tm)
+		err := core.addToExtraSeal(tm.message)
+		if !errors.Is(err, tm.expectedError) {
+			t.Errorf("unexpected error adding to extraSeal. want %v, have %v", tm.expectedError, err)
+		}
+	}
+}
+
+// TestProcessExtraSeal is to test core.ProcessExtraSeal
+// 1. if mesasge have lower view than LatestView, drop it
+// 2. if wrong digest, drop it
+// 3. message other than prepare/commit, drop it
+func TestProcessExtraSeal(t *testing.T) {
+	// make proposals
+	lastProposal := makeProposal(common.Big2)
+
+	// make core instance  with empty backend
+	core := makeCoreForTest(common.Big3, common.Big0)
+
+	// assume situation when consensus enters new round and preparing for new block.
+	// set core.current.proposal. Proposal's block number should be current.Sequence -1
+	core.current.SetPreprepare(createPreprepareMsg(common.Big2, common.Big2, lastProposal))
+
+	testExtraSealMessages := []messages.QBFTMessage{
+		// 1. 2 valid extra seal messages
+		createPrepareMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
+		createCommitMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
+		// 2. 3 extra seal messages with lower view than latestView
+		createPrepareMsg(lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes()),
+		createCommitMsg(lastProposal.Header(), common.Big1, common.Big2, lastProposal.Hash().Bytes()),
+		createCommitMsg(lastProposal.Header(), common.Big1, common.Big2, lastProposal.Hash().Bytes()),
+	}
+
+	for _, tm := range testExtraSealMessages {
+		if err := core.addToExtraSeal(tm); err != nil {
+			t.Errorf("error adding to core.extraSeals : %v", err)
+		}
 	}
 
 	preparedSeal, committedSeal := core.ProcessExtraSeal(lastProposal)
@@ -153,15 +228,21 @@ func createPreprepareMsg(sequence, round *big.Int, proposal qbft.Proposal) *mess
 	return messages.NewPreprepare(sequence, round, proposal)
 }
 
-func createPrepareMsg(sequence, round *big.Int, digest []byte) *messages.Prepare {
-	return messages.NewPrepare(sequence, round, common.BytesToHash(digest), []byte("prepareSeal"))
+func createPrepareMsg(header *types.Header, sequence, round *big.Int, digest []byte) *messages.Prepare {
+	seal, _ := crypto.Sign(PrepareSeal(header, uint32(round.Uint64()), SealTypePrepare), signer)
+	prepare := messages.NewPrepare(sequence, round, common.BytesToHash(digest), seal)
+	prepare.SetSource(signerAddress)
+	return prepare
 }
 
-func createCommitMsg(sequence, round *big.Int, digest []byte) *messages.Commit {
-	return messages.NewCommit(sequence, round, common.BytesToHash(digest), []byte("commitSeal"))
+func createCommitMsg(header *types.Header, sequence, round *big.Int, digest []byte) *messages.Commit {
+	seal, _ := crypto.Sign(PrepareSeal(header, uint32(round.Uint64()), SealTypeCommit), signer)
+	commit := messages.NewCommit(sequence, round, common.BytesToHash(digest), seal)
+	commit.SetSource(signerAddress)
+	return commit
 }
 
-func makeLastProposal(blockNumber *big.Int) *types.Block {
+func makeProposal(blockNumber *big.Int) *types.Block {
 	header := &types.Header{
 		ParentHash: common.BytesToHash([]byte("parentBlockHash")),
 		Number:     blockNumber,
