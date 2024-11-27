@@ -31,9 +31,17 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
+)
+
+type SealType byte
+
+const (
+	SealTypePrepare SealType = iota
+	SealTypeCommit
 )
 
 var (
@@ -325,8 +333,21 @@ func (c *Core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 //	return int(math.Ceil(float64(c.valSet.Size()) - c.valSet.F()))
 //}
 
-// PrepareCommittedSeal returns a committed seal for the given header and takes current round under consideration
-func PrepareCommittedSeal(header *types.Header, round uint32) []byte {
+// PrepareSeal returns a committed seal for the given header and takes current round under consideration
+func PrepareSeal(header *types.Header, round uint32, sealType SealType) []byte {
 	h := types.CopyHeader(header)
-	return h.QBFTHashWithRoundNumber(round).Bytes()
+	roundHeader := h.QBFTHashWithRoundNumber(round).Bytes()
+	return crypto.Keccak256Hash(append(roundHeader, byte(sealType))).Bytes()
+}
+
+func verifySeal(header *types.Header, round uint32, sealType SealType, seal []byte, sealer common.Address) error {
+	calcSealData := PrepareSeal(header, round, sealType)
+	calcSealer, err := qbft.GetSignatureAddressNoHashing(calcSealData, seal)
+	if err != nil {
+		return err
+	}
+	if calcSealer.Cmp(sealer) != 0 {
+		return errInvalidSigner
+	}
+	return nil
 }

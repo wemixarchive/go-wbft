@@ -88,7 +88,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
 		return err
 	} else if header.Number.Uint64() < 2 {
-		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet)
+		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet, true)
 	} else if len(parents) < 2 {
 		if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, chain.GetHeaderByNumber(header.Number.Uint64()-2).Hash(), nil); err != nil {
 			return err
@@ -103,7 +103,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		}
 	}
 
-	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, prevSnap.ValSet)
+	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, prevSnap.ValSet, true)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -486,7 +486,7 @@ func (sb *Backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		// If we're at block zero, make a snapshot
 		if number == 0 {
 			genesis := chain.GetHeaderByNumber(0)
-			if err := sb.Engine().VerifyHeader(chain, genesis, nil, nil, nil); err != nil {
+			if err := sb.Engine().VerifyHeader(chain, genesis, nil, nil, nil, false); err != nil {
 				sb.logger.Error("BFT: invalid genesis block", "err", err)
 				return nil, err
 			}

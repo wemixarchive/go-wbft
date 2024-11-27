@@ -44,7 +44,7 @@ func (c *Core) broadcastCommit() {
 		header = block.Header()
 	}
 	// Create Commit Seal
-	commitSeal, err := c.backend.SignWithoutHashing(PrepareCommittedSeal(header, uint32(c.currentView().Round.Uint64())))
+	commitSeal, err := c.backend.SignWithoutHashing(PrepareSeal(header, uint32(c.currentView().Round.Uint64()), SealTypeCommit))
 	if err != nil {
 		logger.Error("QBFT: failed to create COMMIT seal", "sub", sub, "err", err)
 		return
@@ -97,6 +97,16 @@ func (c *Core) handleCommitMsg(commit *qbftmessage.Commit) error {
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
 		logger.Error("QBFT: invalid COMMIT message digest", "digest", commit.Digest, "proposal", c.current.Proposal().Hash().String())
+		return errInvalidMessage
+	}
+
+	// Check commitSeal
+	block, ok := c.current.Proposal().(*types.Block)
+	if !ok {
+		return errInvalidMessage
+	}
+	if verifySeal(block.Header(), uint32(commit.CommonPayload.Round.Uint64()), SealTypeCommit,
+		commit.CommitSeal, commit.Source()) != nil {
 		return errInvalidMessage
 	}
 

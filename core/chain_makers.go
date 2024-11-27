@@ -520,12 +520,16 @@ type chainMaker struct {
 }
 
 func newChainMaker(bottom *types.Block, config *params.ChainConfig, engine consensus.Engine) *chainMaker {
-	return &chainMaker{
+	cm := &chainMaker{
 		bottom:      bottom,
 		config:      config,
 		engine:      engine,
 		chainByHash: make(map[common.Hash]*types.Block),
 	}
+	if bottom != nil {
+		cm.chainByHash[bottom.Hash()] = bottom // add genesis block hash to cache so as engine can get the parent block
+	}
+	return cm
 }
 
 func (cm *chainMaker) add(b *types.Block, r []*types.Receipt) {
