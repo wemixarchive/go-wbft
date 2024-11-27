@@ -34,8 +34,6 @@ type QBFTConfig struct {
 	ValidatorSelectionMode   *string               `json:"validatorselectionmode,omitempty"`  // Select model for validators
 	Validators               []common.Address      `json:"validators"`                        // Validators list
 	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"`          // The max round time
-
-	SimulatedEnabled bool `json:"simulatedEnabled,omitempty"`
 }
 
 func (c *QBFTConfig) String() string {
@@ -174,3 +172,17 @@ func (c *ChainConfig) GetBlockReward(num *big.Int) big.Int {
 }
 
 // ## Quorum QBFT END
+
+func (c *ChainConfig) GetPrepareReward(num *big.Int) big.Int {
+	// TODO: implement
+
+	prepareReward := *math.NewHexOrDecimal256(100)
+	return big.Int(prepareReward)
+}
+
+func (c *ChainConfig) GetCommitReward(num *big.Int) big.Int {
+	// TODO: implement
+
+	commitReward := *math.NewHexOrDecimal256(100)
+	return big.Int(commitReward)
+}

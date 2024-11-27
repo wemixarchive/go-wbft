@@ -2,7 +2,6 @@ package simulated
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -57,17 +57,17 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 		BaseFee:    big.NewInt(1000000000),
 	}
 	ebps := uint64(0)
-	ethConf.Istanbul.AllowedFutureBlockTime = 2000000000 // disable time verification of a block
-	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 0   // block period must be 0 in case of simulated backend
+	ethConf.Istanbul.AllowedFutureBlockTime = 3153600000 // disable time verification of a block ( == 100 years )
+	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 1
 	ethConf.Genesis.Config.QBFT.EmptyBlockPeriodSeconds = &ebps
 	ethConf.Genesis.Config.QBFT.Validators = make([]common.Address, 1)
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
 	ethConf.Genesis.Config.QBFT.Validators[0] = validator
-	ethConf.Genesis.Config.QBFT.SimulatedEnabled = true
 	ethConf.Genesis.ExtraData = genExtraData(validator) // simulated chain block
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
 	ethConf.Miner.SimulatedEnabled = true
+	ethConf.Miner.Recommit = 10 * time.Second // prevent block interruption
 	ethConf.TxPool.NoLocals = true
 
 	for _, option := range options {
@@ -85,23 +85,19 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 		panic(err) // this should never happen
 	}
 
-	qbft := sim.Engine().(*qbftbackend.Backend)
-	if !qbft.IsRunning() {
-		ticker := time.NewTicker(0.1e9) // 0.1s
-		for {
-			<-ticker.C
-			if qbft.IsRunning() {
-				ticker.Stop()
-				break
-			}
-		}
-	}
-
 	return sim
 }
 
 func genExtraData(validator common.Address) []byte {
-	return hexutil.MustDecode(fmt.Sprintf("0xef9573696d756c6174656420636861696e20626c6f636bd594%xc080c0", validator.Bytes())) // simulated chain block
+	sampleExtra := &types.QBFTExtra{
+		VanityData: []byte("WEMIX MontBlanc chain block"),
+		Validators: []common.Address{
+			validator,
+		},
+		Round: 0,
+	}
+	b, _ := rlp.EncodeToBytes(sampleExtra)
+	return b
 }
 
 // newWithNode sets up a simulated backend on an existing node. The provided node
@@ -121,10 +117,20 @@ func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
 	if err := stack.Start(); err != nil {
 		return nil, err
 	}
+	// Start Miner & QBFT Engine
 	backend.StartMining()
-	backend.APIBackend.SetHead(0)
+	qbftEngine := backend.Engine().(*qbftbackend.Backend)
+	backend.Miner().InjectSimApplierTo(qbftEngine)
+	if !qbftEngine.IsRunning() {
+		ticker := time.NewTicker(0.1e9) // 0.1s
+		for range ticker.C {
+			if qbftEngine.IsRunning() {
+				ticker.Stop()
+				break
+			}
+		}
+	}
 
-	backend.Miner().InjectSimApplierTo(backend.Engine().(*qbftbackend.Backend))
 	return &WbftBackend{
 		eth:    backend,
 		client: WbftClient{ethclient.NewClient(stack.Attach())},
@@ -142,6 +148,9 @@ func (n *WbftBackend) Close() error {
 		if err := qbftEngine.Stop(); err != nil {
 			return err
 		}
+	}
+	if n.eth.Miner().Mining() {
+		n.eth.Miner().Close()
 	}
 	return nil
 }
