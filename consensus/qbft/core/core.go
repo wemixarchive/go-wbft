@@ -239,8 +239,10 @@ func (c *Core) updateRoundState(view *qbft.View, validatorSet qbft.ValidatorSet,
 	}
 	if roundChange && c.current != nil {
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
-	} else {
+	} else if c.current == nil {
 		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)
+	} else {
+		c.current = newRoundState(view, validatorSet, c.current.Preprepare, nil, nil, nil, c.backend.HasBadProposal)
 	}
 }
 
