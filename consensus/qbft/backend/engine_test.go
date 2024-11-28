@@ -989,7 +989,7 @@ func TestAddingExtraSeals(t *testing.T) {
 	wg.Wait()
 
 	if engine.core.ExtraSealsLen() != expectedAdditionalSealCnt {
-		t.Errorf("unexpected addtional seals. have %d, want %d", engine.core.ExtraSealsLen(), expectedAdditionalSealCnt)
+		t.Errorf("unexpected additional seals. have %d, want %d", engine.core.ExtraSealsLen(), expectedAdditionalSealCnt)
 	}
 }
 

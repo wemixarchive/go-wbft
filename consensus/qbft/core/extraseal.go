@@ -82,7 +82,6 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 			if prepareMsg.Digest == lastProposal.Hash() {
 				preparedSeal = append(preparedSeal, prepareMsg.PrepareSeal[:])
 			}
-
 		} else if code == qbftmessage.CommitCode {
 			commitMsg := msg.(*qbftmessage.Commit)
 			if commitMsg.Digest == lastProposal.Hash() {

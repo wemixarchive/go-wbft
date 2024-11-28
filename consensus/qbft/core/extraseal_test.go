@@ -21,11 +21,6 @@ import (
 )
 
 var (
-	testAddress  = "70524d664ffe731100208a0154e556f9bb679ae6"
-	testAddress2 = "b37866a925bccd69cfa98d43b510f1d23d78a851"
-)
-
-var (
 	signer        *ecdsa.PrivateKey
 	signerAddress common.Address
 )
@@ -126,7 +121,6 @@ func makeCoreForTest(currentSequence, currentRound *big.Int) *Core {
 }
 
 func TestAddToExtraSeal(t *testing.T) {
-
 	// make proposals
 	currentProposal := makeProposal(common.Big2)
 	invalidLastProposal := makeProposal(common.Big3)
@@ -221,7 +215,6 @@ func TestProcessExtraSeal(t *testing.T) {
 	if core.ExtraSealsLen() != 0 {
 		t.Errorf("core.extraSeals should be empty after processing")
 	}
-
 }
 
 func createPreprepareMsg(sequence, round *big.Int, proposal qbft.Proposal) *messages.Preprepare {
