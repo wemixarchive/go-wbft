@@ -522,11 +522,12 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, header *types.Header, validators qbft.ValidatorSet) (*types.Block, error) {
+func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (*types.Block, error) {
 	if _, v := validators.GetByAddress(e.signer); v == nil {
 		return block, qbftcommon.ErrUnauthorized
 	}
 
+	header := block.Header()
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
 		return block, consensus.ErrUnknownAncestor

@@ -244,29 +244,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		delay = time.Duration(0)
 	}
 
-	//  add extraSeal to block header
-	qbftExtra, err := types.ExtractQBFTExtra(header)
-	if err != nil {
-		return err
-	}
-	var extraPreparedSeal [][]byte
-	var extraCommittedSeal [][]byte
-	if sb.core != nil {
-		lastProposal, _ := sb.LastProposal()
-		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
-	}
-	prevPreparedSeal := mergeSeals(qbftExtra.PrevPreparedSeal, extraPreparedSeal)
-	prevCommittedSeal := mergeSeals(qbftExtra.PrevCommittedSeal, extraCommittedSeal)
-
-	if err := qbftengine.ApplyHeaderQBFTExtra(
-		header,
-		qbftengine.WritePrevCommittedSeal(prevPreparedSeal),
-		qbftengine.WritePrevCommittedSeal(prevCommittedSeal),
-	); err != nil {
-		return err
-	}
-
-	block, err = sb.Engine().Seal(chain, block, header, snap.ValSet)
+	block, err = sb.Engine().Seal(chain, block, snap.ValSet)
 	if err != nil {
 		return err
 	}
@@ -279,6 +257,13 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			results <- nil
 			return
 		}
+
+		// processExtraSealsAnd add to header
+		headerWithExtraSeals, err := sb.processExtraSeals(block.Header())
+		if err != nil {
+			return
+		}
+		block = block.WithSeal(headerWithExtraSeals)
 
 		// get the proposed block hash and clear it if the seal() is completed.
 		sb.sealMu.Lock()
@@ -311,6 +296,31 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		}
 	}()
 	return nil
+}
+
+func (sb *Backend) processExtraSeals(header *types.Header) (*types.Header, error) {
+	//  add extraSeal to block header
+	qbftExtra, err := types.ExtractQBFTExtra(header)
+	if err != nil {
+		return nil, err
+	}
+	var extraPreparedSeal [][]byte
+	var extraCommittedSeal [][]byte
+	if sb.core != nil {
+		lastProposal, _ := sb.LastProposal()
+		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
+	}
+	prevPreparedSeal := mergeSeals(qbftExtra.PrevPreparedSeal, extraPreparedSeal)
+	prevCommittedSeal := mergeSeals(qbftExtra.PrevCommittedSeal, extraCommittedSeal)
+
+	if err := qbftengine.ApplyHeaderQBFTExtra(
+		header,
+		qbftengine.WritePrevCommittedSeal(prevPreparedSeal),
+		qbftengine.WritePrevCommittedSeal(prevCommittedSeal),
+	); err != nil {
+		return nil, err
+	}
+	return header, nil
 }
 
 // APIs returns the RPC APIs this consensus engine provides.

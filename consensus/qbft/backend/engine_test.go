@@ -1083,7 +1083,7 @@ func TestVerifyProposalBug(t *testing.T) {
 
 	snap, _ := engine.snapshot(chain, firstBlock.Number().Uint64(), firstBlock.Hash(), nil)
 	invalidBlock := types.NewBlock(invalidPrevCommittedSealBlockHeader, nil, nil, nil, trie.NewStackTrie(nil))
-	invalidBlock, _ = engine.Engine().Seal(chain, invalidBlock, invalidBlock.Header(), snap.ValSet)
+	invalidBlock, _ = engine.Engine().Seal(chain, invalidBlock, snap.ValSet)
 
 	time.Sleep(time.Second) // wait for the block time
 	_, err = engine.Engine().VerifyBlockProposal(chain, invalidBlock, snap.ValSet, snap.ValSet)
