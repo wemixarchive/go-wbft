@@ -65,7 +65,7 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 		Sequence: lastProposal.Number(),
 	}
 
-	for !(c.extraSeals.Empty()) {
+	for !c.extraSeals.Empty() {
 		msg, _ := c.extraSeals.Pop()
 		code := msg.Code()
 		view := msg.View()
