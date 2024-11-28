@@ -469,42 +469,14 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			return qbftcommon.ErrEmptyCommittedSeals
 		}
 
-		prevPreparedSeal := mergeSeals(extra.PreparedSeal, extraPreparedSeal)
-		prevCommittedSeal := mergeSeals(extra.CommittedSeal, extraCommittedSeal)
-
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		return ApplyHeaderQBFTExtra(
 			header,
 			WriteValidators(validatorsList),
-			WritePrevPreparedSeal(prevPreparedSeal),
-			WritePrevCommittedSeal(prevCommittedSeal),
+			WritePrevPreparedSeal(extra.PreparedSeal),
+			WritePrevCommittedSeal(extra.CommittedSeal),
 		)
 	}
-}
-
-func mergeSeals(seals1, seals2 [][]byte) [][]byte {
-	mergedSeals := [][]byte{}
-
-	contains := func(slices [][]byte, item []byte) bool {
-		for _, s := range slices {
-			if bytes.Equal(s, item) { // Directly compare []byte
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, s1 := range seals1 {
-		if !contains(mergedSeals, s1) {
-			mergedSeals = append(mergedSeals, s1)
-		}
-	}
-	for _, s2 := range seals2 {
-		if !contains(mergedSeals, s2) {
-			mergedSeals = append(mergedSeals, s2)
-		}
-	}
-	return mergedSeals
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
@@ -550,12 +522,11 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (*types.Block, error) {
+func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, header *types.Header, validators qbft.ValidatorSet) (*types.Block, error) {
 	if _, v := validators.GetByAddress(e.signer); v == nil {
 		return block, qbftcommon.ErrUnauthorized
 	}
 
-	header := block.Header()
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
 		return block, consensus.ErrUnknownAncestor

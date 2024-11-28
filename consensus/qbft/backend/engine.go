@@ -21,6 +21,7 @@
 package backend
 
 import (
+	"bytes"
 	"errors"
 	"math/big"
 	"math/rand"
@@ -238,14 +239,36 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		return err
 	}
 
-	block, err = sb.Engine().Seal(chain, block, snap.ValSet)
-	if err != nil {
-		return err
-	}
-
 	delay := time.Until(time.Unix(int64(block.Header().Time), 0))
 	if sb.simApplier != nil {
 		delay = time.Duration(0)
+	}
+
+	//  add extraSeal to block header
+	qbftExtra, err := types.ExtractQBFTExtra(header)
+	if err != nil {
+		return err
+	}
+	var extraPreparedSeal [][]byte
+	var extraCommittedSeal [][]byte
+	if sb.core != nil {
+		lastProposal, _ := sb.LastProposal()
+		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
+	}
+	prevPreparedSeal := mergeSeals(qbftExtra.PrevPreparedSeal, extraPreparedSeal)
+	prevCommittedSeal := mergeSeals(qbftExtra.PrevCommittedSeal, extraCommittedSeal)
+
+	if err := qbftengine.ApplyHeaderQBFTExtra(
+		header,
+		qbftengine.WritePrevCommittedSeal(prevPreparedSeal),
+		qbftengine.WritePrevCommittedSeal(prevCommittedSeal),
+	); err != nil {
+		return err
+	}
+
+	block, err = sb.Engine().Seal(chain, block, header, snap.ValSet)
+	if err != nil {
+		return err
 	}
 
 	go func() {
@@ -265,6 +288,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			sb.proposedBlockHash = common.Hash{}
 			sb.sealMu.Unlock()
 		}()
+
 		// post block into Istanbul engine
 		go sb.EventMux().Post(qbft.RequestEvent{
 			Proposal: block,
@@ -684,4 +708,29 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 		delete(snap.Tally, candidate)
 	}
 	return nil
+}
+
+func mergeSeals(seals1, seals2 [][]byte) [][]byte {
+	mergedSeals := [][]byte{}
+
+	contains := func(slices [][]byte, item []byte) bool {
+		for _, s := range slices {
+			if bytes.Equal(s, item) { // Directly compare []byte
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, s1 := range seals1 {
+		if !contains(mergedSeals, s1) {
+			mergedSeals = append(mergedSeals, s1)
+		}
+	}
+	for _, s2 := range seals2 {
+		if !contains(mergedSeals, s2) {
+			mergedSeals = append(mergedSeals, s2)
+		}
+	}
+	return mergedSeals
 }
