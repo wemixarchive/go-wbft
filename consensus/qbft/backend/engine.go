@@ -258,7 +258,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			return
 		}
 
-		// processExtraSealsAnd add to header
+		// process extraSeals add apply new header to block
 		headerWithExtraSeals, err := sb.processExtraSeals(block.Header())
 		if err != nil {
 			return
