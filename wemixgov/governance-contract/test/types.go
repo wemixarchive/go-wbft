@@ -37,6 +37,7 @@ func newBindContract(contract *compiler.Contract) (*bindContract, error) {
 			code = "0x" + code
 		}
 		collectErrors(parsedAbi)
+		collectEvent(parsedAbi)
 		return &bindContract{Bin: hexutil.MustDecode(code), Abi: *parsedAbi}, err
 	}
 }

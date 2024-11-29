@@ -6,16 +6,20 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -212,7 +216,6 @@ type EOA struct {
 
 func NewEOA() (eoa *EOA) {
 	pk, _ := crypto.GenerateKey()
-
 	return &EOA{
 		PrivateKey: pk,
 		Address:    crypto.PubkeyToAddress(pk.PublicKey),
@@ -222,8 +225,135 @@ func NewEOA() (eoa *EOA) {
 func NewTxOptsWithValue(t *testing.T, eoa *EOA, value *big.Int) *bind.TransactOpts {
 	opts, err := bind.NewKeyedTransactorWithChainID(eoa.PrivateKey, params.AllEthashProtocolChanges.ChainID)
 	require.NoError(t, err)
-	if value != nil || value.Cmp(new(big.Int)) > 0 {
+	if value != nil && value.Cmp(new(big.Int)) > 0 {
 		opts.Value = new(big.Int).Set(value)
 	}
 	return opts
+}
+
+// evnet_unpack
+type allEventsType map[string]abi.Event
+
+var (
+	allEventsLock = sync.RWMutex{}
+	allEvents     = allEventsType{}
+)
+
+func collectEvent(abi *abi.ABI) error {
+	for n, e := range abi.Events {
+		func() {
+			allEventsLock.Lock()
+			defer allEventsLock.Unlock()
+			if exist, ok := allEvents[n]; ok {
+				if exist.String() == e.String() {
+					goto skip
+				}
+			}
+			allEvents[n] = e
+		skip:
+		}()
+	}
+
+	return nil
+}
+
+func findEvent(name string, logs []*types.Log) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+	event, ok := allEvents[name]
+	if !ok {
+		return nil, fmt.Errorf("not support event : %s", name)
+	}
+
+	for _, log := range logs {
+		if len(log.Topics) == 0 || log.Topics[0] != event.ID || len(log.Data) == 0 {
+			continue
+		}
+
+		if err := event.Inputs.UnpackIntoMap(result, log.Data); err != nil {
+			return nil, err
+		} else {
+			var indexed abi.Arguments
+			for _, arg := range event.Inputs {
+				if arg.Indexed {
+					indexed = append(indexed, arg)
+				}
+			}
+			abi.ParseTopicsIntoMap(result, indexed, log.Topics[1:])
+			return result, err
+		}
+	}
+
+	return nil, fmt.Errorf("no matching event : %s", name)
+}
+
+// error_unpack
+type allErrorsType map[[4]byte]abi.Error
+
+var (
+	allErrorsLock = sync.RWMutex{}
+	allErrors     = allErrorsType{}
+)
+
+func collectErrors(abi *abi.ABI) error {
+	for _, e := range abi.Errors {
+		func() {
+			allErrorsLock.Lock()
+			defer allErrorsLock.Unlock()
+			sig := [4]byte{}
+			copy(sig[:], e.ID[:4])
+			if _, ok := allErrors[sig]; !ok {
+				allErrors[sig] = e
+			}
+		}()
+	}
+
+	return nil
+}
+
+type RevertError struct {
+	ABI    abi.Error
+	Output interface{}
+}
+
+func (r *RevertError) Error() string {
+	return fmt.Sprintf("%s: %s %v", vm.ErrExecutionReverted, r.ABI.Sig, r.Output)
+}
+
+// ErrorCode returns the JSON error code for a revert.
+// See: https://github.com/ethereum/wiki/wiki/JSON-RPC-Error-Codes-Improvement-Proposal
+func NewRevertError(err error) error {
+	if revert, ok := err.(interface {
+		ErrorCode() int
+		ErrorData() interface{}
+	}); !ok || revert.ErrorCode() != 3 {
+		return err
+	} else {
+		if data, ok := revert.ErrorData().(string); !ok {
+			return err
+		} else {
+			datas := hexutil.MustDecode(data)
+			if revertErr, ok := UnpackError(datas); ok {
+				return revertErr
+			} else {
+				reason, errUnpack := abi.UnpackRevert(datas)
+				if errUnpack == nil {
+					return fmt.Errorf("execution reverted: %v", reason)
+				} else {
+					return errors.New("execution reverted")
+				}
+			}
+		}
+	}
+}
+
+func UnpackError(result []byte) (error, bool) {
+	sig := [4]byte{}
+	copy(sig[:], result[:4])
+	if errABI, ok := allErrors[sig]; !ok {
+		return nil, false
+	} else if output, err := errABI.Unpack(result); err != nil {
+		return nil, false
+	} else {
+		return &RevertError{errABI, output}, true
+	}
 }
