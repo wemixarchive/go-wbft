@@ -43,16 +43,14 @@ func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 }
 
 type GovWBFT struct {
-	backend *simulated.WbftBackend
-	owner   *bind.TransactOpts
-	gov     *govWBFT.GovernanceWBFT
-	staking *bind.BoundContract
-	ncpList *bind.BoundContract
-
-	FailureCase bool
+	backend         *simulated.WbftBackend
+	owner           *bind.TransactOpts
+	gov             *govWBFT.Governance
+	stakingContract *bind.BoundContract
+	ncpListContract *bind.BoundContract
 }
 
-func NewGovWBFT(t *testing.T) (*GovWBFT, error) {
+func NewGovWBFT(t *testing.T, ncpList []common.Address) (*GovWBFT, error) {
 	owner := getTxOpt(t, "owner")
 	g := &GovWBFT{
 		owner: owner,
@@ -61,14 +59,14 @@ func NewGovWBFT(t *testing.T) (*GovWBFT, error) {
 		}),
 	}
 
-	stakingAddr, staking, err := g.Deploy(compiledWBFT.GovStaking.Deploy(g.backend.Client(), g.owner))
+	stakingAddr, stakingContract, err := g.Deploy(compiledWBFT.GovStaking.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
-	_, ncpList, err := g.Deploy(compiledWBFT.NCPList.Deploy(g.backend.Client(), g.owner))
+	ncpAddr, ncpListContract, err := g.Deploy(compiledWBFT.NCPList.Deploy(g.backend.Client(), g.owner, ncpList))
 	require.NoError(t, err)
 
-	g.gov = govWBFT.NewGovernanceWBFT(stakingAddr)
-	g.staking = staking
-	g.ncpList = ncpList
+	g.gov = govWBFT.NewGovernance(stakingAddr, ncpAddr)
+	g.stakingContract = stakingContract
+	g.ncpListContract = ncpListContract
 
 	return g, nil
 
