@@ -257,33 +257,45 @@ func collectEvent(abi *abi.ABI) error {
 	return nil
 }
 
-func findEvent(name string, logs []*types.Log) (map[string]interface{}, error) {
-	result := make(map[string]interface{})
-	event, ok := allEvents[name]
+func findEvent(name string, logs []*types.Log) map[string]interface{} {
+	result := findEvents(name, logs)
+	if len(result) > 0 {
+		return result[0]
+	}
+	return nil
+}
+
+func findEvents(name string, logs []*types.Log) []map[string]interface{} {
+	events := make([]map[string]interface{}, 0)
+	eventTy, ok := allEvents[name]
 	if !ok {
-		return nil, fmt.Errorf("not support event : %s", name)
+		return nil
 	}
 
 	for _, log := range logs {
-		if len(log.Topics) == 0 || log.Topics[0] != event.ID || len(log.Data) == 0 {
+		if len(log.Topics) == 0 || log.Topics[0] != eventTy.ID || len(log.Data) == 0 {
 			continue
 		}
 
-		if err := event.Inputs.UnpackIntoMap(result, log.Data); err != nil {
-			return nil, err
+		event := make(map[string]interface{})
+
+		if err := eventTy.Inputs.UnpackIntoMap(event, log.Data); err != nil {
+			continue
 		} else {
 			var indexed abi.Arguments
-			for _, arg := range event.Inputs {
+			for _, arg := range eventTy.Inputs {
 				if arg.Indexed {
 					indexed = append(indexed, arg)
 				}
 			}
-			abi.ParseTopicsIntoMap(result, indexed, log.Topics[1:])
-			return result, err
+			if err := abi.ParseTopicsIntoMap(event, indexed, log.Topics[1:]); err != nil {
+				continue
+			}
+			events = append(events, event)
 		}
 	}
 
-	return nil, fmt.Errorf("no matching event : %s", name)
+	return events
 }
 
 // error_unpack
@@ -356,4 +368,9 @@ func UnpackError(result []byte) (error, bool) {
 	} else {
 		return &RevertError{errABI, output}, true
 	}
+}
+
+// gas used * gas price
+func calcTxGasCost(receipt *types.Receipt) *big.Int {
+	return new(big.Int).Mul(new(big.Int).SetUint64(receipt.GasUsed), receipt.EffectiveGasPrice)
 }

@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"math/big"
 	"path/filepath"
 	"testing"
@@ -50,13 +51,15 @@ type GovWBFT struct {
 	ncpListContract *bind.BoundContract
 }
 
-func NewGovWBFT(t *testing.T, ncpList []common.Address) (*GovWBFT, error) {
+func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc) (*GovWBFT, error) {
+	if alloc == nil {
+		alloc = make(types.GenesisAlloc)
+	}
 	owner := getTxOpt(t, "owner")
+	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
 	g := &GovWBFT{
-		owner: owner,
-		backend: simulated.NewWbftBackend(types.GenesisAlloc{
-			owner.From: {Balance: new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 128), common.Big1)},
-		}),
+		owner:   owner,
+		backend: simulated.NewWbftBackend(alloc),
 	}
 
 	stakingAddr, stakingContract, err := g.Deploy(compiledWBFT.GovStaking.Deploy(g.backend.Client(), g.owner))
@@ -87,4 +90,53 @@ func (g *GovWBFT) ExpectedOk(tx *types.Transaction, txErr error) (*types.Receipt
 func (g *GovWBFT) ExpectedFail(tx *types.Transaction, txErr error) error {
 	_, err := expectedFail(g.backend, tx, txErr)
 	return err
+}
+
+func (g *GovWBFT) RegisterValidator(t *testing.T, v *TestValidator, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "registerValidator", v.Staker, amount, amount, v.Validator.Address, v.Reward.Address)
+}
+
+func (g *GovWBFT) Stake(t *testing.T, staker *EOA, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "stake", staker, amount, amount)
+}
+
+func (g *GovWBFT) Unstake(t *testing.T, staker *EOA, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "unstake", staker, nil, amount)
+}
+
+func (g *GovWBFT) Delegate(t *testing.T, delegator *EOA, validator common.Address, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "delegate", delegator, amount, validator, amount)
+}
+
+func (g *GovWBFT) Unelegate(t *testing.T, delegator *EOA, validator common.Address, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "undelegate", delegator, nil, validator, amount)
+}
+
+func (g *GovWBFT) Withdraw(t *testing.T, sender *EOA, credentialID *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "withdraw", sender, nil, credentialID)
+}
+
+func (g *GovWBFT) stakingContractTx(t *testing.T, method string, sender *EOA, value *big.Int, params ...interface{}) (*types.Transaction, error) {
+	return g.stakingContract.Transact(NewTxOptsWithValue(t, sender, value), method, params...)
+}
+
+func (g *GovWBFT) balanceAt(t *testing.T, ctx context.Context, addr common.Address, num *big.Int) *big.Int {
+	balance, err := g.backend.Client().BalanceAt(ctx, addr, num)
+	require.NoError(t, err)
+
+	return balance
+}
+
+type TestValidator struct {
+	Validator *EOA
+	Staker    *EOA
+	Reward    *EOA
+}
+
+func NewTestValidator() *TestValidator {
+	return &TestValidator{
+		Validator: NewEOA(),
+		Staker:    NewEOA(),
+		Reward:    NewEOA(),
+	}
 }

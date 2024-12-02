@@ -31,7 +31,7 @@ type Governance struct {
 func NewGovernance(t *testing.T) *Governance {
 	owner := getTxOpt(t, "owner")
 	backend := simulated.NewWbftBackend(types.GenesisAlloc{
-		owner.From: {Balance: new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 128), common.Big1)},
+		owner.From: {Balance: MAX_UINT_128},
 	})
 
 	return &Governance{
