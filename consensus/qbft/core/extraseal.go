@@ -11,7 +11,14 @@ import (
 // addToExtraSeal adds the message to extraSeals which is read when making block
 func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 	logger := c.currentLogger(true, msg)
-	block, ok := c.current.Proposal().(*types.Block)
+	var block *types.Block
+	var ok bool
+
+	if c.state == StateAcceptRequest {
+		block, ok = c.priorState.Proposal().(*types.Block)
+	} else {
+		block, ok = c.current.Proposal().(*types.Block)
+	}
 	if !ok {
 		return errInvalidMessage
 	}
@@ -22,7 +29,7 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 			return errInvalidExtraSealMessage
 		} else {
 			// Check digest
-			if commitMsg.Digest != c.current.Proposal().Hash() {
+			if commitMsg.Digest != block.Hash() {
 				logger.Error("QBFT: invalid COMMIT message digest")
 				return errInvalidMessage
 			}
@@ -34,7 +41,7 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 		}
 	} else {
 		// Check digest
-		if prepareMsg.Digest != c.current.Proposal().Hash() {
+		if prepareMsg.Digest != block.Hash() {
 			logger.Error("QBFT: invalid PREPARE message digest")
 			return errInvalidMessage
 		}

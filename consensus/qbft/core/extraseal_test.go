@@ -87,7 +87,7 @@ func TestToPriority(t *testing.T) {
 // makeCoreForTest returns core object with empty backend.
 // Its purpose is to test pure qbft/core functions.
 // not recommended for testing logic that includes qbft/backend function
-func makeCoreForTest(currentSequence, currentRound *big.Int) *Core {
+func makeCoreForTest(priorRound, currentRound, currentSequence *big.Int, lastProposal *types.Block) *Core {
 	// set core with empty backend.
 	// current state is StateAcceptRequest.
 	core := &Core{
@@ -104,6 +104,7 @@ func makeCoreForTest(currentSequence, currentRound *big.Int) *Core {
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
+		priorState:         &priorState{new(sync.RWMutex), common.Big0, nil},
 	}
 	core.validateFn = core.checkValidatorSignature
 	// Set core current view and proposal
@@ -116,19 +117,19 @@ func makeCoreForTest(currentSequence, currentRound *big.Int) *Core {
 			common.BytesToAddress([]byte("1234567895")),
 		}, qbft.NewRoundRobinProposerPolicy()),
 		nil, nil, nil, nil, func(hash common.Hash) bool { return false })
-
+	core.updatePriorState(priorRound, lastProposal)
 	return core
 }
 
+// TestAddToExtraSeal is to test core.addToExtraSeal function
+// test case is when core.state is StateAcceptedRequest
 func TestAddToExtraSeal(t *testing.T) {
 	// make proposals
-	currentProposal := makeProposal(common.Big2)
+	lastProposal := makeProposal(common.Big2)
 	invalidLastProposal := makeProposal(common.Big3)
 
 	// make core instance  with empty backend
-	core := makeCoreForTest(common.Big2, common.Big0)
-	// set current proposal
-	core.current.SetPreprepare(createPreprepareMsg(common.Big2, common.Big2, currentProposal))
+	core := makeCoreForTest(common.Big2, common.Big0, common.Big3, lastProposal)
 
 	type testMessage struct {
 		message       messages.QBFTMessage
@@ -143,15 +144,15 @@ func TestAddToExtraSeal(t *testing.T) {
 
 	testExtraSealMessages := []testMessage{
 		{
-			createPrepareMsg(currentProposal.Header(), common.Big2, common.Big2, currentProposal.Hash().Bytes()),
+			createPrepareMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
 			nil,
 		},
 		{
-			createCommitMsg(currentProposal.Header(), common.Big2, common.Big2, currentProposal.Hash().Bytes()),
+			createCommitMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
 			nil,
 		},
 		{
-			createPreprepareMsg(common.Big2, common.Big2, currentProposal),
+			createPreprepareMsg(common.Big2, common.Big2, lastProposal),
 			errInvalidExtraSealMessage,
 		},
 		{
@@ -161,7 +162,7 @@ func TestAddToExtraSeal(t *testing.T) {
 		},
 		{
 			// fail to verify seal -  seal doesn't match with message
-			malformedSeal(createCommitMsg(currentProposal.Header(), common.Big2, common.Big1, currentProposal.Hash().Bytes())),
+			malformedSeal(createCommitMsg(lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes())),
 			errInvalidSeal,
 		},
 	}
@@ -183,7 +184,7 @@ func TestProcessExtraSeal(t *testing.T) {
 	lastProposal := makeProposal(common.Big2)
 
 	// make core instance  with empty backend
-	core := makeCoreForTest(common.Big3, common.Big0)
+	core := makeCoreForTest(common.Big2, common.Big0, common.Big3, lastProposal)
 
 	// assume situation when consensus enters new round and preparing for new block.
 	// set core.current.proposal. Proposal's block number should be current.Sequence -1

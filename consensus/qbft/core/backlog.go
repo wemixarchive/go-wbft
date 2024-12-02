@@ -82,7 +82,7 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 		// 1. view's sequence is right before current.Sequence &&
 		// 2. view's round is same as prior round &&
 		// 3. c.state is AcceptRequest
-		if new(big.Int).Sub(c.currentView().Sequence, view.Sequence).Cmp(common.Big1) == 0 && view.Round.Cmp(c.priorRound) == 0 && c.state == StateAcceptRequest {
+		if new(big.Int).Sub(c.currentView().Sequence, view.Sequence).Cmp(common.Big1) == 0 && view.Round.Cmp(c.PriorRound()) == 0 && c.state == StateAcceptRequest {
 			return errExtraSealMessage
 		}
 		return errOldMessage

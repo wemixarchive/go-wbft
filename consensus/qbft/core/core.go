@@ -66,7 +66,7 @@ func New(backend Backend, config *qbft.Config) *Core {
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
-		priorRound:         common.Big0,
+		priorState:         &priorState{new(sync.RWMutex), common.Big0, nil},
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -95,7 +95,7 @@ type Core struct {
 
 	extraSeals   *prque.Prque[int64, qbftmessage.QBFTMessage]
 	extraSealsMu *sync.Mutex
-	priorRound   *big.Int // latest round that is committed
+	priorState   *priorState
 
 	current      *roundState
 	currentMutex sync.Mutex
@@ -123,7 +123,7 @@ func (c *Core) currentView() *qbft.View {
 }
 
 func (c *Core) PriorRound() *big.Int {
-	return c.priorRound
+	return c.priorState.Round()
 }
 
 func (c *Core) IsProposer() bool {
@@ -239,15 +239,14 @@ func (c *Core) startNewRound(round *big.Int) {
 
 // updateRoundState updates round state by checking if locking block is necessary
 func (c *Core) updateRoundState(view *qbft.View, validatorSet qbft.ValidatorSet, roundChange bool) {
-	if c.current != nil {
-		c.priorRound = c.current.Round()
-	}
 	if roundChange && c.current != nil {
 		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
-	} else if c.current == nil {
-		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)
 	} else {
-		c.current = newRoundState(view, validatorSet, c.current.Preprepare, nil, nil, nil, c.backend.HasBadProposal)
+		if c.current != nil {
+			// priorState is only set for finalCommitted block
+			c.updatePriorState(c.current.Round(), c.current.Proposal())
+		}
+		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)
 	}
 }
 
