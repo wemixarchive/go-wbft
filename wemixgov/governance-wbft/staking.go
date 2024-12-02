@@ -56,23 +56,19 @@ func (gs *GovStaking) ValidatorInfo(stateDB StateDB, validator common.Address) V
 
 	return Validator{
 		Staker:    HashToAddress(stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(0)))),
-		Reward:    gs.getReward(stateDB, baseSlot),
+		Reward:    HashToAddress(stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(1)))),
 		Staking:   gs.getStaking(stateDB, baseSlot),
 		Delegated: stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(3))).Big(),
 	}
 }
 
-func (gs *GovStaking) ValidatorRewardMap(stateDB StateDB) map[common.Address]common.Address {
-	rewards := make(map[common.Address]common.Address)
+func (gs *GovStaking) ValidatorInfoMap(stateDB StateDB) map[common.Address]Validator {
+	validatorInfos := make(map[common.Address]Validator)
 	validators := gs.Validators(stateDB)
 	for _, v := range validators {
-		rewards[v] = gs.getReward(stateDB, gs.validatorInfoSlot(v))
+		validatorInfos[v] = gs.ValidatorInfo(stateDB, v)
 	}
-	return rewards
-}
-
-func (gs *GovStaking) getReward(stateDB StateDB, baseSlot common.Hash) common.Address {
-	return HashToAddress(stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(1))))
+	return validatorInfos
 }
 
 func (gs *GovStaking) getStaking(stateDB StateDB, baseSlot common.Hash) *big.Int {
