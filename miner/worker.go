@@ -449,15 +449,28 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer w.wg.Done()
 	var (
-		interrupt   *atomic.Int32
-		minRecommit = recommit // minimal resubmit interval specified by user.
-		timestamp   int64      // timestamp for each round of sealing.
+		interrupt            *atomic.Int32
+		minRecommit          = recommit // minimal resubmit interval specified by user.
+		timestamp            int64      // timestamp for each round of sealing.
+		delayedInterruptType int32
 	)
 
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 	<-timer.C // discard the initial tick
 
+	delayTimer := time.NewTimer(0)
+	defer delayTimer.Stop()
+	<-delayTimer.C // discard the initial tick
+
+	tryCommit := func(s int32) {
+		if qbftEngine, ok := w.engine.(*qbftBackend.Backend); ok {
+			delayTimer.Reset(time.Until(time.Unix(int64(qbftEngine.TimeToNextBlock()), 0)))
+		} else {
+
+		}
+
+	}
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(s int32) {
 		if interrupt != nil {

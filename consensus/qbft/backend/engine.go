@@ -161,6 +161,13 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	return sb.Engine().VerifySeal(chain, header, snap.ValSet)
 }
 
+func (sb *Backend) TimeToNextBlock() uint64 {
+	latestBlock := sb.currentBlock()
+	next := new(big.Int).Set(latestBlock.Number())
+	next = next.Add(next, big.NewInt(1))
+	return latestBlock.Time() + sb.Engine().PeriodToNextBlock(next)
+}
+
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
