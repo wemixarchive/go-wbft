@@ -104,6 +104,7 @@ func (g *GovWBFT) ExpectedFail(tx *types.Transaction, txErr error) error {
 	return err
 }
 
+// Staking Contract
 func (g *GovWBFT) RegisterValidator(t *testing.T, v *TestValidator, amount *big.Int) (*types.Transaction, error) {
 	return g.stakingContractTx(t, "registerValidator", v.Staker, amount, amount, v.Validator.Address, v.Reward.Address)
 }
@@ -130,6 +131,27 @@ func (g *GovWBFT) Withdraw(t *testing.T, sender *EOA, credentialID *big.Int) (*t
 
 func (g *GovWBFT) stakingContractTx(t *testing.T, method string, sender *EOA, value *big.Int, params ...interface{}) (*types.Transaction, error) {
 	return g.stakingContract.Transact(NewTxOptsWithValue(t, sender, value), method, params...)
+}
+
+// NCP Contract
+func (g *GovWBFT) NewProposalToAddNCP(t *testing.T, proposer *EOA, ncp common.Address) (*types.Transaction, error) {
+	return g.ncpContractTx(t, "newProposalToAddNCP", proposer, nil, ncp)
+}
+
+func (g *GovWBFT) NewProposalToRemoveNCP(t *testing.T, proposer *EOA, ncp common.Address) (*types.Transaction, error) {
+	return g.ncpContractTx(t, "newProposalToRemoveNCP", proposer, nil, ncp)
+}
+
+func (g *GovWBFT) Vote(t *testing.T, voter *EOA, proposalID *big.Int, accept bool) (*types.Transaction, error) {
+	return g.ncpContractTx(t, "vote", voter, nil, proposalID, accept)
+}
+
+func (g *GovWBFT) CancelProposal(t *testing.T, sender *EOA, proposalID *big.Int) (*types.Transaction, error) {
+	return g.ncpContractTx(t, "cancelProposal", sender, nil, proposalID)
+}
+
+func (g *GovWBFT) ncpContractTx(t *testing.T, method string, sender *EOA, value *big.Int, params ...interface{}) (*types.Transaction, error) {
+	return g.ncpContract.Transact(NewTxOptsWithValue(t, sender, value), method, params...)
 }
 
 func (g *GovWBFT) balanceAt(t *testing.T, ctx context.Context, addr common.Address, num *big.Int) *big.Int {

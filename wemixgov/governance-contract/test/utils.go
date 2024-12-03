@@ -273,7 +273,7 @@ func findEvents(name string, logs []*types.Log) []map[string]interface{} {
 	}
 
 	for _, log := range logs {
-		if len(log.Topics) == 0 || log.Topics[0] != eventTy.ID || len(log.Data) == 0 {
+		if len(log.Topics) == 0 || log.Topics[0] != eventTy.ID {
 			continue
 		}
 
