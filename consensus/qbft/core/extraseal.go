@@ -24,33 +24,32 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 	}
 
 	// validate seal
-	if prepareMsg, ok := msg.(*qbftmessage.Prepare); !ok {
-		if commitMsg, ok := msg.(*qbftmessage.Commit); !ok {
-			return errInvalidExtraSealMessage
-		} else {
-			// Check digest
-			if commitMsg.Digest != block.Hash() {
-				logger.Error("QBFT: invalid COMMIT message digest")
-				return errInvalidMessage
-			}
-
-			if err := verifySeal(block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), SealTypeCommit,
-				commitMsg.CommitSeal, commitMsg.Source()); err != nil {
-				return errInvalidSeal
-			}
-		}
-	} else {
+	if prepareMsg, ok := msg.(*qbftmessage.Prepare); ok {
 		// Check digest
 		if prepareMsg.Digest != block.Hash() {
 			logger.Error("QBFT: invalid PREPARE message digest")
 			return errInvalidMessage
 		}
-
+		// verify msg seal is matched with msg digest and seal type
 		if err := verifySeal(block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), SealTypePrepare,
 			prepareMsg.PrepareSeal, prepareMsg.Source()); err != nil {
 			return errInvalidSeal
 		}
+	} else if commitMsg, ok := msg.(*qbftmessage.Commit); ok {
+		// Check digest
+		if commitMsg.Digest != block.Hash() {
+			logger.Error("QBFT: invalid COMMIT message digest")
+			return errInvalidMessage
+		}
+		// verify msg seal is matched with msg digest and seal type
+		if err := verifySeal(block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), SealTypeCommit,
+			commitMsg.CommitSeal, commitMsg.Source()); err != nil {
+			return errInvalidSeal
+		}
+	} else {
+		return errInvalidExtraSealMessage
 	}
+
 	logger.Info("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()

@@ -108,10 +108,9 @@ func (c *Core) checkMessage(msgCode uint64, view *qbft.View) error {
 	case StatePrepared:
 		// StatePrepared only accepts msgCommit and msgRoundChange
 		// other messages are invalid messages
-		if msgCode < qbftmessage.CommitCode {
-			if msgCode == qbftmessage.PrepareCode {
-				return errExtraSealMessage
-			}
+		if msgCode == qbftmessage.PrepareCode {
+			return errExtraSealMessage
+		} else if msgCode < qbftmessage.CommitCode {
 			return errInvalidMessage
 		}
 		return nil
