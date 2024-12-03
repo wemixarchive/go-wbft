@@ -66,7 +66,7 @@ func New(backend Backend, config *qbft.Config) *Core {
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
-		priorState:         &priorState{new(sync.RWMutex), common.Big0, nil},
+		priorState:         priorState{new(sync.RWMutex), common.Big0, nil},
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -95,7 +95,7 @@ type Core struct {
 
 	extraSeals   *prque.Prque[int64, qbftmessage.QBFTMessage]
 	extraSealsMu *sync.Mutex
-	priorState   *priorState
+	priorState   priorState
 
 	current      *roundState
 	currentMutex sync.Mutex
