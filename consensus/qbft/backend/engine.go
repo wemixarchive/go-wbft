@@ -175,14 +175,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		sb.simApplier.Apply(sb.config, header.Number)
 	}
 
-	var extraPreparedSeal [][]byte
-	var extraCommittedSeal [][]byte
-	if sb.core != nil {
-		lastProposal, _ := sb.LastProposal()
-		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
-	}
-
-	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraCommittedSeal)
+	err = sb.Engine().Prepare(chain, header, snap.ValSet)
 	if err != nil {
 		return err
 	}
@@ -312,6 +305,7 @@ func (sb *Backend) processExtraSeals(header *types.Header) (*types.Header, error
 	}
 	prevPreparedSeal := mergeSeals(qbftExtra.PrevPreparedSeal, extraPreparedSeal)
 	prevCommittedSeal := mergeSeals(qbftExtra.PrevCommittedSeal, extraCommittedSeal)
+	log.Info("JENN : Check extraSeals", "CurrentHeaderNum", header.Number, "prepared", len(extraPreparedSeal), "committed", len(extraCommittedSeal))
 
 	if err := qbftengine.ApplyHeaderQBFTExtra(
 		header,

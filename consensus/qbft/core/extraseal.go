@@ -50,11 +50,11 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 		return errInvalidExtraSealMessage
 	}
 
-	logger.Info("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 	view := msg.View()
 	c.extraSeals.Push(msg, toPriority(&view))
+	logger.Info("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
 	return nil
 }
 

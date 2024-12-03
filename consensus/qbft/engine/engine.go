@@ -404,7 +404,7 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 	return e.verifySigner(chain, header, nil, validators)
 }
 
-func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal [][]byte) error {
+func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
 	header.Coinbase = common.Address{}
 	header.Nonce = qbftcommon.EmptyBlockNonce
 
