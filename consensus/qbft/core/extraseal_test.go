@@ -104,7 +104,7 @@ func makeCoreForTest(priorRound, currentRound, currentSequence *big.Int, lastPro
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
-		priorState:         &priorState{new(sync.RWMutex), common.Big0, nil},
+		priorState:         priorState{new(sync.RWMutex), common.Big0, nil},
 	}
 	core.validateFn = core.checkValidatorSignature
 	// Set core current view and proposal
