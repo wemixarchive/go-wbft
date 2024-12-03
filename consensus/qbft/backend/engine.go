@@ -162,7 +162,13 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 }
 
 func (sb *Backend) TimeToNextBlock() uint64 {
+	if sb.currentBlock == nil {
+		return 0 // if it has no current block function then it returns zero time
+	}
 	latestBlock := sb.currentBlock()
+	if latestBlock == nil {
+		return 0
+	}
 	next := new(big.Int).Set(latestBlock.Number())
 	next = next.Add(next, big.NewInt(1))
 	return latestBlock.Time() + sb.Engine().PeriodToNextBlock(next)

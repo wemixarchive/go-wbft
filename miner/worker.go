@@ -453,7 +453,10 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		minRecommit          = recommit // minimal resubmit interval specified by user.
 		timestamp            int64      // timestamp for each round of sealing.
 		delayedInterruptType int32
+		qbftEngine           *qbftBackend.Backend
 	)
+
+	qbftEngine, _ = w.engine.(*qbftBackend.Backend)
 
 	timer := time.NewTimer(0)
 	defer timer.Stop()
@@ -463,14 +466,6 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer delayTimer.Stop()
 	<-delayTimer.C // discard the initial tick
 
-	tryCommit := func(s int32) {
-		if qbftEngine, ok := w.engine.(*qbftBackend.Backend); ok {
-			delayTimer.Reset(time.Until(time.Unix(int64(qbftEngine.TimeToNextBlock()), 0)))
-		} else {
-
-		}
-
-	}
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(s int32) {
 		if interrupt != nil {
@@ -485,6 +480,18 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		timer.Reset(recommit)
 		w.newTxs.Store(0)
 	}
+
+	tryCommit := func(s int32) {
+		if qbftEngine == nil || w.config.SimulatedEnabled {
+			commit(s) // other than qbft engine; just call `commit()`
+		} else {
+			// worker needs to wait until the next block time to commit new work in case of qbft engine.
+			// if an another `tryCommit` call happens before delayTimer tick occurs, prior timer is discarded.
+			delayTimer.Reset(time.Until(time.Unix(int64(qbftEngine.TimeToNextBlock()), 0)))
+			delayedInterruptType = s
+		}
+	}
+
 	// clearPending cleans the stale pending tasks.
 	clearPending := func(number uint64) {
 		w.pendingMu.Lock()
@@ -501,7 +508,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		case <-w.startCh:
 			clearPending(w.chain.CurrentBlock().Number.Uint64())
 			timestamp = time.Now().Unix()
-			commit(commitInterruptNewHead)
+			tryCommit(commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
 			// ## Quorum QBFT START
@@ -518,7 +525,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
-			commit(commitInterruptNewHead)
+			tryCommit(commitInterruptNewHead)
 
 		case <-timer.C:
 			// If sealing is running resubmit a new work cycle periodically to pull in
@@ -529,8 +536,11 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 					timer.Reset(recommit)
 					continue
 				}
-				commit(commitInterruptResubmit)
+				tryCommit(commitInterruptResubmit)
 			}
+
+		case <-delayTimer.C:
+			commit(delayedInterruptType)
 
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
