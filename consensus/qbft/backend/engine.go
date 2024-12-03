@@ -22,10 +22,6 @@ package backend
 
 import (
 	"errors"
-	"math/big"
-	"math/rand"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
@@ -38,6 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
+	"math/rand"
 )
 
 const (
@@ -249,20 +247,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		return err
 	}
 
-	delay := time.Until(time.Unix(int64(block.Header().Time), 0))
-	if sb.simApplier != nil {
-		delay = time.Duration(0)
-	}
-
 	go func() {
-		// wait for the timestamp of header, use this to adjust the block period
-		select {
-		case <-time.After(delay):
-		case <-stop:
-			results <- nil
-			return
-		}
-
 		// get the proposed block hash and clear it if the seal() is completed.
 		sb.sealMu.Lock()
 		sb.proposedBlockHash = block.Hash()
