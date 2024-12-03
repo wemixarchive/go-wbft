@@ -16,6 +16,8 @@ type priorState struct {
 }
 
 func (c *Core) updatePriorState(priorRound *big.Int, priorProposal qbft.Proposal) {
+	c.priorState.mu.Lock()
+	defer c.priorState.mu.Unlock()
 	c.priorState.round = priorRound
 	if priorProposal != nil {
 		c.priorState.proposal = priorProposal
