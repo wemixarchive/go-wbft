@@ -481,6 +481,9 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	tryCommit := func(s int32) {
 		timeToWait := w.engine.TimeForNextWork()
 		if timeToWait == 0 || w.config.SimulatedEnabled {
+			// if there is prior timer, discard it
+			delayTimer.Reset(0)
+			<-delayTimer.C
 			commit(s)
 		} else {
 			// worker needs to wait until the next block time to commit new work in case of qbft engine.
