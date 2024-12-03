@@ -482,8 +482,12 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		if w.config.SimulatedEnabled {
 			delayTimer.Reset(0)
 		} else {
-			// worker needs to wait until the next block time to commit new work in case of qbft engine.
-			// if an another `tryCommit` call happens before delayTimer tick occurs, prior timer is discarded.
+			// There is some engine in which worker needs to wait until the next block time to commit new work(ex: qbft).
+			// In the previous QBFT engine, worker should wait for the block period when sealing.
+			// However, to create a finalized block(including extra seals) during the prepare phase, it is necessary
+			// to wait for the block period when processing new work. The reason for waiting during the prepare phase is
+			// to gather more extra seals.
+			// If another `tryCommit` call happens before delayTimer tick occurs, prior timer is discarded.
 			delayTimer.Reset(time.Until(time.Unix(int64(w.engine.TimeForNextWork()), 0)))
 		}
 		delayedInterruptType = s
