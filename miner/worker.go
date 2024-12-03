@@ -453,10 +453,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		minRecommit          = recommit // minimal resubmit interval specified by user.
 		timestamp            int64      // timestamp for each round of sealing.
 		delayedInterruptType int32
-		qbftEngine           *qbftBackend.Backend
 	)
-
-	qbftEngine, _ = w.engine.(*qbftBackend.Backend)
 
 	timer := time.NewTimer(0)
 	defer timer.Stop()
@@ -482,12 +479,13 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	}
 
 	tryCommit := func(s int32) {
-		if qbftEngine == nil || w.config.SimulatedEnabled {
-			commit(s) // other than qbft engine; just call `commit()`
+		timeToWait := w.engine.TimeForNextWork()
+		if timeToWait == 0 || w.config.SimulatedEnabled {
+			commit(s)
 		} else {
 			// worker needs to wait until the next block time to commit new work in case of qbft engine.
 			// if an another `tryCommit` call happens before delayTimer tick occurs, prior timer is discarded.
-			delayTimer.Reset(time.Until(time.Unix(int64(qbftEngine.TimeToNextBlock()), 0)))
+			delayTimer.Reset(time.Until(time.Unix(int64(timeToWait), 0)))
 			delayedInterruptType = s
 		}
 	}

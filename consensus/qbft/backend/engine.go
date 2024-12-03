@@ -160,7 +160,8 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	return sb.Engine().VerifySeal(chain, header, snap.ValSet)
 }
 
-func (sb *Backend) TimeToNextBlock() uint64 {
+// TimeForNextWork returns the time to wait for next work namely next block time
+func (sb *Backend) TimeForNextWork() uint64 {
 	if sb.currentBlock == nil {
 		return 0 // if it has no current block function then it returns zero time
 	}
