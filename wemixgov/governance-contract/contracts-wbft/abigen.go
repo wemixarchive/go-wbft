@@ -23,12 +23,12 @@ func main() {
 	outDir := filepath.Join(root, "../../bind")
 	if contracts, err := compile.Compile(openZeppelin,
 		filepath.Join(root, "GovStaking.sol"),
-		filepath.Join(root, "NCPList.sol"),
+		filepath.Join(root, "GovNCP.sol"),
 	); err != nil {
 		panic(err)
 	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_govStaking_abi.go"), gov.CONTRACT_GOV_STAKING); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_ncpList_abi.go"), gov.CONTRACT_NCP_LIST); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_govNCP_abi.go"), gov.CONTRACT_NCP_LIST); err != nil {
 		panic(err)
 	} else {
 		fmt.Println("success!")

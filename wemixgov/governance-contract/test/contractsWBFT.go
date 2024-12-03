@@ -25,19 +25,19 @@ func init() {
 
 type compiledContractWBFT struct {
 	GovStaking,
-	NCPList *bindContract
+	GovNCP *bindContract
 }
 
 func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 	if contracts, err := compile.Compile(openzeppelinPath,
 		filepath.Join(root, "GovStaking.sol"),
-		filepath.Join(root, "NCPList.sol"),
+		filepath.Join(root, "GovNCP.sol"),
 	); err != nil {
 		panic(err)
 	} else {
 		if c.GovStaking, err = newBindContract(contracts["GovStaking"]); err != nil {
 			panic(err)
-		} else if c.NCPList, err = newBindContract(contracts["NCPList"]); err != nil {
+		} else if c.GovNCP, err = newBindContract(contracts["GovNCP"]); err != nil {
 			panic(err)
 		}
 	}
@@ -48,28 +48,40 @@ type GovWBFT struct {
 	owner           *bind.TransactOpts
 	gov             *govWBFT.Governance
 	stakingContract *bind.BoundContract
-	ncpListContract *bind.BoundContract
+	ncpContract     *bind.BoundContract
 }
 
 func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc) (*GovWBFT, error) {
+	owner := getTxOpt(t, "owner")
+
 	if alloc == nil {
 		alloc = make(types.GenesisAlloc)
 	}
-	owner := getTxOpt(t, "owner")
 	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
 	g := &GovWBFT{
 		owner:   owner,
 		backend: simulated.NewWbftBackend(alloc),
 	}
 
-	stakingAddr, stakingContract, err := g.Deploy(compiledWBFT.GovStaking.Deploy(g.backend.Client(), g.owner))
-	require.NoError(t, err)
-	ncpAddr, ncpListContract, err := g.Deploy(compiledWBFT.NCPList.Deploy(g.backend.Client(), g.owner, ncpList))
+	var (
+		stakingAddr, ncpAddr         common.Address
+		stakingContract, ncpContract *bind.BoundContract
+		err                          error
+	)
+
+	// deploy GovStaking
+	stakingAddr, stakingContract, err = g.Deploy(compiledWBFT.GovStaking.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
 
-	g.gov = govWBFT.NewGovernance(stakingAddr, ncpAddr)
+	// deploy GovNCP
+	if len(ncpList) > 0 {
+		ncpAddr, ncpContract, err = g.Deploy(compiledWBFT.GovNCP.Deploy(g.backend.Client(), g.owner, ncpList))
+		require.NoError(t, err)
+	}
+
 	g.stakingContract = stakingContract
-	g.ncpListContract = ncpListContract
+	g.ncpContract = ncpContract
+	g.gov = govWBFT.NewGovernance(stakingAddr, ncpAddr)
 
 	return g, nil
 

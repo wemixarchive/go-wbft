@@ -4,7 +4,7 @@ pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-contract NCPList {
+contract GovNCP {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     enum Decision {
@@ -47,10 +47,10 @@ contract NCPList {
     uint256 public currentProposalID;
     mapping(uint256 => Proposal) private __proposals;
 
-    event NewProposal(uint256 indexed id, uint256 proposalType, address ncp, address proposer);
+    event NewProposal(uint256 indexed id, uint256 proposalType, address ncp, address proposer, uint256 time, uint256 endtime);
     event Vote(uint256 indexed proposalID, address voter, bool accept);
     event ProposalFinalized(uint256 indexed proposalID, bool accepted);
-    event ProposalCanceled(uint256 indexed _proposalID);
+    event ProposalCanceled(uint256 indexed proposalID);
 
     event NCPAdded(address indexed ncp);
     event NCPRemoved(address indexed ncp);
@@ -61,6 +61,7 @@ contract NCPList {
     }
 
     constructor(address[] memory _ncpList) {
+        require(_ncpList.length > 0, "at least one ncp required");
         for (uint256 i = 0; i < _ncpList.length; i++) {
             __ncpList.add(_ncpList[i]);
         }
@@ -86,8 +87,8 @@ contract NCPList {
 
     function vote(uint256 _proposalID, bool _accept) external onlyNCP {
         Proposal storage _proposal = _getVotingProposal(_proposalID);
+        require(block.timestamp <= _proposal.endTime, "already closed vote");
         require(_proposal.decisions[msg.sender] == Decision.None, "already voted");
-        if (block.timestamp > _proposal.endTime) _cancelVote(_proposal);
 
         Decision _decision;
         if (_accept) {
@@ -103,19 +104,26 @@ contract NCPList {
         emit Vote(_proposalID, msg.sender, _accept);
         uint256 _threshold = __ncpList.length();
         if (_proposal.accepts * 2 > _threshold || _proposal.rejects * 2 >= _threshold) {
-            _finalizeVote(_proposal, _proposal.accepts > _proposal.rejects);
+            _finalizeProposal(_proposal, _proposal.accepts > _proposal.rejects);
         }
     }
 
-    function cancelVote(uint256 _proposalID) external onlyNCP {
+    function cancelProposal(uint256 _proposalID) external onlyNCP {
         Proposal storage _proposal = _getVotingProposal(_proposalID);
         require(block.timestamp > _proposal.endTime || _proposal.proposer == msg.sender, "cannot cancel");
-        _cancelVote(_proposal);
+        _cancelProposal(_proposal);
     }
 
     function _newProposal(address _targetNCP, ProposalType _proposalType) private {
-        require(__proposals[currentProposalID].state == ProposalState.None, "previous vote is in progress");
         Proposal storage _proposal = __proposals[currentProposalID];
+        if (_proposal.state != ProposalState.None) {
+            if (_proposal.endTime >= block.timestamp) {
+                revert("previous vote is in progress");
+            } else {
+                _cancelProposal(_proposal);
+                _proposal = __proposals[currentProposalID];
+            }
+        }
         _proposal.proposer = msg.sender;
         _proposal.startTime = block.timestamp;
         _proposal.endTime = block.timestamp + VOTING_PERIOD;
@@ -123,7 +131,7 @@ contract NCPList {
         _proposal.proposalType = _proposalType;
         _proposal.state = ProposalState.Voting;
 
-        emit NewProposal(currentProposalID, uint(_proposalType), _targetNCP, msg.sender);
+        emit NewProposal(currentProposalID, uint(_proposalType), _targetNCP, msg.sender, block.timestamp, _proposal.endTime);
     }
 
     function _getVotingProposal(uint256 _proposalID) private view returns (Proposal storage _proposal) {
@@ -132,7 +140,7 @@ contract NCPList {
         require(_proposal.state == ProposalState.Voting, "not in voting");
     }
 
-    function _finalizeVote(Proposal storage _proposal, bool _accepted) private {
+    function _finalizeProposal(Proposal storage _proposal, bool _accepted) private {
         if (_accepted) {
             if (_proposal.proposalType == ProposalType.NCPAdd) {
                 __ncpList.add(_proposal.targetNCP);
@@ -150,7 +158,7 @@ contract NCPList {
         currentProposalID++;
     }
 
-    function _cancelVote(Proposal storage _proposal) private {
+    function _cancelProposal(Proposal storage _proposal) private {
         _proposal.state = ProposalState.Canceled;
         emit ProposalCanceled(currentProposalID);
 

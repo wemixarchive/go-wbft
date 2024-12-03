@@ -16,6 +16,9 @@ type GovNCP struct {
 }
 
 func NewGovNCP(address common.Address) *GovNCP {
+	if address == (common.Address{}) {
+		return nil
+	}
 	return &GovNCP{
 		Address: address,
 		ncpSet:  NewAddressSet(common.HexToHash(SLOT_NCP_LIST)),
