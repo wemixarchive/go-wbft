@@ -249,7 +249,7 @@ func TestGovWithoutNCP(t *testing.T) {
 			beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
 
 			unbonding := unstakeEvent["unbonding"].(*big.Int)
-			g.backend.AdjustTime(time.Duration(unbonding.Int64()) * time.Second)
+			g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
 			receipt, err := g.ExpectedOk(g.Withdraw(t, v1.Staker, unstakeEvent["credentialID"].(*big.Int)))
 			require.NoError(t, err)
 
@@ -278,7 +278,7 @@ func TestGovWithoutNCP(t *testing.T) {
 				beforeBalance := g.balanceAt(t, ctx, v2.Staker.Address, nil)
 
 				unbonding := unstakeEvent["unbonding"].(*big.Int)
-				g.backend.AdjustTime(time.Duration(unbonding.Int64()) * time.Second)
+				g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
 				receipt, err := g.ExpectedOk(g.Withdraw(t, v2.Staker, unstakeEvent["credentialID"].(*big.Int)))
 				require.NoError(t, err)
 
@@ -397,7 +397,7 @@ func TestGovWithoutNCP(t *testing.T) {
 			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
 
 			unbonding := undelegateEvent["unbonding"].(*big.Int)
-			g.backend.AdjustTime(time.Duration(unbonding.Int64()) * time.Second)
+			g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
 			receipt, err := g.ExpectedOk(g.Withdraw(t, delegator, undelegateEvent["credentialID"].(*big.Int)))
 			require.NoError(t, err)
 
@@ -424,7 +424,7 @@ func TestGovWithoutNCP(t *testing.T) {
 				beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
 
 				unbonding := unstakeEvent["unbonding"].(*big.Int)
-				g.backend.AdjustTime(time.Duration(unbonding.Int64()) * time.Second)
+				g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
 				withdrawReceipt, err := g.ExpectedOk(g.Withdraw(t, v1.Staker, unstakeEvent["credentialID"].(*big.Int)))
 				require.NoError(t, err)
 
@@ -687,7 +687,7 @@ func TestGovWithNCP(t *testing.T) {
 				"non-proposer cannot cancel before timeout",
 			)
 
-			g.backend.AdjustTime(Voting_Period)
+			g.adjustTime(Voting_Period)
 
 			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int)))
 			require.NoError(t, err)
@@ -704,7 +704,7 @@ func TestGovWithNCP(t *testing.T) {
 				"previous vote is in progress",
 			)
 
-			g.backend.AdjustTime(Voting_Period)
+			g.adjustTime(Voting_Period)
 
 			receipt, err = g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
@@ -736,7 +736,7 @@ func TestGovWithNCP(t *testing.T) {
 				"already voted",
 			)
 
-			g.backend.AdjustTime(Voting_Period)
+			g.adjustTime(Voting_Period)
 
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true)),

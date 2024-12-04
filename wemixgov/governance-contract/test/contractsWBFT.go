@@ -5,11 +5,14 @@ import (
 	"math/big"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
+	"github.com/ethereum/go-ethereum/node"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
 	govWBFT "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
@@ -51,6 +54,8 @@ type GovWBFT struct {
 	ncpContract     *bind.BoundContract
 }
 
+var defaultBlockPeriod time.Duration
+
 func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc) (*GovWBFT, error) {
 	owner := getTxOpt(t, "owner")
 
@@ -59,8 +64,10 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 	}
 	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
 	g := &GovWBFT{
-		owner:   owner,
-		backend: simulated.NewWbftBackend(alloc),
+		owner: owner,
+		backend: simulated.NewWbftBackend(alloc, func(nodeConf *node.Config, ethConf *ethconfig.Config) {
+			defaultBlockPeriod = time.Duration(ethConf.Genesis.Config.QBFT.BlockPeriodSeconds) * time.Second
+		}),
 	}
 
 	var (
@@ -158,6 +165,11 @@ func (g *GovWBFT) balanceAt(t *testing.T, ctx context.Context, addr common.Addre
 	require.NoError(t, err)
 
 	return balance
+}
+
+func (g *GovWBFT) adjustTime(adjustment time.Duration) {
+	g.backend.AdjustTime(adjustment)
+	g.backend.AdjustTime(defaultBlockPeriod)
 }
 
 type TestValidator struct {
