@@ -18,16 +18,20 @@ func NewGovernance(stakingAddr, ncpAddr common.Address) *Governance {
 	}
 }
 
-func (g *Governance) IsNCPValidator(stateDB StateDB, ncp common.Address) bool {
-	return g.IsValidator(stateDB, ncp) && g.IsNCP(stateDB, ncp)
+func (g *Governance) IsNCPValidator(stateDB StateDB, validator common.Address) bool {
+	if !g.IsValidator(stateDB, validator) {
+		return false
+	}
+	return g.IsNCP(stateDB, g.getStaker(stateDB, g.validatorInfoSlot(validator)))
 }
 
 func (g *Governance) NCPValidators(stateDB StateDB) []common.Address {
 	validators := make([]common.Address, 0)
 	ncps := g.NCPList(stateDB)
 	for _, ncp := range ncps {
-		if g.IsValidator(stateDB, ncp) {
-			validators = append(validators, ncp)
+		v := g.ValidatorByStaker(stateDB, ncp)
+		if v != (common.Address{}) {
+			validators = append(validators, v)
 		}
 	}
 	return validators

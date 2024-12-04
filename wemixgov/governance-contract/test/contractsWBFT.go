@@ -84,7 +84,6 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 	g.gov = govWBFT.NewGovernance(stakingAddr, ncpAddr)
 
 	return g, nil
-
 }
 
 func (g *GovWBFT) Deploy(address common.Address, tx *types.Transaction, contract *bind.BoundContract, txErr error) (common.Address, *bind.BoundContract, error) {

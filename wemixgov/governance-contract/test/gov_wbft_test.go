@@ -472,11 +472,12 @@ func TestGovWithNCP(t *testing.T) {
 		ncp4 = NewTestValidator()
 	)
 
-	ncps = append(ncps, ncp1.Validator.Address, ncp2.Validator.Address)
+	ncps = append(ncps, ncp1.Staker.Address, ncp2.Staker.Address)
 	g, err := NewGovWBFT(t, ncps, types.GenesisAlloc{
-		ncp1.Validator.Address: {Balance: MAX_UINT_128}, ncp1.Staker.Address: {Balance: MAX_UINT_128},
-		ncp2.Validator.Address: {Balance: MAX_UINT_128}, ncp2.Staker.Address: {Balance: MAX_UINT_128},
-		ncp3.Validator.Address: {Balance: MAX_UINT_128}, ncp3.Staker.Address: {Balance: MAX_UINT_128},
+		ncp1.Staker.Address: {Balance: MAX_UINT_128},
+		ncp2.Staker.Address: {Balance: MAX_UINT_128},
+		ncp3.Staker.Address: {Balance: MAX_UINT_128},
+		ncp4.Staker.Address: {Balance: MAX_UINT_128},
 	})
 	require.NoError(t, err)
 
@@ -553,7 +554,7 @@ func TestGovWithNCP(t *testing.T) {
 		t.Run("new proposal to add ncp", func(t *testing.T) {
 			defer checkNCPValidator()
 
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
 
 			proposalEvent = findEvent("NewProposal", receipt.Logs)
@@ -564,37 +565,36 @@ func TestGovWithNCP(t *testing.T) {
 			defer checkNCPValidator()
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Staker, ncp4.Validator.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp4.Staker, ncp4.Staker.Address)),
 				"msg.sender is not ncp",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Validator, ncp2.Validator.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Staker, ncp2.Staker.Address)),
 				"ncp exists",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Validator, ncp4.Validator.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Staker, ncp4.Staker.Address)),
 				"previous vote is in progress",
 			)
 		})
 		t.Run("vote & add ncp", func(t *testing.T) {
 			defer checkNCPValidator()
 
-			_, err := g.ExpectedOk(g.Vote(t, ncp1.Validator, proposalEvent["id"].(*big.Int), true))
+			_, err := g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
 			// Vote not finalized
 			checkNCPValidator()
 
-			_, err = g.ExpectedOk(g.Vote(t, ncp2.Validator, proposalEvent["id"].(*big.Int), true))
+			_, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
-			ncps = append(ncps, ncp3.Validator.Address)
+			ncps = append(ncps, ncp3.Staker.Address)
 			ncpValidators = append(ncpValidators, ncp3.Validator.Address)
 			ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, g.gov.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
 		})
-
 	})
 
 	t.Run("Remove NCP", func(t *testing.T) {
@@ -603,7 +603,7 @@ func TestGovWithNCP(t *testing.T) {
 		t.Run("new proposal to remove ncp", func(t *testing.T) {
 			defer checkNCPValidator()
 
-			receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Validator, ncp3.Validator.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
 
 			proposalEvent = findEvent("NewProposal", receipt.Logs)
@@ -614,23 +614,23 @@ func TestGovWithNCP(t *testing.T) {
 			defer checkNCPValidator()
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToRemoveNCP(t, ncp1.Validator, ncp4.Validator.Address)),
+				g.ExpectedFail(g.NewProposalToRemoveNCP(t, ncp1.Staker, ncp4.Staker.Address)),
 				"invalid ncp",
 			)
 		})
 		t.Run("vote & remove ncp", func(t *testing.T) {
 			defer checkNCPValidator()
 
-			_, err := g.ExpectedOk(g.Vote(t, ncp1.Validator, proposalEvent["id"].(*big.Int), true))
+			_, err := g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
 			// not finalized
 			checkNCPValidator()
 
-			_, err = g.ExpectedOk(g.Vote(t, ncp2.Validator, proposalEvent["id"].(*big.Int), true))
+			_, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
-			ncps = removeElement(ncps, ncp3.Validator.Address)
+			ncps = removeElement(ncps, ncp3.Staker.Address)
 			ncpValidators = removeElement(ncpValidators, ncp3.Validator.Address)
 			ncpTotalStaking = ncpTotalStaking.Sub(ncpTotalStaking, g.gov.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
 		})
@@ -640,57 +640,57 @@ func TestGovWithNCP(t *testing.T) {
 		defer checkNCPValidator()
 
 		t.Run("cancel by proposer", func(t *testing.T) {
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.CancelProposal(t, ncp2.Validator, proposalEvent["id"].(*big.Int))),
+				g.ExpectedFail(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int))),
 				"cannot cancel",
 			)
 
-			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Validator, proposalEvent["id"].(*big.Int)))
+			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int)))
 			require.NoError(t, err)
 			require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 		})
 
 		t.Run("canceled due to timeout", func(t *testing.T) {
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.CancelProposal(t, ncp2.Validator, proposalEvent["id"].(*big.Int))),
+				g.ExpectedFail(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int))),
 				"cannot cancel",
 			)
 
 			g.backend.AdjustTime(Voting_Period)
 
-			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp2.Validator, proposalEvent["id"].(*big.Int)))
+			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int)))
 			require.NoError(t, err)
 			require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 		})
 
 		t.Run("timeout & new proposal", func(t *testing.T) {
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address)),
 				"previous vote is in progress",
 			)
 
 			g.backend.AdjustTime(Voting_Period)
 
-			receipt, err = g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+			receipt, err = g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
 			require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 
 			// cancel for next test
 			{
 				proposalEvent := findEvent("NewProposal", receipt.Logs)
-				receipt, err := g.ExpectedOk(g.CancelProposal(t, ncp1.Validator, proposalEvent["id"].(*big.Int)))
+				receipt, err := g.ExpectedOk(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int)))
 				require.NoError(t, err)
 				require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 			}
@@ -701,22 +701,22 @@ func TestGovWithNCP(t *testing.T) {
 		t.Run("failure case", func(t *testing.T) {
 			defer checkNCPValidator()
 
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-			_, err = g.ExpectedOk(g.Vote(t, ncp1.Validator, proposalEvent["id"].(*big.Int), true))
+			_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Vote(t, ncp1.Validator, proposalEvent["id"].(*big.Int), true)),
+				g.ExpectedFail(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true)),
 				"already voted",
 			)
 
 			g.backend.AdjustTime(Voting_Period)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Vote(t, ncp2.Validator, proposalEvent["id"].(*big.Int), true)),
+				g.ExpectedFail(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true)),
 				"already closed vote",
 			)
 		})
@@ -727,11 +727,11 @@ func TestGovWithNCP(t *testing.T) {
 					defer checkNCPValidator()
 
 					// 1 NCP is required for reject
-					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp1.Validator, proposalEvent["id"].(*big.Int), false))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), false))
 					require.NoError(t, err)
 
 					finalizedEvent := findEvent("ProposalFinalized", receipt.Logs)
@@ -742,17 +742,17 @@ func TestGovWithNCP(t *testing.T) {
 					defer checkNCPValidator()
 
 					// 2 NCP is required for accept
-					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Validator, ncp3.Validator.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					_, err = g.ExpectedOk(g.Vote(t, ncp1.Validator, proposalEvent["id"].(*big.Int), true))
+					_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Validator, proposalEvent["id"].(*big.Int), true))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					ncps = append(ncps, ncp3.Validator.Address)
+					ncps = append(ncps, ncp3.Staker.Address)
 					ncpValidators = append(ncpValidators, ncp3.Validator.Address)
 					ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, g.gov.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
 
@@ -766,14 +766,14 @@ func TestGovWithNCP(t *testing.T) {
 					defer checkNCPValidator()
 
 					// 2 NCP is required for reject
-					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp2.Validator, ncp3.Validator.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp2.Staker, ncp3.Staker.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					_, err = g.ExpectedOk(g.Vote(t, ncp1.Validator, proposalEvent["id"].(*big.Int), false))
+					_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), false))
 					require.NoError(t, err)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Validator, proposalEvent["id"].(*big.Int), false))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), false))
 					require.NoError(t, err)
 
 					finalizedEvent := findEvent("ProposalFinalized", receipt.Logs)
@@ -784,17 +784,17 @@ func TestGovWithNCP(t *testing.T) {
 					defer checkNCPValidator()
 
 					// 2 NCP is required for accept
-					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp3.Validator, ncp3.Validator.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp3.Staker, ncp3.Staker.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					_, err = g.ExpectedOk(g.Vote(t, ncp2.Validator, proposalEvent["id"].(*big.Int), true))
+					_, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp3.Validator, proposalEvent["id"].(*big.Int), true))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp3.Staker, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					ncps = removeElement(ncps, ncp3.Validator.Address)
+					ncps = removeElement(ncps, ncp3.Staker.Address)
 					ncpValidators = removeElement(ncpValidators, ncp3.Validator.Address)
 					ncpTotalStaking = ncpTotalStaking.Sub(ncpTotalStaking, g.gov.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
 

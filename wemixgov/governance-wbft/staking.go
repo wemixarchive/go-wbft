@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	SLOT_TOTAL_STAKING  = "0x0"
-	SLOT_VALIDATOR_SET  = "0x1" // ,0x2
-	SLOT_VALIDATOR_INFO = "0x3"
+	SLOT_TOTAL_STAKING       = "0x0"
+	SLOT_VALIDATOR_SET       = "0x1" // ,0x2
+	SLOT_VALIDATOR_INFO      = "0x3"
+	SLOT_VALIDATOR_BY_STAKER = "0x4"
 )
 
 type Validator struct {
@@ -51,11 +52,16 @@ func (gs *GovStaking) ValidatorAt(stateDB StateDB, index *big.Int) common.Addres
 	return gs.validatorSet.At(stateDB, gs.Address, index)
 }
 
+func (gs *GovStaking) ValidatorByStaker(stateDB StateDB, staker common.Address) common.Address {
+	validator := stateDB.GetState(gs.Address, CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_BY_STAKER), staker))
+	return HashToAddress(validator)
+}
+
 func (gs *GovStaking) ValidatorInfo(stateDB StateDB, validator common.Address) Validator {
 	baseSlot := gs.validatorInfoSlot(validator)
 
 	return Validator{
-		Staker:    HashToAddress(stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(0)))),
+		Staker:    gs.getStaker(stateDB, baseSlot),
 		Reward:    HashToAddress(stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(1)))),
 		Staking:   gs.getStaking(stateDB, baseSlot),
 		Delegated: stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(3))).Big(),
@@ -69,6 +75,10 @@ func (gs *GovStaking) ValidatorInfoMap(stateDB StateDB) map[common.Address]Valid
 		validatorInfos[v] = gs.ValidatorInfo(stateDB, v)
 	}
 	return validatorInfos
+}
+
+func (gs *GovStaking) getStaker(stateDB StateDB, baseSlot common.Hash) common.Address {
+	return HashToAddress(stateDB.GetState(gs.Address, baseSlot))
 }
 
 func (gs *GovStaking) getStaking(stateDB StateDB, baseSlot common.Hash) *big.Int {
