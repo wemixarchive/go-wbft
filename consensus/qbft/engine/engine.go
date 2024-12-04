@@ -451,7 +451,7 @@ func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
 	return e.cfg.GetConfig(blockNumber).BlockPeriod
 }
 
-func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal [][]byte) error {
 	header.Coinbase = common.Address{}
 	header.Nonce = qbftcommon.EmptyBlockNonce
 
@@ -509,19 +509,21 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		if err != nil {
 			return err
 		} else if extra.PreparedSeal == nil {
-			// TODO : what if there is not preparedSeal that node collected?
 			return qbftcommon.ErrEmptyPreparedSeals
 		} else if extra.CommittedSeal == nil {
-			// TODO : what if there is not committedSeal that node collected?
 			return qbftcommon.ErrEmptyCommittedSeals
 		}
+
+		//make final prevSeals by merging existing seals and extra seals
+		prevPreparedSeal := mergeSeals(extra.PreparedSeal, extraPreparedSeal)
+		prevCommittedSeal := mergeSeals(extra.CommittedSeal, extraCommittedSeal)
 
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		return ApplyHeaderQBFTExtra(
 			header,
 			WriteValidators(validatorsList),
-			WritePrevPreparedSeal(extra.PreparedSeal),
-			WritePrevCommittedSeal(extra.CommittedSeal),
+			WritePrevPreparedSeal(prevPreparedSeal),
+			WritePrevCommittedSeal(prevCommittedSeal),
 		)
 	}
 }
@@ -816,4 +818,29 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 	}
 
 	return nil
+}
+
+func mergeSeals(seals1, seals2 [][]byte) [][]byte {
+	mergedSeals := [][]byte{}
+
+	contains := func(slices [][]byte, item []byte) bool {
+		for _, s := range slices {
+			if bytes.Equal(s, item) { // Directly compare []byte
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, s1 := range seals1 {
+		if !contains(mergedSeals, s1) {
+			mergedSeals = append(mergedSeals, s1)
+		}
+	}
+	for _, s2 := range seals2 {
+		if !contains(mergedSeals, s2) {
+			mergedSeals = append(mergedSeals, s2)
+		}
+	}
+	return mergedSeals
 }

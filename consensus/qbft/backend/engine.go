@@ -21,7 +21,6 @@
 package backend
 
 import (
-	"bytes"
 	"errors"
 	"math/big"
 	"math/rand"
@@ -188,7 +187,9 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		sb.simApplier.Apply(sb.config, header.Number)
 	}
 
-	err = sb.Engine().Prepare(chain, header, snap.ValSet)
+	extraPreparedSeal, extraComittedSeal := sb.processExtraSeals()
+
+	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraComittedSeal)
 	if err != nil {
 		return err
 	}
@@ -284,30 +285,14 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	return nil
 }
 
-func (sb *Backend) processExtraSeals(header *types.Header) (*types.Header, error) {
-	//  add extraSeal to block header
-	qbftExtra, err := types.ExtractQBFTExtra(header)
-	if err != nil {
-		return nil, err
-	}
+func (sb *Backend) processExtraSeals() ([][]byte, [][]byte) {
 	var extraPreparedSeal [][]byte
 	var extraCommittedSeal [][]byte
 	if sb.core != nil {
 		lastProposal, _ := sb.LastProposal()
 		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
 	}
-	prevPreparedSeal := mergeSeals(qbftExtra.PrevPreparedSeal, extraPreparedSeal)
-	prevCommittedSeal := mergeSeals(qbftExtra.PrevCommittedSeal, extraCommittedSeal)
-	log.Info("JENN : Check extraSeals", "CurrentHeaderNum", header.Number, "prepared", len(extraPreparedSeal), "committed", len(extraCommittedSeal))
-
-	if err := qbftengine.ApplyHeaderQBFTExtra(
-		header,
-		qbftengine.WritePrevCommittedSeal(prevPreparedSeal),
-		qbftengine.WritePrevCommittedSeal(prevCommittedSeal),
-	); err != nil {
-		return nil, err
-	}
-	return header, nil
+	return extraPreparedSeal, extraCommittedSeal
 }
 
 // APIs returns the RPC APIs this consensus engine provides.
@@ -705,29 +690,4 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 		delete(snap.Tally, candidate)
 	}
 	return nil
-}
-
-func mergeSeals(seals1, seals2 [][]byte) [][]byte {
-	mergedSeals := [][]byte{}
-
-	contains := func(slices [][]byte, item []byte) bool {
-		for _, s := range slices {
-			if bytes.Equal(s, item) { // Directly compare []byte
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, s1 := range seals1 {
-		if !contains(mergedSeals, s1) {
-			mergedSeals = append(mergedSeals, s1)
-		}
-	}
-	for _, s2 := range seals2 {
-		if !contains(mergedSeals, s2) {
-			mergedSeals = append(mergedSeals, s2)
-		}
-	}
-	return mergedSeals
 }
