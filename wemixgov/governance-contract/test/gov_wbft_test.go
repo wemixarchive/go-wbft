@@ -646,12 +646,35 @@ func TestGovWithNCP(t *testing.T) {
 
 			ExpectedRevert(t,
 				g.ExpectedFail(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int))),
-				"cannot cancel",
+				"non-proposer cannot cancel before timeout",
 			)
 
 			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int)))
 			require.NoError(t, err)
 			require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
+
+			t.Run("cannot cancel after vote", func(t *testing.T) {
+				receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+				require.NoError(t, err)
+				proposalEvent := findEvent("NewProposal", receipt.Logs)
+
+				_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
+				require.NoError(t, err)
+
+				ExpectedRevert(t,
+					g.ExpectedFail(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int))),
+					"cannot cancel after vote",
+				)
+
+				g.backend.AdjustTime(Voting_Period)
+
+				// cancel for next test
+				{
+					receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int)))
+					require.NoError(t, err)
+					require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
+				}
+			})
 		})
 
 		t.Run("canceled due to timeout", func(t *testing.T) {
@@ -661,7 +684,7 @@ func TestGovWithNCP(t *testing.T) {
 
 			ExpectedRevert(t,
 				g.ExpectedFail(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int))),
-				"cannot cancel",
+				"non-proposer cannot cancel before timeout",
 			)
 
 			g.backend.AdjustTime(Voting_Period)

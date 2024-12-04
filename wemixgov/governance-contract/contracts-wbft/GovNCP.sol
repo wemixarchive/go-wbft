@@ -110,7 +110,10 @@ contract GovNCP {
 
     function cancelProposal(uint256 _proposalID) external onlyNCP {
         Proposal storage _proposal = _getVotingProposal(_proposalID);
-        require(block.timestamp > _proposal.endTime || _proposal.proposer == msg.sender, "cannot cancel");
+        if (block.timestamp <= _proposal.endTime) {
+            require(_proposal.proposer == msg.sender, "non-proposer cannot cancel before timeout");
+            require(_proposal.voters.length == 0, "cannot cancel after vote");
+        }
         _cancelProposal(_proposal);
     }
 
