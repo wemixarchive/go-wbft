@@ -18,16 +18,10 @@ type simSyncer struct {
 
 func (ss *simSyncer) Apply(config *qbft.Config, num *big.Int) {
 	if ss.adjustedBlockPeriod[num.Uint64()] > 0 {
-		config.Transitions = append(config.Transitions,
-			params.Transition{
-				Block:              num,
-				BlockPeriodSeconds: ss.adjustedBlockPeriod[num.Uint64()],
-			},
-			params.Transition{
-				Block:              new(big.Int).Add(num, common.Big1),
-				BlockPeriodSeconds: config.BlockPeriod,
-			},
-		)
+		config.Transitions = append(config.Transitions, params.Transition{
+			Block:              num,
+			BlockPeriodSeconds: ss.adjustedBlockPeriod[num.Uint64()],
+		})
 	}
 }
 
