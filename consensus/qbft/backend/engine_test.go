@@ -806,16 +806,16 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 			ticker := time.NewTicker(300 * time.Millisecond)
 			defer ticker.Stop()
 
-			executed := make(map[string]bool)
+			executed := make(map[qbftcore.State]bool)
 			for {
 				<-ticker.C
-				consensusState := engine.core.GetState().String()
+				consensusState := engine.core.GetState()
 				if executed[consensusState] {
 					continue
 				}
 
 				switch consensusState {
-				case "Accept request":
+				case qbftcore.StateAcceptRequest:
 					if engine.Validators(parentBlock).IsProposer(node.address) {
 						header := proposedBlock.Header()
 						header.Coinbase = node.address
@@ -832,12 +832,12 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 					} else {
 						executed[consensusState] = true
 					}
-				case "Preprepared":
+				case qbftcore.StatePreprepared:
 					if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 						return fmt.Errorf("failed to send prepare msg. err :  %v", err)
 					}
 					executed[consensusState] = true
-				case "Prepared":
+				case qbftcore.StatePrepared:
 					if err := nodeSendCommitMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 						return fmt.Errorf("failed to send commit msg. err :  %v", err)
 					}
@@ -914,7 +914,7 @@ func TestAddingExtraSeals(t *testing.T) {
 
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
-	executed := make(map[string]bool)
+	executed := make(map[qbftcore.State]bool)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -922,18 +922,18 @@ func TestAddingExtraSeals(t *testing.T) {
 		defer wg.Done()
 		for {
 			<-ticker.C
-			consensusState := engine.core.GetState().String()
+			consensusState := engine.core.GetState()
 			if executed[consensusState] {
 				continue
 			}
 
 			switch consensusState {
-			case "Preprepared":
+			case qbftcore.StatePreprepared:
 				if err := nodeSendPrepareMsg(engine, normalNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("normal node failed to send prepare msg. err :  %v", err)
 				}
 				executed[consensusState] = true
-			case "Prepared":
+			case qbftcore.StatePrepared:
 				// valid extra seal msg
 				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
@@ -942,7 +942,7 @@ func TestAddingExtraSeals(t *testing.T) {
 					t.Errorf("normal node failed to send commit msg. err :  %v", err)
 				}
 				executed[consensusState] = true
-			case "Committed":
+			case qbftcore.StateCommitted:
 				// valid extra seal msg
 				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
@@ -952,7 +952,7 @@ func TestAddingExtraSeals(t *testing.T) {
 					t.Errorf("slow node failed to send commit msg. err :  %v", err)
 				}
 				executed[consensusState] = true
-			case "Accept request":
+			case qbftcore.StateAcceptRequest:
 				// valid extra seal msg
 				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
