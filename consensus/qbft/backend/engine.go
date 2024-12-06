@@ -285,14 +285,14 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	return nil
 }
 
-func (sb *Backend) processExtraSeals() ([][]byte, [][]byte) {
-	var extraPreparedSeal [][]byte
-	var extraCommittedSeal [][]byte
-	if sb.core != nil {
+func (sb *Backend) processExtraSeals() (map[common.Hash][]byte, map[common.Hash][]byte) {
+	if sb.core == nil {
+		return nil, nil
+	} else {
 		lastProposal, _ := sb.LastProposal()
-		extraPreparedSeal, extraCommittedSeal = sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
+		extraPreparedSeal, extraCommittedSeal := sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
+		return extraPreparedSeal, extraCommittedSeal
 	}
-	return extraPreparedSeal, extraCommittedSeal
 }
 
 // APIs returns the RPC APIs this consensus engine provides.

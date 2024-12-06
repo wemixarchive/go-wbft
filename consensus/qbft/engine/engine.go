@@ -451,7 +451,7 @@ func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
 	return e.cfg.GetConfig(blockNumber).BlockPeriod
 }
 
-func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal [][]byte) error {
+func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal map[common.Hash][]byte) error {
 	header.Coinbase = common.Address{}
 	header.Nonce = qbftcommon.EmptyBlockNonce
 
@@ -820,27 +820,20 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 	return nil
 }
 
-func mergeSeals(seals1, seals2 [][]byte) [][]byte {
+func mergeSeals(seals [][]byte, extraSeals map[common.Hash][]byte) [][]byte {
+	if extraSeals == nil {
+		return seals
+	}
 	mergedSeals := [][]byte{}
 
-	contains := func(slices [][]byte, item []byte) bool {
-		for _, s := range slices {
-			if bytes.Equal(s, item) { // Directly compare []byte
-				return true
-			}
-		}
-		return false
+	for _, s := range extraSeals {
+		mergedSeals = append(mergedSeals, s)
 	}
-
-	for _, s1 := range seals1 {
-		if !contains(mergedSeals, s1) {
-			mergedSeals = append(mergedSeals, s1)
+	for _, s := range seals {
+		if extraSeals[common.BytesToHash(s)] != nil {
+			continue
 		}
-	}
-	for _, s2 := range seals2 {
-		if !contains(mergedSeals, s2) {
-			mergedSeals = append(mergedSeals, s2)
-		}
+		mergedSeals = append(mergedSeals, s)
 	}
 	return mergedSeals
 }

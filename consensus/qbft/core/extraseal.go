@@ -3,6 +3,7 @@ package core
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -60,12 +61,12 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
 // and pass it to backend preparing new block
-func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int) ([][]byte, [][]byte) {
+func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int) (map[common.Hash][]byte, map[common.Hash][]byte) {
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 
-	var preparedSeal [][]byte
-	var committedSeal [][]byte
+	preparedSeal := make(map[common.Hash][]byte)
+	committedSeal := make(map[common.Hash][]byte)
 	latestView := qbft.View{
 		Round:    priorRound,
 		Sequence: lastProposal.Number(),
@@ -86,12 +87,12 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 		if code == qbftmessage.PrepareCode {
 			prepareMsg := msg.(*qbftmessage.Prepare)
 			if prepareMsg.Digest == lastProposal.Hash() {
-				preparedSeal = append(preparedSeal, prepareMsg.PrepareSeal[:])
+				preparedSeal[common.BytesToHash(prepareMsg.PrepareSeal[:])] = prepareMsg.PrepareSeal[:]
 			}
 		} else if code == qbftmessage.CommitCode {
 			commitMsg := msg.(*qbftmessage.Commit)
 			if commitMsg.Digest == lastProposal.Hash() {
-				committedSeal = append(committedSeal, commitMsg.CommitSeal[:])
+				committedSeal[common.BytesToHash(commitMsg.CommitSeal[:])] = commitMsg.CommitSeal[:]
 			}
 		}
 	}
