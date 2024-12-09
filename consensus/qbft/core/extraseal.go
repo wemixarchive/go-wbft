@@ -12,8 +12,11 @@ import (
 // addToExtraSeal adds the message to extraSeals which is read when making block
 func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 	logger := c.currentLogger(true, msg)
-	var block *types.Block
-	var ok bool
+	var (
+		block    *types.Block
+		ok       bool
+		sealType SealType
+	)
 
 	if c.state == StateAcceptRequest {
 		block, ok = c.priorState.Proposal().(*types.Block)
@@ -26,24 +29,26 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 
 	// validate seal
 	if prepareMsg, ok := msg.(*qbftmessage.Prepare); ok {
+		sealType = SealTypePrepare
 		// Check digest
 		if prepareMsg.Digest != block.Hash() {
-			logger.Error("QBFT: invalid PREPARE message digest")
+			logger.Error("QBFT: invalid extra PREPARE message digest")
 			return errInvalidMessage
 		}
 		// verify msg seal is matched with msg digest and seal type
-		if err := verifySeal(block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), SealTypePrepare,
+		if err := verifySeal(block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), sealType,
 			prepareMsg.PrepareSeal, prepareMsg.Source()); err != nil {
 			return errInvalidSeal
 		}
 	} else if commitMsg, ok := msg.(*qbftmessage.Commit); ok {
+		sealType = SealTypeCommit
 		// Check digest
 		if commitMsg.Digest != block.Hash() {
-			logger.Error("QBFT: invalid COMMIT message digest")
+			logger.Error("QBFT: invalid extra COMMIT message digest")
 			return errInvalidMessage
 		}
 		// verify msg seal is matched with msg digest and seal type
-		if err := verifySeal(block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), SealTypeCommit,
+		if err := verifySeal(block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), sealType,
 			commitMsg.CommitSeal, commitMsg.Source()); err != nil {
 			return errInvalidSeal
 		}
@@ -53,9 +58,27 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
-	view := msg.View()
-	c.extraSeals.Push(msg, toPriority(&view))
-	logger.Info("QBFT: new extra seal message", "extra_seal_size", c.extraSeals.Size())
+
+	// store seals
+	extraSeal, ok := c.extraSeals[msg.Source()]
+	if !ok {
+		extraSeal = make(map[SealType]qbftmessage.QBFTMessage)
+		c.extraSeals[msg.Source()] = extraSeal
+	}
+
+	if !ok {
+		extraSeal[sealType] = msg
+	} else if existingView, incomingView := extraSeal[sealType].View(), msg.View(); existingView.Cmp(&incomingView) < 0 {
+		extraSeal[sealType] = msg
+	}
+
+	if extraSeal[sealType] != nil {
+		if existingView, incomingView := extraSeal[sealType].View(), msg.View(); existingView.Cmp(&incomingView) >= 0 {
+			return nil
+		}
+	}
+
+	logger.Info("QBFT: new extra seal message")
 	return nil
 }
 
@@ -67,32 +90,26 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 
 	preparedSeal := make(map[common.Hash][]byte)
 	committedSeal := make(map[common.Hash][]byte)
+	// latestView is view to process extra seal
 	latestView := qbft.View{
 		Round:    priorRound,
 		Sequence: lastProposal.Number(),
 	}
 
-	for !c.extraSeals.Empty() {
-		msg, _ := c.extraSeals.Pop()
-		code := msg.Code()
-		view := msg.View()
-
-		// when view has lower view than latestView,
-		// discard all remaining seals in queue
-		if latestView.Cmp(&view) > 0 {
-			c.extraSeals.Reset()
-			break
-		}
-
-		if code == qbftmessage.PrepareCode {
-			prepareMsg := msg.(*qbftmessage.Prepare)
-			if prepareMsg.Digest == lastProposal.Hash() {
+	for _, seal := range c.extraSeals {
+		if seal[SealTypePrepare] != nil {
+			prepareMsg := seal[SealTypePrepare].(*qbftmessage.Prepare)
+			view := prepareMsg.View()
+			if latestView.Cmp(&view) == 0 && prepareMsg.Digest == lastProposal.Hash() {
 				preparedSeal[common.BytesToHash(prepareMsg.PrepareSeal[:])] = prepareMsg.PrepareSeal[:]
 			}
-		} else if code == qbftmessage.CommitCode {
-			commitMsg := msg.(*qbftmessage.Commit)
-			if commitMsg.Digest == lastProposal.Hash() {
-				committedSeal[common.BytesToHash(commitMsg.CommitSeal[:])] = commitMsg.CommitSeal[:]
+		}
+
+		if seal[SealTypeCommit] != nil {
+			commitMsg := seal[SealTypeCommit].(*qbftmessage.Commit)
+			view := commitMsg.View()
+			if latestView.Cmp(&view) == 0 && commitMsg.Digest == lastProposal.Hash() {
+				preparedSeal[common.BytesToHash(commitMsg.CommitSeal[:])] = commitMsg.CommitSeal[:]
 			}
 		}
 	}
@@ -102,9 +119,4 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 
 func toPriority(view *qbft.View) int64 {
 	return int64(view.Sequence.Uint64()*1000 + view.Round.Uint64())
-}
-
-func (c *Core) ExtraSealsLen() int {
-	// used in test code
-	return c.extraSeals.Size()
 }

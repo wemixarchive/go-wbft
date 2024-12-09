@@ -61,7 +61,7 @@ func New(backend Backend, config *qbft.Config) *Core {
 		backend:            backend,
 		backlogs:           make(map[common.Address]*prque.Prque[int64, qbftmessage.QBFTMessage]),
 		backlogsMu:         new(sync.Mutex),
-		extraSeals:         prque.New[int64, qbftmessage.QBFTMessage](nil),
+		extraSeals:         make(map[common.Address]map[SealType]qbftmessage.QBFTMessage),
 		extraSealsMu:       new(sync.Mutex),
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
@@ -93,7 +93,7 @@ type Core struct {
 	backlogs   map[common.Address]*prque.Prque[int64, qbftmessage.QBFTMessage]
 	backlogsMu *sync.Mutex
 
-	extraSeals   *prque.Prque[int64, qbftmessage.QBFTMessage]
+	extraSeals   map[common.Address]map[SealType]qbftmessage.QBFTMessage
 	extraSealsMu *sync.Mutex
 	priorState   priorState
 
