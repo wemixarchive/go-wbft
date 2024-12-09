@@ -109,7 +109,7 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 			commitMsg := seal[SealTypeCommit].(*qbftmessage.Commit)
 			view := commitMsg.View()
 			if latestView.Cmp(&view) == 0 && commitMsg.Digest == lastProposal.Hash() {
-				preparedSeal[common.BytesToHash(commitMsg.CommitSeal[:])] = commitMsg.CommitSeal[:]
+				committedSeal[common.BytesToHash(commitMsg.CommitSeal[:])] = commitMsg.CommitSeal[:]
 			}
 		}
 	}
