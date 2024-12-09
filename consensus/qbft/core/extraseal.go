@@ -106,6 +106,7 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 			}
 		}
 	}
-
+	// erase all seals after processing
+	c.extraSeals = make(map[common.Address]map[SealType]qbftmessage.QBFTMessage)
 	return preparedSeal, committedSeal
 }
