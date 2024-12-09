@@ -21,67 +21,11 @@ import (
 )
 
 var (
-	signer        *ecdsa.PrivateKey
-	signerAddress common.Address
+	signers []*ecdsa.PrivateKey
 )
 
 func init() {
-	_, nodeKeys := testutils.GenesisAndKeys(1)
-	signer = nodeKeys[0]
-	signerAddress = crypto.PubkeyToAddress(signer.PublicKey)
-}
-
-func TestToPriority(t *testing.T) {
-	type testMessage struct {
-		message       messages.QBFTMessage
-		expectedIndex int
-	}
-
-	queue := prque.New[int64, testMessage](nil)
-	header := types.Header{}
-	digest := []byte("abcd")
-	testMessages := []testMessage{
-		{
-			createPrepareMsg(&header, common.Big2, common.Big0, digest),
-			3,
-		},
-		{
-			createPrepareMsg(&header, common.Big1, common.Big3, digest),
-			4,
-		},
-		{
-			createPrepareMsg(&header, common.Big1, common.Big1, digest),
-			5,
-		},
-		{
-			createCommitMsg(&header, common.Big2, common.Big0, digest),
-			2,
-		},
-		{
-			createPrepareMsg(&header, common.Big3, common.Big3, digest),
-			0,
-		},
-		{
-			createCommitMsg(&header, common.Big3, common.Big2, digest),
-			1,
-		},
-	}
-
-	// insert the test messages to priority queue
-	for _, tm := range testMessages {
-		view := tm.message.View()
-		queue.Push(tm, toPriority(&view))
-	}
-
-	// check if test messages have index as expected
-	idx := 0
-	for !queue.Empty() {
-		tm, _ := queue.Pop()
-		if tm.expectedIndex != idx {
-			t.Errorf("unexpected index of message. have %d, want %d", idx, tm.expectedIndex)
-		}
-		idx++
-	}
+	_, signers = testutils.GenesisAndKeys(5)
 }
 
 // makeCoreForTest returns core object with empty backend.
@@ -92,14 +36,14 @@ func makeCoreForTest(priorRound, currentRound, currentSequence *big.Int, lastPro
 	// current state is StateAcceptRequest.
 	core := &Core{
 		config:             nil,
-		address:            signerAddress,
+		address:            crypto.PubkeyToAddress(signers[0].PublicKey),
 		state:              StateAcceptRequest,
 		handlerWg:          new(sync.WaitGroup),
-		logger:             log.New("address", signerAddress),
+		logger:             log.New("address", crypto.PubkeyToAddress(signers[0].PublicKey)),
 		backend:            nil,
 		backlogs:           make(map[common.Address]*prque.Prque[int64, messages.QBFTMessage]),
 		backlogsMu:         new(sync.Mutex),
-		extraSeals:         prque.New[int64, messages.QBFTMessage](nil),
+		extraSeals:         make(map[common.Address]map[SealType]messages.QBFTMessage),
 		extraSealsMu:       new(sync.Mutex),
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
@@ -141,14 +85,16 @@ func TestAddToExtraSeal(t *testing.T) {
 		commitMsg.CommitSeal = seal
 		return commitMsg
 	}
+	expectedSigner1Prepare := createPrepareMsg(signers[1], lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes())
+	expectedSigner2Commit := createCommitMsg(signers[2], lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes())
 
 	testExtraSealMessages := []testMessage{
 		{
-			createPrepareMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
+			expectedSigner1Prepare,
 			nil,
 		},
 		{
-			createCommitMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
+			expectedSigner2Commit,
 			nil,
 		},
 		{
@@ -157,13 +103,23 @@ func TestAddToExtraSeal(t *testing.T) {
 		},
 		{
 			// fail to verify digest -  message's proposal is not same with currentProposal
-			createPrepareMsg(invalidLastProposal.Header(), common.Big2, common.Big2, invalidLastProposal.Hash().Bytes()),
+			createPrepareMsg(signers[3], invalidLastProposal.Header(), common.Big2, common.Big2, invalidLastProposal.Hash().Bytes()),
 			errInvalidMessage,
 		},
 		{
 			// fail to verify seal -  seal doesn't match with message
-			malformedSeal(createCommitMsg(lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes())),
+			malformedSeal(createCommitMsg(signers[4], lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes())),
 			errInvalidSeal,
+		},
+		{
+			// ignored - lower view than existing one
+			createPrepareMsg(signers[1], lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes()),
+			nil,
+		},
+		{
+			// ignored - lower view than existing one - ignored
+			createCommitMsg(signers[2], lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes()),
+			nil,
 		},
 	}
 
@@ -173,6 +129,16 @@ func TestAddToExtraSeal(t *testing.T) {
 			t.Errorf("unexpected error adding to extraSeal. want %v, have %v", tm.expectedError, err)
 		}
 	}
+
+	signer1Prepare := core.extraSeals[crypto.PubkeyToAddress(signers[1].PublicKey)][SealTypePrepare].(*messages.Prepare)
+	signer2Commit := core.extraSeals[crypto.PubkeyToAddress(signers[2].PublicKey)][SealTypeCommit].(*messages.Commit)
+	if signer1Prepare != expectedSigner1Prepare {
+		t.Errorf("unexpected stored extraSeal message. want %v, have %v", expectedSigner1Prepare, signer1Prepare)
+	}
+	if signer2Commit != expectedSigner2Commit {
+		t.Errorf("unexpected stored extraSeal message. want %v, have %v", expectedSigner2Commit, signer2Commit)
+	}
+
 }
 
 // TestProcessExtraSeal is to test core.ProcessExtraSeal
@@ -192,12 +158,12 @@ func TestProcessExtraSeal(t *testing.T) {
 
 	testExtraSealMessages := []messages.QBFTMessage{
 		// 1. 2 valid extra seal messages
-		createPrepareMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
-		createCommitMsg(lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
+		createPrepareMsg(signers[1], lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
+		createCommitMsg(signers[2], lastProposal.Header(), common.Big2, common.Big2, lastProposal.Hash().Bytes()),
 		// 2. 3 extra seal messages with lower view than latestView
-		createPrepareMsg(lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes()),
-		createCommitMsg(lastProposal.Header(), common.Big1, common.Big2, lastProposal.Hash().Bytes()),
-		createCommitMsg(lastProposal.Header(), common.Big1, common.Big2, lastProposal.Hash().Bytes()),
+		createPrepareMsg(signers[3], lastProposal.Header(), common.Big2, common.Big1, lastProposal.Hash().Bytes()),
+		createCommitMsg(signers[4], lastProposal.Header(), common.Big1, common.Big2, lastProposal.Hash().Bytes()),
+		createCommitMsg(signers[0], lastProposal.Header(), common.Big1, common.Big2, lastProposal.Hash().Bytes()),
 	}
 
 	for _, tm := range testExtraSealMessages {
@@ -213,26 +179,23 @@ func TestProcessExtraSeal(t *testing.T) {
 	if len(committedSeal) != 1 {
 		t.Errorf("unexpected length of committedSeal. want %d, have %d", 1, len(committedSeal))
 	}
-	if core.ExtraSealsLen() != 0 {
-		t.Errorf("core.extraSeals should be empty after processing")
-	}
 }
 
 func createPreprepareMsg(sequence, round *big.Int, proposal qbft.Proposal) *messages.Preprepare {
 	return messages.NewPreprepare(sequence, round, proposal)
 }
 
-func createPrepareMsg(header *types.Header, sequence, round *big.Int, digest []byte) *messages.Prepare {
+func createPrepareMsg(signer *ecdsa.PrivateKey, header *types.Header, sequence, round *big.Int, digest []byte) *messages.Prepare {
 	seal, _ := crypto.Sign(PrepareSeal(header, uint32(round.Uint64()), SealTypePrepare), signer)
 	prepare := messages.NewPrepare(sequence, round, common.BytesToHash(digest), seal)
-	prepare.SetSource(signerAddress)
+	prepare.SetSource(crypto.PubkeyToAddress(signer.PublicKey))
 	return prepare
 }
 
-func createCommitMsg(header *types.Header, sequence, round *big.Int, digest []byte) *messages.Commit {
+func createCommitMsg(signer *ecdsa.PrivateKey, header *types.Header, sequence, round *big.Int, digest []byte) *messages.Commit {
 	seal, _ := crypto.Sign(PrepareSeal(header, uint32(round.Uint64()), SealTypeCommit), signer)
 	commit := messages.NewCommit(sequence, round, common.BytesToHash(digest), seal)
-	commit.SetSource(signerAddress)
+	commit.SetSource(crypto.PubkeyToAddress(signer.PublicKey))
 	return commit
 }
 
