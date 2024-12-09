@@ -65,19 +65,12 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 		extraSeal = make(map[SealType]qbftmessage.QBFTMessage)
 		c.extraSeals[msg.Source()] = extraSeal
 	}
-
-	if !ok {
-		extraSeal[sealType] = msg
-	} else if existingView, incomingView := extraSeal[sealType].View(), msg.View(); existingView.Cmp(&incomingView) < 0 {
-		extraSeal[sealType] = msg
-	}
-
 	if extraSeal[sealType] != nil {
 		if existingView, incomingView := extraSeal[sealType].View(), msg.View(); existingView.Cmp(&incomingView) >= 0 {
 			return nil
 		}
 	}
-
+	extraSeal[sealType] = msg
 	logger.Info("QBFT: new extra seal message")
 	return nil
 }
@@ -115,8 +108,4 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 	}
 
 	return preparedSeal, committedSeal
-}
-
-func toPriority(view *qbft.View) int64 {
-	return int64(view.Sequence.Uint64()*1000 + view.Round.Uint64())
 }

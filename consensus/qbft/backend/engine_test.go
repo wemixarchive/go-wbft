@@ -892,7 +892,8 @@ func TestMakingBlock(t *testing.T) {
 func TestAddingExtraSeals(t *testing.T) {
 	// assume 3 nodes,
 	// one is myself, two is normal node, three is slow node that sends extraSeals
-	expectedAdditionalSealCnt := 4
+	expectedAdditionalPreparedSealCnt := 1
+	expectedAdditionalCommittedSealCnt := 2
 
 	chain, engine, nodes := newBlockChain(3)
 	normalNode := nodes[1]
@@ -950,17 +951,13 @@ func TestAddingExtraSeals(t *testing.T) {
 				executed[consensusState] = true
 			case qbftcore.StateCommitted:
 				// valid extra seal msg
-				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
-					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
-				}
-				// valid extra seal msg
 				if err := nodeSendCommitMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send commit msg. err :  %v", err)
 				}
 				executed[consensusState] = true
 			case qbftcore.StateAcceptRequest:
 				// valid extra seal msg
-				if err := nodeSendPrepareMsg(engine, slowNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
+				if err := nodeSendCommitMsg(engine, normalNode, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 					t.Errorf("slow node failed to send prepare msg. err :  %v", err)
 				}
 				// invalid extra seal msg - wrong sequence
@@ -994,8 +991,12 @@ func TestAddingExtraSeals(t *testing.T) {
 	}
 	wg.Wait()
 
-	if engine.core.ExtraSealsLen() != expectedAdditionalSealCnt {
-		t.Errorf("unexpected additional seals. have %d, want %d", engine.core.ExtraSealsLen(), expectedAdditionalSealCnt)
+	extraPrepared, extraCommitted := engine.core.ProcessExtraSeal(proposedBlock, big.NewInt(0))
+	if len(extraPrepared) != expectedAdditionalPreparedSealCnt {
+		t.Errorf("unexpected prepared extra seal count. want %v, have %v", expectedAdditionalPreparedSealCnt, len(extraPrepared))
+	}
+	if len(extraCommitted) != expectedAdditionalCommittedSealCnt {
+		t.Errorf("unexpected prepared extra seal count. want %v, have %v", expectedAdditionalCommittedSealCnt, len(extraCommitted))
 	}
 }
 
