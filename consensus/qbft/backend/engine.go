@@ -187,9 +187,9 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		sb.simApplier.Apply(sb.config, header.Number)
 	}
 
-	extraPreparedSeal, extraComittedSeal := sb.processExtraSeals()
+	extraPreparedSeal, extraCommittedSeal := sb.processExtraSeals()
 
-	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraComittedSeal)
+	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraCommittedSeal)
 	if err != nil {
 		return err
 	}
