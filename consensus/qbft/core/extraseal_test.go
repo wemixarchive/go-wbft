@@ -138,7 +138,6 @@ func TestAddToExtraSeal(t *testing.T) {
 	if signer2Commit != expectedSigner2Commit {
 		t.Errorf("unexpected stored extraSeal message. want %v, have %v", expectedSigner2Commit, signer2Commit)
 	}
-
 }
 
 // TestProcessExtraSeal is to test core.ProcessExtraSeal
