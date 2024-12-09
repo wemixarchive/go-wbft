@@ -998,6 +998,9 @@ func TestAddingExtraSeals(t *testing.T) {
 	if len(extraCommitted) != expectedAdditionalCommittedSealCnt {
 		t.Errorf("unexpected prepared extra seal count. want %v, have %v", expectedAdditionalCommittedSealCnt, len(extraCommitted))
 	}
+
+	engine.
+
 }
 
 func TestLackingSealsFromPropagatedBlock(t *testing.T) {

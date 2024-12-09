@@ -188,7 +188,6 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	}
 
 	extraPreparedSeal, extraComittedSeal := sb.processExtraSeals()
-	//log.Info("JENN check processed extraSeal", "prepare", len(extraPreparedSeal), "commit", extraComittedSeal)
 
 	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraComittedSeal)
 	if err != nil {
