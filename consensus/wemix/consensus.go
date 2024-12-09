@@ -3,6 +3,7 @@ package wemix
 import (
 	"crypto/ecdsa"
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -26,6 +27,7 @@ type WemixConsensus struct {
 	wpoa        consensus.Engine
 	wbft        *qbftBackend.Backend
 	wbftStarted bool
+	once        sync.Once
 	stopCh      chan struct{}
 }
 
@@ -80,7 +82,9 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 }
 
 func (we *WemixConsensus) Stop() {
-	close(we.stopCh)
+	we.once.Do(func() { // prevent panic in closing which is already closed
+		close(we.stopCh)
+	})
 }
 
 func (we *WemixConsensus) Author(header *types.Header) (common.Address, error) {
