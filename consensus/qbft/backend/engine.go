@@ -89,7 +89,11 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	} else if header.Number.Uint64() < 2 {
 		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet, true)
 	} else if len(parents) < 2 {
-		if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, chain.GetHeaderByNumber(header.Number.Uint64()-2).Hash(), nil); err != nil {
+		parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+		if parent == nil {
+			return consensus.ErrUnknownAncestor
+		}
+		if prevSnap, err = sb.snapshot(chain, parent.Number.Uint64()-1, parent.ParentHash, nil); err != nil {
 			return err
 		}
 	} else {
