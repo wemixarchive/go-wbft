@@ -101,7 +101,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		if h.Number.Uint64() != header.Number.Uint64()-2 {
 			return errors.New("unexpected parents block")
 		}
-		if prevSnap, err = sb.snapshot(chain, h.Number.Uint64(), h.Hash(), nil); err != nil {
+		if prevSnap, err = sb.snapshot(chain, h.Number.Uint64(), h.Hash(), parents[:len(parents)-1]); err != nil {
 			return err
 		}
 	}
