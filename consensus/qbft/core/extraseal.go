@@ -40,6 +40,16 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 			prepareMsg.PrepareSeal, prepareMsg.Source()); err != nil {
 			return errInvalidSeal
 		}
+		// store seal
+		c.extraSealsMu.Lock()
+		defer c.extraSealsMu.Unlock()
+		if c.prepareExtraSeals[msg.Source()] != nil {
+			if existingView, incomingView := c.prepareExtraSeals[msg.Source()].View(), prepareMsg.View(); existingView.Cmp(&incomingView) >= 0 {
+				return nil
+			}
+		}
+		c.prepareExtraSeals[msg.Source()] = prepareMsg
+		logger.Debug("QBFT: new extra prepare seal message")
 	} else if commitMsg, ok := msg.(*qbftmessage.Commit); ok {
 		sealType = SealTypeCommit
 		// Check digest
@@ -52,26 +62,20 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 			commitMsg.CommitSeal, commitMsg.Source()); err != nil {
 			return errInvalidSeal
 		}
+		// store seal
+		c.extraSealsMu.Lock()
+		defer c.extraSealsMu.Unlock()
+		if c.commitextraSeals[msg.Source()] != nil {
+			if existingView, incomingView := c.commitextraSeals[msg.Source()].View(), commitMsg.View(); existingView.Cmp(&incomingView) >= 0 {
+				return nil
+			}
+		}
+		c.commitextraSeals[msg.Source()] = commitMsg
+		logger.Debug("QBFT: new extra commit seal message")
 	} else {
 		return errInvalidExtraSealMessage
 	}
 
-	c.extraSealsMu.Lock()
-	defer c.extraSealsMu.Unlock()
-
-	// store seals
-	extraSeal, ok := c.extraSeals[msg.Source()]
-	if !ok {
-		extraSeal = make(map[SealType]qbftmessage.QBFTMessage)
-		c.extraSeals[msg.Source()] = extraSeal
-	}
-	if extraSeal[sealType] != nil {
-		if existingView, incomingView := extraSeal[sealType].View(), msg.View(); existingView.Cmp(&incomingView) >= 0 {
-			return nil
-		}
-	}
-	extraSeal[sealType] = msg
-	logger.Info("QBFT: new extra seal message")
 	return nil
 }
 
@@ -89,24 +93,28 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 		Sequence: lastProposal.Number(),
 	}
 
-	for _, seal := range c.extraSeals {
-		if seal[SealTypePrepare] != nil {
-			prepareMsg := seal[SealTypePrepare].(*qbftmessage.Prepare)
-			view := prepareMsg.View()
-			if latestView.Cmp(&view) == 0 && prepareMsg.Digest == lastProposal.Hash() {
-				preparedSeal[common.BytesToHash(prepareMsg.PrepareSeal[:])] = prepareMsg.PrepareSeal[:]
-			}
-		}
-
-		if seal[SealTypeCommit] != nil {
-			commitMsg := seal[SealTypeCommit].(*qbftmessage.Commit)
-			view := commitMsg.View()
-			if latestView.Cmp(&view) == 0 && commitMsg.Digest == lastProposal.Hash() {
-				committedSeal[common.BytesToHash(commitMsg.CommitSeal[:])] = commitMsg.CommitSeal[:]
+	// process prepare seal
+	for _, msg := range c.prepareExtraSeals {
+		if msg != nil {
+			view := msg.View()
+			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
+				preparedSeal[common.BytesToHash(msg.PrepareSeal[:])] = msg.PrepareSeal[:]
 			}
 		}
 	}
+
+	// process commit seal
+	for _, msg := range c.commitextraSeals {
+		if msg != nil {
+			view := msg.View()
+			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
+				committedSeal[common.BytesToHash(msg.CommitSeal[:])] = msg.CommitSeal[:]
+			}
+		}
+	}
+
 	// erase all seals after processing
-	c.extraSeals = make(map[common.Address]map[SealType]qbftmessage.QBFTMessage)
+	c.prepareExtraSeals = make(map[common.Address]*qbftmessage.Prepare)
+	c.commitextraSeals = make(map[common.Address]*qbftmessage.Commit)
 	return preparedSeal, committedSeal
 }
