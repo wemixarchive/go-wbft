@@ -37,11 +37,12 @@ func NewWemixEngine(backend wemixgov.GovBackend, config *qbft.Config, privateKey
 		wpoa:        wpoa,
 		wbft:        wbft,
 		wbftStarted: false,
-		stopCh:      make(chan struct{}),
 	}
 }
 
 func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.ChainHeaderReader, currentBlock func() *types.Block, subscribeChainHead func(ch chan<- core.ChainHeadEvent) event.Subscription) {
+	we.stopCh = make(chan struct{})
+
 	chainHeadCh := make(chan core.ChainHeadEvent)
 	chainHeadSub := subscribeChainHead(chainHeadCh)
 
@@ -53,6 +54,7 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 				log.Error("cannot start WEMIX BFT engine", "err", err)
 			}
 			we.wbftStarted = true
+			log.Info("WEMIX BFT engine started because the current block is after MontBlanc hard fork")
 		} else {
 		loop:
 			for {
@@ -65,6 +67,7 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 							log.Error("cannot start WEMIX BFT engine", "err", err)
 						}
 						we.wbftStarted = true
+						log.Info("WEMIX BFT engine started because the current block is just at the MontBlanc hard fork")
 						break loop
 					}
 				case err := <-chainHeadSub.Err():
@@ -80,6 +83,7 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 }
 
 func (we *WemixConsensus) Stop() {
+	we.wbftStarted = false
 	close(we.stopCh)
 }
 
