@@ -65,12 +65,12 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 		// store seal
 		c.extraSealsMu.Lock()
 		defer c.extraSealsMu.Unlock()
-		if c.commitextraSeals[msg.Source()] != nil {
-			if existingView, incomingView := c.commitextraSeals[msg.Source()].View(), commitMsg.View(); existingView.Cmp(&incomingView) >= 0 {
+		if c.commitExtraSeals[msg.Source()] != nil {
+			if existingView, incomingView := c.commitExtraSeals[msg.Source()].View(), commitMsg.View(); existingView.Cmp(&incomingView) >= 0 {
 				return nil
 			}
 		}
-		c.commitextraSeals[msg.Source()] = commitMsg
+		c.commitExtraSeals[msg.Source()] = commitMsg
 		logger.Debug("QBFT: new extra commit seal message")
 	} else {
 		return errInvalidExtraSealMessage
@@ -104,7 +104,7 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 	}
 
 	// process commit seal
-	for _, msg := range c.commitextraSeals {
+	for _, msg := range c.commitExtraSeals {
 		if msg != nil {
 			view := msg.View()
 			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
@@ -115,6 +115,6 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 
 	// erase all seals after processing
 	c.prepareExtraSeals = make(map[common.Address]*qbftmessage.Prepare)
-	c.commitextraSeals = make(map[common.Address]*qbftmessage.Commit)
+	c.commitExtraSeals = make(map[common.Address]*qbftmessage.Commit)
 	return preparedSeal, committedSeal
 }

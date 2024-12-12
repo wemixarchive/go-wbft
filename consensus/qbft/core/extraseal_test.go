@@ -44,7 +44,7 @@ func makeCoreForTest(priorRound, currentRound, currentSequence *big.Int, lastPro
 		backlogs:           make(map[common.Address]*prque.Prque[int64, messages.QBFTMessage]),
 		backlogsMu:         new(sync.Mutex),
 		prepareExtraSeals:  make(map[common.Address]*messages.Prepare),
-		commitextraSeals:   make(map[common.Address]*messages.Commit),
+		commitExtraSeals:   make(map[common.Address]*messages.Commit),
 		extraSealsMu:       new(sync.Mutex),
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
@@ -132,7 +132,7 @@ func TestAddToExtraSeal(t *testing.T) {
 	}
 
 	signer1Prepare := core.prepareExtraSeals[crypto.PubkeyToAddress(signers[1].PublicKey)]
-	signer2Commit := core.commitextraSeals[crypto.PubkeyToAddress(signers[2].PublicKey)]
+	signer2Commit := core.commitExtraSeals[crypto.PubkeyToAddress(signers[2].PublicKey)]
 	if signer1Prepare != expectedSigner1Prepare {
 		t.Errorf("unexpected stored extraSeal message. want %v, have %v", expectedSigner1Prepare, signer1Prepare)
 	}
