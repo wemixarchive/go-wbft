@@ -89,7 +89,16 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	} else if header.Number.Uint64() < 2 {
 		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet, true)
 	} else if len(parents) < 2 {
-		if prevSnap, err = sb.snapshot(chain, header.Number.Uint64()-2, chain.GetHeaderByNumber(header.Number.Uint64()-2).Hash(), nil); err != nil {
+		var parent *types.Header
+		if len(parents) == 1 {
+			parent = parents[0]
+		} else {
+			parent = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+			if parent == nil {
+				return consensus.ErrUnknownAncestor
+			}
+		}
+		if prevSnap, err = sb.snapshot(chain, parent.Number.Uint64()-1, parent.ParentHash, nil); err != nil {
 			return err
 		}
 	} else {
@@ -97,7 +106,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 		if h.Number.Uint64() != header.Number.Uint64()-2 {
 			return errors.New("unexpected parents block")
 		}
-		if prevSnap, err = sb.snapshot(chain, h.Number.Uint64(), h.Hash(), nil); err != nil {
+		if prevSnap, err = sb.snapshot(chain, h.Number.Uint64(), h.Hash(), parents[:len(parents)-1]); err != nil {
 			return err
 		}
 	}
@@ -187,7 +196,9 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		sb.simApplier.Apply(sb.config, header.Number)
 	}
 
-	err = sb.Engine().Prepare(chain, header, snap.ValSet)
+	extraPreparedSeal, extraCommittedSeal := sb.processExtraSeals()
+
+	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraCommittedSeal)
 	if err != nil {
 		return err
 	}
@@ -258,6 +269,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 			sb.proposedBlockHash = common.Hash{}
 			sb.sealMu.Unlock()
 		}()
+
 		// post block into Istanbul engine
 		go sb.EventMux().Post(qbft.RequestEvent{
 			Proposal: block,
@@ -280,6 +292,16 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 		}
 	}()
 	return nil
+}
+
+func (sb *Backend) processExtraSeals() (map[common.Hash][]byte, map[common.Hash][]byte) {
+	if sb.core == nil {
+		return nil, nil
+	} else {
+		lastProposal := sb.currentBlock()
+		extraPreparedSeal, extraCommittedSeal := sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
+		return extraPreparedSeal, extraCommittedSeal
+	}
 }
 
 // APIs returns the RPC APIs this consensus engine provides.
