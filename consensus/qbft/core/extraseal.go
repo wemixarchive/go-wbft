@@ -24,7 +24,8 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 		block, ok = c.current.Proposal().(*types.Block)
 	}
 	if !ok {
-		return errInvalidMessage
+		// ignore if block is not found
+		return nil
 	}
 
 	// validate seal
