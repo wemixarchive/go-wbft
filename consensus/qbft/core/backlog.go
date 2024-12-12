@@ -191,7 +191,7 @@ func (c *Core) processBacklog() {
 
 			// Push back if it's a future message
 			err := c.checkMessage(code, &view)
-			if err != nil {
+			if err != nil && err != errExtraSealMessage {
 				if err == errFutureMessage {
 					// this is still a future message
 					logger.Trace("QBFT: stop processing backlog", "msg", msg)
