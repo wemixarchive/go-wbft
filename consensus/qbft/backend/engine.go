@@ -289,7 +289,7 @@ func (sb *Backend) processExtraSeals() (map[common.Hash][]byte, map[common.Hash]
 	if sb.core == nil {
 		return nil, nil
 	} else {
-		lastProposal, _ := sb.LastProposal()
+		lastProposal := sb.currentBlock()
 		extraPreparedSeal, extraCommittedSeal := sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
 		return extraPreparedSeal, extraCommittedSeal
 	}
