@@ -33,5 +33,6 @@ const (
 
 const (
 	CONTRACT_GOV_STAKING = "GovStaking"
-	CONTRACT_NCP_LIST    = "GovNCP"
+	CONTRACT_GOV_NCP     = "GovNCP"
+	CONTRACT_GOV_CONST   = "GovConst"
 )

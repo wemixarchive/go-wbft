@@ -20,15 +20,18 @@ func main() {
 	flag.Parse()
 	root := *rootFlag
 	openZeppelin := *openZeppelinFlag
-	outDir := filepath.Join(root, "../../bind")
+	bindDir := filepath.Join(root, "../../bind")
 	if contracts, err := compile.Compile(openZeppelin,
 		filepath.Join(root, "GovStaking.sol"),
 		filepath.Join(root, "GovNCP.sol"),
+		filepath.Join(root, "GovConst.sol"),
 	); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_govStaking_abi.go"), gov.CONTRACT_GOV_STAKING); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(bindDir, "gen_govStaking_abi.go"), gov.CONTRACT_GOV_STAKING); err != nil {
 		panic(err)
-	} else if err := contracts.BindContracts(pkg, filepath.Join(outDir, "gen_govNCP_abi.go"), gov.CONTRACT_NCP_LIST); err != nil {
+	} else if err := contracts.BindContracts(pkg, filepath.Join(bindDir, "gen_govNCP_abi.go"), gov.CONTRACT_GOV_NCP); err != nil {
+		panic(err)
+	} else if err := contracts.BindContracts(pkg, filepath.Join(bindDir, "gen_govConst_abi.go"), gov.CONTRACT_GOV_CONST); err != nil {
 		panic(err)
 	} else {
 		fmt.Println("success!")

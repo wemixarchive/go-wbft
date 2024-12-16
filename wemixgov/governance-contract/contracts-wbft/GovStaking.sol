@@ -4,6 +4,7 @@ pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "./GovConst.sol";
 
 contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -38,11 +39,8 @@ contract GovStaking {
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
     event Withdrew(uint256 indexed credentialID, address requester, uint256 amount);
 
-    uint256 public constant MINIMUM_STAKING = 500000e18;
-    uint256 public constant MAXIMUM_STAKING = type(uint128).max;
-    uint256 public constant UNBONDING_PERIOD_VALIDATOR = 1 hours;
-    uint256 public constant UNBONDING_PERIOD_DELEGATOR = 72 hours;
-
+    GovConst public constant GOV_CONST = GovConst(address(0x1000));
+    
     uint256 public totalStaking; // 0x0
 
     // Validator
@@ -57,6 +55,7 @@ contract GovStaking {
     // Withdrawal Credential
     uint256 public credentialCount; // 0x6
     mapping(uint256 => WithdrawalCredential) public credentials; // 0x7
+
 
     modifier checkAmount(uint256 _amount) {
         require(msg.value == _amount, "amount and msg.value mismatch");
@@ -80,7 +79,7 @@ contract GovStaking {
     }
 
     function registerValidator(uint256 _amount, address _validator, address _reward) external payable checkAmount(_amount) {
-        require(_amount >= MINIMUM_STAKING && _amount <= MAXIMUM_STAKING, "out of bounds");
+        require(_amount >= GOV_CONST.MINIMUM_STAKING() && _amount <= GOV_CONST.MAXIMUM_STAKING(), "out of bounds");
         require(msg.sender != _validator && msg.sender != _reward, "staker cannot be validator or reward");
         require(_validator != address(0) && _reward != address(0), "zero address");
         require(_validator != _reward, "validator cannot be reward");
@@ -115,7 +114,7 @@ contract GovStaking {
         uint256 _validatorStaking = _validatorInfo.staking - _validatorInfo.delegated;
 
         require(_validatorStaking >= _amount, "insufficient balance");
-        if (_validatorStaking - _amount < MINIMUM_STAKING) {
+        if (_validatorStaking - _amount < GOV_CONST.MINIMUM_STAKING()) {
             require(_validatorStaking == _amount, "amount must equal balance to remove validator");
 
             __validatorSet.remove(_validator);
@@ -129,7 +128,7 @@ contract GovStaking {
         }
 
         totalStaking -= _amount;
-        _newCredential(_amount, UNBONDING_PERIOD_VALIDATOR);
+        _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_VALIDATOR());
 
         emit Unstaked(_validator, _amount);
     }
@@ -152,7 +151,7 @@ contract GovStaking {
             _validatorInfo.delegated -= _amount;
             _validatorInfo.staking -= _amount;
 
-            _newCredential(_amount, UNBONDING_PERIOD_DELEGATOR);
+            _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_DELEGATOR());
         } else {
             payable(msg.sender).sendValue(_amount);
         }
@@ -179,7 +178,7 @@ contract GovStaking {
         require(isValidator(_validator), "unregistered validator");
 
         Validator storage _validatorInfo = validatorInfo[_validator];
-        require(_validatorInfo.staking + _amount <= MAXIMUM_STAKING, "exceeded the maximum");
+        require(_validatorInfo.staking + _amount <= GOV_CONST.MAXIMUM_STAKING(), "exceeded the maximum");
 
         totalStaking += _amount;
         _validatorInfo.staking += _amount;
