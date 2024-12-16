@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 )
@@ -98,6 +99,13 @@ func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 	p.By = v
 }
 
+type StateTransition struct {
+	Block   *big.Int
+	StateFn StateFn
+}
+
+type StateFn func(*state.StateDB) error
+
 type Config struct {
 	RequestTimeout           uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
 	BlockPeriod              uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
@@ -113,6 +121,8 @@ type Config struct {
 	Client                   bind.ContractCaller   `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`
 	Transitions              []params.Transition
+
+	StateTransitions []StateTransition
 }
 
 var DefaultConfig = &Config{

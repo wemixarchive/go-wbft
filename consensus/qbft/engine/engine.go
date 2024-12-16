@@ -553,6 +553,16 @@ func WritePrevCommittedSeal(prevCommittedSeal [][]byte) ApplyQBFTExtra {
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	// Accumulate any block and uncle rewards and commit the final state root
 	e.accumulateRewards(chain, state, header)
+
+	for _, st := range e.cfg.StateTransitions {
+		if st.Block.Cmp(header.Number) == 0 && st.StateFn != nil {
+			snapshot := state.Snapshot()
+			if err := st.StateFn(state); err != nil {
+				state.RevertToSnapshot(snapshot)
+			}
+		}
+	}
+
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 }

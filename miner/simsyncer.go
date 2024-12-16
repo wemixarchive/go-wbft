@@ -14,13 +14,21 @@ type simSyncer struct {
 	workCh              chan *newWorkReq
 	resultCh            chan common.Hash
 	adjustedBlockPeriod map[uint64]uint64
+	stateTransitions    map[uint64]qbft.StateFn
 }
 
 func (ss *simSyncer) Apply(config *qbft.Config, num *big.Int) {
-	if ss.adjustedBlockPeriod[num.Uint64()] > 0 {
+	number := num.Uint64()
+	if ss.adjustedBlockPeriod[number] > 0 {
 		config.Transitions = append(config.Transitions, params.Transition{
 			Block:              num,
-			BlockPeriodSeconds: ss.adjustedBlockPeriod[num.Uint64()],
+			BlockPeriodSeconds: ss.adjustedBlockPeriod[number],
+		})
+	}
+	if stateFn, ok := ss.stateTransitions[number]; ok {
+		config.StateTransitions = append(config.StateTransitions, qbft.StateTransition{
+			Block:   num,
+			StateFn: stateFn,
 		})
 	}
 }
@@ -40,6 +48,7 @@ func newSimSyncer(worker *worker) *simSyncer {
 		workCh:              make(chan *newWorkReq),
 		resultCh:            make(chan common.Hash),
 		adjustedBlockPeriod: make(map[uint64]uint64),
+		stateTransitions:    make(map[uint64]qbft.StateFn),
 	}
 }
 
@@ -63,6 +72,13 @@ func (ss *simSyncer) commit() common.Hash {
 func (ss *simSyncer) commitWithPeriod(duration time.Duration) common.Hash {
 	req := <-ss.workCh
 	ss.adjustedBlockPeriod[ss.worker.chain.CurrentBlock().Number.Uint64()+1] = uint64(duration.Seconds())
+	ss.commitWork(req)
+	return <-ss.resultCh
+}
+
+func (ss *simSyncer) commitWithState(stateFn qbft.StateFn) common.Hash {
+	req := <-ss.workCh
+	ss.stateTransitions[ss.worker.chain.CurrentBlock().Number.Uint64()+1] = stateFn
 	ss.commitWork(req)
 	return <-ss.resultCh
 }

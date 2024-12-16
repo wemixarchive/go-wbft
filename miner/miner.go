@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -266,6 +267,13 @@ func (miner *Miner) CommitSimulatedWithPeriod(duration time.Duration) common.Has
 		panic("only simulated")
 	}
 	return miner.worker.simSyncer.commitWithPeriod(duration)
+}
+
+func (miner *Miner) CommitSimulatedWithState(stateFn qbft.StateFn) common.Hash {
+	if !miner.worker.config.SimulatedEnabled {
+		panic("only simulated")
+	}
+	return miner.worker.simSyncer.commitWithState(stateFn)
 }
 
 func (miner *Miner) InjectSimApplierTo(engine *qbftBackend.Backend) {

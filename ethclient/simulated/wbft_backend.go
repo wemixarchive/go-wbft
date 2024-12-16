@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftbackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -162,6 +163,10 @@ func (n *WbftBackend) Engine() consensus.Engine {
 // Commit seals a block and moves the chain forward to a new empty block.
 func (n *WbftBackend) Commit() common.Hash {
 	return n.eth.Miner().CommitSimulated()
+}
+
+func (n *WbftBackend) CommitWithState(stateFn qbft.StateFn) common.Hash {
+	return n.eth.Miner().CommitSimulatedWithState(stateFn)
 }
 
 func (n *WbftBackend) AdjustTime(duration time.Duration) common.Hash {
