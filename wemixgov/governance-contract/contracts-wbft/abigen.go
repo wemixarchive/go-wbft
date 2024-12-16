@@ -21,6 +21,7 @@ func main() {
 	root := *rootFlag
 	openZeppelin := *openZeppelinFlag
 	bindDir := filepath.Join(root, "../../bind")
+	codeDir := filepath.Join(root, "../../governance-wbft/govcontracts")
 	if contracts, err := compile.Compile(openZeppelin,
 		filepath.Join(root, "GovStaking.sol"),
 		filepath.Join(root, "GovNCP.sol"),
@@ -29,9 +30,15 @@ func main() {
 		panic(err)
 	} else if err := contracts.BindContracts(pkg, filepath.Join(bindDir, "gen_govStaking_abi.go"), gov.CONTRACT_GOV_STAKING); err != nil {
 		panic(err)
+	} else if err := contracts.ExportContractCode(codeDir, gov.CONTRACT_GOV_STAKING); err != nil {
+		panic(err)
 	} else if err := contracts.BindContracts(pkg, filepath.Join(bindDir, "gen_govNCP_abi.go"), gov.CONTRACT_GOV_NCP); err != nil {
 		panic(err)
+	} else if err := contracts.ExportContractCode(codeDir, gov.CONTRACT_GOV_NCP); err != nil {
+		panic(err)
 	} else if err := contracts.BindContracts(pkg, filepath.Join(bindDir, "gen_govConst_abi.go"), gov.CONTRACT_GOV_CONST); err != nil {
+		panic(err)
+	} else if err := contracts.ExportContractCode(codeDir, gov.CONTRACT_GOV_CONST); err != nil {
 		panic(err)
 	} else {
 		fmt.Println("success!")
