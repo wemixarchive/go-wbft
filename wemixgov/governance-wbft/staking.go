@@ -1,4 +1,4 @@
-package governancewbft
+package govwbft
 
 import (
 	"math/big"
@@ -20,71 +20,63 @@ type Validator struct {
 	Delegated *big.Int
 }
 
-type GovStaking struct {
-	Address      common.Address
-	validatorSet *EnumerableSet[common.Address]
+func TotalStaking(stateDB StateDB) *big.Int {
+	return stateDB.GetState(GovStakingAddress, common.HexToHash(SLOT_TOTAL_STAKING)).Big()
 }
 
-func NewGovStaking(address common.Address) *GovStaking {
-	return &GovStaking{
-		Address:      address,
-		validatorSet: NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET)),
-	}
+func ValidatorLength(stateDB StateDB) uint64 {
+	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return validatorSet.Length(stateDB, GovStakingAddress)
 }
 
-func (gs *GovStaking) TotalStaking(stateDB StateDB) *big.Int {
-	return stateDB.GetState(gs.Address, common.HexToHash(SLOT_TOTAL_STAKING)).Big()
+func IsValidator(stateDB StateDB, validator common.Address) bool {
+	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return validatorSet.Contains(stateDB, GovStakingAddress, validator)
 }
 
-func (gs *GovStaking) ValidatorLength(stateDB StateDB) uint64 {
-	return gs.validatorSet.Length(stateDB, gs.Address)
+func Validators(stateDB StateDB) []common.Address {
+	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return validatorSet.Values(stateDB, GovStakingAddress)
 }
 
-func (gs *GovStaking) IsValidator(stateDB StateDB, validator common.Address) bool {
-	return gs.validatorSet.Contains(stateDB, gs.Address, validator)
+func ValidatorAt(stateDB StateDB, index *big.Int) common.Address {
+	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return validatorSet.At(stateDB, GovStakingAddress, index)
 }
 
-func (gs *GovStaking) Validators(stateDB StateDB) []common.Address {
-	return gs.validatorSet.Values(stateDB, gs.Address)
-}
-
-func (gs *GovStaking) ValidatorAt(stateDB StateDB, index *big.Int) common.Address {
-	return gs.validatorSet.At(stateDB, gs.Address, index)
-}
-
-func (gs *GovStaking) ValidatorByStaker(stateDB StateDB, staker common.Address) common.Address {
-	validator := stateDB.GetState(gs.Address, CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_BY_STAKER), staker))
+func ValidatorByStaker(stateDB StateDB, staker common.Address) common.Address {
+	validator := stateDB.GetState(GovStakingAddress, CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_BY_STAKER), staker))
 	return HashToAddress(validator)
 }
 
-func (gs *GovStaking) ValidatorInfo(stateDB StateDB, validator common.Address) Validator {
-	baseSlot := gs.validatorInfoSlot(validator)
+func ValidatorInfo(stateDB StateDB, validator common.Address) Validator {
+	baseSlot := validatorInfoSlot(validator)
 
 	return Validator{
-		Staker:    gs.getStaker(stateDB, baseSlot),
-		Reward:    HashToAddress(stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(1)))),
-		Staking:   gs.getStaking(stateDB, baseSlot),
-		Delegated: stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(3))).Big(),
+		Staker:    getStaker(stateDB, baseSlot),
+		Reward:    HashToAddress(stateDB.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(1)))),
+		Staking:   getStaking(stateDB, baseSlot),
+		Delegated: stateDB.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(3))).Big(),
 	}
 }
 
-func (gs *GovStaking) ValidatorInfoMap(stateDB StateDB) map[common.Address]Validator {
+func ValidatorInfoMap(stateDB StateDB) map[common.Address]Validator {
 	validatorInfos := make(map[common.Address]Validator)
-	validators := gs.Validators(stateDB)
+	validators := Validators(stateDB)
 	for _, v := range validators {
-		validatorInfos[v] = gs.ValidatorInfo(stateDB, v)
+		validatorInfos[v] = ValidatorInfo(stateDB, v)
 	}
 	return validatorInfos
 }
 
-func (gs *GovStaking) getStaker(stateDB StateDB, baseSlot common.Hash) common.Address {
-	return HashToAddress(stateDB.GetState(gs.Address, baseSlot))
+func getStaker(stateDB StateDB, baseSlot common.Hash) common.Address {
+	return HashToAddress(stateDB.GetState(GovStakingAddress, baseSlot))
 }
 
-func (gs *GovStaking) getStaking(stateDB StateDB, baseSlot common.Hash) *big.Int {
-	return stateDB.GetState(gs.Address, IncrementHash(baseSlot, big.NewInt(2))).Big()
+func getStaking(stateDB StateDB, baseSlot common.Hash) *big.Int {
+	return stateDB.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(2))).Big()
 }
 
-func (gs *GovStaking) validatorInfoSlot(validator common.Address) common.Hash {
+func validatorInfoSlot(validator common.Address) common.Hash {
 	return CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_INFO), validator)
 }

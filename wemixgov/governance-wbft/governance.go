@@ -1,4 +1,4 @@
-package governancewbft
+package govwbft
 
 import (
 	"math/big"
@@ -6,30 +6,24 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type Governance struct {
-	*GovStaking
-	*GovNCP
-}
+var (
+	GovConstAddress   = common.HexToAddress("0x1000")
+	GovStakingAddress = common.HexToAddress("0x1001")
+	GovNCPAddress     = common.HexToAddress("0x1002")
+)
 
-func NewGovernance(stakingAddr, ncpAddr common.Address) *Governance {
-	return &Governance{
-		GovStaking: NewGovStaking(stakingAddr),
-		GovNCP:     NewGovNCP(ncpAddr),
-	}
-}
-
-func (g *Governance) IsNCPValidator(stateDB StateDB, validator common.Address) bool {
-	if !g.IsValidator(stateDB, validator) {
+func IsNCPValidator(stateDB StateDB, validator common.Address) bool {
+	if !IsValidator(stateDB, validator) {
 		return false
 	}
-	return g.IsNCP(stateDB, g.getStaker(stateDB, g.validatorInfoSlot(validator)))
+	return IsNCP(stateDB, getStaker(stateDB, validatorInfoSlot(validator)))
 }
 
-func (g *Governance) NCPValidators(stateDB StateDB) []common.Address {
+func NCPValidators(stateDB StateDB) []common.Address {
 	validators := make([]common.Address, 0)
-	ncps := g.NCPList(stateDB)
+	ncps := NCPList(stateDB)
 	for _, ncp := range ncps {
-		v := g.ValidatorByStaker(stateDB, ncp)
+		v := ValidatorByStaker(stateDB, ncp)
 		if v != (common.Address{}) {
 			validators = append(validators, v)
 		}
@@ -37,20 +31,20 @@ func (g *Governance) NCPValidators(stateDB StateDB) []common.Address {
 	return validators
 }
 
-func (g *Governance) NCPTotalStaking(stateDB StateDB) *big.Int {
+func NCPTotalStaking(stateDB StateDB) *big.Int {
 	totalStaking := new(big.Int)
-	validators := g.NCPValidators(stateDB)
+	validators := NCPValidators(stateDB)
 	for _, v := range validators {
-		totalStaking.Add(totalStaking, g.getStaking(stateDB, g.validatorInfoSlot(v)))
+		totalStaking.Add(totalStaking, getStaking(stateDB, validatorInfoSlot(v)))
 	}
 	return totalStaking
 }
 
-func (g *Governance) NCPValidatorInfoMap(stateDB StateDB) map[common.Address]Validator {
+func NCPValidatorInfoMap(stateDB StateDB) map[common.Address]Validator {
 	validatorInfos := make(map[common.Address]Validator)
-	validators := g.NCPValidators(stateDB)
+	validators := NCPValidators(stateDB)
 	for _, v := range validators {
-		validatorInfos[v] = g.ValidatorInfo(stateDB, v)
+		validatorInfos[v] = ValidatorInfo(stateDB, v)
 	}
 	return validatorInfos
 }

@@ -1,6 +1,7 @@
-package governancewbft
+package govwbft
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -9,6 +10,7 @@ import (
 
 type StateDB interface {
 	GetState(addr common.Address, hash common.Hash) common.Hash
+	SetState(addr common.Address, key, value common.Hash)
 }
 
 func CalculateMappingSlot(baseSlot common.Hash, key interface{ Bytes() []byte }) common.Hash {
@@ -37,20 +39,10 @@ func IncrementHash(baseSlot common.Hash, increment *big.Int) common.Hash {
 	return common.BigToHash(new(big.Int).Add(baseSlot.Big(), increment))
 }
 
-func HashToAddress(hash common.Hash) common.Address {
-	return common.BytesToAddress(hash.Bytes())
-}
-
 type EnumerableSet[T interface{ Bytes() []byte }] struct {
-	indexSlot   common.Hash
-	valueSlot   common.Hash
-	convertFunc func(common.Hash) T
-}
-
-func NewAddressSet(baseSlot common.Hash) *EnumerableSet[common.Address] {
-	es := NewEnumerableSet[common.Address](baseSlot)
-	es.convertFunc = HashToAddress
-	return es
+	indexSlot common.Hash
+	valueSlot common.Hash
+	convertFn func(common.Hash) T
 }
 
 func NewEnumerableSet[T interface{ Bytes() []byte }](baseSlot common.Hash) *EnumerableSet[T] {
@@ -74,11 +66,37 @@ func (es *EnumerableSet[T]) Values(stateDB StateDB, address common.Address) []T 
 	len := es.Length(stateDB, address)
 	values := make([]T, len)
 	for i := uint64(0); i < len; i++ {
-		values[i] = es.convertFunc(stateDB.GetState(address, CalculateDynamicSlot(es.valueSlot, new(big.Int).SetUint64(i))))
+		values[i] = es.convertFn(stateDB.GetState(address, CalculateDynamicSlot(es.valueSlot, new(big.Int).SetUint64(i))))
 	}
 	return values
 }
 
 func (es *EnumerableSet[T]) At(stateDB StateDB, address common.Address, index *big.Int) T {
-	return es.convertFunc(stateDB.GetState(address, CalculateDynamicSlot(es.valueSlot, index)))
+	return es.convertFn(stateDB.GetState(address, CalculateDynamicSlot(es.valueSlot, index)))
+}
+
+func (es *EnumerableSet[T]) Add(stateDB StateDB, address common.Address, value T) error {
+	if es.Contains(stateDB, address, value) {
+		return errors.New("duplicated value")
+	}
+	newIndex := es.Length(stateDB, address)
+	newLength := new(big.Int).SetUint64(newIndex + 1)
+	// set index slot
+	stateDB.SetState(address, CalculateMappingSlot(es.indexSlot, value), common.BigToHash(newLength))
+	// set value slot
+	stateDB.SetState(address, CalculateDynamicSlot(es.valueSlot, new(big.Int).SetUint64(newIndex)), common.BytesToHash(value.Bytes()))
+	// set length
+	stateDB.SetState(address, es.valueSlot, common.BigToHash(newLength))
+
+	return nil
+}
+
+func NewAddressSet(baseSlot common.Hash) *EnumerableSet[common.Address] {
+	es := NewEnumerableSet[common.Address](baseSlot)
+	es.convertFn = HashToAddress
+	return es
+}
+
+func HashToAddress(hash common.Hash) common.Address {
+	return common.BytesToAddress(hash.Bytes())
 }

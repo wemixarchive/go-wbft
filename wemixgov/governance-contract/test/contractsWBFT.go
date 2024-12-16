@@ -9,12 +9,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/node"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
-	govWBFT "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,8 +29,7 @@ func init() {
 }
 
 type compiledContractWBFT struct {
-	GovStaking,
-	GovNCP *bindContract
+	GovStaking, GovNCP *bindContract
 }
 
 func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
@@ -49,7 +50,6 @@ func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 type GovWBFT struct {
 	backend         *simulated.WbftBackend
 	owner           *bind.TransactOpts
-	gov             *govWBFT.Governance
 	stakingContract *bind.BoundContract
 	ncpContract     *bind.BoundContract
 }
@@ -63,6 +63,7 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		alloc = make(types.GenesisAlloc)
 	}
 	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
+
 	g := &GovWBFT{
 		owner: owner,
 		backend: simulated.NewWbftBackend(alloc, func(nodeConf *node.Config, ethConf *ethconfig.Config) {
@@ -70,25 +71,21 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		}),
 	}
 
-	var (
-		stakingAddr, ncpAddr         common.Address
-		stakingContract, ncpContract *bind.BoundContract
-		err                          error
-	)
+	g.backend.CommitWithState(func(state *state.StateDB) error {
+		state.SetCode(govwbft.GovConstAddress, hexutil.MustDecode(govwbft.GovConstContract))
+		state.SetCode(govwbft.GovStakingAddress, hexutil.MustDecode(govwbft.GovStakingContract))
+		state.SetCode(govwbft.GovNCPAddress, hexutil.MustDecode(govwbft.GovNCPContract))
 
-	// deploy GovStaking
-	stakingAddr, stakingContract, err = g.Deploy(compiledWBFT.GovStaking.Deploy(g.backend.Client(), g.owner))
-	require.NoError(t, err)
+		for _, ncp := range ncpList {
+			if err := govwbft.AddNCP(state, ncp); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 
-	// deploy GovNCP
-	if len(ncpList) > 0 {
-		ncpAddr, ncpContract, err = g.Deploy(compiledWBFT.GovNCP.Deploy(g.backend.Client(), g.owner, ncpList))
-		require.NoError(t, err)
-	}
-
-	g.stakingContract = stakingContract
-	g.ncpContract = ncpContract
-	g.gov = govWBFT.NewGovernance(stakingAddr, ncpAddr)
+	g.stakingContract = compiledWBFT.GovStaking.New(g.backend.Client(), govwbft.GovStakingAddress)
+	g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), govwbft.GovNCPAddress)
 
 	return g, nil
 }

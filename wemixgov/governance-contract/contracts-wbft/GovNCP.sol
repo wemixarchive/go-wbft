@@ -60,13 +60,6 @@ contract GovNCP {
         _;
     }
 
-    constructor(address[] memory _ncpList) {
-        require(_ncpList.length > 0, "at least one ncp required");
-        for (uint256 i = 0; i < _ncpList.length; i++) {
-            __ncpList.add(_ncpList[i]);
-        }
-    }
-
     function isNCP(address _ncp) external view returns (bool) {
         return __ncpList.contains(_ncp);
     }
