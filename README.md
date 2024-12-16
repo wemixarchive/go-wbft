@@ -207,6 +207,89 @@ APIs!**
 Maintaining your own private network is more involved as a lot of configurations taken for
 granted in the official networks need to be manually set up.
 
+-------
+#### JENN FIX FROM HERE
+
+1.  Pure ethash engine -  PoW  
+  1.1 generate genesis.json
+  ```
+  {
+  "config": {
+    "chainId": 48425,
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "ethash": {}
+  },
+  "nonce": "0x0",
+  "timestamp": "0x675f891b",
+  "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "gasLimit": "0x47b760",
+  "difficulty": "0x80000",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "alloc": {
+    ...
+    },
+  "number": "0x0",
+  "gasUsed": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "baseFeePerGas": null,
+  "fees": null 
+  }
+  ```
+ 
+
+2.  Beacon Wrapped ethash engine - PoW, but work as beacon after TTD
+3.  Pure clique engine -  PoA
+```
+{
+  "config": {
+    "chainId": 17974,
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "clique": {
+      "period": 10,
+      "epoch": 30000
+    }
+  },
+  "nonce": "0x0",
+  "timestamp": "0x675fb59b",
+  "extraData": "0x00000000000000000000000000000000000000000000000000000000000000006c70f6fb0bd4bbc3580fcf39c38e9f4dfbbf9beac4883a9ea0cdb44000a2e8ec9d69a8055fbcd7db0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "gasLimit": "0x47b760",
+  "difficulty": "0x1",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "alloc": {
+    ...
+  },
+  "number": "0x0",
+  "gasUsed": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "baseFeePerGas": null,
+  "fees": null
+}
+```
+4.  Beacon Wrapped clique engine - PoA, but work as beacon after TTD
+5.  Pure Wbft engine
+6.  Wemix engine - sync as WPoA, but work as WBFT after montblanc block
+
+-----
+
+
 #### Defining the private genesis state
 
 First, you'll need to create the genesis state of your networks, which all nodes need to be
