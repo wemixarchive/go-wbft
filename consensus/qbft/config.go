@@ -231,13 +231,12 @@ func (c *Config) GetStateTransitions(num *big.Int) []params.StateTransition {
 }
 
 func (c *Config) getMontBlancTransition() params.StateTransition {
-	transition := params.StateTransition{}
-	transition.Codes = append(transition.Codes, []params.CodeParam{
-		{Address: govwbft.GovConstAddress, Code: govwbft.GovConstContract},
-		{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
-		{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract},
-	}...)
-	transition.States = append(transition.States, govwbft.InitializeNCP(c.MontBlanc.NCPs)...)
-
-	return transition
+	return params.StateTransition{
+		Codes: []params.CodeParam{
+			{Address: govwbft.GovConstAddress, Code: govwbft.GovConstContract},
+			{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
+			{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract},
+		},
+		States: govwbft.InitializeNCP(c.MontBlanc.NCPs),
+	}
 }
