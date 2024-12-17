@@ -23,19 +23,36 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-type config struct {
-	Genesis *core.Genesis `json:"genesis,omitempty"` // Genesis block to cache for node deploys
-}
-
 type genesisGenerator struct {
-	conf config
+	Genesis *core.Genesis `json:"genesis,omitempty"`
 }
 
 func newUint64(val uint64) *uint64 { return &val }
 
 func makeGenerator(network string) *genesisGenerator {
+	// Construct a default genesis block
 	return &genesisGenerator{
-		conf: config{},
+		Genesis: &core.Genesis{
+			Timestamp:  uint64(time.Now().Unix()),
+			GasLimit:   4700000,
+			Difficulty: big.NewInt(524288),
+			Alloc:      make(types.GenesisAlloc),
+			Config: &params.ChainConfig{
+				HomesteadBlock:      big.NewInt(0),
+				EIP150Block:         big.NewInt(0),
+				EIP155Block:         big.NewInt(0),
+				EIP158Block:         big.NewInt(0),
+				ByzantiumBlock:      big.NewInt(0),
+				ConstantinopleBlock: big.NewInt(0),
+				PetersburgBlock:     big.NewInt(0),
+				IstanbulBlock:       big.NewInt(0),
+				MuirGlacierBlock:    big.NewInt(0),
+				BerlinBlock:         big.NewInt(0),
+				LondonBlock:         big.NewInt(0),
+				ArrowGlacierBlock:   big.NewInt(0),
+				GrayGlacierBlock:    big.NewInt(0),
+			},
+		},
 	}
 }
 
@@ -52,28 +69,7 @@ func (g *genesisGenerator) run() {
 }
 
 func (g *genesisGenerator) makeGenesis() {
-	// Construct a default genesis block
-	genesis := &core.Genesis{
-		Timestamp:  uint64(time.Now().Unix()),
-		GasLimit:   4700000,
-		Difficulty: big.NewInt(524288),
-		Alloc:      make(types.GenesisAlloc),
-		Config: &params.ChainConfig{
-			HomesteadBlock:      big.NewInt(0),
-			EIP150Block:         big.NewInt(0),
-			EIP155Block:         big.NewInt(0),
-			EIP158Block:         big.NewInt(0),
-			ByzantiumBlock:      big.NewInt(0),
-			ConstantinopleBlock: big.NewInt(0),
-			PetersburgBlock:     big.NewInt(0),
-			IstanbulBlock:       big.NewInt(0),
-			MuirGlacierBlock:    big.NewInt(0),
-			BerlinBlock:         big.NewInt(0),
-			LondonBlock:         big.NewInt(0),
-			ArrowGlacierBlock:   big.NewInt(0),
-			GrayGlacierBlock:    big.NewInt(0),
-		},
-	}
+
 	// Figure out which consensus engine to choose
 	fmt.Println()
 	fmt.Println("Which consensus engine to use? (default = Wemix)")
@@ -88,32 +84,32 @@ func (g *genesisGenerator) makeGenesis() {
 	choice := read()
 	switch {
 	case choice == "1":
-		g.ethashConfig(genesis)
+		g.ethashConfig()
 
 	case choice == "2":
-		g.beaconChainConfig(genesis)
-		g.ethashConfig(genesis)
+		g.beaconChainConfig()
+		g.ethashConfig()
 
 	case choice == "3":
-		g.cliqueConfig(genesis)
+		g.cliqueConfig()
 
 	case choice == "4":
-		g.beaconChainConfig(genesis)
-		g.cliqueConfig(genesis)
+		g.beaconChainConfig()
+		g.cliqueConfig()
 
 	case choice == "5":
-		g.wbftChainConfig(genesis)
+		g.wbftChainConfig()
 
 	case choice == "6":
-		g.beaconChainConfig(genesis)
-		g.wbftChainConfig(genesis)
+		g.beaconChainConfig()
+		g.wbftChainConfig()
 
 	case choice == "7" || choice == "":
-		g.wbftChainConfig(genesis)
+		g.wbftChainConfig()
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Montblanc Fork (default 1)")
 		montblancBlock := readDefaultBigInt(common.Big1)
-		genesis.Config.MontBlancBlock = montblancBlock
+		g.Genesis.Config.MontBlancBlock = montblancBlock
 
 	default:
 		log.Crit("Invalid consensus engine choice", "choice", choice)
@@ -124,7 +120,7 @@ func (g *genesisGenerator) makeGenesis() {
 	for {
 		// Read the address of the account to fund
 		if address := readAddress(); address != nil {
-			genesis.Alloc[*address] = types.Account{
+			g.Genesis.Alloc[*address] = types.Account{
 				Balance: new(big.Int).Lsh(big.NewInt(1), 256-7), // 2^256 / 128 (allow many pre-funds without balance overflows)
 			}
 			continue
@@ -135,11 +131,10 @@ func (g *genesisGenerator) makeGenesis() {
 	// Query the user for some custom extras
 	fmt.Println()
 	fmt.Println("Specify your chain/network ID if you want an explicit one (default = random)")
-	genesis.Config.ChainID = new(big.Int).SetUint64(uint64(readDefaultInt(rand.Intn(65536))))
+	g.Genesis.Config.ChainID = new(big.Int).SetUint64(uint64(readDefaultInt(rand.Intn(65536))))
 
 	// All done, store the genesis and flush to disk
 	log.Info("Configured new genesis block")
-	g.conf.Genesis = genesis
 
 	fmt.Println()
 	fmt.Println(" Do you want to export generated genesis file?")
@@ -163,9 +158,11 @@ func (g *genesisGenerator) makeGenesis() {
 	}
 }
 
-func (g *genesisGenerator) wbftChainConfig(genesis *core.Genesis) {
-	genesis.Difficulty = types.QBFTDefaultDifficulty
-	genesis.Config.QBFT = &params.QBFTConfig{
+func (g *genesisGenerator) wbftChainConfig() {
+	// TODO : need to be change after epoch task is merged.
+	// the qbft config needs to be set in field `Transition`
+	g.Genesis.Difficulty = types.QBFTDefaultDifficulty
+	g.Genesis.Config.QBFT = &params.QBFTConfig{
 		BlockReward:           (*math.HexOrDecimal256)(big.NewInt(params.Ether)),
 		EpochLength:           30000,
 		BlockPeriodSeconds:    2,
@@ -186,7 +183,7 @@ func (g *genesisGenerator) wbftChainConfig(genesis *core.Genesis) {
 		}
 	}
 	// make extra data
-	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
+	vanity := append(g.Genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(g.Genesis.ExtraData))...)
 	ist := &types.QBFTExtra{
 		VanityData:        vanity,
 		Validators:        validators,
@@ -202,72 +199,57 @@ func (g *genesisGenerator) wbftChainConfig(genesis *core.Genesis) {
 	if err != nil {
 		log.Crit("failed to encode qbft extra")
 	}
-	genesis.ExtraData = istPayload
+	g.Genesis.ExtraData = istPayload
 
+	// you can add config file for static nodes if you want
 	fmt.Println()
 	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
 	fmt.Println("Else you have to manage peer node manually (default true)")
-	genConfig := readDefaultYesNo(true)
-	if genConfig {
-		fmt.Println()
-		fmt.Println(" Do you want to export generated genesis file?")
-		fmt.Println(" 1. yes")
-		fmt.Println(" 2. nah, just print it")
-
-		choice := read()
-		switch {
-		case choice == "1":
-			fmt.Println()
-			fmt.Printf("Which folder to save the config.toml into? (default = current)\n")
-			folder := readDefaultString(".")
-			g.genConfigFile(folder)
-
-		case choice == "2":
-			g.genConfigFile("")
-		}
+	if readDefaultYesNo(true) {
+		makeConfig()
 	}
 }
 
-func (g *genesisGenerator) beaconChainConfig(genesis *core.Genesis) {
+func (g *genesisGenerator) beaconChainConfig() {
 	fmt.Println()
 	fmt.Println("Do you want to start beacon chain immediately? (default yes)")
 	if readDefaultYesNo(true) {
-		genesis.Config.TerminalTotalDifficulty = common.Big0
-		genesis.Config.TerminalTotalDifficultyPassed = true
-		genesis.Config.ShanghaiTime = newUint64(0)
-		genesis.Config.CancunTime = newUint64(0)
+		g.Genesis.Config.TerminalTotalDifficulty = common.Big0
+		g.Genesis.Config.TerminalTotalDifficultyPassed = true
+		g.Genesis.Config.ShanghaiTime = newUint64(0)
+		g.Genesis.Config.CancunTime = newUint64(0)
 
 	} else {
-		genesis.Config.TerminalTotalDifficultyPassed = false
+		g.Genesis.Config.TerminalTotalDifficultyPassed = false
 		fmt.Println()
 		fmt.Println("Enter TerminalTotalDifficulty value you want to set (default 58_750_000_000_000_000_000_000)")
 		ttd := readDefaultBigInt(params.MainnetTerminalTotalDifficulty)
-		genesis.Config.TerminalTotalDifficulty = ttd
+		g.Genesis.Config.TerminalTotalDifficulty = ttd
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Shanghai Fork (default 1677557088)")
 		shanghaiTime := readDefaultInt(1677557088)
-		genesis.Config.ShanghaiTime = newUint64(uint64(shanghaiTime))
+		g.Genesis.Config.ShanghaiTime = newUint64(uint64(shanghaiTime))
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Cancun Fork (default 1706655072)")
 		cancunTime := readDefaultInt(1706655072)
-		genesis.Config.CancunTime = newUint64(uint64(cancunTime))
+		g.Genesis.Config.CancunTime = newUint64(uint64(cancunTime))
 	}
 }
 
-func (g *genesisGenerator) ethashConfig(genesis *core.Genesis) {
-	genesis.Config.Ethash = new(params.EthashConfig)
-	genesis.ExtraData = make([]byte, 32)
+func (g *genesisGenerator) ethashConfig() {
+	g.Genesis.Config.Ethash = new(params.EthashConfig)
+	g.Genesis.ExtraData = make([]byte, 32)
 }
 
-func (g *genesisGenerator) cliqueConfig(genesis *core.Genesis) {
-	genesis.Difficulty = big.NewInt(1)
-	genesis.Config.Clique = &params.CliqueConfig{
+func (g *genesisGenerator) cliqueConfig() {
+	g.Genesis.Difficulty = big.NewInt(1)
+	g.Genesis.Config.Clique = &params.CliqueConfig{
 		Period: 15,
 		Epoch:  30000,
 	}
 	fmt.Println()
 	fmt.Println("How many seconds should blocks take? (default = 15)")
-	genesis.Config.Clique.Period = uint64(readDefaultInt(15))
+	g.Genesis.Config.Clique.Period = uint64(readDefaultInt(15))
 
 	// We also need the initial list of signers
 	fmt.Println()
@@ -291,26 +273,23 @@ func (g *genesisGenerator) cliqueConfig(genesis *core.Genesis) {
 			}
 		}
 	}
-	genesis.ExtraData = make([]byte, 32+len(signers)*common.AddressLength+65)
+	g.Genesis.ExtraData = make([]byte, 32+len(signers)*common.AddressLength+65)
 	for i, signer := range signers {
-		copy(genesis.ExtraData[32+i*common.AddressLength:], signer[:])
+		copy(g.Genesis.ExtraData[32+i*common.AddressLength:], signer[:])
 	}
 
+	// you can add config file for static nodes if you want
 	fmt.Println()
 	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
 	fmt.Println("Else you have to manage peer node manually (default true)")
-	genConfig := readDefaultYesNo(true)
-	if genConfig {
-		fmt.Println()
-		fmt.Printf("Which folder to save the config.toml into? (default = current)\n")
-		folder := readDefaultString(".")
-		g.genConfigFile(folder)
+	if readDefaultYesNo(true) {
+		makeConfig()
 	}
 }
 
 // flush dumps the contents of config to disk or print.
 func (g *genesisGenerator) genGenesisFile(folder string) {
-	out, _ := json.MarshalIndent(g.conf.Genesis, "", "  ")
+	out, _ := json.MarshalIndent(g.Genesis, "", "  ")
 
 	if folder != "" {
 		if err := os.MkdirAll(folder, 0755); err != nil {
@@ -328,8 +307,33 @@ func (g *genesisGenerator) genGenesisFile(folder string) {
 	}
 }
 
-func (g *genesisGenerator) genConfigFile(folder string) {
-	// it created config.toml file that defines Node.P2P.StaticNodes
+func makeConfig() {
+	fmt.Println()
+	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
+	fmt.Println("Else you have to manage peer node manually (default true)")
+	genConfig := readDefaultYesNo(true)
+	if genConfig {
+		fmt.Println()
+		fmt.Println(" Do you want to export generated genesis file?")
+		fmt.Println(" 1. yes")
+		fmt.Println(" 2. nah, just print it")
+
+		choice := read()
+		switch {
+		case choice == "1":
+			fmt.Println()
+			fmt.Printf("Which folder to save the config.toml into? (default = current)\n")
+			folder := readDefaultString(".")
+			genConfigFile(folder)
+
+		case choice == "2":
+			genConfigFile("")
+		}
+	}
+}
+
+// genConfigFile creates config.toml file that defines Node.P2P.StaticNodes
+func genConfigFile(folder string) {
 
 	// Create a buffer to write TOML content
 	var buf bytes.Buffer
