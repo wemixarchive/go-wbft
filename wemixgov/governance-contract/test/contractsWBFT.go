@@ -9,12 +9,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/params"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
@@ -67,22 +66,12 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 	g := &GovWBFT{
 		owner: owner,
 		backend: simulated.NewWbftBackend(alloc, func(nodeConf *node.Config, ethConf *ethconfig.Config) {
+			ethConf.Genesis.Config.MontBlanc = &params.MontBlancConfig{NCPs: ncpList}
 			defaultBlockPeriod = time.Duration(ethConf.Genesis.Config.QBFT.BlockPeriodSeconds) * time.Second
 		}),
 	}
-
-	g.backend.CommitWithState(func(state *state.StateDB) error {
-		state.SetCode(govwbft.GovConstAddress, hexutil.MustDecode(govwbft.GovConstContract))
-		state.SetCode(govwbft.GovStakingAddress, hexutil.MustDecode(govwbft.GovStakingContract))
-		state.SetCode(govwbft.GovNCPAddress, hexutil.MustDecode(govwbft.GovNCPContract))
-
-		for _, ncp := range ncpList {
-			if err := govwbft.AddNCP(state, ncp); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	//Governance contracts are deployed at MontBlancBlock + 1
+	g.backend.Commit()
 
 	g.stakingContract = compiledWBFT.GovStaking.New(g.backend.Client(), govwbft.GovStakingAddress)
 	g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), govwbft.GovNCPAddress)

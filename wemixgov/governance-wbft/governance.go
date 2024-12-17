@@ -4,9 +4,52 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
+	GovConstAddress   = common.HexToAddress(params.GOV_CONST_ADDRESS)
+	GovStakingAddress = common.HexToAddress(params.GOV_STAKING_ADDRESS)
+	GovNCPAddress     = common.HexToAddress(params.GOV_NCP_ADDRESS)
+)
+
+func InitializeNCP(ncps []common.Address) []params.StateParam {
+	param := make([]params.StateParam, 0)
+	valueSlot := common.HexToHash(SLOT_NCP_LIST)
+	indexSlot := IncrementHash(valueSlot, big.NewInt(1))
+	duplicated := make(map[common.Address]struct{})
+
+	currentIdx := uint64(0)
+	for _, ncp := range ncps {
+		if _, ok := duplicated[ncp]; ok {
+			continue
+		}
+		newLength := new(big.Int).SetUint64(currentIdx + 1)
+		param = append(param,
+			[]params.StateParam{
+				{ // set index slot
+					Address: GovNCPAddress,
+					Key:     CalculateMappingSlot(indexSlot, ncp),
+					Value:   common.BigToHash(newLength),
+				},
+				{ // set value slot
+					Address: GovNCPAddress,
+					Key:     CalculateDynamicSlot(valueSlot, new(big.Int).SetUint64(currentIdx)),
+					Value:   common.BytesToHash(ncp.Bytes()),
+				},
+				{ // set length
+					Address: GovNCPAddress,
+					Key:     valueSlot,
+					Value:   common.BigToHash(newLength),
+				},
+			}...,
+		)
+		duplicated[ncp] = struct{}{}
+		currentIdx++
+	}
+	return param
+}
+
 func IsNCPValidator(state StateReader, validator common.Address) bool {
 	if !IsValidator(state, validator) {
 		return false

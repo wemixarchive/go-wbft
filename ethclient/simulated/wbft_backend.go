@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftbackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -165,8 +164,8 @@ func (n *WbftBackend) Commit() common.Hash {
 	return n.eth.Miner().CommitSimulated()
 }
 
-func (n *WbftBackend) CommitWithState(stateFn qbft.StateFn) common.Hash {
-	return n.eth.Miner().CommitSimulatedWithState(stateFn)
+func (n *WbftBackend) CommitWithState(transition params.StateTransition) common.Hash {
+	return n.eth.Miner().CommitSimulatedWithState(transition)
 }
 
 func (n *WbftBackend) AdjustTime(duration time.Duration) common.Hash {

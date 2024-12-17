@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
@@ -554,11 +555,13 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 	// Accumulate any block and uncle rewards and commit the final state root
 	e.accumulateRewards(chain, state, header)
 
-	for _, st := range e.cfg.StateTransitions {
-		if st.Block.Cmp(header.Number) == 0 && st.StateFn != nil {
-			snapshot := state.Snapshot()
-			if err := st.StateFn(state); err != nil {
-				state.RevertToSnapshot(snapshot)
+	if transitions := e.cfg.GetStateTransitions(header.Number); len(transitions) > 0 {
+		for _, st := range transitions {
+			for _, c := range st.Codes {
+				state.SetCode(c.Address, hexutil.MustDecode(c.Code))
+			}
+			for _, s := range st.States {
+				state.SetState(s.Address, s.Key, s.Value)
 			}
 		}
 	}

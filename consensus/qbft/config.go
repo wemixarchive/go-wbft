@@ -26,8 +26,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/params"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
+
 	"github.com/naoina/toml"
 )
 
@@ -99,13 +100,6 @@ func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 	p.By = v
 }
 
-type StateTransition struct {
-	Block   *big.Int
-	StateFn StateFn
-}
-
-type StateFn func(*state.StateDB) error
-
 type Config struct {
 	RequestTimeout           uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
 	BlockPeriod              uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
@@ -122,7 +116,10 @@ type Config struct {
 	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`
 	Transitions              []params.Transition
 
-	StateTransitions []StateTransition
+	StateTransitions []params.StateTransition
+
+	MontBlancBlock *big.Int
+	MontBlanc      *params.MontBlancConfig
 }
 
 var DefaultConfig = &Config{
@@ -213,4 +210,34 @@ func (c *Config) getTransitionValue(num *big.Int, callback func(transition param
 // String implements the stringer interface, returning the consensus engine details.
 func (c *Config) String() string {
 	return "qbft"
+}
+
+func (c *Config) GetStateTransitions(num *big.Int) []params.StateTransition {
+	if c != nil && num != nil {
+		transitions := make([]params.StateTransition, 0)
+		// MontBlanc hardfork
+		if c.MontBlancBlock != nil && c.MontBlanc != nil && new(big.Int).Add(c.MontBlancBlock, common.Big1).Cmp(num) == 0 {
+			transitions = append(transitions, c.getMontBlancTransition())
+		}
+
+		for _, st := range c.StateTransitions {
+			if st.Block.Cmp(num) == 0 {
+				transitions = append(transitions, st)
+			}
+		}
+		return transitions
+	}
+	return nil
+}
+
+func (c *Config) getMontBlancTransition() params.StateTransition {
+	transition := params.StateTransition{}
+	transition.Codes = append(transition.Codes, []params.CodeParam{
+		{Address: govwbft.GovConstAddress, Code: govwbft.GovConstContract},
+		{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
+		{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract},
+	}...)
+	transition.States = append(transition.States, govwbft.InitializeNCP(c.MontBlanc.NCPs)...)
+
+	return transition
 }

@@ -7,11 +7,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -493,17 +491,12 @@ func TestGovWithNCP(t *testing.T) {
 	}
 
 	checkNCPValidator := func() {
-		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
+		require.True(t, totalStaking.Cmp(govwbft.TotalStaking(stateDB)) == 0)
 		require.Equal(t, validators, govwbft.Validators(stateDB))
 		require.Equal(t, ncps, govwbft.NCPList(stateDB))
 		require.Equal(t, ncpTotalStaking, govwbft.NCPTotalStaking(stateDB))
 		require.Equal(t, ncpValidators, govwbft.NCPValidators(stateDB))
 	}
-
-	// t.Run("deployment failure", func(t *testing.T) {
-	// 	_, _, _, err := compiledWBFT.GovNCP.Deploy(g.backend.Client(), g.owner, []common.Address{})
-	// 	ExpectedRevert(t, err, "at least one ncp required")
-	// })
 
 	t.Run("NCP Staking", func(t *testing.T) {
 		require.True(t, govwbft.TotalStaking(stateDB).Sign() == 0)
@@ -834,17 +827,16 @@ func TestGovWithNCP(t *testing.T) {
 	})
 }
 
-/*
-	contract TestGovConst{
-	    uint256 public constant MINIMUM_STAKING = 100000e18;
-	    uint256 public constant MAXIMUM_STAKING = type(uint128).max;
-	    uint256 public constant UNBONDING_PERIOD_VALIDATOR = 3 hours;
-	    uint256 public constant UNBONDING_PERIOD_DELEGATOR = 72 hours;
-	}
-*/
-var testGovConst = "0x6080604052348015600f57600080fd5b506004361060465760003560e01c8063129060ab14604b578063840c1771146073578063ba631d3f14607c578063f90aa6ca14608c575b600080fd5b60616fffffffffffffffffffffffffffffffff81565b60405190815260200160405180910390f35b60616203f48081565b606169152d02c7e14af680000081565b6061612a308156fea264697066735822122053692bacb0f904df372db778253177c8d538c58228c0079e694d50f05971896c64736f6c634300080e0033"
-
 func TestSetCode(t *testing.T) {
+	/*
+		contract TestGovConst{
+		    uint256 public constant MINIMUM_STAKING = 100000e18;
+		    uint256 public constant MAXIMUM_STAKING = type(uint128).max;
+		    uint256 public constant UNBONDING_PERIOD_VALIDATOR = 3 hours;
+		    uint256 public constant UNBONDING_PERIOD_DELEGATOR = 72 hours;
+		}
+	*/
+	var testGovConst = "0x6080604052348015600f57600080fd5b506004361060465760003560e01c8063129060ab14604b578063840c1771146073578063ba631d3f14607c578063f90aa6ca14608c575b600080fd5b60616fffffffffffffffffffffffffffffffff81565b60405190815260200160405180910390f35b60616203f48081565b606169152d02c7e14af680000081565b6061612a308156fea264697066735822122053692bacb0f904df372db778253177c8d538c58228c0079e694d50f05971896c64736f6c634300080e0033"
 	var (
 		ctx          = context.TODO()
 		minStaking1  = towei(500000)
@@ -852,13 +844,17 @@ func TestSetCode(t *testing.T) {
 		totalStaking = new(big.Int)
 		validators   = make([]common.Address, 0)
 
-		v1 = NewTestValidator()
-		v2 = NewTestValidator()
+		ncp1 = NewTestValidator()
+		ncp2 = NewTestValidator()
+		ncp3 = NewTestValidator()
 	)
 
-	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
-		v1.Staker.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
-		v2.Staker.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+	// for duplicate test
+	ncpInput := []common.Address{ncp3.Staker.Address, ncp3.Staker.Address}
+
+	g, err := NewGovWBFT(t, ncpInput, types.GenesisAlloc{
+		ncp1.Staker.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		ncp2.Staker.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 	})
 	require.NoError(t, err)
 	defer g.backend.Close()
@@ -870,14 +866,19 @@ func TestSetCode(t *testing.T) {
 		},
 	}
 
+	t.Run("duplicated ncp", func(t *testing.T) {
+		ncps := []common.Address{ncp3.Staker.Address}
+		require.Equal(t, ncps, govwbft.NCPList(stateDB))
+	})
+
 	t.Run("add validator", func(t *testing.T) {
 		require.True(t, govwbft.TotalStaking(stateDB).Sign() == 0)
 		require.True(t, len(govwbft.Validators(stateDB)) == 0)
-		beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
+		beforeBalance := g.balanceAt(t, ctx, ncp1.Staker.Address, nil)
 
-		receipt, err := g.ExpectedOk(g.RegisterValidator(t, v1, minStaking1))
+		receipt, err := g.ExpectedOk(g.RegisterValidator(t, ncp1, minStaking1))
 		require.NoError(t, err)
-		validators = append(validators, v1.Validator.Address)
+		validators = append(validators, ncp1.Validator.Address)
 		totalStaking = totalStaking.Add(totalStaking, minStaking1)
 
 		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
@@ -885,45 +886,37 @@ func TestSetCode(t *testing.T) {
 
 		gasCost := calcTxGasCost(receipt)
 		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking1, gasCost))
-		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Staker.Address, nil))
+		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp1.Staker.Address, nil))
 
 		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterValidator(t, v2, minStaking2)),
+			g.ExpectedFail(g.RegisterValidator(t, ncp2, minStaking2)),
 			"out of bounds",
 		)
 	})
 
 	t.Run("upgrade contract", func(t *testing.T) {
-		g.backend.CommitWithState(func(state *state.StateDB) error {
-			state.SetCode(govwbft.GovConstAddress, hexutil.MustDecode(testGovConst))
-
-			return errors.New("revert test")
-		})
-
 		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterValidator(t, v2, new(big.Int).Sub(minStaking1, common.Big1))),
+			g.ExpectedFail(g.RegisterValidator(t, ncp2, new(big.Int).Sub(minStaking1, common.Big1))),
 			"out of bounds",
 		)
 
 		// upgrade contract
-		g.backend.CommitWithState(func(state *state.StateDB) error {
-			state.SetCode(govwbft.GovConstAddress, hexutil.MustDecode(testGovConst))
-
-			return nil
+		g.backend.CommitWithState(params.StateTransition{
+			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: testGovConst}},
 		})
 	})
 
 	t.Run("retry add validator", func(t *testing.T) {
 		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterValidator(t, v2, new(big.Int).Sub(minStaking2, common.Big1))),
+			g.ExpectedFail(g.RegisterValidator(t, ncp2, new(big.Int).Sub(minStaking2, common.Big1))),
 			"out of bounds",
 		)
 
-		beforeBalance := g.balanceAt(t, ctx, v2.Staker.Address, nil)
+		beforeBalance := g.balanceAt(t, ctx, ncp2.Staker.Address, nil)
 
-		receipt, err := g.ExpectedOk(g.RegisterValidator(t, v2, minStaking2))
+		receipt, err := g.ExpectedOk(g.RegisterValidator(t, ncp2, minStaking2))
 		require.NoError(t, err)
-		validators = append(validators, v2.Validator.Address)
+		validators = append(validators, ncp2.Validator.Address)
 		totalStaking = totalStaking.Add(totalStaking, minStaking2)
 
 		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
@@ -931,9 +924,8 @@ func TestSetCode(t *testing.T) {
 
 		gasCost := calcTxGasCost(receipt)
 		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking2, gasCost))
-		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v2.Staker.Address, nil))
+		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp2.Staker.Address, nil))
 	})
-
 }
 
 func removeElement(slice []common.Address, value common.Address) []common.Address {
