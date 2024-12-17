@@ -187,6 +187,7 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 	// If proof-of-authority is requested, set it up
 	if config.Clique != nil {
 		if config.TerminalTotalDifficulty == nil {
+			// clique engine without supporting beacon logic
 			return clique.New(config.Clique, db), nil
 		}
 		return beacon.New(clique.New(config.Clique, db)), nil
@@ -233,6 +234,7 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		}
 
 		if config.TerminalTotalDifficulty == nil {
+			// wbft engine without supporting beacon logic
 			return qbftBackend.New(qbftCfg, privKey, db), nil
 		}
 		return beacon.New(qbftBackend.New(qbftCfg, privKey, db)), nil
