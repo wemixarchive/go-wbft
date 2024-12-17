@@ -82,13 +82,9 @@ var (
 		QBFT: &QBFTConfig{ // TODO: this is just for test on mainnet
 			EpochLength:              100,
 			BlockPeriodSeconds:       1,
-			EmptyBlockPeriodSeconds:  &ebps,
 			RequestTimeoutSeconds:    1000,
 			ProposerPolicy:           0,
 			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
-			BeneficiaryMode:          &bm,
-			MiningBeneficiary:        &mb,
-			ValidatorSelectionMode:   &vsm,
 			MaxRequestTimeoutSeconds: &mrts,
 		},
 	}
@@ -125,13 +121,9 @@ var (
 		QBFT: &QBFTConfig{ // TODO: this is just for test on mainnet
 			EpochLength:              100,
 			BlockPeriodSeconds:       1,
-			EmptyBlockPeriodSeconds:  &ebps,
 			RequestTimeoutSeconds:    1000,
 			ProposerPolicy:           0,
 			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
-			BeneficiaryMode:          &bm,
-			MiningBeneficiary:        &mb,
-			ValidatorSelectionMode:   &vsm,
 			MaxRequestTimeoutSeconds: &mrts,
 		},
 	}
@@ -266,10 +258,6 @@ var (
 		Clique:                        nil,
 	}
 
-	ebps = uint64(6)
-	bm   = "validator"
-	vsm  = "blockheader"
-	mb   = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	mrts = uint64(4)
 
 	// customized for WEMIX chain
@@ -301,13 +289,9 @@ var (
 		QBFT: &QBFTConfig{
 			EpochLength:              10,
 			BlockPeriodSeconds:       3,
-			EmptyBlockPeriodSeconds:  &ebps,
 			RequestTimeoutSeconds:    1000,
 			ProposerPolicy:           0,
 			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
-			BeneficiaryMode:          &bm,
-			MiningBeneficiary:        &mb,
-			ValidatorSelectionMode:   &vsm,
 			MaxRequestTimeoutSeconds: &mrts,
 			// You should assign `Validators` before using
 		},
@@ -420,13 +404,9 @@ var (
 		QBFT: &QBFTConfig{
 			EpochLength:              10,
 			BlockPeriodSeconds:       3,
-			EmptyBlockPeriodSeconds:  &ebps,
 			RequestTimeoutSeconds:    1000,
 			ProposerPolicy:           0,
 			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
-			BeneficiaryMode:          &bm,
-			MiningBeneficiary:        &mb,
-			ValidatorSelectionMode:   &vsm,
 			MaxRequestTimeoutSeconds: &mrts,
 			// You should assign `Validators` before using
 		},
@@ -711,28 +691,12 @@ func (c *ChainConfig) Description() string {
 	if c.QBFT != nil {
 		banner += fmt.Sprintf("   - EpochLength:               %-8v\n", c.QBFT.EpochLength)
 		banner += fmt.Sprintf("   - BlockPeriodSeconds:        %-8v\n", c.QBFT.BlockPeriodSeconds)
-		if c.QBFT.EmptyBlockPeriodSeconds == nil {
-			banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", 0)
-		} else {
-			banner += fmt.Sprintf("   - EmptyBlockPeriodSeconds:   %-8v\n", *c.QBFT.EmptyBlockPeriodSeconds)
-		}
 		banner += fmt.Sprintf("   - RequestTimeoutSeconds:     %-8v\n", c.QBFT.RequestTimeoutSeconds)
 		banner += fmt.Sprintf("   - ProposerPolicy:            %-8v\n", c.QBFT.ProposerPolicy)
 		if c.QBFT.BlockReward == nil {
 			banner += fmt.Sprintf("   - BlockReward:               %-8v\n", 0)
 		} else {
 			banner += fmt.Sprintf("   - BlockReward:               %-8v\n", ((*big.Int)(c.QBFT.BlockReward)).Int64())
-		}
-		if c.QBFT.BeneficiaryMode == nil {
-			banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", "validator")
-		} else {
-			banner += fmt.Sprintf("   - BeneficiaryMode:           %v\n", *c.QBFT.BeneficiaryMode)
-		}
-		banner += fmt.Sprintf("   - MiningBeneficiary:         %v\n", c.QBFT.MiningBeneficiary)
-		if c.QBFT.ValidatorSelectionMode == nil {
-			banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", "blockheader")
-		} else {
-			banner += fmt.Sprintf("   - ValidatorSelectionMode:    %v\n", *c.QBFT.ValidatorSelectionMode)
 		}
 		banner += fmt.Sprintf("   - Validators:                %v\n", c.QBFT.Validators)
 		if c.QBFT.MaxRequestTimeoutSeconds == nil {

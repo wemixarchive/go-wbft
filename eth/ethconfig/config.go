@@ -199,9 +199,6 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		if config.QBFT.BlockPeriodSeconds != 0 {
 			qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
 		}
-		if config.QBFT.EmptyBlockPeriodSeconds != nil {
-			qbftCfg.EmptyBlockPeriod = *config.QBFT.EmptyBlockPeriodSeconds
-		}
 		if config.QBFT.RequestTimeoutSeconds != 0 {
 			qbftCfg.RequestTimeout = config.QBFT.RequestTimeoutSeconds * 1000
 		}
@@ -211,9 +208,6 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 
 		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
 		qbftCfg.BlockReward = config.QBFT.BlockReward
-		qbftCfg.BeneficiaryMode = config.QBFT.BeneficiaryMode
-		qbftCfg.MiningBeneficiary = config.QBFT.MiningBeneficiary
-		qbftCfg.ValidatorSelectionMode = config.QBFT.ValidatorSelectionMode
 		qbftCfg.Validators = config.QBFT.Validators
 
 		if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {

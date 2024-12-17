@@ -101,15 +101,11 @@ func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 type Config struct {
 	RequestTimeout           uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
 	BlockPeriod              uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
-	EmptyBlockPeriod         uint64                `toml:",omitempty"` // Default minimum difference between a block and empty block's timestamps in second
 	ProposerPolicy           *ProposerPolicy       `toml:",omitempty"` // The policy for proposer selection
 	Epoch                    uint64                `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
 	AllowedFutureBlockTime   uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	BeneficiaryMode          *string               `toml:",omitempty"` // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
 	BlockReward              *math.HexOrDecimal256 `toml:",omitempty"` // Reward
-	MiningBeneficiary        *common.Address       `toml:",omitempty"` // Wallet address that benefits at every new block (besu mode)
 	Validators               []common.Address      `toml:",omitempty"`
-	ValidatorSelectionMode   *string               `toml:",omitempty"`
 	Client                   bind.ContractCaller   `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`
 	Transitions              []params.Transition
@@ -118,7 +114,6 @@ type Config struct {
 var DefaultConfig = &Config{
 	RequestTimeout:         10000,
 	BlockPeriod:            5,
-	EmptyBlockPeriod:       0,
 	ProposerPolicy:         NewRoundRobinProposerPolicy(),
 	Epoch:                  30000,
 	AllowedFutureBlockTime: 0,
@@ -138,20 +133,8 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.BlockPeriodSeconds != 0 {
 			newConfig.BlockPeriod = transition.BlockPeriodSeconds
 		}
-		if transition.EmptyBlockPeriodSeconds != nil {
-			newConfig.EmptyBlockPeriod = *transition.EmptyBlockPeriodSeconds
-		}
-		if transition.BeneficiaryMode != nil {
-			newConfig.BeneficiaryMode = transition.BeneficiaryMode
-		}
 		if transition.BlockReward != nil {
 			newConfig.BlockReward = transition.BlockReward
-		}
-		if transition.MiningBeneficiary != nil {
-			newConfig.MiningBeneficiary = transition.MiningBeneficiary
-		}
-		if transition.ValidatorSelectionMode != "" {
-			newConfig.ValidatorSelectionMode = &transition.ValidatorSelectionMode
 		}
 		if len(transition.Validators) > 0 {
 			newConfig.Validators = transition.Validators
@@ -162,19 +145,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 	})
 
 	return newConfig
-}
-
-func (c Config) GetValidatorSelectionMode(blockNumber *big.Int) string {
-	mode := params.BlockHeaderMode
-	if c.ValidatorSelectionMode != nil {
-		mode = *c.ValidatorSelectionMode
-	}
-	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		if transition.ValidatorSelectionMode != "" {
-			mode = transition.ValidatorSelectionMode
-		}
-	})
-	return mode
 }
 
 func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
