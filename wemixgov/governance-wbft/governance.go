@@ -7,23 +7,18 @@ import (
 )
 
 var (
-	GovConstAddress   = common.HexToAddress("0x1000")
-	GovStakingAddress = common.HexToAddress("0x1001")
-	GovNCPAddress     = common.HexToAddress("0x1002")
-)
-
-func IsNCPValidator(stateDB StateDB, validator common.Address) bool {
-	if !IsValidator(stateDB, validator) {
+func IsNCPValidator(state StateReader, validator common.Address) bool {
+	if !IsValidator(state, validator) {
 		return false
 	}
-	return IsNCP(stateDB, getStaker(stateDB, validatorInfoSlot(validator)))
+	return IsNCP(state, getStaker(state, validatorInfoSlot(validator)))
 }
 
-func NCPValidators(stateDB StateDB) []common.Address {
+func NCPValidators(state StateReader) []common.Address {
 	validators := make([]common.Address, 0)
-	ncps := NCPList(stateDB)
+	ncps := NCPList(state)
 	for _, ncp := range ncps {
-		v := ValidatorByStaker(stateDB, ncp)
+		v := ValidatorByStaker(state, ncp)
 		if v != (common.Address{}) {
 			validators = append(validators, v)
 		}
@@ -31,20 +26,20 @@ func NCPValidators(stateDB StateDB) []common.Address {
 	return validators
 }
 
-func NCPTotalStaking(stateDB StateDB) *big.Int {
+func NCPTotalStaking(state StateReader) *big.Int {
 	totalStaking := new(big.Int)
-	validators := NCPValidators(stateDB)
+	validators := NCPValidators(state)
 	for _, v := range validators {
-		totalStaking.Add(totalStaking, getStaking(stateDB, validatorInfoSlot(v)))
+		totalStaking.Add(totalStaking, getStaking(state, validatorInfoSlot(v)))
 	}
 	return totalStaking
 }
 
-func NCPValidatorInfoMap(stateDB StateDB) map[common.Address]Validator {
+func NCPValidatorInfoMap(state StateReader) map[common.Address]Validator {
 	validatorInfos := make(map[common.Address]Validator)
-	validators := NCPValidators(stateDB)
+	validators := NCPValidators(state)
 	for _, v := range validators {
-		validatorInfos[v] = ValidatorInfo(stateDB, v)
+		validatorInfos[v] = ValidatorInfo(state, v)
 	}
 	return validatorInfos
 }

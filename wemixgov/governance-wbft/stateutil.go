@@ -1,16 +1,14 @@
 package govwbft
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
 )
 
-type StateDB interface {
+type StateReader interface {
 	GetState(addr common.Address, hash common.Hash) common.Hash
-	SetState(addr common.Address, key, value common.Hash)
 }
 
 func CalculateMappingSlot(baseSlot common.Hash, key interface{ Bytes() []byte }) common.Hash {
@@ -52,43 +50,27 @@ func NewEnumerableSet[T interface{ Bytes() []byte }](baseSlot common.Hash) *Enum
 	}
 }
 
-func (es *EnumerableSet[T]) Length(stateDB StateDB, address common.Address) uint64 {
-	return stateDB.GetState(address, es.valueSlot).Big().Uint64()
+func (es *EnumerableSet[T]) Length(state StateReader, address common.Address) uint64 {
+	return state.GetState(address, es.valueSlot).Big().Uint64()
 }
 
-func (es *EnumerableSet[T]) Contains(stateDB StateDB, address common.Address, value T) bool {
-	index := stateDB.GetState(address, CalculateMappingSlot(es.indexSlot, value)).Big()
+func (es *EnumerableSet[T]) Contains(state StateReader, address common.Address, value T) bool {
+	index := state.GetState(address, CalculateMappingSlot(es.indexSlot, value)).Big()
 
 	return index.Sign() > 0
 }
 
-func (es *EnumerableSet[T]) Values(stateDB StateDB, address common.Address) []T {
-	len := es.Length(stateDB, address)
+func (es *EnumerableSet[T]) Values(state StateReader, address common.Address) []T {
+	len := es.Length(state, address)
 	values := make([]T, len)
 	for i := uint64(0); i < len; i++ {
-		values[i] = es.convertFn(stateDB.GetState(address, CalculateDynamicSlot(es.valueSlot, new(big.Int).SetUint64(i))))
+		values[i] = es.convertFn(state.GetState(address, CalculateDynamicSlot(es.valueSlot, new(big.Int).SetUint64(i))))
 	}
 	return values
 }
 
-func (es *EnumerableSet[T]) At(stateDB StateDB, address common.Address, index *big.Int) T {
-	return es.convertFn(stateDB.GetState(address, CalculateDynamicSlot(es.valueSlot, index)))
-}
-
-func (es *EnumerableSet[T]) Add(stateDB StateDB, address common.Address, value T) error {
-	if es.Contains(stateDB, address, value) {
-		return errors.New("duplicated value")
-	}
-	newIndex := es.Length(stateDB, address)
-	newLength := new(big.Int).SetUint64(newIndex + 1)
-	// set index slot
-	stateDB.SetState(address, CalculateMappingSlot(es.indexSlot, value), common.BigToHash(newLength))
-	// set value slot
-	stateDB.SetState(address, CalculateDynamicSlot(es.valueSlot, new(big.Int).SetUint64(newIndex)), common.BytesToHash(value.Bytes()))
-	// set length
-	stateDB.SetState(address, es.valueSlot, common.BigToHash(newLength))
-
-	return nil
+func (es *EnumerableSet[T]) At(state StateReader, address common.Address, index *big.Int) T {
+	return es.convertFn(state.GetState(address, CalculateDynamicSlot(es.valueSlot, index)))
 }
 
 func NewAddressSet(baseSlot common.Hash) *EnumerableSet[common.Address] {

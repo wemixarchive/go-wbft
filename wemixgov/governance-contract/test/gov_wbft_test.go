@@ -19,7 +19,6 @@ type TestStateDB struct {
 	getState func(addr common.Address, hash common.Hash) common.Hash
 }
 
-func (db *TestStateDB) SetState(addr common.Address, key, value common.Hash) {}
 func (db *TestStateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 	return db.getState(addr, hash)
 }
