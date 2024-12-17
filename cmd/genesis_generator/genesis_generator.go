@@ -15,13 +15,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/console/prompt"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/peterh/liner"
-	"golang.org/x/term"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type config struct {
@@ -86,7 +85,7 @@ func (g *genesisGenerator) makeGenesis() {
 	fmt.Println(" 6. Beacon Wbft - beacon engine switched from wbft")
 	fmt.Println(" 7. Wemix - wemix engine swtiched from wpoa to wbft")
 
-	choice := g.read()
+	choice := read()
 	switch {
 	case choice == "1":
 		g.ethashConfig(genesis)
@@ -102,6 +101,20 @@ func (g *genesisGenerator) makeGenesis() {
 		g.beaconChainConfig(genesis)
 		g.cliqueConfig(genesis)
 
+	case choice == "5":
+		g.wbftChainConfig(genesis)
+
+	case choice == "6":
+		g.beaconChainConfig(genesis)
+		g.wbftChainConfig(genesis)
+
+	case choice == "7" || choice == "":
+		g.wbftChainConfig(genesis)
+		fmt.Println()
+		fmt.Println("Enter timestamp you want to enable Montblanc Fork (default 1)")
+		montblancBlock := readDefaultBigInt(common.Big1)
+		genesis.Config.MontBlancBlock = montblancBlock
+
 	default:
 		log.Crit("Invalid consensus engine choice", "choice", choice)
 	}
@@ -110,7 +123,7 @@ func (g *genesisGenerator) makeGenesis() {
 	fmt.Println("Which accounts should be pre-funded? (advisable at least one)")
 	for {
 		// Read the address of the account to fund
-		if address := g.readAddress(); address != nil {
+		if address := readAddress(); address != nil {
 			genesis.Alloc[*address] = types.Account{
 				Balance: new(big.Int).Lsh(big.NewInt(1), 256-7), // 2^256 / 128 (allow many pre-funds without balance overflows)
 			}
@@ -122,7 +135,7 @@ func (g *genesisGenerator) makeGenesis() {
 	// Query the user for some custom extras
 	fmt.Println()
 	fmt.Println("Specify your chain/network ID if you want an explicit one (default = random)")
-	genesis.Config.ChainID = new(big.Int).SetUint64(uint64(g.readDefaultInt(rand.Intn(65536))))
+	genesis.Config.ChainID = new(big.Int).SetUint64(uint64(readDefaultInt(rand.Intn(65536))))
 
 	// All done, store the genesis and flush to disk
 	log.Info("Configured new genesis block")
@@ -133,27 +146,92 @@ func (g *genesisGenerator) makeGenesis() {
 	fmt.Println(" 1. yes")
 	fmt.Println(" 2. nah, just print it")
 
-	choice = g.read()
+	choice = read()
 	switch {
 	case choice == "1":
 		fmt.Println()
 		fmt.Printf("Which folder to save the genesis spec into? (default = current)\n")
 		fmt.Printf("It will create genesis.json\n")
 
-		folder := g.readDefaultString(".")
-		g.flush(folder)
+		folder := readDefaultString(".")
+		g.genGenesisFile(folder)
 
 	case choice == "2":
-		g.flush("")
+		g.genGenesisFile("")
 	default:
-		g.flush("")
+		g.genGenesisFile("")
+	}
+}
+
+func (g *genesisGenerator) wbftChainConfig(genesis *core.Genesis) {
+	genesis.Difficulty = types.QBFTDefaultDifficulty
+	genesis.Config.QBFT = &params.QBFTConfig{
+		BlockReward:           (*math.HexOrDecimal256)(big.NewInt(params.Ether)),
+		EpochLength:           30000,
+		BlockPeriodSeconds:    2,
+		RequestTimeoutSeconds: 4,
+		ProposerPolicy:        0,
+	}
+	fmt.Println()
+	fmt.Println("Which accounts are allowed to seal? (mandatory at least one)")
+
+	var validators []common.Address
+	for {
+		if address := readAddress(); address != nil {
+			validators = append(validators, *address)
+			continue
+		}
+		if len(validators) > 0 {
+			break
+		}
+	}
+	// make extra data
+	vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
+	ist := &types.QBFTExtra{
+		VanityData:        vanity,
+		Validators:        validators,
+		Vote:              nil,
+		PreparedSeal:      [][]byte{},
+		CommittedSeal:     [][]byte{},
+		PrevPreparedSeal:  [][]byte{},
+		PrevCommittedSeal: [][]byte{},
+		Round:             0,
+	}
+
+	istPayload, err := rlp.EncodeToBytes(&ist)
+	if err != nil {
+		log.Crit("failed to encode qbft extra")
+	}
+	genesis.ExtraData = istPayload
+
+	fmt.Println()
+	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
+	fmt.Println("Else you have to manage peer node manually (default true)")
+	genConfig := readDefaultYesNo(true)
+	if genConfig {
+		fmt.Println()
+		fmt.Println(" Do you want to export generated genesis file?")
+		fmt.Println(" 1. yes")
+		fmt.Println(" 2. nah, just print it")
+
+		choice := read()
+		switch {
+		case choice == "1":
+			fmt.Println()
+			fmt.Printf("Which folder to save the config.toml into? (default = current)\n")
+			folder := readDefaultString(".")
+			g.genConfigFile(folder)
+
+		case choice == "2":
+			g.genConfigFile("")
+		}
 	}
 }
 
 func (g *genesisGenerator) beaconChainConfig(genesis *core.Genesis) {
 	fmt.Println()
 	fmt.Println("Do you want to start beacon chain immediately? (default yes)")
-	if g.readDefaultYesNo(true) {
+	if readDefaultYesNo(true) {
 		genesis.Config.TerminalTotalDifficulty = common.Big0
 		genesis.Config.TerminalTotalDifficultyPassed = true
 		genesis.Config.ShanghaiTime = newUint64(0)
@@ -163,15 +241,15 @@ func (g *genesisGenerator) beaconChainConfig(genesis *core.Genesis) {
 		genesis.Config.TerminalTotalDifficultyPassed = false
 		fmt.Println()
 		fmt.Println("Enter TerminalTotalDifficulty value you want to set (default 58_750_000_000_000_000_000_000)")
-		ttd := g.readDefaultBigInt(params.MainnetTerminalTotalDifficulty)
+		ttd := readDefaultBigInt(params.MainnetTerminalTotalDifficulty)
 		genesis.Config.TerminalTotalDifficulty = ttd
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Shanghai Fork (default 1677557088)")
-		shanghaiTime := g.readDefaultInt(1677557088)
+		shanghaiTime := readDefaultInt(1677557088)
 		genesis.Config.ShanghaiTime = newUint64(uint64(shanghaiTime))
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Cancun Fork (default 1706655072)")
-		cancunTime := g.readDefaultInt(1706655072)
+		cancunTime := readDefaultInt(1706655072)
 		genesis.Config.CancunTime = newUint64(uint64(cancunTime))
 	}
 }
@@ -189,7 +267,7 @@ func (g *genesisGenerator) cliqueConfig(genesis *core.Genesis) {
 	}
 	fmt.Println()
 	fmt.Println("How many seconds should blocks take? (default = 15)")
-	genesis.Config.Clique.Period = uint64(g.readDefaultInt(15))
+	genesis.Config.Clique.Period = uint64(readDefaultInt(15))
 
 	// We also need the initial list of signers
 	fmt.Println()
@@ -197,7 +275,7 @@ func (g *genesisGenerator) cliqueConfig(genesis *core.Genesis) {
 
 	var signers []common.Address
 	for {
-		if address := g.readAddress(); address != nil {
+		if address := readAddress(); address != nil {
 			signers = append(signers, *address)
 			continue
 		}
@@ -217,242 +295,21 @@ func (g *genesisGenerator) cliqueConfig(genesis *core.Genesis) {
 	for i, signer := range signers {
 		copy(genesis.ExtraData[32+i*common.AddressLength:], signer[:])
 	}
-}
 
-// prompts the user for input with the given prompt string.  Returns when a value is entered.
-// Causes the genesisGenerator to exit if ctrl-d is pressed
-func promptInput(p string) string {
-	for {
-		text, err := prompt.Stdin.PromptInput(p)
-		if err != nil {
-			if err != liner.ErrPromptAborted {
-				log.Crit("Failed to read user input", "err", err)
-			}
-		} else {
-			return text
-		}
-	}
-}
-
-// read reads a single line from stdin, trimming if from spaces.
-func (g *genesisGenerator) read() string {
-	text := promptInput("> ")
-	return strings.TrimSpace(text)
-}
-
-// readString reads a single line from stdin, trimming if from spaces, enforcing
-// non-emptyness.
-func (g *genesisGenerator) readString() string {
-	for {
-		text := promptInput("> ")
-		if text = strings.TrimSpace(text); text != "" {
-			return text
-		}
-	}
-}
-
-// readDefaultString reads a single line from stdin, trimming if from spaces. If
-// an empty line is entered, the default value is returned.
-func (g *genesisGenerator) readDefaultString(def string) string {
-	text := promptInput("> ")
-	if text = strings.TrimSpace(text); text != "" {
-		return text
-	}
-	return def
-}
-
-// readDefaultYesNo reads a single line from stdin, trimming if from spaces and
-// interpreting it as a 'yes' or a 'no'. If an empty line is entered, the default
-// value is returned.
-func (g *genesisGenerator) readDefaultYesNo(def bool) bool {
-	for {
-		text := promptInput("> ")
-		if text = strings.ToLower(strings.TrimSpace(text)); text == "" {
-			return def
-		}
-		if text == "y" || text == "yes" {
-			return true
-		}
-		if text == "n" || text == "no" {
-			return false
-		}
-		log.Error("Invalid input, expected 'y', 'yes', 'n', 'no' or empty")
-	}
-}
-
-// readURL reads a single line from stdin, trimming if from spaces and trying to
-// interpret it as a URL (http, https or file).
-func (g *genesisGenerator) readURL() *url.URL {
-	for {
-		text := promptInput("> ")
-		uri, err := url.Parse(strings.TrimSpace(text))
-		if err != nil {
-			log.Error("Invalid input, expected URL", "err", err)
-			continue
-		}
-		return uri
-	}
-}
-
-// readInt reads a single line from stdin, trimming if from spaces, enforcing it
-// to parse into an integer.
-func (g *genesisGenerator) readInt() int {
-	for {
-		text := promptInput("> ")
-		if text = strings.TrimSpace(text); text == "" {
-			continue
-		}
-		val, err := strconv.Atoi(strings.TrimSpace(text))
-		if err != nil {
-			log.Error("Invalid input, expected integer", "err", err)
-			continue
-		}
-		return val
-	}
-}
-
-// readDefaultInt reads a single line from stdin, trimming if from spaces, enforcing
-// it to parse into an integer. If an empty line is entered, the default value is
-// returned.
-func (g *genesisGenerator) readDefaultInt(def int) int {
-	for {
-		text := promptInput("> ")
-		if text = strings.TrimSpace(text); text == "" {
-			return def
-		}
-		val, err := strconv.Atoi(strings.TrimSpace(text))
-		if err != nil {
-			log.Error("Invalid input, expected integer", "err", err)
-			continue
-		}
-		return val
-	}
-}
-
-// readDefaultBigInt reads a single line from stdin, trimming if from spaces,
-// enforcing it to parse into a big integer. If an empty line is entered, the
-// default value is returned.
-func (g *genesisGenerator) readDefaultBigInt(def *big.Int) *big.Int {
-	for {
-		text := promptInput("> ")
-		if text = strings.TrimSpace(text); text == "" {
-			return def
-		}
-		val, ok := new(big.Int).SetString(text, 0)
-		if !ok {
-			log.Error("Invalid input, expected big integer")
-			continue
-		}
-		return val
-	}
-}
-
-// readDefaultFloat reads a single line from stdin, trimming if from spaces, enforcing
-// it to parse into a float. If an empty line is entered, the default value is returned.
-func (g *genesisGenerator) readDefaultFloat(def float64) float64 {
-	for {
-		text := promptInput("> ")
-		if text = strings.TrimSpace(text); text == "" {
-			return def
-		}
-		val, err := strconv.ParseFloat(strings.TrimSpace(text), 64)
-		if err != nil {
-			log.Error("Invalid input, expected float", "err", err)
-			continue
-		}
-		return val
-	}
-}
-
-// readPassword reads a single line from stdin, trimming it from the trailing new
-// line and returns it. The input will not be echoed.
-func (g *genesisGenerator) readPassword() string {
-	fmt.Printf("> ")
-	text, err := term.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		log.Crit("Failed to read password", "err", err)
-	}
 	fmt.Println()
-	return string(text)
-}
-
-// readAddress reads a single line from stdin, trimming if from spaces and converts
-// it to an Ethereum address.
-func (g *genesisGenerator) readAddress() *common.Address {
-	for {
-		text := promptInput("> 0x")
-		if text = strings.TrimSpace(text); text == "" {
-			return nil
-		}
-		// Make sure it looks ok and return it if so
-		if len(text) != 40 {
-			log.Error("Invalid address length, please retry")
-			continue
-		}
-		bigaddr, _ := new(big.Int).SetString(text, 16)
-		address := common.BigToAddress(bigaddr)
-		return &address
-	}
-}
-
-// readDefaultAddress reads a single line from stdin, trimming if from spaces and
-// converts it to an Ethereum address. If an empty line is entered, the default
-// value is returned.
-func (g *genesisGenerator) readDefaultAddress(def common.Address) common.Address {
-	for {
-		// Read the address from the user
-		text := promptInput("> 0x")
-		if text = strings.TrimSpace(text); text == "" {
-			return def
-		}
-		// Make sure it looks ok and return it if so
-		if len(text) != 40 {
-			log.Error("Invalid address length, please retry")
-			continue
-		}
-		bigaddr, _ := new(big.Int).SetString(text, 16)
-		return common.BigToAddress(bigaddr)
-	}
-}
-
-// readJSON reads a raw JSON message and returns it.
-func (g *genesisGenerator) readJSON() string {
-	var blob json.RawMessage
-
-	for {
-		text := promptInput("> ")
-		reader := strings.NewReader(text)
-		if err := json.NewDecoder(reader).Decode(&blob); err != nil {
-			log.Error("Invalid JSON, please try again", "err", err)
-			continue
-		}
-		return string(blob)
-	}
-}
-
-// readIPAddress reads a single line from stdin, trimming if from spaces and
-// returning it if it's convertible to an IP address. The reason for keeping
-// the user input format instead of returning a Go net.IP is to match with
-// weird formats used by ethstats, which compares IPs textually, not by value.
-func (g *genesisGenerator) readIPAddress() string {
-	for {
-		// Read the IP address from the user
-		fmt.Printf("> ")
-		text := promptInput("> ")
-		if text = strings.TrimSpace(text); text == "" {
-			return ""
-		}
-		// Make sure it looks ok and return it if so
-		if ip := net.ParseIP(text); ip == nil {
-			log.Error("Invalid IP address, please retry")
-			continue
-		}
-		return text
+	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
+	fmt.Println("Else you have to manage peer node manually (default true)")
+	genConfig := readDefaultYesNo(true)
+	if genConfig {
+		fmt.Println()
+		fmt.Printf("Which folder to save the config.toml into? (default = current)\n")
+		folder := readDefaultString(".")
+		g.genConfigFile(folder)
 	}
 }
 
 // flush dumps the contents of config to disk or print.
-func (g *genesisGenerator) flush(folder string) {
+func (g *genesisGenerator) genGenesisFile(folder string) {
 	out, _ := json.MarshalIndent(g.conf.Genesis, "", "  ")
 
 	if folder != "" {
@@ -469,5 +326,95 @@ func (g *genesisGenerator) flush(folder string) {
 	} else {
 		fmt.Println(string(out))
 	}
+}
 
+func (g *genesisGenerator) genConfigFile(folder string) {
+	// it created config.toml file that defines Node.P2P.StaticNodes
+
+	// Create a buffer to write TOML content
+	var buf bytes.Buffer
+	// Write Node.P2P section with StaticNodes
+	buf.WriteString("[Node.P2P]\n")
+	buf.WriteString("StaticNodes = [\n")
+
+	fmt.Println()
+	fmt.Println("Enter enode URLs for static nodes (press enter with empty input when done):")
+	var enodes []string
+	for {
+		enode := readDefaultString("")
+		if enode == "" {
+			break
+		}
+		if validateEnodeURL(enode) {
+			enodes = append(enodes, fmt.Sprintf("    %q", enode))
+		} else {
+			fmt.Println("Invalid enode URL. Try again:")
+			continue
+		}
+	}
+
+	buf.WriteString(strings.Join(enodes, ",\n"))
+	buf.WriteString("\n]\n")
+
+	if folder != "" {
+		if err := os.MkdirAll(folder, 0755); err != nil {
+			log.Error("Failed to create spec folder", "folder", folder, "err", err)
+			return
+		}
+		configPath := filepath.Join(folder, fmt.Sprintf("config.toml"))
+		if err := os.WriteFile(configPath, buf.Bytes(), 0644); err != nil {
+			log.Error("Failed to save config file", "err", err)
+			return
+		}
+		log.Info("Saved config.toml file", "path", configPath)
+	} else {
+		fmt.Println(buf.String())
+	}
+}
+
+// validateEnodeURL checks if the given string is a valid enode URL
+func validateEnodeURL(enode string) bool {
+	if !strings.HasPrefix(enode, "enode://") {
+		log.Error("Invalid enode URL: must start with 'enode://'")
+		return false
+	}
+
+	u, err := url.Parse(enode)
+	if err != nil {
+		log.Error("Invalid enode URL format", "err", err)
+		return false
+	}
+
+	// Check if the hex part is valid (should be 128 characters after enode://)
+	if len(u.User.String()) != 128 {
+		log.Error("Invalid public key in enode URL: must be 128 hex characters")
+		return false
+	}
+
+	// Validate the host:port part
+	hostPort := u.Host
+	if hostPort == "" {
+		log.Error("Missing host:port in enode URL")
+		return false
+	}
+
+	host, port, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		log.Error("Invalid host:port format in enode URL", "err", err)
+		return false
+	}
+
+	// Validate port
+	if _, err := strconv.Atoi(port); err != nil {
+		log.Error("Invalid port number in enode URL")
+		return false
+	}
+
+	// Validate IP address
+	if net.ParseIP(host) == nil {
+		log.Error("Invalid IP address in enode URL")
+		return false
+	}
+
+	return true
 }
