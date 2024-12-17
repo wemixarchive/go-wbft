@@ -69,7 +69,6 @@ func (g *genesisGenerator) run() {
 }
 
 func (g *genesisGenerator) makeGenesis() {
-
 	// Figure out which consensus engine to choose
 	fmt.Println()
 	fmt.Println("Which consensus engine to use? (default = Wemix)")
@@ -79,7 +78,7 @@ func (g *genesisGenerator) makeGenesis() {
 	fmt.Println(" 4. Beacon Clique - beacon engine switched from clique")
 	fmt.Println(" 5. Wbft - wemix DPoS")
 	fmt.Println(" 6. Beacon Wbft - beacon engine switched from wbft")
-	fmt.Println(" 7. Wemix - wemix engine swtiched from wpoa to wbft")
+	fmt.Println(" 7. Wemix - wemix engine switched from wpoa to wbft")
 
 	choice := read()
 	switch {
@@ -218,7 +217,6 @@ func (g *genesisGenerator) beaconChainConfig() {
 		g.Genesis.Config.TerminalTotalDifficultyPassed = true
 		g.Genesis.Config.ShanghaiTime = newUint64(0)
 		g.Genesis.Config.CancunTime = newUint64(0)
-
 	} else {
 		g.Genesis.Config.TerminalTotalDifficultyPassed = false
 		fmt.Println()
@@ -296,7 +294,7 @@ func (g *genesisGenerator) genGenesisFile(folder string) {
 			log.Error("Failed to create spec folder", "folder", folder, "err", err)
 			return
 		}
-		gethJson := filepath.Join(folder, fmt.Sprintf("genesis.json"))
+		gethJson := filepath.Join(folder, "genesis.json")
 		if err := os.WriteFile(gethJson, out, 0644); err != nil {
 			log.Error("Failed to save genesis file", "err", err)
 			return
@@ -334,7 +332,6 @@ func makeConfig() {
 
 // genConfigFile creates config.toml file that defines Node.P2P.StaticNodes
 func genConfigFile(folder string) {
-
 	// Create a buffer to write TOML content
 	var buf bytes.Buffer
 	// Write Node.P2P section with StaticNodes
@@ -365,7 +362,7 @@ func genConfigFile(folder string) {
 			log.Error("Failed to create spec folder", "folder", folder, "err", err)
 			return
 		}
-		configPath := filepath.Join(folder, fmt.Sprintf("config.toml"))
+		configPath := filepath.Join(folder, "config.toml")
 		if err := os.WriteFile(configPath, buf.Bytes(), 0644); err != nil {
 			log.Error("Failed to save config file", "err", err)
 			return

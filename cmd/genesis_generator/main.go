@@ -14,7 +14,6 @@ func main() {
 	app.Usage = "generate genesis.json file for your private network consensus engine"
 	app.Action = runGenesisGenerator
 	app.Run(os.Args)
-
 }
 
 func runGenesisGenerator(c *cli.Context) error {
