@@ -238,7 +238,6 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 			// wemix engine which can do `MontBlanc` hard fork
 			return wemix.NewWemixEngine(govCli, qbftCfg, privKey, db), nil
 		}
-
 	}
 	// ## Quorum QBFT END
 
