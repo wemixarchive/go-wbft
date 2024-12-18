@@ -28,7 +28,7 @@ contract GovStaking {
     enum WithdrawalStatus {
         None,
         Requested,
-        Withdrew
+        Withdrawn
     }
     event StakerRegistered(address indexed staker, address operator, address rewardee, uint256 staking);
     event Staked(address indexed staker, uint256 amount);
@@ -37,7 +37,7 @@ contract GovStaking {
     event Delegated(address indexed delegator, address indexed staker, uint256 amount);
     event Undelegated(address indexed delegator, address indexed staker, uint256 amount);
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
-    event Withdrew(uint256 indexed credentialID, address requester, uint256 amount);
+    event Withdrawn(uint256 indexed credentialID, address requester, uint256 amount);
 
     GovConst public constant GOV_CONST = GovConst(address(0x1000));
     
@@ -169,9 +169,9 @@ contract GovStaking {
         require(block.timestamp >= _credential.withdrawableTime, "not yet time to withdraw");
 
         payable(_credential.requester).sendValue(_credential.amount);
-        _credential.status = WithdrawalStatus.Withdrew;
+        _credential.status = WithdrawalStatus.Withdrawn;
 
-        emit Withdrew(_cid, msg.sender, _credential.amount);
+        emit Withdrawn(_cid, msg.sender, _credential.amount);
     }
 
     function _addStaking(address _staker, uint256 _amount, bool _delegated) private {

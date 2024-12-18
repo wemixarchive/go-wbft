@@ -15,7 +15,6 @@ func CalculateMappingSlot(baseSlot common.Hash, key interface{ Bytes() []byte })
 	// keccak256(encode(key) . encode(slot))
 	hash := sha3.NewLegacyKeccak256()
 
-	// 키 (주소)와 슬롯 번호를 각각 32바이트로 변환 후 연결
 	keyBytes := append(common.LeftPadBytes(key.Bytes(), 32), baseSlot.Bytes()...)
 	hash.Write(keyBytes)
 	return common.BytesToHash(hash.Sum(nil))
@@ -27,7 +26,7 @@ func CalculateDynamicSlot(baseSlot interface{ Bytes() []byte }, index *big.Int) 
 	hash.Write(common.LeftPadBytes(baseSlot.Bytes(), 32))
 	arrayStartSlot := new(big.Int).SetBytes(hash.Sum(nil))
 
-	// 배열 요소 슬롯: arrayStartSlot + index
+	// arrayStartSlot + index
 	elementSlot := new(big.Int).Add(arrayStartSlot, index)
 
 	return common.BigToHash(elementSlot)

@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	SLOT_TOTAL_STAKING       = "0x0"
-	SLOT_VALIDATOR_SET       = "0x1" // ,0x2
-	SLOT_VALIDATOR_INFO      = "0x3"
-	SLOT_VALIDATOR_BY_STAKER = "0x4"
+	SLOT_TOTAL_STAKING    = "0x0"
+	SLOT_STAKER_SET       = "0x1" // ,0x2
+	SLOT_STAKER_INFO      = "0x3"
+	SLOT_STAKER_BY_STAKER = "0x4"
 )
 
 type Staker struct {
@@ -25,27 +25,27 @@ func TotalStaking(state StateReader) *big.Int {
 }
 
 func StakerLength(state StateReader) uint64 {
-	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_STAKER_SET))
 	return stakerSet.Length(state, GovStakingAddress)
 }
 
 func IsStaker(state StateReader, staker common.Address) bool {
-	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_STAKER_SET))
 	return stakerSet.Contains(state, GovStakingAddress, staker)
 }
 
 func Stakers(state StateReader) []common.Address {
-	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_STAKER_SET))
 	return stakerSet.Values(state, GovStakingAddress)
 }
 
 func StakerAt(state StateReader, index *big.Int) common.Address {
-	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_STAKER_SET))
 	return stakerSet.At(state, GovStakingAddress, index)
 }
 
 func StakerByOperator(state StateReader, operator common.Address) common.Address {
-	staker := state.GetState(GovStakingAddress, CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_BY_STAKER), operator))
+	staker := state.GetState(GovStakingAddress, CalculateMappingSlot(common.HexToHash(SLOT_STAKER_BY_STAKER), operator))
 	return HashToAddress(staker)
 }
 
@@ -82,5 +82,5 @@ func getStaking(state StateReader, baseSlot common.Hash) *big.Int {
 }
 
 func stakerInfoSlot(staker common.Address) common.Hash {
-	return CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_INFO), staker)
+	return CalculateMappingSlot(common.HexToHash(SLOT_STAKER_INFO), staker)
 }
