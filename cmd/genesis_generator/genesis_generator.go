@@ -71,7 +71,7 @@ func (g *genesisGenerator) run() {
 func (g *genesisGenerator) makeGenesis() {
 	// Figure out which consensus engine to choose
 	fmt.Println()
-	fmt.Println("Which consensus engine to use? (default = Wemix)")
+	fmt.Println("Which consensus engine to use? (default = Wbft)")
 	fmt.Println(" 1. Ethash - PoW")
 	fmt.Println(" 2. Beacon Ethash - beacon engine switched from ethash")
 	fmt.Println(" 3. Clique - PoA")
@@ -96,14 +96,14 @@ func (g *genesisGenerator) makeGenesis() {
 		g.beaconChainConfig()
 		g.cliqueConfig()
 
-	case choice == "5":
+	case choice == "5" || choice == "":
 		g.wbftChainConfig()
 
 	case choice == "6":
 		g.beaconChainConfig()
 		g.wbftChainConfig()
 
-	case choice == "7" || choice == "":
+	case choice == "7":
 		g.wbftChainConfig()
 		fmt.Println()
 		fmt.Println("Enter blockNumber you want to enable Montblanc Fork (default 1)")
