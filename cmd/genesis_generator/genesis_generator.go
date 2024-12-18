@@ -106,7 +106,7 @@ func (g *genesisGenerator) makeGenesis() {
 	case choice == "7" || choice == "":
 		g.wbftChainConfig()
 		fmt.Println()
-		fmt.Println("Enter timestamp you want to enable Montblanc Fork (default 1)")
+		fmt.Println("Enter blockNumber you want to enable Montblanc Fork (default 1)")
 		montblancBlock := readDefaultBigInt(common.Big1)
 		g.Genesis.Config.MontBlancBlock = montblancBlock
 
@@ -161,6 +161,7 @@ func (g *genesisGenerator) wbftChainConfig() {
 	// TODO : need to be change after epoch task is merged.
 	// the qbft config needs to be set in field `Transition`
 	g.Genesis.Difficulty = types.QBFTDefaultDifficulty
+	g.Genesis.Config.MontBlancBlock = common.Big0
 	g.Genesis.Config.QBFT = &params.QBFTConfig{
 		BlockReward:           (*math.HexOrDecimal256)(big.NewInt(params.Ether)),
 		EpochLength:           30000,
