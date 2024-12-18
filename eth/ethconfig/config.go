@@ -224,20 +224,21 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 			qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
 		}
 
-		if config.MontBlancBlock != nil {
-			if config.IsMontBlanc(new(big.Int)) {
-				// only wbft engine
+		if config.MontBlancBlock == nil {
+			return nil, errors.New("MontBlankBlock cannot be nil in wbft")
+		}
+
+		if config.IsMontBlanc(new(big.Int)) {
+			if config.TerminalTotalDifficulty == nil {
+				// wbft engine without supporting beacon logic
 				return qbftBackend.New(qbftCfg, privKey, db), nil
 			}
+			return beacon.New(qbftBackend.New(qbftCfg, privKey, db)), nil
+		} else {
 			// wemix engine which can do `MontBlanc` hard fork
 			return wemix.NewWemixEngine(govCli, qbftCfg, privKey, db), nil
 		}
 
-		if config.TerminalTotalDifficulty == nil {
-			// wbft engine without supporting beacon logic
-			return qbftBackend.New(qbftCfg, privKey, db), nil
-		}
-		return beacon.New(qbftBackend.New(qbftCfg, privKey, db)), nil
 	}
 	// ## Quorum QBFT END
 
