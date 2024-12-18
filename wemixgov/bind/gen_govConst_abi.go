@@ -31,14 +31,14 @@ var (
 
 // GovConstMetaData contains all meta data concerning the GovConst contract.
 var GovConstMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"MAXIMUM_STAKING\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"MINIMUM_STAKING\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UNBONDING_PERIOD_DELEGATOR\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UNBONDING_PERIOD_VALIDATOR\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"MAXIMUM_STAKING\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"MINIMUM_STAKING\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UNBONDING_PERIOD_DELEGATOR\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UNBONDING_PERIOD_STAKER\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
 	Sigs: map[string]string{
 		"129060ab": "MAXIMUM_STAKING()",
 		"ba631d3f": "MINIMUM_STAKING()",
 		"840c1771": "UNBONDING_PERIOD_DELEGATOR()",
-		"f90aa6ca": "UNBONDING_PERIOD_VALIDATOR()",
+		"fde7f371": "UNBONDING_PERIOD_STAKER()",
 	},
-	Bin: "0x608060405234801561001057600080fd5b5060ca8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060465760003560e01c8063129060ab14604b578063840c1771146073578063ba631d3f14607c578063f90aa6ca14608c575b600080fd5b60616fffffffffffffffffffffffffffffffff81565b60405190815260200160405180910390f35b60616203f48081565b60616969e10de76676d080000081565b6061610e108156fea264697066735822122085bcb28858a75c0359efd54af2589a6f220db0d918415113eeecb88055bb0c6564736f6c634300080e0033",
+	Bin: "0x608060405234801561001057600080fd5b5060ca8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060465760003560e01c8063129060ab14604b578063840c1771146073578063ba631d3f14607c578063fde7f37114608c575b600080fd5b60616fffffffffffffffffffffffffffffffff81565b60405190815260200160405180910390f35b60616203f48081565b60616969e10de76676d080000081565b6061610e108156fea26469706673582212209bed58416e719b124157396e736ba27e7e6064a7a8bc19a7f6f362182616912964736f6c634300080e0033",
 }
 
 // GovConstABI is the input ABI used to generate the binding from.
@@ -305,12 +305,12 @@ func (_GovConst *GovConstCallerSession) UNBONDINGPERIODDELEGATOR() (*big.Int, er
 	return _GovConst.Contract.UNBONDINGPERIODDELEGATOR(&_GovConst.CallOpts)
 }
 
-// UNBONDINGPERIODVALIDATOR is a free data retrieval call binding the contract method 0xf90aa6ca.
+// UNBONDINGPERIODSTAKER is a free data retrieval call binding the contract method 0xfde7f371.
 //
-// Solidity: function UNBONDING_PERIOD_VALIDATOR() view returns(uint256)
-func (_GovConst *GovConstCaller) UNBONDINGPERIODVALIDATOR(opts *bind.CallOpts) (*big.Int, error) {
+// Solidity: function UNBONDING_PERIOD_STAKER() view returns(uint256)
+func (_GovConst *GovConstCaller) UNBONDINGPERIODSTAKER(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _GovConst.contract.Call(opts, &out, "UNBONDING_PERIOD_VALIDATOR")
+	err := _GovConst.contract.Call(opts, &out, "UNBONDING_PERIOD_STAKER")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -322,16 +322,16 @@ func (_GovConst *GovConstCaller) UNBONDINGPERIODVALIDATOR(opts *bind.CallOpts) (
 
 }
 
-// UNBONDINGPERIODVALIDATOR is a free data retrieval call binding the contract method 0xf90aa6ca.
+// UNBONDINGPERIODSTAKER is a free data retrieval call binding the contract method 0xfde7f371.
 //
-// Solidity: function UNBONDING_PERIOD_VALIDATOR() view returns(uint256)
-func (_GovConst *GovConstSession) UNBONDINGPERIODVALIDATOR() (*big.Int, error) {
-	return _GovConst.Contract.UNBONDINGPERIODVALIDATOR(&_GovConst.CallOpts)
+// Solidity: function UNBONDING_PERIOD_STAKER() view returns(uint256)
+func (_GovConst *GovConstSession) UNBONDINGPERIODSTAKER() (*big.Int, error) {
+	return _GovConst.Contract.UNBONDINGPERIODSTAKER(&_GovConst.CallOpts)
 }
 
-// UNBONDINGPERIODVALIDATOR is a free data retrieval call binding the contract method 0xf90aa6ca.
+// UNBONDINGPERIODSTAKER is a free data retrieval call binding the contract method 0xfde7f371.
 //
-// Solidity: function UNBONDING_PERIOD_VALIDATOR() view returns(uint256)
-func (_GovConst *GovConstCallerSession) UNBONDINGPERIODVALIDATOR() (*big.Int, error) {
-	return _GovConst.Contract.UNBONDINGPERIODVALIDATOR(&_GovConst.CallOpts)
+// Solidity: function UNBONDING_PERIOD_STAKER() view returns(uint256)
+func (_GovConst *GovConstCallerSession) UNBONDINGPERIODSTAKER() (*big.Int, error) {
+	return _GovConst.Contract.UNBONDINGPERIODSTAKER(&_GovConst.CallOpts)
 }

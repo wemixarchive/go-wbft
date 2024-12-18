@@ -26,17 +26,17 @@ func TestGovWithoutNCP(t *testing.T) {
 		ctx          = context.TODO()
 		minStaking   = towei(500000)
 		totalStaking = new(big.Int)
-		validators   = make([]common.Address, 0)
+		stakers      = make([]common.Address, 0)
 
-		v1        = NewTestValidator()
-		v2        = NewTestValidator()
+		v1        = NewTestStaker()
+		v2        = NewTestStaker()
 		delegator = NewEOA()
 	)
 
 	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
-		v1.Staker.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
-		v2.Staker.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
-		delegator.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		v2.Operator.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+		delegator.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 	require.NoError(t, err)
 	defer g.backend.Close()
@@ -54,99 +54,99 @@ func TestGovWithoutNCP(t *testing.T) {
 
 	t.Run("New Validtor", func(t *testing.T) {
 		defer checkGovBalanceFn()
-		t.Run("add validator", func(t *testing.T) {
+		t.Run("add staker", func(t *testing.T) {
 			require.True(t, govwbft.TotalStaking(stateDB).Sign() == 0)
-			require.True(t, len(govwbft.Validators(stateDB)) == 0)
-			beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
+			require.True(t, len(govwbft.Stakers(stateDB)) == 0)
+			beforeBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
 
-			receipt, err := g.ExpectedOk(g.RegisterValidator(t, v1, minStaking))
+			receipt, err := g.ExpectedOk(g.RegisterStaker(t, v1, minStaking))
 			require.NoError(t, err)
-			validators = append(validators, v1.Validator.Address)
+			stakers = append(stakers, v1.Staker.Address)
 			totalStaking = totalStaking.Add(totalStaking, minStaking)
 
 			require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-			require.Equal(t, validators, govwbft.Validators(stateDB))
+			require.Equal(t, stakers, govwbft.Stakers(stateDB))
 
 			gasCost := calcTxGasCost(receipt)
 			expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking, gasCost))
-			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Staker.Address, nil))
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Operator.Address, nil))
 		})
 
 		t.Run("failure case", func(t *testing.T) {
 			ExpectedRevert(t,
 				g.ExpectedFail(g.stakingContractTx(t,
-					"registerValidator",
-					v2.Staker, minStaking,
+					"registerStaker",
+					v2.Operator, minStaking,
 					new(big.Int).Sub(minStaking, big.NewInt(1)),
-					v2.Validator.Address,
-					v2.Reward.Address,
+					v2.Staker.Address,
+					v2.Rewardee.Address,
 				)),
 				"amount and msg.value mismatch",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, v2, new(big.Int).Sub(minStaking, big.NewInt(1)))),
+				g.ExpectedFail(g.RegisterStaker(t, v2, new(big.Int).Sub(minStaking, big.NewInt(1)))),
 				"out of bounds",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, v2, new(big.Int).Add(MAX_UINT_128, big.NewInt(1)))),
+				g.ExpectedFail(g.RegisterStaker(t, v2, new(big.Int).Add(MAX_UINT_128, big.NewInt(1)))),
 				"out of bounds",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, &TestValidator{v2.Staker, v2.Staker, v2.Staker}, minStaking)),
-				"staker cannot be validator or reward",
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{v2.Operator, v2.Operator, v2.Operator}, minStaking)),
+				"operator cannot be staker or rewardee",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, &TestValidator{&EOA{Address: common.Address{}}, v2.Staker, v2.Validator}, minStaking)),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{&EOA{Address: common.Address{}}, v2.Operator, v2.Staker}, minStaking)),
 				"zero address",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, &TestValidator{v2.Validator, v2.Staker, v2.Validator}, minStaking)),
-				"validator cannot be reward",
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{v2.Staker, v2.Operator, v2.Staker}, minStaking)),
+				"staker cannot be rewardee",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, &TestValidator{v2.Validator, v1.Staker, v2.Reward}, minStaking)),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{v2.Staker, v1.Operator, v2.Rewardee}, minStaking)),
+				"operator is already registered",
+			)
+
+			ExpectedRevert(t,
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{v1.Operator, v2.Operator, v2.Rewardee}, minStaking)),
 				"staker is already registered",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, &TestValidator{v1.Staker, v2.Staker, v2.Reward}, minStaking)),
-				"validator is already registered",
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{v2.Staker, v2.Operator, v1.Rewardee}, minStaking)),
+				"rewardee is already registered",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, &TestValidator{v2.Validator, v2.Staker, v1.Reward}, minStaking)),
-				"reward is already registered",
-			)
-
-			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterValidator(t, &TestValidator{v1.Validator, v2.Staker, v2.Reward}, minStaking)),
-				"validator exists",
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{v1.Staker, v2.Operator, v2.Rewardee}, minStaking)),
+				"staker exists",
 			)
 		})
 
-		t.Run("add another validator", func(t *testing.T) {
+		t.Run("add another staker", func(t *testing.T) {
 			require.Equal(t, minStaking, govwbft.TotalStaking(stateDB))
-			require.Equal(t, validators, govwbft.Validators(stateDB))
-			beforeBalance := g.balanceAt(t, ctx, v2.Staker.Address, nil)
+			require.Equal(t, stakers, govwbft.Stakers(stateDB))
+			beforeBalance := g.balanceAt(t, ctx, v2.Operator.Address, nil)
 
-			receipt, err := g.ExpectedOk(g.RegisterValidator(t, v2, minStaking))
+			receipt, err := g.ExpectedOk(g.RegisterStaker(t, v2, minStaking))
 			require.NoError(t, err)
 
-			validators = append(validators, v2.Validator.Address)
+			stakers = append(stakers, v2.Staker.Address)
 			totalStaking = totalStaking.Add(totalStaking, minStaking)
 
 			require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-			require.Equal(t, validators, govwbft.Validators(stateDB))
+			require.Equal(t, stakers, govwbft.Stakers(stateDB))
 
 			gasCost := calcTxGasCost(receipt)
 			expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking, gasCost))
-			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v2.Staker.Address, nil))
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v2.Operator.Address, nil))
 		})
 	})
 
@@ -154,34 +154,34 @@ func TestGovWithoutNCP(t *testing.T) {
 		defer checkGovBalanceFn()
 		t.Run("failure case", func(t *testing.T) {
 			ExpectedRevert(t,
-				g.ExpectedFail(g.stakingContractTx(t, "stake", v1.Staker, common.Big2, minStaking)),
+				g.ExpectedFail(g.stakingContractTx(t, "stake", v1.Operator, common.Big2, minStaking)),
 				"amount and msg.value mismatch",
 			)
 
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Stake(t, delegator, minStaking)),
-				"unregistered validator",
+				"unregistered staker",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Stake(t, v1.Staker, MAX_UINT_128)),
+				g.ExpectedFail(g.Stake(t, v1.Operator, MAX_UINT_128)),
 				"exceeded the maximum",
 			)
 		})
 
 		t.Run("stake more", func(t *testing.T) {
-			beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
+			beforeBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
 
-			receipt, err := g.ExpectedOk(g.Stake(t, v1.Staker, minStaking))
+			receipt, err := g.ExpectedOk(g.Stake(t, v1.Operator, minStaking))
 			require.NoError(t, err)
 
 			totalStaking = totalStaking.Add(totalStaking, minStaking)
 			require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-			require.Equal(t, new(big.Int).Mul(minStaking, common.Big2), govwbft.ValidatorInfo(stateDB, v1.Validator.Address).Staking)
+			require.Equal(t, new(big.Int).Mul(minStaking, common.Big2), govwbft.StakerInfo(stateDB, v1.Staker.Address).Staking)
 
 			gasCost := calcTxGasCost(receipt)
 			expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking, gasCost))
-			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Staker.Address, nil))
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Operator.Address, nil))
 		})
 	})
 
@@ -192,39 +192,39 @@ func TestGovWithoutNCP(t *testing.T) {
 		t.Run("unstake failure case", func(t *testing.T) {
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Unstake(t, delegator, minStaking)),
-				"unregistered validator",
+				"unregistered staker",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unstake(t, v2.Staker, common.Big0)),
+				g.ExpectedFail(g.Unstake(t, v2.Operator, common.Big0)),
 				"amount is zero",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unstake(t, v2.Staker, new(big.Int).Add(minStaking, common.Big1))),
+				g.ExpectedFail(g.Unstake(t, v2.Operator, new(big.Int).Add(minStaking, common.Big1))),
 				"insufficient balance",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unstake(t, v2.Staker, new(big.Int).Sub(minStaking, common.Big1))),
-				"amount must equal balance to remove validator",
+				g.ExpectedFail(g.Unstake(t, v2.Operator, new(big.Int).Sub(minStaking, common.Big1))),
+				"amount must equal balance to remove staker",
 			)
 		})
 
 		t.Run("unstake", func(t *testing.T) {
-			beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
+			beforeBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
 
-			receipt, err := g.ExpectedOk(g.Unstake(t, v1.Staker, minStaking))
+			receipt, err := g.ExpectedOk(g.Unstake(t, v1.Operator, minStaking))
 			require.NoError(t, err)
 
 			totalStaking = totalStaking.Sub(totalStaking, minStaking)
 
 			require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-			require.Equal(t, minStaking, govwbft.ValidatorInfo(stateDB, v1.Validator.Address).Staking)
+			require.Equal(t, minStaking, govwbft.StakerInfo(stateDB, v1.Staker.Address).Staking)
 
 			gasCost := calcTxGasCost(receipt)
 			expectedBalance := new(big.Int).Sub(beforeBalance, gasCost)
-			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Staker.Address, nil))
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Operator.Address, nil))
 
 			unstakeEvent = findEvent("NewCredential", receipt.Logs)
 			require.NotNil(t, unstakeEvent)
@@ -232,61 +232,61 @@ func TestGovWithoutNCP(t *testing.T) {
 
 		t.Run("withdraw failure case", func(t *testing.T) {
 			ExpectedRevert(t,
-				g.ExpectedFail(g.stakingContractTx(t, "withdraw", v1.Staker, nil, common.Big0)),
+				g.ExpectedFail(g.stakingContractTx(t, "withdraw", v1.Operator, nil, common.Big0)),
 				"invalid credential",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Withdraw(t, v2.Staker, unstakeEvent["credentialID"].(*big.Int))),
+				g.ExpectedFail(g.Withdraw(t, v2.Operator, unstakeEvent["credentialID"].(*big.Int))),
 				"msg.sender is not requester",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Withdraw(t, v1.Staker, unstakeEvent["credentialID"].(*big.Int))),
+				g.ExpectedFail(g.Withdraw(t, v1.Operator, unstakeEvent["credentialID"].(*big.Int))),
 				"not yet time to withdraw",
 			)
 		})
 
 		t.Run("withdraw", func(t *testing.T) {
-			beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
+			beforeBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
 
 			unbonding := unstakeEvent["unbonding"].(*big.Int)
 			g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-			receipt, err := g.ExpectedOk(g.Withdraw(t, v1.Staker, unstakeEvent["credentialID"].(*big.Int)))
+			receipt, err := g.ExpectedOk(g.Withdraw(t, v1.Operator, unstakeEvent["credentialID"].(*big.Int)))
 			require.NoError(t, err)
 
 			gasCost := calcTxGasCost(receipt)
 			expectedBalance := new(big.Int).Add(beforeBalance, new(big.Int).Sub(unstakeEvent["amount"].(*big.Int), gasCost))
-			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Staker.Address, nil))
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Operator.Address, nil))
 		})
 
-		t.Run("remove validator", func(t *testing.T) {
+		t.Run("remove staker", func(t *testing.T) {
 			{ // unstake
-				receipt, err := g.ExpectedOk(g.Unstake(t, v2.Staker, minStaking))
+				receipt, err := g.ExpectedOk(g.Unstake(t, v2.Operator, minStaking))
 				require.NoError(t, err)
 
 				totalStaking = totalStaking.Sub(totalStaking, minStaking)
-				validators = removeElement(validators, v2.Validator.Address)
+				stakers = removeElement(stakers, v2.Staker.Address)
 
 				require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-				require.Equal(t, validators, govwbft.Validators(stateDB))
-				require.True(t, govwbft.ValidatorInfo(stateDB, v2.Validator.Address).Staking.Sign() == 0)
+				require.Equal(t, stakers, govwbft.Stakers(stateDB))
+				require.True(t, govwbft.StakerInfo(stateDB, v2.Staker.Address).Staking.Sign() == 0)
 
 				unstakeEvent = findEvent("NewCredential", receipt.Logs)
 				require.NotNil(t, unstakeEvent)
 			}
 
 			{ // withdraw
-				beforeBalance := g.balanceAt(t, ctx, v2.Staker.Address, nil)
+				beforeBalance := g.balanceAt(t, ctx, v2.Operator.Address, nil)
 
 				unbonding := unstakeEvent["unbonding"].(*big.Int)
 				g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-				receipt, err := g.ExpectedOk(g.Withdraw(t, v2.Staker, unstakeEvent["credentialID"].(*big.Int)))
+				receipt, err := g.ExpectedOk(g.Withdraw(t, v2.Operator, unstakeEvent["credentialID"].(*big.Int)))
 				require.NoError(t, err)
 
 				gasCost := calcTxGasCost(receipt)
 				expectedBalance := new(big.Int).Add(beforeBalance, new(big.Int).Sub(unstakeEvent["amount"].(*big.Int), gasCost))
-				require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v2.Staker.Address, nil))
+				require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v2.Operator.Address, nil))
 			}
 		})
 	})
@@ -296,44 +296,44 @@ func TestGovWithoutNCP(t *testing.T) {
 		delegateAmount := towei(100_000)
 		t.Run("failure case", func(t *testing.T) {
 			{
-				_, err := g.ExpectedOk(TransferCoin(g.backend.Client(), g.owner, minStaking, &v1.Validator.Address))
+				_, err := g.ExpectedOk(TransferCoin(g.backend.Client(), g.owner, minStaking, &v1.Staker.Address))
 				require.NoError(t, err)
-				_, err = g.ExpectedOk(TransferCoin(g.backend.Client(), g.owner, minStaking, &v1.Reward.Address))
+				_, err = g.ExpectedOk(TransferCoin(g.backend.Client(), g.owner, minStaking, &v1.Rewardee.Address))
 				require.NoError(t, err)
 			}
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Delegate(t, v1.Validator, v1.Validator.Address, delegateAmount)),
-				"validator cannot delegate",
+				g.ExpectedFail(g.Delegate(t, v1.Staker, v1.Staker.Address, delegateAmount)),
+				"staker cannot delegate",
 			)
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Delegate(t, v1.Staker, v1.Validator.Address, delegateAmount)),
-				"staker(reward) cannot delegate",
+				g.ExpectedFail(g.Delegate(t, v1.Operator, v1.Staker.Address, delegateAmount)),
+				"operator(rewardee) cannot delegate",
 			)
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Delegate(t, v1.Reward, v1.Validator.Address, delegateAmount)),
-				"staker(reward) cannot delegate",
+				g.ExpectedFail(g.Delegate(t, v1.Rewardee, v1.Staker.Address, delegateAmount)),
+				"operator(rewardee) cannot delegate",
 			)
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Delegate(t, delegator, v2.Validator.Address, delegateAmount)),
-				"unregistered validator",
+				g.ExpectedFail(g.Delegate(t, delegator, v2.Staker.Address, delegateAmount)),
+				"unregistered staker",
 			)
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Delegate(t, delegator, v1.Validator.Address, MAX_UINT_128)),
+				g.ExpectedFail(g.Delegate(t, delegator, v1.Staker.Address, MAX_UINT_128)),
 				"exceeded the maximum",
 			)
 		})
 
 		t.Run("delegate", func(t *testing.T) {
 			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
-			beforeInfo_v1 := govwbft.ValidatorInfo(stateDB, v1.Validator.Address)
+			beforeInfo_v1 := govwbft.StakerInfo(stateDB, v1.Staker.Address)
 
-			receipt, err := g.ExpectedOk(g.Delegate(t, delegator, v1.Validator.Address, delegateAmount))
+			receipt, err := g.ExpectedOk(g.Delegate(t, delegator, v1.Staker.Address, delegateAmount))
 			require.NoError(t, err)
 
 			totalStaking = totalStaking.Add(totalStaking, delegateAmount)
 			require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
 
-			afterInfo_v1 := govwbft.ValidatorInfo(stateDB, v1.Validator.Address)
+			afterInfo_v1 := govwbft.StakerInfo(stateDB, v1.Staker.Address)
 			require.Equal(t, delegateAmount, new(big.Int).Sub(afterInfo_v1.Staking, beforeInfo_v1.Staking))
 			require.Equal(t, delegateAmount, new(big.Int).Sub(afterInfo_v1.Delegated, beforeInfo_v1.Delegated))
 
@@ -352,15 +352,15 @@ func TestGovWithoutNCP(t *testing.T) {
 
 		t.Run("undelegate", func(t *testing.T) {
 			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
-			beforeInfo_v1 := govwbft.ValidatorInfo(stateDB, v1.Validator.Address)
+			beforeInfo_v1 := govwbft.StakerInfo(stateDB, v1.Staker.Address)
 
-			receipt, err := g.ExpectedOk(g.Unelegate(t, delegator, v1.Validator.Address, undelegateAmount))
+			receipt, err := g.ExpectedOk(g.Unelegate(t, delegator, v1.Staker.Address, undelegateAmount))
 			require.NoError(t, err)
 
 			totalStaking = totalStaking.Sub(totalStaking, undelegateAmount)
 			require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
 
-			afterInfo_v1 := govwbft.ValidatorInfo(stateDB, v1.Validator.Address)
+			afterInfo_v1 := govwbft.StakerInfo(stateDB, v1.Staker.Address)
 			require.Equal(t, undelegateAmount, new(big.Int).Sub(beforeInfo_v1.Staking, afterInfo_v1.Staking))
 			require.Equal(t, undelegateAmount, new(big.Int).Sub(beforeInfo_v1.Delegated, afterInfo_v1.Delegated))
 
@@ -379,18 +379,18 @@ func TestGovWithoutNCP(t *testing.T) {
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unelegate(t, delegator, v1.Validator.Address, new(big.Int).Add(undelegateAmount, common.Big1))),
+				g.ExpectedFail(g.Unelegate(t, delegator, v1.Staker.Address, new(big.Int).Add(undelegateAmount, common.Big1))),
 				"insufficient balance",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unelegate(t, delegator, v2.Validator.Address, undelegateAmount)),
+				g.ExpectedFail(g.Unelegate(t, delegator, v2.Staker.Address, undelegateAmount)),
 				"insufficient balance",
 			)
 
 			// try unstake, including the delegated amount
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unstake(t, v1.Staker, govwbft.ValidatorInfo(stateDB, v1.Validator.Address).Staking)),
+				g.ExpectedFail(g.Unstake(t, v1.Operator, govwbft.StakerInfo(stateDB, v1.Staker.Address).Staking)),
 				"insufficient balance",
 			)
 		})
@@ -408,35 +408,35 @@ func TestGovWithoutNCP(t *testing.T) {
 			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegator.Address, nil))
 		})
 
-		t.Run("undelegate to removed validator", func(t *testing.T) {
-			// unstake and remove validator
+		t.Run("undelegate to removed staker", func(t *testing.T) {
+			// unstake and remove staker
 			{
-				receipt, err := g.ExpectedOk(g.Unstake(t, v1.Staker, minStaking))
+				receipt, err := g.ExpectedOk(g.Unstake(t, v1.Operator, minStaking))
 				require.NoError(t, err)
 
 				totalStaking = totalStaking.Sub(totalStaking, minStaking)
-				validators = removeElement(validators, v1.Validator.Address)
+				stakers = removeElement(stakers, v1.Staker.Address)
 
 				require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-				require.Equal(t, validators, govwbft.Validators(stateDB))
+				require.Equal(t, stakers, govwbft.Stakers(stateDB))
 
 				unstakeEvent := findEvent("NewCredential", receipt.Logs)
 				require.NotNil(t, unstakeEvent)
 
-				beforeBalance := g.balanceAt(t, ctx, v1.Staker.Address, nil)
+				beforeBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
 
 				unbonding := unstakeEvent["unbonding"].(*big.Int)
 				g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-				withdrawReceipt, err := g.ExpectedOk(g.Withdraw(t, v1.Staker, unstakeEvent["credentialID"].(*big.Int)))
+				withdrawReceipt, err := g.ExpectedOk(g.Withdraw(t, v1.Operator, unstakeEvent["credentialID"].(*big.Int)))
 				require.NoError(t, err)
 
 				gasCost := calcTxGasCost(withdrawReceipt)
 				expectedBalance := new(big.Int).Add(beforeBalance, new(big.Int).Sub(unstakeEvent["amount"].(*big.Int), gasCost))
-				require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Staker.Address, nil))
+				require.Equal(t, expectedBalance, g.balanceAt(t, ctx, v1.Operator.Address, nil))
 			}
 			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
 
-			receipt, err := g.ExpectedOk(g.Unelegate(t, delegator, v1.Validator.Address, undelegateAmount))
+			receipt, err := g.ExpectedOk(g.Unelegate(t, delegator, v1.Staker.Address, undelegateAmount))
 			require.NoError(t, err)
 
 			totalStaking = totalStaking.Sub(totalStaking, undelegateAmount)
@@ -464,22 +464,22 @@ func TestGovWithNCP(t *testing.T) {
 		minStaking      = towei(500000)
 		totalStaking    = new(big.Int)
 		ncpTotalStaking = new(big.Int)
-		validators      = make([]common.Address, 0)
+		stakers         = make([]common.Address, 0)
 		ncps            = make([]common.Address, 0)
-		ncpValidators   = make([]common.Address, 0)
+		ncpStakers      = make([]common.Address, 0)
 
-		ncp1 = NewTestValidator()
-		ncp2 = NewTestValidator()
-		ncp3 = NewTestValidator()
-		ncp4 = NewTestValidator()
+		ncp1 = NewTestStaker()
+		ncp2 = NewTestStaker()
+		ncp3 = NewTestStaker()
+		ncp4 = NewTestStaker()
 	)
 
-	ncps = append(ncps, ncp1.Staker.Address, ncp2.Staker.Address)
+	ncps = append(ncps, ncp1.Operator.Address, ncp2.Operator.Address)
 	g, err := NewGovWBFT(t, ncps, types.GenesisAlloc{
-		ncp1.Staker.Address: {Balance: MAX_UINT_128},
-		ncp2.Staker.Address: {Balance: MAX_UINT_128},
-		ncp3.Staker.Address: {Balance: MAX_UINT_128},
-		ncp4.Staker.Address: {Balance: MAX_UINT_128},
+		ncp1.Operator.Address: {Balance: MAX_UINT_128},
+		ncp2.Operator.Address: {Balance: MAX_UINT_128},
+		ncp3.Operator.Address: {Balance: MAX_UINT_128},
+		ncp4.Operator.Address: {Balance: MAX_UINT_128},
 	})
 	require.NoError(t, err)
 
@@ -490,46 +490,46 @@ func TestGovWithNCP(t *testing.T) {
 		},
 	}
 
-	checkNCPValidator := func() {
+	checkNCPStaker := func() {
 		require.True(t, totalStaking.Cmp(govwbft.TotalStaking(stateDB)) == 0)
-		require.Equal(t, validators, govwbft.Validators(stateDB))
+		require.Equal(t, stakers, govwbft.Stakers(stateDB))
 		require.Equal(t, ncps, govwbft.NCPList(stateDB))
 		require.Equal(t, ncpTotalStaking, govwbft.NCPTotalStaking(stateDB))
-		require.Equal(t, ncpValidators, govwbft.NCPValidators(stateDB))
+		require.Equal(t, ncpStakers, govwbft.NCPStakers(stateDB))
 	}
 
 	t.Run("NCP Staking", func(t *testing.T) {
 		require.True(t, govwbft.TotalStaking(stateDB).Sign() == 0)
 		require.True(t, govwbft.NCPTotalStaking(stateDB).Sign() == 0)
-		require.Equal(t, validators, govwbft.Validators(stateDB))
+		require.Equal(t, stakers, govwbft.Stakers(stateDB))
 		require.Equal(t, ncps, govwbft.NCPList(stateDB))
-		require.Equal(t, ncpValidators, govwbft.NCPValidators(stateDB))
+		require.Equal(t, ncpStakers, govwbft.NCPStakers(stateDB))
 
 		t.Run("NCP staking", func(t *testing.T) {
-			defer checkNCPValidator()
-			_, err := g.ExpectedOk(g.RegisterValidator(t, ncp1, minStaking))
+			defer checkNCPStaker()
+			_, err := g.ExpectedOk(g.RegisterStaker(t, ncp1, minStaking))
 			require.NoError(t, err)
 
-			validators = append(validators, ncp1.Validator.Address)
-			ncpValidators = append(ncpValidators, ncp1.Validator.Address)
+			stakers = append(stakers, ncp1.Staker.Address)
+			ncpStakers = append(ncpStakers, ncp1.Staker.Address)
 			totalStaking = totalStaking.Add(totalStaking, minStaking)
 			ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, minStaking)
 		})
 
 		t.Run("non-NCP staking", func(t *testing.T) {
-			defer checkNCPValidator()
-			_, err := g.ExpectedOk(g.RegisterValidator(t, ncp3, minStaking))
+			defer checkNCPStaker()
+			_, err := g.ExpectedOk(g.RegisterStaker(t, ncp3, minStaking))
 			require.NoError(t, err)
 
-			validators = append(validators, ncp3.Validator.Address)
+			stakers = append(stakers, ncp3.Staker.Address)
 			totalStaking = totalStaking.Add(totalStaking, minStaking)
 		})
 
 		t.Run("stake more", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 			// ncp stake more
 			{
-				_, err := g.ExpectedOk(g.Stake(t, ncp1.Staker, minStaking))
+				_, err := g.ExpectedOk(g.Stake(t, ncp1.Operator, minStaking))
 				require.NoError(t, err)
 
 				totalStaking = totalStaking.Add(totalStaking, minStaking)
@@ -538,7 +538,7 @@ func TestGovWithNCP(t *testing.T) {
 
 			// non-ncp stake more
 			{
-				_, err := g.ExpectedOk(g.Stake(t, ncp3.Staker, minStaking))
+				_, err := g.ExpectedOk(g.Stake(t, ncp3.Operator, minStaking))
 				require.NoError(t, err)
 				totalStaking = totalStaking.Add(totalStaking, minStaking)
 			}
@@ -549,9 +549,9 @@ func TestGovWithNCP(t *testing.T) {
 		var proposalEvent map[string]interface{}
 
 		t.Run("new proposal to add ncp", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 			require.NoError(t, err)
 
 			proposalEvent = findEvent("NewProposal", receipt.Logs)
@@ -559,38 +559,38 @@ func TestGovWithNCP(t *testing.T) {
 		})
 
 		t.Run("failure case", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp4.Staker, ncp4.Staker.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp4.Operator, ncp4.Operator.Address)),
 				"msg.sender is not ncp",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Staker, ncp2.Staker.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Operator, ncp2.Operator.Address)),
 				"ncp exists",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Staker, ncp4.Staker.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Operator, ncp4.Operator.Address)),
 				"previous vote is in progress",
 			)
 		})
 		t.Run("vote & add ncp", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 
-			_, err := g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
+			_, err := g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
 			// Vote not finalized
-			checkNCPValidator()
+			checkNCPStaker()
 
-			_, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
+			_, err = g.ExpectedOk(g.Vote(t, ncp2.Operator, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
-			ncps = append(ncps, ncp3.Staker.Address)
-			ncpValidators = append(ncpValidators, ncp3.Validator.Address)
-			ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, govwbft.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
+			ncps = append(ncps, ncp3.Operator.Address)
+			ncpStakers = append(ncpStakers, ncp3.Staker.Address)
+			ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, govwbft.StakerInfo(stateDB, ncp3.Staker.Address).Staking)
 		})
 	})
 
@@ -598,9 +598,9 @@ func TestGovWithNCP(t *testing.T) {
 		var proposalEvent map[string]interface{}
 
 		t.Run("new proposal to remove ncp", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 
-			receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Staker, ncp3.Staker.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Operator, ncp3.Operator.Address))
 			require.NoError(t, err)
 
 			proposalEvent = findEvent("NewProposal", receipt.Logs)
@@ -608,58 +608,58 @@ func TestGovWithNCP(t *testing.T) {
 		})
 
 		t.Run("failure case", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToRemoveNCP(t, ncp1.Staker, ncp4.Staker.Address)),
+				g.ExpectedFail(g.NewProposalToRemoveNCP(t, ncp1.Operator, ncp4.Operator.Address)),
 				"invalid ncp",
 			)
 		})
 		t.Run("vote & remove ncp", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 
-			_, err := g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
+			_, err := g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
 			// not finalized
-			checkNCPValidator()
+			checkNCPStaker()
 
-			_, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
+			_, err = g.ExpectedOk(g.Vote(t, ncp2.Operator, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
-			ncps = removeElement(ncps, ncp3.Staker.Address)
-			ncpValidators = removeElement(ncpValidators, ncp3.Validator.Address)
-			ncpTotalStaking = ncpTotalStaking.Sub(ncpTotalStaking, govwbft.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
+			ncps = removeElement(ncps, ncp3.Operator.Address)
+			ncpStakers = removeElement(ncpStakers, ncp3.Staker.Address)
+			ncpTotalStaking = ncpTotalStaking.Sub(ncpTotalStaking, govwbft.StakerInfo(stateDB, ncp3.Staker.Address).Staking)
 		})
 	})
 
 	t.Run("Cancel Proposal", func(t *testing.T) {
-		defer checkNCPValidator()
+		defer checkNCPStaker()
 
 		t.Run("cancel by proposer", func(t *testing.T) {
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int))),
+				g.ExpectedFail(g.CancelProposal(t, ncp2.Operator, proposalEvent["id"].(*big.Int))),
 				"non-proposer cannot cancel before timeout",
 			)
 
-			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int)))
+			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))
 			require.NoError(t, err)
 			require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 
 			t.Run("cannot cancel after vote", func(t *testing.T) {
-				receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+				receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 				require.NoError(t, err)
 				proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-				_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
+				_, err = g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true))
 				require.NoError(t, err)
 
 				ExpectedRevert(t,
-					g.ExpectedFail(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int))),
+					g.ExpectedFail(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int))),
 					"cannot cancel after vote",
 				)
 
@@ -667,7 +667,7 @@ func TestGovWithNCP(t *testing.T) {
 
 				// cancel for next test
 				{
-					receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int)))
+					receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))
 					require.NoError(t, err)
 					require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 				}
@@ -675,42 +675,42 @@ func TestGovWithNCP(t *testing.T) {
 		})
 
 		t.Run("canceled due to timeout", func(t *testing.T) {
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int))),
+				g.ExpectedFail(g.CancelProposal(t, ncp2.Operator, proposalEvent["id"].(*big.Int))),
 				"non-proposer cannot cancel before timeout",
 			)
 
 			g.adjustTime(Voting_Period)
 
-			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp2.Staker, proposalEvent["id"].(*big.Int)))
+			receipt, err = g.ExpectedOk(g.CancelProposal(t, ncp2.Operator, proposalEvent["id"].(*big.Int)))
 			require.NoError(t, err)
 			require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 		})
 
 		t.Run("timeout & new proposal", func(t *testing.T) {
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address)),
+				g.ExpectedFail(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address)),
 				"previous vote is in progress",
 			)
 
 			g.adjustTime(Voting_Period)
 
-			receipt, err = g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+			receipt, err = g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 			require.NoError(t, err)
 			require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 
 			// cancel for next test
 			{
 				proposalEvent := findEvent("NewProposal", receipt.Logs)
-				receipt, err := g.ExpectedOk(g.CancelProposal(t, ncp1.Staker, proposalEvent["id"].(*big.Int)))
+				receipt, err := g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))
 				require.NoError(t, err)
 				require.Equal(t, proposalEvent["id"], findEvent("ProposalCanceled", receipt.Logs)["proposalID"])
 			}
@@ -719,24 +719,24 @@ func TestGovWithNCP(t *testing.T) {
 
 	t.Run("Vote", func(t *testing.T) {
 		t.Run("failure case", func(t *testing.T) {
-			defer checkNCPValidator()
+			defer checkNCPStaker()
 
-			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+			receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 			require.NoError(t, err)
 			proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-			_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
+			_, err = g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true))
 			require.NoError(t, err)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true)),
+				g.ExpectedFail(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true)),
 				"already voted",
 			)
 
 			g.adjustTime(Voting_Period)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true)),
+				g.ExpectedFail(g.Vote(t, ncp2.Operator, proposalEvent["id"].(*big.Int), true)),
 				"already closed vote",
 			)
 		})
@@ -744,14 +744,14 @@ func TestGovWithNCP(t *testing.T) {
 		t.Run("majority", func(t *testing.T) {
 			t.Run("2 ncp", func(t *testing.T) {
 				t.Run("reject", func(t *testing.T) {
-					defer checkNCPValidator()
+					defer checkNCPStaker()
 
 					// 1 NCP is required for reject
-					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), false))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), false))
 					require.NoError(t, err)
 
 					finalizedEvent := findEvent("ProposalFinalized", receipt.Logs)
@@ -759,22 +759,22 @@ func TestGovWithNCP(t *testing.T) {
 					require.Equal(t, false, findEvent("ProposalFinalized", receipt.Logs)["accepted"].(bool))
 				})
 				t.Run("accept", func(t *testing.T) {
-					defer checkNCPValidator()
+					defer checkNCPStaker()
 
 					// 2 NCP is required for accept
-					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Staker, ncp3.Staker.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp3.Operator.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), true))
+					_, err = g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Operator, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					ncps = append(ncps, ncp3.Staker.Address)
-					ncpValidators = append(ncpValidators, ncp3.Validator.Address)
-					ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, govwbft.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
+					ncps = append(ncps, ncp3.Operator.Address)
+					ncpStakers = append(ncpStakers, ncp3.Staker.Address)
+					ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, govwbft.StakerInfo(stateDB, ncp3.Staker.Address).Staking)
 
 					finalizedEvent := findEvent("ProposalFinalized", receipt.Logs)
 					require.NotNil(t, finalizedEvent)
@@ -783,17 +783,17 @@ func TestGovWithNCP(t *testing.T) {
 			})
 			t.Run("3 ncp", func(t *testing.T) {
 				t.Run("reject", func(t *testing.T) {
-					defer checkNCPValidator()
+					defer checkNCPStaker()
 
 					// 2 NCP is required for reject
-					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp2.Staker, ncp3.Staker.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp2.Operator, ncp3.Operator.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					_, err = g.ExpectedOk(g.Vote(t, ncp1.Staker, proposalEvent["id"].(*big.Int), false))
+					_, err = g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), false))
 					require.NoError(t, err)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), false))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp2.Operator, proposalEvent["id"].(*big.Int), false))
 					require.NoError(t, err)
 
 					finalizedEvent := findEvent("ProposalFinalized", receipt.Logs)
@@ -801,22 +801,22 @@ func TestGovWithNCP(t *testing.T) {
 					require.Equal(t, false, findEvent("ProposalFinalized", receipt.Logs)["accepted"].(bool))
 				})
 				t.Run("accept", func(t *testing.T) {
-					defer checkNCPValidator()
+					defer checkNCPStaker()
 
 					// 2 NCP is required for accept
-					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp3.Staker, ncp3.Staker.Address))
+					receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp3.Operator, ncp3.Operator.Address))
 					require.NoError(t, err)
 					proposalEvent := findEvent("NewProposal", receipt.Logs)
 
-					_, err = g.ExpectedOk(g.Vote(t, ncp2.Staker, proposalEvent["id"].(*big.Int), true))
+					_, err = g.ExpectedOk(g.Vote(t, ncp2.Operator, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					receipt, err = g.ExpectedOk(g.Vote(t, ncp3.Staker, proposalEvent["id"].(*big.Int), true))
+					receipt, err = g.ExpectedOk(g.Vote(t, ncp3.Operator, proposalEvent["id"].(*big.Int), true))
 					require.NoError(t, err)
 
-					ncps = removeElement(ncps, ncp3.Staker.Address)
-					ncpValidators = removeElement(ncpValidators, ncp3.Validator.Address)
-					ncpTotalStaking = ncpTotalStaking.Sub(ncpTotalStaking, govwbft.ValidatorInfo(stateDB, ncp3.Validator.Address).Staking)
+					ncps = removeElement(ncps, ncp3.Operator.Address)
+					ncpStakers = removeElement(ncpStakers, ncp3.Staker.Address)
+					ncpTotalStaking = ncpTotalStaking.Sub(ncpTotalStaking, govwbft.StakerInfo(stateDB, ncp3.Staker.Address).Staking)
 
 					finalizedEvent := findEvent("ProposalFinalized", receipt.Logs)
 					require.NotNil(t, finalizedEvent)
@@ -842,19 +842,19 @@ func TestSetCode(t *testing.T) {
 		minStaking1  = towei(500000)
 		minStaking2  = towei(100000)
 		totalStaking = new(big.Int)
-		validators   = make([]common.Address, 0)
+		stakers      = make([]common.Address, 0)
 
-		ncp1 = NewTestValidator()
-		ncp2 = NewTestValidator()
-		ncp3 = NewTestValidator()
+		ncp1 = NewTestStaker()
+		ncp2 = NewTestStaker()
+		ncp3 = NewTestStaker()
 	)
 
 	// for duplicate test
-	ncpInput := []common.Address{ncp3.Staker.Address, ncp3.Staker.Address}
+	ncpInput := []common.Address{ncp3.Operator.Address, ncp3.Operator.Address}
 
 	g, err := NewGovWBFT(t, ncpInput, types.GenesisAlloc{
-		ncp1.Staker.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
-		ncp2.Staker.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		ncp1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		ncp2.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 	})
 	require.NoError(t, err)
 	defer g.backend.Close()
@@ -867,36 +867,36 @@ func TestSetCode(t *testing.T) {
 	}
 
 	t.Run("duplicated ncp", func(t *testing.T) {
-		ncps := []common.Address{ncp3.Staker.Address}
+		ncps := []common.Address{ncp3.Operator.Address}
 		require.Equal(t, ncps, govwbft.NCPList(stateDB))
 	})
 
-	t.Run("add validator", func(t *testing.T) {
+	t.Run("add staker", func(t *testing.T) {
 		require.True(t, govwbft.TotalStaking(stateDB).Sign() == 0)
-		require.True(t, len(govwbft.Validators(stateDB)) == 0)
-		beforeBalance := g.balanceAt(t, ctx, ncp1.Staker.Address, nil)
+		require.True(t, len(govwbft.Stakers(stateDB)) == 0)
+		beforeBalance := g.balanceAt(t, ctx, ncp1.Operator.Address, nil)
 
-		receipt, err := g.ExpectedOk(g.RegisterValidator(t, ncp1, minStaking1))
+		receipt, err := g.ExpectedOk(g.RegisterStaker(t, ncp1, minStaking1))
 		require.NoError(t, err)
-		validators = append(validators, ncp1.Validator.Address)
+		stakers = append(stakers, ncp1.Staker.Address)
 		totalStaking = totalStaking.Add(totalStaking, minStaking1)
 
 		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-		require.Equal(t, validators, govwbft.Validators(stateDB))
+		require.Equal(t, stakers, govwbft.Stakers(stateDB))
 
 		gasCost := calcTxGasCost(receipt)
 		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking1, gasCost))
-		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp1.Staker.Address, nil))
+		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp1.Operator.Address, nil))
 
 		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterValidator(t, ncp2, minStaking2)),
+			g.ExpectedFail(g.RegisterStaker(t, ncp2, minStaking2)),
 			"out of bounds",
 		)
 	})
 
 	t.Run("upgrade contract", func(t *testing.T) {
 		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterValidator(t, ncp2, new(big.Int).Sub(minStaking1, common.Big1))),
+			g.ExpectedFail(g.RegisterStaker(t, ncp2, new(big.Int).Sub(minStaking1, common.Big1))),
 			"out of bounds",
 		)
 
@@ -906,25 +906,25 @@ func TestSetCode(t *testing.T) {
 		})
 	})
 
-	t.Run("retry add validator", func(t *testing.T) {
+	t.Run("retry add staker", func(t *testing.T) {
 		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterValidator(t, ncp2, new(big.Int).Sub(minStaking2, common.Big1))),
+			g.ExpectedFail(g.RegisterStaker(t, ncp2, new(big.Int).Sub(minStaking2, common.Big1))),
 			"out of bounds",
 		)
 
-		beforeBalance := g.balanceAt(t, ctx, ncp2.Staker.Address, nil)
+		beforeBalance := g.balanceAt(t, ctx, ncp2.Operator.Address, nil)
 
-		receipt, err := g.ExpectedOk(g.RegisterValidator(t, ncp2, minStaking2))
+		receipt, err := g.ExpectedOk(g.RegisterStaker(t, ncp2, minStaking2))
 		require.NoError(t, err)
-		validators = append(validators, ncp2.Validator.Address)
+		stakers = append(stakers, ncp2.Staker.Address)
 		totalStaking = totalStaking.Add(totalStaking, minStaking2)
 
 		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-		require.Equal(t, validators, govwbft.Validators(stateDB))
+		require.Equal(t, stakers, govwbft.Stakers(stateDB))
 
 		gasCost := calcTxGasCost(receipt)
 		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking2, gasCost))
-		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp2.Staker.Address, nil))
+		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp2.Operator.Address, nil))
 	})
 }
 

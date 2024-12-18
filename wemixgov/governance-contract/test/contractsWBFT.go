@@ -97,24 +97,24 @@ func (g *GovWBFT) ExpectedFail(tx *types.Transaction, txErr error) error {
 }
 
 // Staking Contract
-func (g *GovWBFT) RegisterValidator(t *testing.T, v *TestValidator, amount *big.Int) (*types.Transaction, error) {
-	return g.stakingContractTx(t, "registerValidator", v.Staker, amount, amount, v.Validator.Address, v.Reward.Address)
+func (g *GovWBFT) RegisterStaker(t *testing.T, v *TestStaker, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "registerStaker", v.Operator, amount, amount, v.Staker.Address, v.Rewardee.Address)
 }
 
-func (g *GovWBFT) Stake(t *testing.T, staker *EOA, amount *big.Int) (*types.Transaction, error) {
-	return g.stakingContractTx(t, "stake", staker, amount, amount)
+func (g *GovWBFT) Stake(t *testing.T, operator *EOA, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "stake", operator, amount, amount)
 }
 
-func (g *GovWBFT) Unstake(t *testing.T, staker *EOA, amount *big.Int) (*types.Transaction, error) {
-	return g.stakingContractTx(t, "unstake", staker, nil, amount)
+func (g *GovWBFT) Unstake(t *testing.T, operator *EOA, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "unstake", operator, nil, amount)
 }
 
-func (g *GovWBFT) Delegate(t *testing.T, delegator *EOA, validator common.Address, amount *big.Int) (*types.Transaction, error) {
-	return g.stakingContractTx(t, "delegate", delegator, amount, validator, amount)
+func (g *GovWBFT) Delegate(t *testing.T, delegator *EOA, staker common.Address, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "delegate", delegator, amount, staker, amount)
 }
 
-func (g *GovWBFT) Unelegate(t *testing.T, delegator *EOA, validator common.Address, amount *big.Int) (*types.Transaction, error) {
-	return g.stakingContractTx(t, "undelegate", delegator, nil, validator, amount)
+func (g *GovWBFT) Unelegate(t *testing.T, delegator *EOA, staker common.Address, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "undelegate", delegator, nil, staker, amount)
 }
 
 func (g *GovWBFT) Withdraw(t *testing.T, sender *EOA, credentialID *big.Int) (*types.Transaction, error) {
@@ -158,16 +158,16 @@ func (g *GovWBFT) adjustTime(adjustment time.Duration) {
 	g.backend.AdjustTime(defaultBlockPeriod)
 }
 
-type TestValidator struct {
-	Validator *EOA
-	Staker    *EOA
-	Reward    *EOA
+type TestStaker struct {
+	Staker   *EOA
+	Operator *EOA
+	Rewardee *EOA
 }
 
-func NewTestValidator() *TestValidator {
-	return &TestValidator{
-		Validator: NewEOA(),
-		Staker:    NewEOA(),
-		Reward:    NewEOA(),
+func NewTestStaker() *TestStaker {
+	return &TestStaker{
+		Staker:   NewEOA(),
+		Operator: NewEOA(),
+		Rewardee: NewEOA(),
 	}
 }

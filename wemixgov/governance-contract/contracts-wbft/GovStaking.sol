@@ -10,9 +10,9 @@ contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Address for address payable;
 
-    struct Validator {
-        address staker;
-        address reward;
+    struct Staker {
+        address operator;
+        address rewardee;
         uint256 staking;
         uint256 delegated;
     }
@@ -30,12 +30,12 @@ contract GovStaking {
         Requested,
         Withdrew
     }
-    event ValidatorRegistered(address indexed validator, address staker, address reward, uint256 staking);
-    event Staked(address indexed validator, uint256 amount);
-    event Unstaked(address indexed validator, uint256 amount);
-    event ValidatorRemoved(address indexed validator);
-    event Delegated(address indexed delegator, address indexed validator, uint256 amount);
-    event Undelegated(address indexed delegator, address indexed validator, uint256 amount);
+    event StakerRegistered(address indexed staker, address operator, address rewardee, uint256 staking);
+    event Staked(address indexed staker, uint256 amount);
+    event Unstaked(address indexed staker, uint256 amount);
+    event StakerRemoved(address indexed staker);
+    event Delegated(address indexed delegator, address indexed staker, uint256 amount);
+    event Undelegated(address indexed delegator, address indexed staker, uint256 amount);
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
     event Withdrew(uint256 indexed credentialID, address requester, uint256 amount);
 
@@ -43,11 +43,11 @@ contract GovStaking {
     
     uint256 public totalStaking; // 0x0
 
-    // Validator
-    EnumerableSet.AddressSet private __validatorSet; // 0x1, 0x2
-    mapping(address => Validator) public validatorInfo; // 0x3
-    mapping(address => address) public validatorByStaker; // 0x4
-    mapping(address => address) public validatorByReward; // 0x5
+    // Staker
+    EnumerableSet.AddressSet private __stakerSet; // 0x1, 0x2
+    mapping(address => Staker) public stakerInfo; // 0x3
+    mapping(address => address) public stakerByOperator; // 0x4
+    mapping(address => address) public stakerByRewardee; // 0x5
 
     // Delegate
     mapping(address => mapping(address => uint256)) public delegateTo; // 0x5
@@ -62,104 +62,104 @@ contract GovStaking {
         _;
     }
 
-    function isValidator(address _validator) public view returns (bool) {
-        return __validatorSet.contains(_validator);
+    function isStaker(address _staker) public view returns (bool) {
+        return __stakerSet.contains(_staker);
     }
 
-    function isStakerOrReward(address _addr) public view returns (bool) {
-        return validatorByStaker[_addr] != address(0) || validatorByReward[_addr] != address(0);
+    function isOperatorOrRewardee(address _addr) public view returns (bool) {
+        return stakerByOperator[_addr] != address(0) || stakerByRewardee[_addr] != address(0);
     }
 
-    function validatorLength() external view returns (uint256) {
-        return __validatorSet.length();
+    function stakerLength() external view returns (uint256) {
+        return __stakerSet.length();
     }
 
-    function validators() external view returns (address[] memory) {
-        return __validatorSet.values();
+    function stakers() external view returns (address[] memory) {
+        return __stakerSet.values();
     }
 
-    function registerValidator(uint256 _amount, address _validator, address _reward) external payable checkAmount(_amount) {
+    function registerStaker(uint256 _amount, address _staker, address _rewardee) external payable checkAmount(_amount) {
         require(_amount >= GOV_CONST.MINIMUM_STAKING() && _amount <= GOV_CONST.MAXIMUM_STAKING(), "out of bounds");
-        require(msg.sender != _validator && msg.sender != _reward, "staker cannot be validator or reward");
-        require(_validator != address(0) && _reward != address(0), "zero address");
-        require(_validator != _reward, "validator cannot be reward");
-        require(!isStakerOrReward(msg.sender), "staker is already registered");
-        require(!isStakerOrReward(_validator), "validator is already registered");
-        require(!isStakerOrReward(_reward), "reward is already registered");
+        require(msg.sender != _staker && msg.sender != _rewardee, "operator cannot be staker or rewardee");
+        require(_staker != address(0) && _rewardee != address(0), "zero address");
+        require(_staker != _rewardee, "staker cannot be rewardee");
+        require(!isOperatorOrRewardee(msg.sender), "operator is already registered");
+        require(!isOperatorOrRewardee(_staker), "staker is already registered");
+        require(!isOperatorOrRewardee(_rewardee), "rewardee is already registered");
 
-        require(__validatorSet.add(_validator), "validator exists");
-        validatorInfo[_validator] = Validator({ staker: msg.sender, reward: _reward, staking: _amount, delegated: 0 });
+        require(__stakerSet.add(_staker), "staker exists");
+        stakerInfo[_staker] = Staker({ operator: msg.sender, rewardee: _rewardee, staking: _amount, delegated: 0 });
 
-        validatorByStaker[msg.sender] = _validator;
-        validatorByReward[_reward] = _validator;
+        stakerByOperator[msg.sender] = _staker;
+        stakerByRewardee[_rewardee] = _staker;
 
         totalStaking += _amount;
 
-        emit ValidatorRegistered(_validator, msg.sender, _reward, _amount);
+        emit StakerRegistered(_staker, msg.sender, _rewardee, _amount);
     }
 
     function stake(uint256 _amount) external payable checkAmount(_amount) {
-        address _validator = validatorByStaker[msg.sender];
-        _addStaking(validatorByStaker[msg.sender], _amount, false);
+        address _staker = stakerByOperator[msg.sender];
+        _addStaking(stakerByOperator[msg.sender], _amount, false);
 
-        emit Staked(_validator, _amount);
+        emit Staked(_staker, _amount);
     }
 
     function unstake(uint256 _amount) external {
-        address _validator = validatorByStaker[msg.sender];
-        require(_validator != address(0), "unregistered validator");
+        address _staker = stakerByOperator[msg.sender];
+        require(_staker != address(0), "unregistered staker");
         require(_amount > 0, "amount is zero");
 
-        Validator storage _validatorInfo = validatorInfo[_validator];
-        uint256 _validatorStaking = _validatorInfo.staking - _validatorInfo.delegated;
+        Staker storage _stakerInfo = stakerInfo[_staker];
+        uint256 _stakerStaking = _stakerInfo.staking - _stakerInfo.delegated;
 
-        require(_validatorStaking >= _amount, "insufficient balance");
-        if (_validatorStaking - _amount < GOV_CONST.MINIMUM_STAKING()) {
-            require(_validatorStaking == _amount, "amount must equal balance to remove validator");
+        require(_stakerStaking >= _amount, "insufficient balance");
+        if (_stakerStaking - _amount < GOV_CONST.MINIMUM_STAKING()) {
+            require(_stakerStaking == _amount, "amount must equal balance to remove staker");
 
-            __validatorSet.remove(_validator);
-            delete validatorByStaker[msg.sender];
-            delete validatorByReward[_validatorInfo.reward];
-            delete validatorInfo[_validator];
+            __stakerSet.remove(_staker);
+            delete stakerByOperator[msg.sender];
+            delete stakerByRewardee[_stakerInfo.rewardee];
+            delete stakerInfo[_staker];
 
-            emit ValidatorRemoved(_validator);
+            emit StakerRemoved(_staker);
         } else {
-            _validatorInfo.staking -= _amount;
+            _stakerInfo.staking -= _amount;
         }
 
         totalStaking -= _amount;
-        _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_VALIDATOR());
+        _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_STAKER());
 
-        emit Unstaked(_validator, _amount);
+        emit Unstaked(_staker, _amount);
     }
 
-    function delegate(address _validator, uint256 _amount) external payable checkAmount(_amount) {
-        require(!isValidator(msg.sender), "validator cannot delegate");
-        require(!isStakerOrReward(msg.sender), "staker(reward) cannot delegate");
+    function delegate(address _staker, uint256 _amount) external payable checkAmount(_amount) {
+        require(!isStaker(msg.sender), "staker cannot delegate");
+        require(!isOperatorOrRewardee(msg.sender), "operator(rewardee) cannot delegate");
 
-        _addStaking(_validator, _amount, true);
-        delegateTo[msg.sender][_validator] += _amount;
+        _addStaking(_staker, _amount, true);
+        delegateTo[msg.sender][_staker] += _amount;
 
-        emit Delegated(msg.sender, _validator, _amount);
+        emit Delegated(msg.sender, _staker, _amount);
     }
 
-    function undelegate(address _validator, uint256 _amount) external {
-        require(delegateTo[msg.sender][_validator] >= _amount, "insufficient balance");
+    function undelegate(address _staker, uint256 _amount) external {
+        require(delegateTo[msg.sender][_staker] >= _amount, "insufficient balance");
 
-        if (isValidator(_validator)) {
-            Validator storage _validatorInfo = validatorInfo[_validator];
-            _validatorInfo.delegated -= _amount;
-            _validatorInfo.staking -= _amount;
+        if (isStaker(_staker)) {
+            Staker storage _stakerInfo = stakerInfo[_staker];
+            _stakerInfo.delegated -= _amount;
+            _stakerInfo.staking -= _amount;
 
             _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_DELEGATOR());
         } else {
             payable(msg.sender).sendValue(_amount);
         }
 
-        delegateTo[msg.sender][_validator] -= _amount;
+        delegateTo[msg.sender][_staker] -= _amount;
         totalStaking -= _amount;
 
-        emit Undelegated(msg.sender, _validator, _amount);
+        emit Undelegated(msg.sender, _staker, _amount);
     }
 
     function withdraw(uint256 _cid) external {
@@ -174,16 +174,16 @@ contract GovStaking {
         emit Withdrew(_cid, msg.sender, _credential.amount);
     }
 
-    function _addStaking(address _validator, uint256 _amount, bool _delegated) private {
-        require(isValidator(_validator), "unregistered validator");
+    function _addStaking(address _staker, uint256 _amount, bool _delegated) private {
+        require(isStaker(_staker), "unregistered staker");
 
-        Validator storage _validatorInfo = validatorInfo[_validator];
-        require(_validatorInfo.staking + _amount <= GOV_CONST.MAXIMUM_STAKING(), "exceeded the maximum");
+        Staker storage _stakerInfo = stakerInfo[_staker];
+        require(_stakerInfo.staking + _amount <= GOV_CONST.MAXIMUM_STAKING(), "exceeded the maximum");
 
         totalStaking += _amount;
-        _validatorInfo.staking += _amount;
+        _stakerInfo.staking += _amount;
         if (_delegated) {
-            _validatorInfo.delegated += _amount;
+            _stakerInfo.delegated += _amount;
         }
     }
 

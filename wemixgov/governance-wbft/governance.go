@@ -55,39 +55,39 @@ func InitializeNCP(ncps []common.Address) []params.StateParam {
 	return param
 }
 
-func IsNCPValidator(state StateReader, validator common.Address) bool {
-	if !IsValidator(state, validator) {
+func IsNCPStaker(state StateReader, staker common.Address) bool {
+	if !IsStaker(state, staker) {
 		return false
 	}
-	return IsNCP(state, getStaker(state, validatorInfoSlot(validator)))
+	return IsNCP(state, getOperator(state, stakerInfoSlot(staker)))
 }
 
-func NCPValidators(state StateReader) []common.Address {
-	validators := make([]common.Address, 0)
+func NCPStakers(state StateReader) []common.Address {
+	stakers := make([]common.Address, 0)
 	ncps := NCPList(state)
 	for _, ncp := range ncps {
-		v := ValidatorByStaker(state, ncp)
+		v := StakerByOperator(state, ncp)
 		if v != (common.Address{}) {
-			validators = append(validators, v)
+			stakers = append(stakers, v)
 		}
 	}
-	return validators
+	return stakers
 }
 
 func NCPTotalStaking(state StateReader) *big.Int {
 	totalStaking := new(big.Int)
-	validators := NCPValidators(state)
-	for _, v := range validators {
+	stakers := NCPStakers(state)
+	for _, v := range stakers {
 		totalStaking.Add(totalStaking, GetStaking(state, v))
 	}
 	return totalStaking
 }
 
-func NCPValidatorInfoMap(state StateReader) map[common.Address]Validator {
-	validatorInfos := make(map[common.Address]Validator)
-	validators := NCPValidators(state)
-	for _, v := range validators {
-		validatorInfos[v] = ValidatorInfo(state, v)
+func NCPStakerInfoMap(state StateReader) map[common.Address]Staker {
+	stakerInfos := make(map[common.Address]Staker)
+	stakers := NCPStakers(state)
+	for _, v := range stakers {
+		stakerInfos[v] = StakerInfo(state, v)
 	}
-	return validatorInfos
+	return stakerInfos
 }

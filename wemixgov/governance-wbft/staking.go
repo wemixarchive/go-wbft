@@ -13,9 +13,9 @@ const (
 	SLOT_VALIDATOR_BY_STAKER = "0x4"
 )
 
-type Validator struct {
-	Staker    common.Address
-	Reward    common.Address
+type Staker struct {
+	Operator  common.Address
+	Rewardee  common.Address
 	Staking   *big.Int
 	Delegated *big.Int
 }
@@ -24,56 +24,56 @@ func TotalStaking(state StateReader) *big.Int {
 	return state.GetState(GovStakingAddress, common.HexToHash(SLOT_TOTAL_STAKING)).Big()
 }
 
-func ValidatorLength(state StateReader) uint64 {
-	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
-	return validatorSet.Length(state, GovStakingAddress)
+func StakerLength(state StateReader) uint64 {
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return stakerSet.Length(state, GovStakingAddress)
 }
 
-func IsValidator(state StateReader, validator common.Address) bool {
-	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
-	return validatorSet.Contains(state, GovStakingAddress, validator)
+func IsStaker(state StateReader, staker common.Address) bool {
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return stakerSet.Contains(state, GovStakingAddress, staker)
 }
 
-func Validators(state StateReader) []common.Address {
-	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
-	return validatorSet.Values(state, GovStakingAddress)
+func Stakers(state StateReader) []common.Address {
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return stakerSet.Values(state, GovStakingAddress)
 }
 
-func ValidatorAt(state StateReader, index *big.Int) common.Address {
-	validatorSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
-	return validatorSet.At(state, GovStakingAddress, index)
+func StakerAt(state StateReader, index *big.Int) common.Address {
+	stakerSet := NewAddressSet(common.HexToHash(SLOT_VALIDATOR_SET))
+	return stakerSet.At(state, GovStakingAddress, index)
 }
 
-func ValidatorByStaker(state StateReader, staker common.Address) common.Address {
-	validator := state.GetState(GovStakingAddress, CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_BY_STAKER), staker))
-	return HashToAddress(validator)
+func StakerByOperator(state StateReader, operator common.Address) common.Address {
+	staker := state.GetState(GovStakingAddress, CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_BY_STAKER), operator))
+	return HashToAddress(staker)
 }
 
-func ValidatorInfo(state StateReader, validator common.Address) Validator {
-	baseSlot := validatorInfoSlot(validator)
+func StakerInfo(state StateReader, staker common.Address) Staker {
+	baseSlot := stakerInfoSlot(staker)
 
-	return Validator{
-		Staker:    getStaker(state, baseSlot),
-		Reward:    HashToAddress(state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(1)))),
+	return Staker{
+		Operator:  getOperator(state, baseSlot),
+		Rewardee:  HashToAddress(state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(1)))),
 		Staking:   getStaking(state, baseSlot),
 		Delegated: state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(3))).Big(),
 	}
 }
 
-func ValidatorInfoMap(state StateReader) map[common.Address]Validator {
-	validatorInfos := make(map[common.Address]Validator)
-	validators := Validators(state)
-	for _, v := range validators {
-		validatorInfos[v] = ValidatorInfo(state, v)
+func StakerInfoMap(state StateReader) map[common.Address]Staker {
+	stakerInfos := make(map[common.Address]Staker)
+	stakers := Stakers(state)
+	for _, v := range stakers {
+		stakerInfos[v] = StakerInfo(state, v)
 	}
-	return validatorInfos
+	return stakerInfos
 }
 
-func GetStaking(state StateReader, validator common.Address) *big.Int {
-	return getStaking(state, validatorInfoSlot(validator))
+func GetStaking(state StateReader, staker common.Address) *big.Int {
+	return getStaking(state, stakerInfoSlot(staker))
 }
 
-func getStaker(state StateReader, baseSlot common.Hash) common.Address {
+func getOperator(state StateReader, baseSlot common.Hash) common.Address {
 	return HashToAddress(state.GetState(GovStakingAddress, baseSlot))
 }
 
@@ -81,6 +81,6 @@ func getStaking(state StateReader, baseSlot common.Hash) *big.Int {
 	return state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(2))).Big()
 }
 
-func validatorInfoSlot(validator common.Address) common.Hash {
-	return CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_INFO), validator)
+func stakerInfoSlot(staker common.Address) common.Hash {
+	return CalculateMappingSlot(common.HexToHash(SLOT_VALIDATOR_INFO), staker)
 }
