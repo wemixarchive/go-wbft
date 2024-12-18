@@ -69,6 +69,10 @@ func ValidatorInfoMap(state StateReader) map[common.Address]Validator {
 	return validatorInfos
 }
 
+func GetStaking(state StateReader, validator common.Address) *big.Int {
+	return getStaking(state, validatorInfoSlot(validator))
+}
+
 func getStaker(state StateReader, baseSlot common.Hash) common.Address {
 	return HashToAddress(state.GetState(GovStakingAddress, baseSlot))
 }

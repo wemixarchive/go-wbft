@@ -78,7 +78,7 @@ func NCPTotalStaking(state StateReader) *big.Int {
 	totalStaking := new(big.Int)
 	validators := NCPValidators(state)
 	for _, v := range validators {
-		totalStaking.Add(totalStaking, getStaking(state, validatorInfoSlot(v)))
+		totalStaking.Add(totalStaking, GetStaking(state, v))
 	}
 	return totalStaking
 }
