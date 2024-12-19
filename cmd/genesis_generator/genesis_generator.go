@@ -72,13 +72,13 @@ func (g *genesisGenerator) makeGenesis() {
 	// Figure out which consensus engine to choose
 	fmt.Println()
 	fmt.Println("Which consensus engine to use? (default = Wbft)")
-	fmt.Println(" 1. Ethash - PoW")
-	fmt.Println(" 2. Beacon Ethash - beacon engine switched from ethash")
-	fmt.Println(" 3. Clique - PoA")
-	fmt.Println(" 4. Beacon Clique - beacon engine switched from clique")
-	fmt.Println(" 5. Wbft - wemix DPoS")
-	fmt.Println(" 6. Beacon Wbft - beacon engine switched from wbft")
-	fmt.Println(" 7. Wemix - wemix engine switched from wpoa to wbft")
+	fmt.Println(" 1. Ethash (proof-of-work)")
+	fmt.Println(" 2. Beacon (proof-of-stake), merging/merged from Ethash (proof-of-work)")
+	fmt.Println(" 3. Clique (proof-of-authority)")
+	fmt.Println(" 4. Beacon (proof-of-stake), merging/merged from Clique (proof-of-authority)")
+	fmt.Println(" 5. WBFT (wemix-byzantine-fault-tolerance)")
+	fmt.Println(" 6. Beacon (proof-of-stake), merging/merged from WBFT (wemix-byzantine-fault-tolerance)")
+	fmt.Println(" 7. WBFT (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority")
 
 	choice := read()
 	switch {
@@ -106,7 +106,7 @@ func (g *genesisGenerator) makeGenesis() {
 	case choice == "7":
 		g.wbftChainConfig()
 		fmt.Println()
-		fmt.Println("Enter blockNumber you want to enable Montblanc Fork (default 1)")
+		fmt.Println("Enter block number you want to enable Montblanc Fork (default 1)")
 		montblancBlock := readDefaultBigInt(common.Big1)
 		g.Genesis.Config.MontBlancBlock = montblancBlock
 
