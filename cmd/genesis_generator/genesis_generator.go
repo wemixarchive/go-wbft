@@ -222,7 +222,7 @@ func (g *genesisGenerator) beaconChainConfig() {
 		g.Genesis.Config.TerminalTotalDifficultyPassed = false
 		fmt.Println()
 		fmt.Println("Enter TerminalTotalDifficulty value you want to set (default 10)")
-		ttd := readDefaultBigInt(params.MainnetTerminalTotalDifficulty)
+		ttd := readDefaultBigInt(big.NewInt(10))
 		g.Genesis.Config.TerminalTotalDifficulty = ttd
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Shanghai Fork (default currentTimeStamp+10)")
