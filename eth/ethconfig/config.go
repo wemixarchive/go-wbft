@@ -24,7 +24,6 @@ package ethconfig
 import (
 	"crypto/ecdsa"
 	"errors"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -224,20 +223,11 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 			qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
 		}
 
-		if config.MontBlancBlock == nil {
-			return nil, errors.New("MontBlankBlock cannot be nil in wbft")
-		}
-
-		if config.IsMontBlanc(new(big.Int)) {
-			if config.TerminalTotalDifficulty == nil {
-				// wbft engine without supporting beacon logic
-				return qbftBackend.New(qbftCfg, privKey, db), nil
-			}
-			return beacon.New(qbftBackend.New(qbftCfg, privKey, db)), nil
-		} else {
+		if config.MontBlancBlock != nil {
 			// wemix engine which can do `MontBlanc` hard fork
 			return wemix.NewWemixEngine(govCli, qbftCfg, privKey, db), nil
 		}
+		return qbftBackend.New(qbftCfg, privKey, db), nil
 	}
 	// ## Quorum QBFT END
 

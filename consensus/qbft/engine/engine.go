@@ -332,10 +332,20 @@ func (e *Engine) verifyPrevSeals(chain consensus.ChainHeaderReader, header *type
 		return err
 	}
 
+	var firstWbftBlockNum *big.Int
+
+	if chain.Config().MontBlancBlock == nil {
+		// wbft engine started from genesis
+		firstWbftBlockNum = common.Big0
+	} else {
+		// wbft engine started with montblanc hardfork
+		firstWbftBlockNum = chain.Config().MontBlancBlock
+	}
+
 	prevPreparedSeal := extra.PrevPreparedSeal
 	if len(prevPreparedSeal) == 0 {
 		// prevPreparedSeal validation for monblanc block or first block after genesis is skipped because it's empty
-		if chain.Config().MontBlancBlock.Cmp(header.Number) != 0 && number != 1 {
+		if firstWbftBlockNum.Cmp(header.Number) != 0 && number != 1 {
 			return qbftcommon.ErrEmptyPrevPreparedSeals
 		}
 	} else {
@@ -354,7 +364,7 @@ func (e *Engine) verifyPrevSeals(chain consensus.ChainHeaderReader, header *type
 	prevCommittedSeal := extra.PrevCommittedSeal
 	if len(prevCommittedSeal) == 0 {
 		// prevCommittedSeal validation for monblanc block is skipped because it's empty
-		if chain.Config().MontBlancBlock.Cmp(header.Number) != 0 && number != 1 {
+		if firstWbftBlockNum.Cmp(header.Number) != 0 && number != 1 {
 			return qbftcommon.ErrEmptyPrevCommittedSeals
 		}
 	} else {
@@ -496,8 +506,18 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			break
 		}
 	}
+
+	var firstWbftBlockNum *big.Int
+	if chain.Config().MontBlancBlock == nil {
+		// wbft engine started from genesis
+		firstWbftBlockNum = common.Big0
+	} else {
+		// wbft engine started with montblanc hardfork
+		firstWbftBlockNum = chain.Config().MontBlancBlock
+	}
+
 	validatorsList := validator.SortedAddresses(validators.List())
-	if chain.Config().MontBlancBlock.Cmp(header.Number) == 0 {
+	if firstWbftBlockNum.Cmp(header.Number) == 0 {
 		// monblac hardFork block has empty prevCommittedSeal
 		return ApplyHeaderQBFTExtra(
 			header,

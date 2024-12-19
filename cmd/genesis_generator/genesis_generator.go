@@ -77,8 +77,7 @@ func (g *genesisGenerator) makeGenesis() {
 	fmt.Println(" 3. Clique (proof-of-authority)")
 	fmt.Println(" 4. Beacon (proof-of-stake), merging/merged from Clique (proof-of-authority)")
 	fmt.Println(" 5. WBFT (wemix-byzantine-fault-tolerance)")
-	fmt.Println(" 6. Beacon (proof-of-stake), merging/merged from WBFT (wemix-byzantine-fault-tolerance)")
-	fmt.Println(" 7. WBFT (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority")
+	fmt.Println(" 6. WBFT (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority)")
 
 	choice := read()
 	switch {
@@ -100,10 +99,6 @@ func (g *genesisGenerator) makeGenesis() {
 		g.wbftChainConfig()
 
 	case choice == "6":
-		g.beaconChainConfig()
-		g.wbftChainConfig()
-
-	case choice == "7":
 		g.wbftChainConfig()
 		fmt.Println()
 		fmt.Println("Enter block number you want to enable Montblanc Fork (default 1)")
@@ -161,7 +156,6 @@ func (g *genesisGenerator) wbftChainConfig() {
 	// TODO : need to be change after epoch task is merged.
 	// the qbft config needs to be set in field `Transition`
 	g.Genesis.Difficulty = types.QBFTDefaultDifficulty
-	g.Genesis.Config.MontBlancBlock = common.Big0
 	g.Genesis.Config.QBFT = &params.QBFTConfig{
 		BlockReward:           (*math.HexOrDecimal256)(big.NewInt(params.Ether)),
 		EpochLength:           30000,

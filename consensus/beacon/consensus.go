@@ -25,8 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
-	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -70,16 +68,6 @@ func New(ethone consensus.Engine) *Beacon {
 		panic("nested consensus engine")
 	}
 	return &Beacon{ethone: ethone}
-}
-
-// Start is to support qbft/backend/engine Start() to run qbft consensus
-func (beacon *Beacon) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block) error {
-	if engine, ok := beacon.ethone.(*qbftBackend.Backend); ok {
-		if err := engine.Start(chain, currentBlock, rawdb.HasBadBlock); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Author implements consensus.Engine, returning the verified author of the block.
