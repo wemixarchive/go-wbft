@@ -225,13 +225,13 @@ func (g *genesisGenerator) beaconChainConfig() {
 		ttd := readDefaultBigInt(big.NewInt(10))
 		g.Genesis.Config.TerminalTotalDifficulty = ttd
 		fmt.Println()
-		fmt.Println("Enter timestamp you want to enable Shanghai Fork (default currentTimeStamp+10)")
+		fmt.Println("Enter timestamp you want to enable Shanghai Fork (default currentTimeStamp+10000)")
 
-		shanghaiTime := readDefaultInt(int(time.Now().Unix()) + 10)
+		shanghaiTime := readDefaultInt(int(time.Now().Unix()) + 10000)
 		g.Genesis.Config.ShanghaiTime = newUint64(uint64(shanghaiTime))
 		fmt.Println()
-		fmt.Println("Enter timestamp you want to enable Cancun Fork (default currentTimeStamp+10)")
-		cancunTime := readDefaultInt(int(time.Now().Unix()) + 10)
+		fmt.Println("Enter timestamp you want to enable Cancun Fork (default currentTimeStamp+10000)")
+		cancunTime := readDefaultInt(int(time.Now().Unix()) + 10000)
 		g.Genesis.Config.CancunTime = newUint64(uint64(cancunTime))
 	}
 }
