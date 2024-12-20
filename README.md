@@ -249,14 +249,12 @@ $ genesis_generator
 This will help you generate genesis file by simply choosing the options it gives like below : 
 ``` shell
 Which consensus engine to use? (default = Wemix)
- 1. Ethash - PoW
- 2. Beacon Ethash - beacon engine switched from ethash
- 3. Clique - PoA
- 4. Beacon Clique - beacon engine switched from clique
- 5. Wbft - wemix DPoS
- 6. Beacon Wbft - beacon engine switched from wbft
- 7. Wemix - wemix engine swtiched from wpoa to wbft
-
+ 1. Ethash (proof-of-work)
+ 2. Beacon (proof-of-stake), merging/merged from Ethash (proof-of-work)
+ 3. Clique (proof-of-authority)
+ 4. Beacon (proof-of-stake), merging/merged from Clique (proof-of-authority)
+ 5. WBFT (wemix-byzantine-fault-tolerance)
+ 6. WBFT (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority)
  ```
 
 If you want more specific genesis file settings,simply modify the desired fields after it has been generated.

@@ -322,8 +322,6 @@ func genConfigFile() {
 	fmt.Println()
 	fmt.Println(" Do you want to export generated config file?")
 	fmt.Println(" If not it will be just printed (default true)")
-	fmt.Println(" 1. yes")
-	fmt.Println(" 2. nah, just print it")
 
 	if readDefaultYesNo(true) {
 		fmt.Println()
