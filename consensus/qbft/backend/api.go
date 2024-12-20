@@ -101,31 +101,6 @@ func (api *API) commitSigners(header *types.Header) (*BlockSigners, error) {
 	}, nil
 }
 
-// GetSnapshot retrieves the state snapshot at a given block.
-func (api *API) GetSnapshot(number *rpc.BlockNumber) (*Snapshot, error) {
-	// Retrieve the requested block number (or current if none requested)
-	var header *types.Header
-	if number == nil || *number == rpc.LatestBlockNumber {
-		header = api.chain.CurrentHeader()
-	} else {
-		header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
-	}
-	// Ensure we have an actually valid block and return its snapshot
-	if header == nil {
-		return nil, qbftcommon.ErrUnknownBlock
-	}
-	return api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
-}
-
-// GetSnapshotAtHash retrieves the state snapshot at a given block.
-func (api *API) GetSnapshotAtHash(hash common.Hash) (*Snapshot, error) {
-	header := api.chain.GetHeaderByHash(hash)
-	if header == nil {
-		return nil, qbftcommon.ErrUnknownBlock
-	}
-	return api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
-}
-
 // GetValidators retrieves the list of authorized validators at the specified block.
 func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error) {
 	// Retrieve the requested block number (or current if none requested)
