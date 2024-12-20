@@ -115,11 +115,6 @@ type Config struct {
 	Client                   bind.ContractCaller   `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`
 	Transitions              []params.Transition
-
-	StateTransitions []params.StateTransition
-
-	MontBlancBlock *big.Int
-	MontBlanc      *params.MontBlancConfig
 }
 
 var DefaultConfig = &Config{
@@ -212,31 +207,32 @@ func (c *Config) String() string {
 	return "qbft"
 }
 
-func (c *Config) GetStateTransitions(num *big.Int) []params.StateTransition {
-	if c != nil && num != nil {
+func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params.StateTransition {
+	if chainConfig != nil && num != nil {
 		transitions := make([]params.StateTransition, 0)
-		// MontBlanc hardfork
-		if c.MontBlancBlock != nil && c.MontBlanc != nil && new(big.Int).Add(c.MontBlancBlock, common.Big1).Cmp(num) == 0 {
-			transitions = append(transitions, c.getMontBlancTransition())
+
+		if chainConfig.MontBlancBlock != nil && chainConfig.MontBlancBlock.Cmp(num) == 0 {
+			transitions = append(transitions, getMontBlancTransition(chainConfig.MontBlanc))
 		}
 
-		for _, st := range c.StateTransitions {
-			if st.Block.Cmp(num) == 0 {
-				transitions = append(transitions, st)
-			}
+		if st := chainConfig.GetStateTransitions(num); len(st) > 0 {
+			transitions = append(transitions, st...)
 		}
 		return transitions
 	}
 	return nil
 }
 
-func (c *Config) getMontBlancTransition() params.StateTransition {
-	return params.StateTransition{
+func getMontBlancTransition(config *params.MontBlancConfig) params.StateTransition {
+	st := params.StateTransition{
 		Codes: []params.CodeParam{
 			{Address: govwbft.GovConstAddress, Code: govwbft.GovConstContract},
 			{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
-			{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract},
 		},
-		States: govwbft.InitializeNCP(c.MontBlanc.NCPs),
 	}
+	if config != nil && len(config.NCPs) > 0 {
+		st.Codes = append(st.Codes, params.CodeParam{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract})
+		st.States = govwbft.InitializeNCP(config.NCPs)
+	}
+	return st
 }

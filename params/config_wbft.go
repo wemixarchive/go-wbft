@@ -38,6 +38,20 @@ type StateTransition struct {
 	States []StateParam `json:"states,omitempty"`
 }
 
+func (c *ChainConfig) GetStateTransitions(num *big.Int) []StateTransition {
+	if c != nil && num != nil {
+		transitions := make([]StateTransition, 0)
+
+		for _, st := range c.StateTransitions {
+			if st.Block.Cmp(num) == 0 {
+				transitions = append(transitions, st)
+			}
+		}
+		return transitions
+	}
+	return nil
+}
+
 func (st *StateTransition) String() string {
 	return fmt.Sprintf("{Block: %v Codes: %v States: %v}", st.Block, st.Codes, st.States)
 }

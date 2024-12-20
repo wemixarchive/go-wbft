@@ -17,7 +17,7 @@ type simSyncer struct {
 	stateTransitions    map[uint64]params.StateTransition
 }
 
-func (ss *simSyncer) Apply(config *qbft.Config, num *big.Int) {
+func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *qbft.Config, num *big.Int) {
 	number := num.Uint64()
 	if ss.adjustedBlockPeriod[number] > 0 {
 		config.Transitions = append(config.Transitions, params.Transition{
@@ -26,7 +26,7 @@ func (ss *simSyncer) Apply(config *qbft.Config, num *big.Int) {
 		})
 	}
 	if transition, ok := ss.stateTransitions[number]; ok {
-		config.StateTransitions = append(config.StateTransitions, transition)
+		chainConfig.StateTransitions = append(chainConfig.StateTransitions, transition)
 	}
 }
 

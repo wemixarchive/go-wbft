@@ -555,7 +555,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 	// Accumulate any block and uncle rewards and commit the final state root
 	e.accumulateRewards(chain, state, header)
 
-	if transitions := e.cfg.GetStateTransitions(header.Number); len(transitions) > 0 {
+	if transitions := qbft.GetStateTransitions(chain.Config(), header.Number); len(transitions) > 0 {
 		for _, st := range transitions {
 			for _, c := range st.Codes {
 				state.SetCode(c.Address, hexutil.MustDecode(c.Code))

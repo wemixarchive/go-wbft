@@ -196,9 +196,6 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		if len(config.Transitions) > 0 {
 			qbftCfg.Transitions = config.Transitions
 		}
-		if len(config.StateTransitions) > 0 {
-			qbftCfg.StateTransitions = config.StateTransitions
-		}
 		if config.QBFT.BlockPeriodSeconds != 0 {
 			qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
 		}
@@ -224,11 +221,6 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		}
 
 		if config.MontBlancBlock != nil {
-			qbftCfg.MontBlancBlock = config.MontBlancBlock
-			if config.MontBlanc != nil {
-				qbftCfg.MontBlanc = config.MontBlanc
-			}
-
 			if config.IsMontBlanc(new(big.Int)) {
 				// only wbft engine
 				return qbftBackend.New(qbftCfg, privKey, db), nil
