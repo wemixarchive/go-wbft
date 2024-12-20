@@ -254,7 +254,7 @@ Which consensus engine to use? (default = Wemix)
  3. Clique (proof-of-authority)
  4. Beacon (proof-of-stake), merging/merged from Clique (proof-of-authority)
  5. WBFT (wemix-byzantine-fault-tolerance)
- 6. WBFT (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority)
+ 6. WEMIX (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority)
  ```
 
 If you want more specific genesis file settings,simply modify the desired fields after it has been generated.

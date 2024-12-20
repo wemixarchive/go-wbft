@@ -77,7 +77,7 @@ func (g *genesisGenerator) makeGenesis() {
 	fmt.Println(" 3. Clique (proof-of-authority)")
 	fmt.Println(" 4. Beacon (proof-of-stake), merging/merged from Clique (proof-of-authority)")
 	fmt.Println(" 5. WBFT (wemix-byzantine-fault-tolerance)")
-	fmt.Println(" 6. WBFT (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority)")
+	fmt.Println(" 6. WEMIX (wemix-byzantine-fault-tolerance), merged from Wemix3.0 (proof-of-authority)")
 
 	choice := read()
 	switch {
