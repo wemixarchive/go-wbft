@@ -64,7 +64,7 @@ func getTxOpt(t *testing.T, alias string) *bind.TransactOpts {
 	} else {
 		pk, err := crypto.GenerateKey()
 		require.NoError(t, err)
-		opts, err := bind.NewKeyedTransactorWithChainID(pk, params.AllEthashProtocolChanges.ChainID)
+		opts, err := bind.NewKeyedTransactorWithChainID(pk, params.TestChainConfig.ChainID)
 		require.NoError(t, err)
 		eoas[alias] = opts
 		return opts
