@@ -1826,8 +1826,11 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 func genExtraData(validator common.Address) []byte {
 	sampleExtra := &types.QBFTExtra{
 		VanityData: []byte("WEMIX MontBlanc chain block"),
-		Validators: []common.Address{
-			validator,
+		EpochInfo: &types.EpochInfo{
+			Stakers: []*types.Staker{
+				{Addr: validator, Diligence: types.DefaultDiligence},
+			},
+			Validators: []uint32{0},
 		},
 		Round: 0,
 	}

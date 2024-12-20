@@ -60,18 +60,20 @@ func TestExtractToQBFTExtra(t *testing.T) {
 			hexutil.MustDecode("0xf85d80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0c0c0c0"),
 			&QBFTExtra{
 				VanityData: []byte{},
-				Validators: []common.Address{
-					common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
-					common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
-					common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")),
-					common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")),
+				EpochInfo: &EpochInfo{
+					Stakers: []*Staker{
+						{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: DefaultDiligence},
+						{Addr: common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")), Diligence: DefaultDiligence},
+						{Addr: common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")), Diligence: DefaultDiligence},
+						{Addr: common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")), Diligence: DefaultDiligence},
+					},
+					Validators: []uint32{0, 1, 2, 3},
 				},
 				PreparedSeal:      [][]byte{},
 				CommittedSeal:     [][]byte{},
 				PrevPreparedSeal:  [][]byte{},
 				PrevCommittedSeal: [][]byte{},
 				Round:             0,
-				Vote:              nil,
 			},
 			nil,
 		},
@@ -91,8 +93,11 @@ func TestExtractToQBFTExtra(t *testing.T) {
 func TestGenerateExtra(t *testing.T) {
 	sampleExtra := &QBFTExtra{
 		VanityData: []byte("WEMIX MontBlanc chain block"),
-		Validators: []common.Address{
-			common.BytesToAddress(hexutil.MustDecode("0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697")),
+		EpochInfo: &EpochInfo{
+			Stakers: []*Staker{
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697")), Diligence: DefaultDiligence},
+			},
+			Validators: []uint32{0},
 		},
 		Round: 0,
 	}

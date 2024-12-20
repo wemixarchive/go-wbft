@@ -72,7 +72,6 @@ func New(config *qbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) *
 		db:               db,
 		commitCh:         make(chan *types.Block, 1),
 		recents:          recents,
-		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
@@ -111,10 +110,6 @@ type Backend struct {
 	coreStarted       bool
 	coreMu            sync.RWMutex
 
-	// Current list of candidates we are pushing
-	candidates map[common.Address]bool
-	// Protects the signer fields
-	candidatesLock sync.RWMutex
 	// Snapshots for recent block to speed up reorgs
 	recents *lru.Cache[common.Hash, *Snapshot]
 

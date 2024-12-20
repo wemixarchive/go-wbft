@@ -23,7 +23,6 @@ package backend
 import (
 	"errors"
 	"math/big"
-	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -202,27 +201,6 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 		return err
 	}
 
-	// get valid candidate list
-	sb.candidatesLock.RLock()
-	var addresses []common.Address
-	var authorizes []bool
-	for address, authorize := range sb.candidates {
-		if snap.checkVote(address, authorize) {
-			addresses = append(addresses, address)
-			authorizes = append(authorizes, authorize)
-		}
-	}
-	sb.candidatesLock.RUnlock()
-
-	if len(addresses) > 0 {
-		index := rand.Intn(len(addresses))
-
-		err = sb.Engine().WriteVote(header, addresses[index], authorizes[index])
-		if err != nil {
-			log.Error("BFT: error writing validator vote", "err", err)
-			return err
-		}
-	}
 	return nil
 }
 
@@ -382,27 +360,6 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 			_ = sb.Stop()
 		}
 		return sb.Start(chain, currentBlock, hasBadBlock)
-	case "SetExtra":
-		if len(args) != 2 {
-			return qbftcommon.ErrInvalidSpecificCall
-		}
-		val, ok := args[0].(common.Address)
-		if !ok {
-			return qbftcommon.ErrInvalidSpecificCall
-		}
-		header, ok := args[1].(*types.Header)
-		if !ok {
-			return qbftcommon.ErrInvalidSpecificCall
-		}
-		vals := make([]common.Address, 1)
-		vals[0] = val
-		qbftengine.ApplyHeaderQBFTExtra(
-			header,
-			func(qbftExtra *types.QBFTExtra) error {
-				qbftExtra.Validators = vals
-				return nil
-			})
-		return nil
 	case "InheritExtra":
 		if len(args) != 2 {
 			return qbftcommon.ErrInvalidSpecificCall
@@ -430,7 +387,6 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		qbftengine.ApplyHeaderQBFTExtra(
 			header,
-			qbftengine.WriteValidators(extra.Validators),
 			qbftengine.WritePrevPreparedSeal(prevPreparedSeal),
 			qbftengine.WritePrevCommittedSeal(prevCommittedSeal))
 		return nil
@@ -455,7 +411,6 @@ func (sb *Backend) snapLogger(snap *Snapshot) log.Logger {
 		"snap.hash", snap.Hash.String(),
 		"snap.epoch", snap.Epoch,
 		"snap.validators", addrsToString(snap.validators()),
-		"snap.votes", snap.Votes,
 	)
 }
 
@@ -614,13 +569,6 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 
 	logger.Trace("BFT: apply header to voting snapshot")
 
-	// Remove any votes on checkpoint blocks
-	number := header.Number.Uint64()
-	if number%snap.Epoch == 0 {
-		snap.Votes = nil
-		snap.Tally = make(map[common.Address]Tally)
-	}
-
 	// Resolve the authorization key and check against validators
 	validator, err := sb.Engine().Author(header)
 	if err != nil {
@@ -635,67 +583,5 @@ func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 		return qbftcommon.ErrUnauthorized
 	}
 
-	// Read vote from header
-	candidate, authorize, err := sb.Engine().ReadVote(header)
-	if err != nil {
-		logger.Error("BFT: invalid header vote", "err", err)
-		return err
-	}
-
-	logger = logger.New("candidate", candidate.String(), "authorize", authorize)
-	// Header authorized, discard any previous votes from the validator
-	for i, vote := range snap.Votes {
-		if vote.Validator == validator && vote.Address == candidate {
-			logger.Trace("BFT: discard previous vote from tally", "old.authorize", vote.Authorize)
-			// Uncast the vote from the cached tally
-			snap.uncast(vote.Address, vote.Authorize)
-
-			// Uncast the vote from the chronological list
-			snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-			break // only one vote allowed
-		}
-	}
-
-	logger.Debug("BFT: add vote to tally")
-	if snap.cast(candidate, authorize) {
-		snap.Votes = append(snap.Votes, &Vote{
-			Validator: validator,
-			Block:     number,
-			Address:   candidate,
-			Authorize: authorize,
-		})
-	}
-
-	// If the vote passed, update the list of validators
-	if tally := snap.Tally[candidate]; tally.Votes > snap.ValSet.Size()/2 {
-		if tally.Authorize {
-			logger.Info("BFT: reached majority to add validator")
-			snap.ValSet.AddValidator(candidate)
-		} else {
-			logger.Info("BFT: reached majority to remove validator")
-			snap.ValSet.RemoveValidator(candidate)
-
-			// Discard any previous votes the deauthorized validator cast
-			for i := 0; i < len(snap.Votes); i++ {
-				if snap.Votes[i].Validator == candidate {
-					// Uncast the vote from the cached tally
-					snap.uncast(snap.Votes[i].Address, snap.Votes[i].Authorize)
-
-					// Uncast the vote from the chronological list
-					snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-
-					i--
-				}
-			}
-		}
-		// Discard any previous votes around the just changed account
-		for i := 0; i < len(snap.Votes); i++ {
-			if snap.Votes[i].Address == candidate {
-				snap.Votes = append(snap.Votes[:i], snap.Votes[i+1:]...)
-				i--
-			}
-		}
-		delete(snap.Tally, candidate)
-	}
 	return nil
 }

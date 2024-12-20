@@ -34,12 +34,14 @@ var (
 	IstanbulExtraVanity = 32 // Fixed number of extra-data bytes reserved for validator vanity
 	IstanbulExtraSeal   = 65 // Fixed number of extra-data bytes reserved for validator seal
 
-	QBFTAuthVote = byte(0xFF) // Magic number to vote on adding a new validator
-	QBFTDropVote = byte(0x00) // Magic number to vote on removing a validator.
-
 	// QBFTDefaultDifficulty is used to identify whether the block is from QBFT consensus engine.
 	// we use this value on behalf of the role IstanbulDigest
 	QBFTDefaultDifficulty = big.NewInt(1) // ## Wemix
+
+	// Diligence is used to choose validators for next epoch
+	// Diligence has maximum value of 4 * DiligenceDenominator.
+	DiligenceDenominator = uint64(1_000_000)
+	DefaultDiligence     = uint64(3_800_000)
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
 	ErrInvalidIstanbulHeaderExtra = errors.New("invalid qbft header extra-data")
@@ -48,31 +50,34 @@ var (
 // QBFTExtra represents header extradata for qbft protocol
 type QBFTExtra struct {
 	VanityData        []byte
-	Validators        []common.Address
-	Vote              *ValidatorVote
 	Round             uint32
 	PreparedSeal      [][]byte
 	CommittedSeal     [][]byte
 	PrevPreparedSeal  [][]byte
-	PrevCommittedSeal [][]byte // committedSeal of previous local block
+	PrevCommittedSeal [][]byte   // committedSeal of previous local block
+	EpochInfo         *EpochInfo // epoch info is filled only for last block of epoch
 }
 
-type ValidatorVote struct {
-	RecipientAddress common.Address
-	VoteType         byte
+type Staker struct {
+	Addr      common.Address
+	Diligence uint64 // unit: 10^-6
+}
+
+type EpochInfo struct {
+	Stakers    []*Staker // staker list for next epoch (staker index may be changed for each epoch)
+	Validators []uint32  // validator list for next epoch (using indices of staker list)
 }
 
 // EncodeRLP serializes qist into the Ethereum RLP format.
 func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		qst.VanityData,
-		qst.Validators,
-		qst.Vote,
 		qst.Round,
 		qst.PreparedSeal,
 		qst.CommittedSeal,
 		qst.PrevPreparedSeal,
 		qst.PrevCommittedSeal,
+		qst.EpochInfo,
 	})
 }
 
@@ -80,42 +85,94 @@ func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
 		VanityData        []byte
-		Validators        []common.Address
-		Vote              *ValidatorVote `rlp:"nil"`
 		Round             uint32
 		PreparedSeal      [][]byte
 		CommittedSeal     [][]byte
 		PrevPreparedSeal  [][]byte
 		PrevCommittedSeal [][]byte
+		EpochInfo         *EpochInfo `rlp:"nil"`
 	}
 	if err := s.Decode(&qbftExtra); err != nil {
 		return err
 	}
 
-	qst.VanityData, qst.Validators, qst.Vote, qst.Round, qst.PreparedSeal, qst.CommittedSeal, qst.PrevPreparedSeal, qst.PrevCommittedSeal =
-		qbftExtra.VanityData, qbftExtra.Validators, qbftExtra.Vote, qbftExtra.Round, qbftExtra.PreparedSeal, qbftExtra.CommittedSeal, qbftExtra.PrevPreparedSeal, qbftExtra.PrevCommittedSeal
+	qst.VanityData, qst.Round, qst.PreparedSeal, qst.CommittedSeal, qst.PrevPreparedSeal, qst.PrevCommittedSeal, qst.EpochInfo =
+		qbftExtra.VanityData, qbftExtra.Round, qbftExtra.PreparedSeal, qbftExtra.CommittedSeal, qbftExtra.PrevPreparedSeal, qbftExtra.PrevCommittedSeal, qbftExtra.EpochInfo
 
 	return nil
 }
 
-// EncodeRLP serializes ValidatorVote into the Ethereum RLP format.
-func (vv *ValidatorVote) EncodeRLP(w io.Writer) error {
+func (ei *EpochInfo) GetStakers() []common.Address {
+	if ei == nil {
+		return nil
+	}
+
+	l := make([]common.Address, len(ei.Stakers))
+	for i, staker := range ei.Stakers {
+		l[i] = staker.Addr
+	}
+	return l
+}
+
+func (ei *EpochInfo) GetValidators() []common.Address {
+	if ei == nil {
+		return nil
+	}
+
+	l := make([]common.Address, len(ei.Validators))
+	for i, validator := range ei.Validators {
+		l[i] = ei.GetValidator(validator)
+	}
+	return l
+}
+
+func (ei *EpochInfo) GetValidator(index uint32) common.Address {
+	if ei == nil {
+		return common.Address{}
+	}
+
+	return ei.Stakers[index].Addr
+}
+
+// EncodeRLP serializes epochInfo into the Ethereum RLP format.
+func (ei *EpochInfo) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
-		vv.RecipientAddress,
-		vv.VoteType,
+		ei.Stakers,
+		ei.Validators,
 	})
 }
 
-// DecodeRLP implements rlp.Decoder, and load the ValidatorVote fields from a RLP stream.
-func (vv *ValidatorVote) DecodeRLP(s *rlp.Stream) error {
-	var validatorVote struct {
-		RecipientAddress common.Address
-		VoteType         byte
+// DecodeRLP implements rlp.Decoder, and load the EpochInfo fields from a RLP stream.
+func (ei *EpochInfo) DecodeRLP(s *rlp.Stream) error {
+	var epochInfo struct {
+		Stakers    []*Staker
+		Validators []uint32
 	}
-	if err := s.Decode(&validatorVote); err != nil {
+	if err := s.Decode(&epochInfo); err != nil {
 		return err
 	}
-	vv.RecipientAddress, vv.VoteType = validatorVote.RecipientAddress, validatorVote.VoteType
+	ei.Stakers, ei.Validators = epochInfo.Stakers, epochInfo.Validators
+	return nil
+}
+
+// EncodeRLP serializes Staker into the Ethereum RLP format.
+func (stkr *Staker) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, []interface{}{
+		stkr.Addr,
+		stkr.Diligence,
+	})
+}
+
+// DecodeRLP implements rlp.Decoder, and load the Staker fields from a RLP stream.
+func (stkr *Staker) DecodeRLP(s *rlp.Stream) error {
+	var staker struct {
+		Addr      common.Address
+		Diligence uint64
+	}
+	if err := s.Decode(&staker); err != nil {
+		return err
+	}
+	stkr.Addr, stkr.Diligence = staker.Addr, staker.Diligence
 	return nil
 }
 

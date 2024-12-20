@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft/core"
-	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -489,12 +488,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			break
 		}
 	}
-	validatorsList := validator.SortedAddresses(validators.List())
 	if chain.Config().MontBlancBlock.Cmp(header.Number) == 0 {
 		// monblac hardFork block has empty prevCommittedSeal
 		return ApplyHeaderQBFTExtra(
 			header,
-			WriteValidators(validatorsList),
 		)
 	} else {
 		lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
@@ -514,17 +511,9 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		return ApplyHeaderQBFTExtra(
 			header,
-			WriteValidators(validatorsList),
 			WritePrevPreparedSeal(prevPreparedSeal),
 			WritePrevCommittedSeal(prevCommittedSeal),
 		)
-	}
-}
-
-func WriteValidators(validators []common.Address) ApplyQBFTExtra {
-	return func(qbftExtra *types.QBFTExtra) error {
-		qbftExtra.Validators = validators
-		return nil
 	}
 }
 
@@ -538,6 +527,13 @@ func WritePrevPreparedSeal(prevPreparedSeal [][]byte) ApplyQBFTExtra {
 func WritePrevCommittedSeal(prevCommittedSeal [][]byte) ApplyQBFTExtra {
 	return func(qbftExtra *types.QBFTExtra) error {
 		qbftExtra.PrevCommittedSeal = prevCommittedSeal
+		return nil
+	}
+}
+
+func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
+	return func(qbftExtra *types.QBFTExtra) error {
+		qbftExtra.EpochInfo = epochInfo
 		return nil
 	}
 }
@@ -596,7 +592,7 @@ func (e *Engine) ExtractGenesisValidators(header *types.Header) ([]common.Addres
 		return nil, err
 	}
 
-	return extra.Validators, nil
+	return extra.EpochInfo.GetStakers(), nil
 }
 
 func (e *Engine) GetSignerAddress(header *types.Header, signedSeal [][]byte, sealType core.SealType) ([]common.Address, error) {
@@ -656,65 +652,18 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	return hash
 }
 
-func (e *Engine) WriteVote(header *types.Header, candidate common.Address, authorize bool) error {
-	return ApplyHeaderQBFTExtra(
-		header,
-		WriteVote(candidate, authorize),
-	)
-}
-
-func WriteVote(candidate common.Address, authorize bool) ApplyQBFTExtra {
-	return func(qbftExtra *types.QBFTExtra) error {
-		voteType := types.QBFTDropVote
-		if authorize {
-			voteType = types.QBFTAuthVote
-		}
-
-		vote := &types.ValidatorVote{RecipientAddress: candidate, VoteType: voteType}
-		qbftExtra.Vote = vote
-		return nil
-	}
-}
-
-func (e *Engine) ReadVote(header *types.Header) (candidate common.Address, authorize bool, err error) {
-	qbftExtra, err := getExtra(header)
-	if err != nil {
-		return common.Address{}, false, err
-	}
-
-	var vote *types.ValidatorVote
-	if qbftExtra.Vote == nil {
-		vote = &types.ValidatorVote{RecipientAddress: common.Address{}, VoteType: types.QBFTDropVote}
-	} else {
-		vote = qbftExtra.Vote
-	}
-
-	// Tally up the new vote from the validator
-	switch {
-	case vote.VoteType == types.QBFTAuthVote:
-		authorize = true
-	case vote.VoteType == types.QBFTDropVote:
-		authorize = false
-	default:
-		return common.Address{}, false, qbftcommon.ErrInvalidVote
-	}
-
-	return vote.RecipientAddress, authorize, nil
-}
-
 func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 	if len(header.Extra) < types.IstanbulExtraVanity {
 		// In this scenario, the header extradata only contains client specific information, hence create a new qbftExtra and set vanity
 		vanity := append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
 		return &types.QBFTExtra{
 			VanityData:        vanity,
-			Validators:        []common.Address{},
 			PreparedSeal:      [][]byte{},
 			CommittedSeal:     [][]byte{},
 			PrevPreparedSeal:  [][]byte{},
 			PrevCommittedSeal: [][]byte{},
 			Round:             0,
-			Vote:              nil,
+			EpochInfo:         nil,
 		}, nil
 	}
 

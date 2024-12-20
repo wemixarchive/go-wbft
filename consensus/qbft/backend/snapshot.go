@@ -34,31 +34,13 @@ const (
 	dbKeySnapshotPrefix = "qbft-snapshot"
 )
 
-// Vote represents a single vote that an authorized validator made to modify the
-// list of authorizations.
-type Vote struct {
-	Validator common.Address `json:"validator"` // Authorized validator that cast this vote
-	Block     uint64         `json:"block"`     // Block number the vote was cast in (expire old votes)
-	Address   common.Address `json:"address"`   // Account being voted on to change its authorization
-	Authorize bool           `json:"authorize"` // Whether to authorize or deauthorize the voted account
-}
-
-// Tally is a simple vote tally to keep the current score of votes. Votes that
-// go against the proposal aren't counted since it's equivalent to not voting.
-type Tally struct {
-	Authorize bool `json:"authorize"` // Whether the vote it about authorizing or kicking someone
-	Votes     int  `json:"votes"`     // Number of votes until now wanting to pass the proposal
-}
-
 // Snapshot is the state of the authorization voting at a given point in time.
 type Snapshot struct {
 	Epoch uint64 // The number of blocks after which to checkpoint and reset the pending votes
 
-	Number uint64                   // Block number where the snapshot was created
-	Hash   common.Hash              // Block hash where the snapshot was created
-	Votes  []*Vote                  // List of votes cast in chronological order
-	Tally  map[common.Address]Tally // Current vote tally to avoid recalculating
-	ValSet qbft.ValidatorSet        // Set of authorized validators at this moment
+	Number uint64            // Block number where the snapshot was created
+	Hash   common.Hash       // Block hash where the snapshot was created
+	ValSet qbft.ValidatorSet // Set of authorized validators at this moment
 }
 
 // newSnapshot create a new snapshot with the specified startup parameters. This
@@ -70,7 +52,6 @@ func newSnapshot(epoch uint64, number uint64, hash common.Hash, valSet qbft.Vali
 		Number: number,
 		Hash:   hash,
 		ValSet: valSet,
-		Tally:  make(map[common.Address]Tally),
 	}
 	return snap
 }
@@ -106,59 +87,9 @@ func (s *Snapshot) copy() *Snapshot {
 		Number: s.Number,
 		Hash:   s.Hash,
 		ValSet: s.ValSet.Copy(),
-		Votes:  make([]*Vote, len(s.Votes)),
-		Tally:  make(map[common.Address]Tally),
 	}
-
-	for address, tally := range s.Tally {
-		cpy.Tally[address] = tally
-	}
-	copy(cpy.Votes, s.Votes)
 
 	return cpy
-}
-
-// checkVote return whether it's a valid vote
-func (s *Snapshot) checkVote(address common.Address, authorize bool) bool {
-	_, validator := s.ValSet.GetByAddress(address)
-	return (validator != nil && !authorize) || (validator == nil && authorize)
-}
-
-// cast adds a new vote into the tally.
-func (s *Snapshot) cast(address common.Address, authorize bool) bool {
-	// Ensure the vote is meaningful
-	if !s.checkVote(address, authorize) {
-		return false
-	}
-	// Cast the vote into an existing or new tally
-	if old, ok := s.Tally[address]; ok {
-		old.Votes++
-		s.Tally[address] = old
-	} else {
-		s.Tally[address] = Tally{Authorize: authorize, Votes: 1}
-	}
-	return true
-}
-
-// uncast removes a previously cast vote from the tally.
-func (s *Snapshot) uncast(address common.Address, authorize bool) bool {
-	// If there's no tally, it's a dangling vote, just drop
-	tally, ok := s.Tally[address]
-	if !ok {
-		return false
-	}
-	// Ensure we only revert counted votes
-	if tally.Authorize != authorize {
-		return false
-	}
-	// Otherwise revert the vote
-	if tally.Votes > 1 {
-		tally.Votes--
-		s.Tally[address] = tally
-	} else {
-		delete(s.Tally, address)
-	}
-	return true
 }
 
 // validators retrieves the list of authorized validators in ascending order.
@@ -178,11 +109,9 @@ func (s *Snapshot) validators() []common.Address {
 }
 
 type snapshotJSON struct {
-	Epoch  uint64                   `json:"epoch"`
-	Number uint64                   `json:"number"`
-	Hash   common.Hash              `json:"hash"`
-	Votes  []*Vote                  `json:"votes"`
-	Tally  map[common.Address]Tally `json:"tally"`
+	Epoch  uint64      `json:"epoch"`
+	Number uint64      `json:"number"`
+	Hash   common.Hash `json:"hash"`
 
 	// for validator set
 	Validators []common.Address      `json:"validators"`
@@ -194,8 +123,6 @@ func (s *Snapshot) toJSONStruct() *snapshotJSON {
 		Epoch:      s.Epoch,
 		Number:     s.Number,
 		Hash:       s.Hash,
-		Votes:      s.Votes,
-		Tally:      s.Tally,
 		Validators: s.validators(),
 		Policy:     s.ValSet.Policy().Id,
 	}
@@ -211,8 +138,6 @@ func (s *Snapshot) UnmarshalJSON(b []byte) error {
 	s.Epoch = j.Epoch
 	s.Number = j.Number
 	s.Hash = j.Hash
-	s.Votes = j.Votes
-	s.Tally = j.Tally
 
 	// Setting the By function to ValidatorSortByStringFunc should be fine, as the validator do not change only the order changes
 	pp := qbft.NewProposerPolicyByIdAndSortFunc(j.Policy, qbft.ValidatorSortByString())
