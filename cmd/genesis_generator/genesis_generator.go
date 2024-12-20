@@ -85,15 +85,15 @@ func (g *genesisGenerator) makeGenesis() {
 		g.ethashConfig()
 
 	case choice == "2":
-		g.beaconChainConfig()
 		g.ethashConfig()
+		g.beaconChainConfig()
 
 	case choice == "3":
 		g.cliqueConfig()
 
 	case choice == "4":
-		g.beaconChainConfig()
 		g.cliqueConfig()
+		g.beaconChainConfig()
 
 	case choice == "5" || choice == "":
 		g.wbftChainConfig()
@@ -132,22 +132,16 @@ func (g *genesisGenerator) makeGenesis() {
 
 	fmt.Println()
 	fmt.Println(" Do you want to export generated genesis file?")
-	fmt.Println(" 1. yes")
-	fmt.Println(" 2. nah, just print it")
+	fmt.Println(" If not it will be just printed (default true)")
 
-	choice = read()
-	switch {
-	case choice == "1":
+	if readDefaultYesNo(true) {
 		fmt.Println()
 		fmt.Printf("Which folder to save the genesis spec into? (default = current)\n")
 		fmt.Printf("It will create genesis.json\n")
 
 		folder := readDefaultString(".")
 		g.genGenesisFile(folder)
-
-	case choice == "2":
-		g.genGenesisFile("")
-	default:
+	} else {
 		g.genGenesisFile("")
 	}
 }
@@ -200,7 +194,7 @@ func (g *genesisGenerator) wbftChainConfig() {
 	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
 	fmt.Println("Else you have to manage peer node manually (default true)")
 	if readDefaultYesNo(true) {
-		makeConfig()
+		genConfigFile()
 	}
 }
 
@@ -215,18 +209,15 @@ func (g *genesisGenerator) beaconChainConfig() {
 	} else {
 		g.Genesis.Config.TerminalTotalDifficultyPassed = false
 		fmt.Println()
-		fmt.Println("Enter TerminalTotalDifficulty value you want to set (default 10)")
-		ttd := readDefaultBigInt(big.NewInt(10))
-		g.Genesis.Config.TerminalTotalDifficulty = ttd
+		fmt.Println("Enter TerminalTotalDifficulty value you want to set (default current TTD*10)")
+		g.Genesis.Config.TerminalTotalDifficulty = readDefaultBigInt(new(big.Int).Mul(g.Genesis.Difficulty, big.NewInt(10)))
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Shanghai Fork (default currentTimeStamp+10000)")
 
-		shanghaiTime := readDefaultInt(int(time.Now().Unix()) + 10000)
-		g.Genesis.Config.ShanghaiTime = newUint64(uint64(shanghaiTime))
+		g.Genesis.Config.ShanghaiTime = newUint64(uint64(readDefaultInt(int(time.Now().Unix()) + 10000)))
 		fmt.Println()
 		fmt.Println("Enter timestamp you want to enable Cancun Fork (default currentTimeStamp+10000)")
-		cancunTime := readDefaultInt(int(time.Now().Unix()) + 10000)
-		g.Genesis.Config.CancunTime = newUint64(uint64(cancunTime))
+		g.Genesis.Config.CancunTime = newUint64(uint64(readDefaultInt(int(time.Now().Unix()) + 10000)))
 	}
 }
 
@@ -277,7 +268,7 @@ func (g *genesisGenerator) cliqueConfig() {
 	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
 	fmt.Println("Else you have to manage peer node manually (default true)")
 	if readDefaultYesNo(true) {
-		makeConfig()
+		genConfigFile()
 	}
 }
 
@@ -301,33 +292,8 @@ func (g *genesisGenerator) genGenesisFile(folder string) {
 	}
 }
 
-func makeConfig() {
-	fmt.Println()
-	fmt.Println("Want to generate config.toml file to configure static nodes to connect?")
-	fmt.Println("Else you have to manage peer node manually (default true)")
-	genConfig := readDefaultYesNo(true)
-	if genConfig {
-		fmt.Println()
-		fmt.Println(" Do you want to export generated genesis file?")
-		fmt.Println(" 1. yes")
-		fmt.Println(" 2. nah, just print it")
-
-		choice := read()
-		switch {
-		case choice == "1":
-			fmt.Println()
-			fmt.Printf("Which folder to save the config.toml into? (default = current)\n")
-			folder := readDefaultString(".")
-			genConfigFile(folder)
-
-		case choice == "2":
-			genConfigFile("")
-		}
-	}
-}
-
 // genConfigFile creates config.toml file that defines Node.P2P.StaticNodes
-func genConfigFile(folder string) {
+func genConfigFile() {
 	// Create a buffer to write TOML content
 	var buf bytes.Buffer
 	// Write Node.P2P section with StaticNodes
@@ -353,7 +319,16 @@ func genConfigFile(folder string) {
 	buf.WriteString(strings.Join(enodes, ",\n"))
 	buf.WriteString("\n]\n")
 
-	if folder != "" {
+	fmt.Println()
+	fmt.Println(" Do you want to export generated config file?")
+	fmt.Println(" If not it will be just printed (default true)")
+	fmt.Println(" 1. yes")
+	fmt.Println(" 2. nah, just print it")
+
+	if readDefaultYesNo(true) {
+		fmt.Println()
+		fmt.Printf("Which folder to save the config.toml into? (default = current)\n")
+		folder := readDefaultString(".")
 		if err := os.MkdirAll(folder, 0755); err != nil {
 			log.Error("Failed to create spec folder", "folder", folder, "err", err)
 			return
