@@ -133,15 +133,16 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	backend.broadcaster = fb
 
 	backend.Start(blockchain, blockchain.CurrentFullBlock, rawdb.HasBadBlock)
+	
+	valSet, err := backend.GetValidators(big.NewInt(0), common.Hash{})
 
-	snap, err := backend.snapshot(blockchain, 0, common.Hash{}, nil)
 	if err != nil {
 		panic(err)
 	}
-	if snap == nil {
+	if valSet == nil {
 		panic("failed to get snapshot")
 	}
-	proposerAddr := snap.ValSet.GetProposer().Address()
+	proposerAddr := valSet.GetProposer().Address()
 
 	// find proposer key
 	for i, key := range nodeKeys {
@@ -1088,12 +1089,12 @@ func TestVerifyProposalBug(t *testing.T) {
 	extra.PrevCommittedSeal = extra.PrevPreparedSeal // invalid prevCommittedSeal
 	setExtra(invalidPrevCommittedSealBlockHeader, extra)
 
-	snap, _ := engine.snapshot(chain, firstBlock.Number().Uint64(), firstBlock.Hash(), nil)
+	valSet, _ := engine.GetValidators(firstBlock.Number(), firstBlock.Hash())
 	invalidBlock := types.NewBlock(invalidPrevCommittedSealBlockHeader, nil, nil, nil, trie.NewStackTrie(nil))
-	invalidBlock, _ = engine.Engine().Seal(chain, invalidBlock, snap.ValSet)
+	invalidBlock, _ = engine.Engine().Seal(chain, invalidBlock, valSet)
 
 	time.Sleep(time.Second) // wait for the block time
-	_, err = engine.Engine().VerifyBlockProposal(chain, invalidBlock, snap.ValSet, snap.ValSet)
+	_, err = engine.Engine().VerifyBlockProposal(chain, invalidBlock, valSet, valSet)
 	if err == nil {
 		t.Errorf("engine fails to verify a proposal which has invalid PrevCommittedSeal")
 	} else if !errors.Is(err, qbftcommon.ErrInvalidPrevCommittedSeals) {

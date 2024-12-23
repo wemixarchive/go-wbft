@@ -338,7 +338,7 @@ func TestVoting(t *testing.T) {
 			config.Epoch = tt.epoch
 		}
 
-		chain, backend, _ := newBlockchainFromConfig(
+		_, backend, _ := newBlockchainFromConfig(
 			genesis,
 			[]*ecdsa.PrivateKey{accounts.accounts[tt.validators[0]]},
 			config,
@@ -375,7 +375,8 @@ func TestVoting(t *testing.T) {
 		// Pass all the headers through clique and ensure tallying succeeds
 		head := headers[len(headers)-1]
 
-		snap, err := backend.snapshot(chain, head.Number.Uint64(), head.Hash(), headers)
+		// (old) snap, err := backend.snapshot(chain, head.Number.Uint64(), head.Hash(), headers)
+		valSet, err := backend.GetValidators(head.Number, head.Hash())
 		if err != nil {
 			t.Errorf("test %d: failed to create voting snapshot: %v", i, err)
 			backend.Stop()
@@ -393,7 +394,7 @@ func TestVoting(t *testing.T) {
 				}
 			}
 		}
-		result := snap.validators()
+		result := validator.SortedAddresses(valSet.List())
 		if len(result) != len(validators) {
 			t.Errorf("test %d: validators mismatch: have %x, want %x", i, result, validators)
 			backend.Stop()

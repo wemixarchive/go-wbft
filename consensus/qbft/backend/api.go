@@ -22,6 +22,7 @@ package backend
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -114,11 +115,11 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 	if header == nil {
 		return nil, qbftcommon.ErrUnknownBlock
 	}
-	snap, err := api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
+	valSet, err := api.backend.GetValidators(header.Number, header.Hash())
 	if err != nil {
 		return nil, err
 	}
-	return snap.validators(), nil
+	return validator.SortedAddresses(valSet.List()), nil
 }
 
 // GetValidatorsAtHash retrieves the state snapshot at a given block.
@@ -127,11 +128,11 @@ func (api *API) GetValidatorsAtHash(hash common.Hash) ([]common.Address, error) 
 	if header == nil {
 		return nil, qbftcommon.ErrUnknownBlock
 	}
-	snap, err := api.backend.snapshot(api.chain, header.Number.Uint64(), header.Hash(), nil)
+	valSet, err := api.backend.GetValidators(header.Number, header.Hash())
 	if err != nil {
 		return nil, err
 	}
-	return snap.validators(), nil
+	return validator.SortedAddresses(valSet.List()), nil
 }
 
 // Candidates returns the current candidates the node tries to uphold and vote on.

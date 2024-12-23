@@ -266,16 +266,15 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	}
 
 	header := block.Header()
-	var snap, prevSnap *Snapshot
+	var valSet, prevValSet qbft.ValidatorSet
 	var err error
 
-	if snap, err = sb.snapshot(sb.chain, header.Number.Uint64()-1, header.ParentHash, nil); err != nil {
+	if valSet, err = sb.GetValidators(header.Number, header.Hash()); err != nil {
 		return 0, err
-	} else if prevSnap, err = sb.snapshot(sb.chain, header.Number.Uint64()-2, header.ParentHash, nil); err != nil {
+	} else if prevValSet, err = sb.GetValidators(new(big.Int).SetUint64(header.Number.Uint64()-1), header.ParentHash); err != nil {
 		return 0, err
 	}
-
-	return sb.Engine().VerifyBlockProposal(sb.chain, block, snap.ValSet, prevSnap.ValSet)
+	return sb.Engine().VerifyBlockProposal(sb.chain, block, valSet, prevValSet)
 }
 
 // Sign implements qbft.Backend.Sign
@@ -326,11 +325,11 @@ func (sb *Backend) ParentValidators(proposal qbft.Proposal) qbft.ValidatorSet {
 }
 
 func (sb *Backend) getValidators(number uint64, hash common.Hash) qbft.ValidatorSet {
-	snap, err := sb.snapshot(sb.chain, number, hash, nil)
+	valSet, err := sb.GetValidators(new(big.Int).SetUint64(number), hash)
 	if err != nil {
 		return validator.NewSet(nil, sb.config.ProposerPolicy)
 	}
-	return snap.ValSet
+	return valSet
 }
 
 func (sb *Backend) LastProposal() (qbft.Proposal, common.Address) {

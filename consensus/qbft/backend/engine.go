@@ -23,7 +23,6 @@ package backend
 import (
 	"errors"
 	"math/big"
-	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -81,16 +80,17 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	// Assemble the voting snapshot
-	var snap, prevSnap *Snapshot
+	var valSet, prevValSet qbft.ValidatorSet
 	var err error
 
-	// Retrieve the ValidatorSet of the parent block
-	if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
+	// Retrieve the ValidatorSet of block
+	// (old) if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
+	if valSet, err = sb.GetValidators(header.Number, header.Hash()); err != nil {
 		return err
 	}
 
 	if header.Number.Uint64() < 2 {
-		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet, true)
+		return sb.Engine().VerifyHeader(chain, header, parents, valSet, valSet, true)
 	}
 
 	// Retrieve the BlockNumber and Hash to fetch the ValidatorSet of the previous block
@@ -118,10 +118,10 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// Retrieve the ValidatorSet of the previous block
-	if prevSnap, err = sb.snapshot(chain, ancestorBlockNumber, ancestorHash, nil); err != nil {
+	if prevValSet, err = sb.GetValidators(new(big.Int).SetUint64(ancestorBlockNumber), ancestorHash); err != nil {
 		return err
 	}
-	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, prevSnap.ValSet, true)
+	return sb.Engine().VerifyHeader(chain, header, parents, valSet, prevValSet, true)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -171,12 +171,12 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// Assemble the voting snapshot
-	snap, err := sb.snapshot(chain, number-1, header.ParentHash, nil)
+	valSet, err := sb.GetValidators(new(big.Int).SetUint64(number), header.Hash())
 	if err != nil {
 		return err
 	}
 
-	return sb.Engine().VerifySeal(chain, header, snap.ValSet)
+	return sb.Engine().VerifySeal(chain, header, valSet)
 }
 
 // TimeForNextWork returns the time to wait for next work namely next block time
@@ -197,7 +197,7 @@ func (sb *Backend) TimeForNextWork() uint64 {
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Assemble the voting snapshot
-	snap, err := sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, nil)
+	valSet, err := sb.GetValidators(header.Number, header.Hash())
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 
 	extraPreparedSeal, extraCommittedSeal := sb.processExtraSeals()
 
-	err = sb.Engine().Prepare(chain, header, snap.ValSet, extraPreparedSeal, extraCommittedSeal)
+	err = sb.Engine().Prepare(chain, header, valSet, extraPreparedSeal, extraCommittedSeal)
 	if err != nil {
 		return err
 	}
@@ -238,12 +238,12 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	number := header.Number.Uint64()
 
 	// Bail out if we're unauthorized to sign a block
-	snap, err := sb.snapshot(chain, number-1, header.ParentHash, nil)
+	valSet, err := sb.GetValidators(new(big.Int).SetUint64(number), header.Hash())
 	if err != nil {
 		return err
 	}
 
-	block, err = sb.Engine().Seal(chain, block, snap.ValSet)
+	block, err = sb.Engine().Seal(chain, block, valSet)
 	if err != nil {
 		return err
 	}
