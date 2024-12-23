@@ -15,12 +15,15 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 )
 
 type genesisGenerator struct {
@@ -97,6 +100,9 @@ func (g *genesisGenerator) makeGenesis() {
 
 	case choice == "5" || choice == "":
 		g.wbftChainConfig()
+		// allocate governanace contract code in genesis block
+		g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract), Balance: common.Big0}
+		g.Genesis.Alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}
 
 	case choice == "6":
 		g.wbftChainConfig()
@@ -104,6 +110,11 @@ func (g *genesisGenerator) makeGenesis() {
 		fmt.Println("Enter block number you want to enable Montblanc Fork (default 1)")
 		montblancBlock := readDefaultBigInt(common.Big1)
 		g.Genesis.Config.MontBlancBlock = montblancBlock
+		// allocate governanace contract code in genesis block if montblanc block is genesis block
+		if montblancBlock.Cmp(common.Big0) == 0 {
+			g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract)}
+			g.Genesis.Alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract)}
+		}
 
 	default:
 		log.Crit("Invalid consensus engine choice", "choice", choice)
