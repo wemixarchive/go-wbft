@@ -204,9 +204,13 @@ func (c *Config) getTransitionValue(num *big.Int, callback func(transition param
 	}
 }
 
-// IsEpochStartBlock Checks if the provided block number corresponds to the first block of an Epoch.
-// Returns true if the block number marks the start of a new epoch, otherwise false.
-func (c *Config) IsEpochStartBlock(chain consensus.ChainHeaderReader, blockNumber *big.Int) bool {
+// IsEpochBlock checks whether the provided block number corresponds to an EpochBlock.
+//
+// Defined the EpochBlock as the block that records the ValidatorList for the Nth Epoch.
+// Specifies that the EpochBlock for the Nth Epoch is the last block of the (N-1)th Epoch.
+//
+// Returns true if the block number corresponds to an EpochBlock, otherwise false.
+func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *big.Int) bool {
 
 	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
 	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
@@ -220,9 +224,13 @@ func (c *Config) IsEpochStartBlock(chain consensus.ChainHeaderReader, blockNumbe
 		return true
 	}
 
+	if offset.Sign() == -1 {
+		return false
+	}
+
 	// 3. Check if block itself is an EpochBlock
 	epochInterval := new(big.Int).SetUint64(c.Epoch)
-	if new(big.Int).Mod(offset, epochInterval).Sign() == 0 { // starting block of a certain Epoch
+	if new(big.Int).Mod(offset, epochInterval).Cmp(epochInterval) == -1 {
 		return true
 	}
 	return false
