@@ -370,7 +370,7 @@ Note that this setting is not recommended for production.
 8. run geth
 
     ```shell
-    $ ./build/bin/geth --datadir {working directory} --http.addr "0.0.0.0" --http.port {httpPortNum}  --syncmode full --port {portNum}  --mine 
+    $ ./build/bin/geth --datadir {working directory} --http --http.addr "0.0.0.0" --http.port {httpPortNum}  --syncmode full --port {portNum}  --mine 
     ```
 
 #### Creating the rendezvous point
