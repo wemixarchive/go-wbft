@@ -112,8 +112,8 @@ func (g *genesisGenerator) makeGenesis() {
 		g.Genesis.Config.MontBlancBlock = montblancBlock
 		// allocate governanace contract code in genesis block if montblanc block is genesis block
 		if montblancBlock.Cmp(common.Big0) == 0 {
-			g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract)}
-			g.Genesis.Alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract)}
+			g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract), Balance: common.Big0}
+			g.Genesis.Alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}
 		}
 
 	default:
