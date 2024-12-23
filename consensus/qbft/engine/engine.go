@@ -682,17 +682,30 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 
 // AccumulateRewards credits the beneficiary of the given block with a reward.
 func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
-	blockReward := chain.Config().GetBlockReward(header.Number)
+	var blockReward *big.Int
+
+	if chain.Config().IsBrioche(header.Number) {
+		blockReward = chain.Config().Brioche.GetBriocheBlockReward(params.DefaultBriocheBlockReward, header.Number)
+	} else {
+		blockReward = chain.Config().GetBlockReward(header.Number)
+	}
+
 	if blockReward.Cmp(big.NewInt(0)) > 0 {
-		coinbase := header.Coinbase
-		if (coinbase == common.Address{}) {
-			coinbase = e.signer
+		bReward := new(big.Int)
+		for _, beneficiary := range e.cfg.BlockRewardBeneficiaries {
+			r := new(big.Int).Set(blockReward)
+			r.Mul(r, new(big.Int).SetUint64(beneficiary.Numerator))
+			r.Div(r, new(big.Int).SetUint64(beneficiary.Denominator))
+
+			log.Trace("QBFT: accumulate rewards to", "beneficiary", beneficiary.Addr, "block reward", r)
+			state.AddBalance(beneficiary.Addr, uint256.MustFromBig(r))
+			bReward.Add(bReward, r)
 		}
-		rewardAccount, _ := chain.Config().GetRewardAccount(header.Number, coinbase)
-		log.Trace("QBFT: accumulate rewards to", "rewardAccount", rewardAccount, "blockReward", blockReward)
 
-		state.AddBalance(rewardAccount, uint256.MustFromBig(&blockReward))
+		// Deduct rewards of beneficiaries.
+		blockReward.Sub(blockReward, bReward)
 
+		// Distribute remaining block reward to validators (including proposer) who signed the block.
 		if err := e.calculateRewards(
 			chain,
 			header,
@@ -700,14 +713,13 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			func(addr common.Address, amt *big.Int) { state.AddBalance(addr, uint256.MustFromBig(amt)) },
 		); err != nil {
 			// TODO: how to handle err here?
-			log.Warn("Error while calculating rewards", "err", err)
+			log.Error("Error while calculating rewards", "err", err)
 		}
 	}
 }
 
+// TODO: reward to rewardees in gov contract according to their staking.
 func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, prepareRewardFn, commitRewardFn func(common.Address, *big.Int)) error {
-	// TODO : need proper calculation when distribution rule is decided. Current work is to get rewardee's address from preCommittedSeal
-
 	parentHeader := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	lastQbftExtra, err := types.ExtractQBFTExtra(parentHeader)
 	if err != nil {
@@ -744,18 +756,18 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 		commitRewardees = append(commitRewardees, addr)
 	}
 	log.Trace("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", parentHeader.Number, "prepareReward", prepareRewardees, "commitReward", commitRewardees)
-	prepareReward := chain.Config().GetPrepareReward(header.Number)
-	commitReward := chain.Config().GetCommitReward(header.Number)
 
 	if prepareRewardFn != nil {
 		for _, addr := range prepareRewardees {
-			prepareRewardFn(addr, &prepareReward)
+			prepareReward := big.NewInt(100)
+			prepareRewardFn(addr, prepareReward)
 		}
 	}
 
 	if commitRewardFn != nil {
 		for _, addr := range commitRewardees {
-			commitRewardFn(addr, &commitReward)
+			commitReward := big.NewInt(100)
+			commitRewardFn(addr, commitReward)
 		}
 	}
 

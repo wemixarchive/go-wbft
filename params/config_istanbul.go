@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // ## Quorum QBFT START
@@ -21,8 +20,16 @@ type QBFTConfig struct {
 	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds"`    // Minimum request timeout for each QBFT round in milliseconds
 	ProposerPolicy           uint64                `json:"proposerPolicy"`           // The policy for proposer selection
 	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`    // Reward from start, works only on QBFT consensus protocol
+	BlockRewardBeneficiaries []Beneficiary         `json:"blockRewardBeneficiaries"` // Reward beneficiaries
 	Validators               []common.Address      `json:"validators"`               // Validators list
 	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"` // The max round time
+}
+
+type Beneficiary struct {
+	Name        string         `json:"name"`
+	Addr        common.Address `json:"addr"`
+	Numerator   uint64         `json:"numerator"`
+	Denominator uint64         `json:"denominator"`
 }
 
 func (c *QBFTConfig) String() string {
@@ -40,12 +47,13 @@ func (c *QBFTConfig) String() string {
 		maxRequestTimeoutSeconds = "<nil>"
 	}
 
-	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, Validators: %v, MaxRequestTimeoutSeconds: %v}",
+	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, Validators: %v, MaxRequestTimeoutSeconds: %v}",
 		c.EpochLength,
 		c.BlockPeriodSeconds,
 		c.RequestTimeoutSeconds,
 		c.ProposerPolicy,
 		blockReward,
+		c.BlockRewardBeneficiaries,
 		c.Validators,
 		maxRequestTimeoutSeconds,
 	)
@@ -65,6 +73,7 @@ type Transition struct {
 	MinerGasLimit                uint64                `json:"miner.gaslimit,omitempty"`               // Gas Limit
 	TransactionSizeLimit         uint64                `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 	BlockReward                  *math.HexOrDecimal256 `json:"blockReward,omitempty"`                  // validation rewards
+	BlockRewardBeneficiaries     []Beneficiary         `json:"blockRewardBeneficiaries"`               // Reward beneficiaries
 	MaxRequestTimeoutSeconds     *uint64               `json:"maxRequestTimeoutSeconds,omitempty"`     // The max a timeout should be for a round change
 }
 
@@ -77,14 +86,7 @@ func (c *ChainConfig) GetTransitionValue(num *big.Int, callback func(transition 
 	}
 }
 
-func (c *ChainConfig) GetRewardAccount(num *big.Int, coinbase common.Address) (common.Address, error) {
-	// TODO: implement
-
-	log.Trace("validator beneficiary mode", "coinbase", coinbase)
-	return coinbase, nil
-}
-
-func (c *ChainConfig) GetBlockReward(num *big.Int) big.Int {
+func (c *ChainConfig) GetBlockReward(num *big.Int) *big.Int {
 	blockReward := *math.NewHexOrDecimal256(0)
 
 	if c.QBFT != nil && c.QBFT.BlockReward != nil {
@@ -97,21 +99,23 @@ func (c *ChainConfig) GetBlockReward(num *big.Int) big.Int {
 		}
 	})
 
-	return big.Int(blockReward)
+	return (*big.Int)(&blockReward)
 }
 
 // ## Quorum QBFT END
 
-func (c *ChainConfig) GetPrepareReward(num *big.Int) big.Int {
-	// TODO: implement
+func (c *ChainConfig) GetBlockRewardBeneficiaries(num *big.Int) []Beneficiary {
+	var beneficiaries []Beneficiary
 
-	prepareReward := *math.NewHexOrDecimal256(100)
-	return big.Int(prepareReward)
-}
+	if c.QBFT != nil {
+		beneficiaries = c.QBFT.BlockRewardBeneficiaries
+	}
 
-func (c *ChainConfig) GetCommitReward(num *big.Int) big.Int {
-	// TODO: implement
+	c.GetTransitionValue(num, func(transition Transition) {
+		if transition.BlockRewardBeneficiaries != nil {
+			beneficiaries = transition.BlockRewardBeneficiaries
+		}
+	})
 
-	commitReward := *math.NewHexOrDecimal256(100)
-	return big.Int(commitReward)
+	return beneficiaries
 }
