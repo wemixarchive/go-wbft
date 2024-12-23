@@ -150,13 +150,6 @@ func (g *genesisGenerator) wbftChainConfig() {
 	// TODO : need to be change after epoch task is merged.
 	// the qbft config needs to be set in field `Transition`
 	g.Genesis.Difficulty = types.QBFTDefaultDifficulty
-	g.Genesis.Config.QBFT = &params.QBFTConfig{
-		BlockReward:           (*math.HexOrDecimal256)(big.NewInt(params.Ether)),
-		EpochLength:           30000,
-		BlockPeriodSeconds:    2,
-		RequestTimeoutSeconds: 4,
-		ProposerPolicy:        0,
-	}
 	fmt.Println()
 	fmt.Println("Which accounts are allowed to seal? (mandatory at least one)")
 
@@ -170,6 +163,16 @@ func (g *genesisGenerator) wbftChainConfig() {
 			break
 		}
 	}
+
+	g.Genesis.Config.QBFT = &params.QBFTConfig{
+		BlockReward:           (*math.HexOrDecimal256)(big.NewInt(params.Ether)),
+		EpochLength:           30000,
+		BlockPeriodSeconds:    2,
+		RequestTimeoutSeconds: 4,
+		ProposerPolicy:        0,
+		Validators:            validators,
+	}
+
 	// make extra data
 	vanity := append(g.Genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(g.Genesis.ExtraData))...)
 	ist := &types.QBFTExtra{
