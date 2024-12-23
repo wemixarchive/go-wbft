@@ -84,33 +84,43 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	var snap, prevSnap *Snapshot
 	var err error
 
+	// Retrieve the ValidatorSet of the parent block
 	if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
 		return err
-	} else if header.Number.Uint64() < 2 {
+	}
+
+	if header.Number.Uint64() < 2 {
 		return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, snap.ValSet, true)
-	} else if len(parents) < 2 {
-		var parent *types.Header
-		if len(parents) == 1 {
-			parent = parents[0]
+	}
+
+	// Retrieve the BlockNumber and Hash to fetch the ValidatorSet of the previous block
+	var ancestorBlockNumber uint64
+	var ancestorHash common.Hash
+	{
+		var parentHeader *types.Header
+		if len(parents) == 0 {
+			parentHeader = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 		} else {
-			parent = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-			if parent == nil {
-				return consensus.ErrUnknownAncestor
+			parentHeader = parents[len(parents)-1]
+		}
+
+		if parentHeader == nil || parentHeader.Number.Sign() == 0 {
+			return consensus.ErrUnknownAncestor
+		}
+		ancestorBlockNumber = parentHeader.Number.Uint64() - 1
+		ancestorHash = parentHeader.ParentHash
+
+		if 1 < len(parents) {
+			if ancestorBlockNumber != header.Number.Uint64()-2 {
+				return errors.New("unexpected ancestor block")
 			}
-		}
-		if prevSnap, err = sb.snapshot(chain, parent.Number.Uint64()-1, parent.ParentHash, nil); err != nil {
-			return err
-		}
-	} else {
-		h := parents[len(parents)-2]
-		if h.Number.Uint64() != header.Number.Uint64()-2 {
-			return errors.New("unexpected parents block")
-		}
-		if prevSnap, err = sb.snapshot(chain, h.Number.Uint64(), h.Hash(), parents[:len(parents)-1]); err != nil {
-			return err
 		}
 	}
 
+	// Retrieve the ValidatorSet of the previous block
+	if prevSnap, err = sb.snapshot(chain, ancestorBlockNumber, ancestorHash, nil); err != nil {
+		return err
+	}
 	return sb.Engine().VerifyHeader(chain, header, parents, snap.ValSet, prevSnap.ValSet, true)
 }
 
