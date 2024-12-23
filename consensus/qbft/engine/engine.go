@@ -20,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft/core"
-	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -472,8 +471,6 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	if header.Time < uint64(time.Now().Unix()) {
 		header.Time = uint64(time.Now().Unix())
 	}
-
-	currentBlockNumber := big.NewInt(0).SetUint64(number - 1)
 	// ## Wemix QBFT START : removed
 	// validatorContract := e.cfg.GetValidatorContractAddress(currentBlockNumber)
 	// if validatorContract != (common.Address{}) && e.cfg.GetValidatorSelectionMode(currentBlockNumber) == params.ContractMode {
@@ -483,28 +480,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	// 	)
 	// } else {
 	// ## Wemix QBFT EMD
-	for _, transition := range e.cfg.Transitions {
-		if transition.Block.Cmp(currentBlockNumber) == 0 && len(transition.Validators) > 0 {
-			toRemove := make([]qbft.Validator, 0, validators.Size())
-			l := validators.List()
-			toRemove = append(toRemove, l...)
-			for i := range toRemove {
-				validators.RemoveValidator(toRemove[i].Address())
-			}
-			for i := range transition.Validators {
-				validators.AddValidator(transition.Validators[i])
-			}
-			break
-		}
-	}
-	validatorsList := validator.SortedAddresses(validators.List())
-	if chain.Config().MontBlancBlock.Cmp(header.Number) == 0 {
-		// monblac hardFork block has empty prevCommittedSeal
-		return ApplyHeaderQBFTExtra(
-			header,
-			WriteValidators(validatorsList),
-		)
-	} else {
+	if chain.Config().MontBlancBlock.Cmp(header.Number) != 0 {
 		lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
 		extra, err := types.ExtractQBFTExtra(lastCanonicalHeader)
 		if err != nil {
@@ -522,11 +498,11 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		return ApplyHeaderQBFTExtra(
 			header,
-			WriteValidators(validatorsList),
 			WritePrevPreparedSeal(prevPreparedSeal),
 			WritePrevCommittedSeal(prevCommittedSeal),
 		)
 	}
+	return nil
 }
 
 func WriteValidators(validators []common.Address) ApplyQBFTExtra {
