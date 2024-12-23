@@ -212,28 +212,6 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	if err != nil {
 		return err
 	}
-
-	// get valid candidate list
-	sb.candidatesLock.RLock()
-	var addresses []common.Address
-	var authorizes []bool
-	for address, authorize := range sb.candidates {
-		if snap.checkVote(address, authorize) {
-			addresses = append(addresses, address)
-			authorizes = append(authorizes, authorize)
-		}
-	}
-	sb.candidatesLock.RUnlock()
-
-	if len(addresses) > 0 {
-		index := rand.Intn(len(addresses))
-
-		err = sb.Engine().WriteVote(header, addresses[index], authorizes[index])
-		if err != nil {
-			log.Error("BFT: error writing validator vote", "err", err)
-			return err
-		}
-	}
 	return nil
 }
 
