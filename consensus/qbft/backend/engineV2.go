@@ -2,6 +2,7 @@ package backend
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -10,10 +11,14 @@ import (
 )
 
 // GetValidators Retrieve the Validator List from the Extra field of the EpochBlock's Header.
-func (sb *Backend) GetValidators(blockNumber *big.Int, hash common.Hash) (qbft.ValidatorSet, error) {
-	
+func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, hash common.Hash) (qbft.ValidatorSet, error) {
+
+	if valSet, ok := sb.recents.Get(blockNumber.Uint64()); ok {
+		return valSet, nil
+	}
+
 	// 1. Return an empty address set if the (Montblanc) HardFork is not supported
-	if !sb.chain.Config().IsMontBlanc(blockNumber) {
+	if !chain.Config().IsMontBlanc(blockNumber) {
 		emptyValSet := make([]common.Address, 0)
 		return validator.NewSet(emptyValSet, sb.config.ProposerPolicy), nil
 	}
@@ -27,7 +32,7 @@ func (sb *Backend) GetValidators(blockNumber *big.Int, hash common.Hash) (qbft.V
 		// 3-1. Retrieve the nearest EpochBlock for the given block number.
 		//      : (n)th EpochBlock == Last Block of the (n-1)th Epoch
 		//      : (n)th EpochBlock == Start Block of the (n)th Epoch - 1
-		nearestEpochBlock, err := qbftConfig.GetNearestEpochBlock(sb.chain, blockNumber.Uint64())
+		nearestEpochBlock, err := qbftConfig.GetNearestEpochBlock(chain, blockNumber.Uint64())
 		if err != nil {
 			log.Error("BFT: not found epochBlock", "err", err)
 			return nil, err
@@ -39,7 +44,7 @@ func (sb *Backend) GetValidators(blockNumber *big.Int, hash common.Hash) (qbft.V
 		}
 
 		// 3-2. Retrieve the header of the nearest EpochBlock
-		epochHeader := sb.chain.GetHeader(hash, nearestEpochBlock.Uint64())
+		epochHeader := chain.GetHeader(hash, nearestEpochBlock.Uint64())
 
 		// 3-3. Extract the Extra field from the Header to obtain the ValidatorSet
 		if qbftExtra, err := types.ExtractQBFTExtra(epochHeader); err == nil {

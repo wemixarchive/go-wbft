@@ -83,7 +83,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 
 	// Retrieve the ValidatorSet of block
 	// (old) if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
-	if valSet, err = sb.GetValidators(header.Number, header.Hash()); err != nil {
+	if valSet, err = sb.GetValidators(chain, header.Number, header.Hash()); err != nil {
 		return err
 	}
 
@@ -116,7 +116,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// Retrieve the ValidatorSet of the previous block
-	if prevValSet, err = sb.GetValidators(new(big.Int).SetUint64(ancestorBlockNumber), ancestorHash); err != nil {
+	if prevValSet, err = sb.GetValidators(chain, new(big.Int).SetUint64(ancestorBlockNumber), ancestorHash); err != nil {
 		return err
 	}
 	return sb.Engine().VerifyHeader(chain, header, parents, valSet, prevValSet, true)
@@ -169,7 +169,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(new(big.Int).SetUint64(number), header.Hash())
+	valSet, err := sb.GetValidators(chain, new(big.Int).SetUint64(number), header.Hash())
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (sb *Backend) TimeForNextWork() uint64 {
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(header.Number, header.Hash())
+	valSet, err := sb.GetValidators(chain, header.Number, header.Hash())
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	number := header.Number.Uint64()
 
 	// Bail out if we're unauthorized to sign a block
-	valSet, err := sb.GetValidators(new(big.Int).SetUint64(number), header.Hash())
+	valSet, err := sb.GetValidators(chain, new(big.Int).SetUint64(number), header.Hash())
 	if err != nil {
 		return err
 	}
