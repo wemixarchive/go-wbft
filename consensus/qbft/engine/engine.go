@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"math/big"
 	"time"
 
@@ -532,6 +533,16 @@ func WritePrevCommittedSeal(prevCommittedSeal [][]byte) ApplyQBFTExtra {
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
+	e.processFinalize(chain, header, state, txs, uncles, DefaultEpochHandler)
+}
+
+// processFinalize is the internal implementation of Finalize.
+//
+// Parameters:
+//   - epochHandler: A function that is executed when the block is an EpochBlock.
+//     It processes actions specific to the EpochBlock, which records the ValidatorList for the next Epoch,
+//     and is the last block of the (N-1)th Epoch for the (N)th Epoch.
+func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, epochHandler func(*types.Header, govwbft.StateReader) error) error {
 	// Accumulate any block and uncle rewards and commit the final state root
 	e.accumulateRewards(chain, state, header)
 
@@ -546,14 +557,30 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		}
 	}
 
+	if e.cfg.IsEpochBlock(chain, header.Number) && epochHandler != nil {
+		if err := epochHandler(header, state); err != nil {
+			return err
+		}
+	}
+
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
+	return nil
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	e.Finalize(chain, header, state, txs, uncles)
+
+	// Add the validatorList to the extra field of the header.
+	callback := func(header *types.Header, state govwbft.StateReader) error {
+		return ApplyHeaderQBFTExtra(header, WriteValidators(govwbft.NCPStakers(state)))
+	}
+
+	if err := e.processFinalize(chain, header, state, txs, uncles, callback); err != nil {
+		return nil, err
+	}
+
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil
 }
@@ -825,4 +852,45 @@ func mergeSeals(seals [][]byte, extraSeals map[common.Hash][]byte) [][]byte {
 		mergedSeals = append(mergedSeals, s)
 	}
 	return mergedSeals
+}
+
+// DefaultEpochHandler is a handler that performs default actions when the block is an EpochBlock,
+// and is called during the Finalize process.
+// It validates the validity of the ValidatorList associated with the EpochBlock.
+func DefaultEpochHandler(header *types.Header, state govwbft.StateReader) error {
+	extra, err := types.ExtractQBFTExtra(header)
+	if err != nil {
+		return err
+	}
+
+	validatorFromHeader := extra.Validators
+	validatorFromState := govwbft.NCPStakers(state)
+
+	sort := func(addrs []common.Address) {
+		for i := 0; i < len(addrs); i++ {
+			for j := i + 1; j < len(addrs); j++ {
+				if bytes.Compare(addrs[i][:], addrs[j][:]) > 0 {
+					addrs[i], addrs[j] = addrs[j], addrs[i]
+				}
+			}
+		}
+	}
+	sort(validatorFromHeader)
+	sort(validatorFromState)
+
+	// 1. Checks if two arrays have the same elements in the same order
+	{
+		// 1-1. Check if the lengths are different
+		if len(validatorFromHeader) != len(validatorFromState) {
+			return errors.New("WBFT: mismatch in ValidatorList sizes")
+		}
+
+		// 1-2. Compare each element
+		for i := range validatorFromHeader {
+			if validatorFromHeader[i] != validatorFromState[i] {
+				return errors.New("WBFT: The two validators do not match")
+			}
+		}
+	}
+	return nil
 }
