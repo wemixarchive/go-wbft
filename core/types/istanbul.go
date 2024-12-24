@@ -40,7 +40,7 @@ var (
 
 	// Diligence is used to choose validators for next epoch
 	// Diligence has maximum value of 4 * DiligenceDenominator.
-	DiligenceDenominator = uint64(1_000_000)
+	DiligenceDenominator = 1_000_000
 	DefaultDiligence     = uint64(3_800_000)
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
@@ -112,6 +112,20 @@ func (ei *EpochInfo) GetStakers() []common.Address {
 		l[i] = staker.Addr
 	}
 	return l
+}
+
+func (ei *EpochInfo) FindStakerByAddress(addr common.Address) (uint32, *Staker) {
+	if ei == nil {
+		return 0, nil
+	}
+
+	for i, staker := range ei.Stakers {
+		if staker.Addr == addr {
+			return uint32(i), staker
+		}
+	}
+
+	return uint32(len(ei.Stakers)), nil
 }
 
 func (ei *EpochInfo) GetValidators() []common.Address {

@@ -539,6 +539,112 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 	}
 }
 
+// TODO: check if the given block is epoch block correctly
+func (e *Engine) IsEpochBlock(h *types.Header) bool {
+	return h.Number.Uint64()%3 == 0
+}
+
+func (e *Engine) calcSealsCountInEpoch(chain consensus.ChainHeaderReader, header *types.Header, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) *types.Header {
+	for {
+		parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+		e.calcSealsCount(header, parent, proposedSealsInEpoch, committedSealsInEpoch)
+		header = parent
+
+		// Stop counting if the block reaches to the epoch block.
+		if e.IsEpochBlock(header) {
+			break
+		}
+	}
+
+	log.Trace("Seals counts in epoch", "number", header.Number,
+		"proposedSealsInEpoch", proposedSealsInEpoch,
+		"committedSealsInEpoch", committedSealsInEpoch)
+
+	return header
+}
+
+func (e *Engine) calcSealsCount(header, parent *types.Header, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) {
+	extra, err := types.ExtractQBFTExtra(header)
+	if err != nil {
+		log.Crit("failed to extract qbft extra data", "err", err)
+	}
+
+	proposer, err := e.Author(header)
+	if err != nil {
+		log.Crit("failed to get proposer", "err", err)
+	}
+	if proposer == (common.Address{}) { // HACK
+		proposer = e.signer
+	}
+
+	// Accumulate PrevPreparedSeal counts.
+	preparedSeal := extra.PrevPreparedSeal
+	prepareSigners, err := e.GetSignerAddress(parent, preparedSeal, core.SealTypePrepare)
+	if err != nil {
+		log.Crit("failed to get prev prepare signers", "err", err)
+	}
+
+	proposedSealsInEpoch[proposer] += len(prepareSigners)
+	for _, addr := range prepareSigners {
+		committedSealsInEpoch[addr]++
+	}
+
+	// Accumulate PrevCommittedSeal counts.
+	committedSeal := extra.PrevCommittedSeal
+	commitSigners, err := e.GetSignerAddress(parent, committedSeal, core.SealTypeCommit)
+	if err != nil {
+		log.Crit("failed to get prev commit signers", "err", err)
+	}
+
+	proposedSealsInEpoch[proposer] += len(commitSigners)
+	for _, addr := range commitSigners {
+		committedSealsInEpoch[addr]++
+	}
+
+	log.Trace("calcSealsCount", "header.Number", header.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
+}
+
+func (e *Engine) calcDiligence(epochHeader *types.Header, staker common.Address, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) uint64 {
+	epochLength := 3 // TODO: get epoch length
+
+	clamp := func(n int) int {
+		if n > epochLength*2 {
+			return epochLength * 2
+		} else {
+			return n
+		}
+	}
+
+	// Calculate diligence for epoch.
+	proposedSealsInEpoch[staker] = clamp(proposedSealsInEpoch[staker])
+	committedSealsInEpoch[staker] = clamp(committedSealsInEpoch[staker])
+	d := uint64((proposedSealsInEpoch[staker] + committedSealsInEpoch[staker]) * types.DiligenceDenominator / epochLength)
+
+	// Calculate accumulated diligence for epoch.
+	var diligence uint64
+	extra, _ := types.ExtractQBFTExtra(epochHeader)
+	_, currStaker := extra.EpochInfo.FindStakerByAddress(staker)
+	if currStaker != nil {
+		diligence = currStaker.Diligence
+	} else {
+		diligence = types.DefaultDiligence
+	}
+
+	return (diligence*9 + d) / 10
+}
+
+// TODO: Choose validators by using VRF.
+func (e *Engine) calcValidators(header *types.Header) []uint32 {
+	validators := e.cfg.Validators
+
+	l := make([]uint32, len(validators))
+	for i := 0; i < len(l); i++ {
+		l[i] = uint32(i)
+	}
+
+	return l
+}
+
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 //
@@ -556,6 +662,33 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			for _, s := range st.States {
 				state.SetState(s.Address, s.Key, s.Value)
 			}
+		}
+	}
+
+	// Update the epoch block.
+	if e.IsEpochBlock(header) {
+		newEpoch := &types.EpochInfo{}
+
+		proposedSealsInEpoch := make(map[common.Address]int)
+		committedSealsInEpoch := make(map[common.Address]int)
+		epochHeader := e.calcSealsCountInEpoch(chain, header, proposedSealsInEpoch, committedSealsInEpoch)
+
+		// Update epoch info.
+		newStakers := e.cfg.Validators // TODO: read from gov contract
+		newEpoch.Stakers = make([]*types.Staker, len(newStakers))
+		for i, addr := range newStakers {
+			newEpoch.Stakers[i] = &types.Staker{
+				Addr:      addr,
+				Diligence: e.calcDiligence(epochHeader, addr, proposedSealsInEpoch, committedSealsInEpoch),
+			}
+		}
+		newEpoch.Validators = e.calcValidators(header)
+
+		ApplyHeaderQBFTExtra(header, WriteEpochInfo(newEpoch))
+
+		log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
+		for i, staker := range newEpoch.Stakers {
+			log.Trace(fmt.Sprintf("  - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
 		}
 	}
 
