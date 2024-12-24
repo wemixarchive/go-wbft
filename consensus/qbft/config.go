@@ -230,10 +230,7 @@ func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *bi
 
 	// 3. Check if block itself is an EpochBlock
 	epochInterval := new(big.Int).SetUint64(c.Epoch)
-	if new(big.Int).Mod(offset, epochInterval).Cmp(epochInterval) == -1 {
-		return true
-	}
-	return false
+	return new(big.Int).Mod(offset, epochInterval).Cmp(epochInterval) == -1
 }
 
 // GetNearestForkBlock retrieves the starting block number of the hard fork closest to the provided block number.
@@ -254,7 +251,7 @@ func (c *Config) GetNearestForkBlock(chain consensus.ChainHeaderReader, blockNum
 // getNearestForkBlock is the internal implementation of GetNearestForkBlock.
 // assumes that the epoch value is only changed in a HardFork block, and not in any other block.
 func (c *Config) getNearestForkBlock(blockNumber *big.Int) *big.Int {
-	// TODO: (noah) transistion의 Block 순서를 보장하지 못하는 경우를 가정하여 만듬
+	// TODO: (noah) transition의 Block 순서를 보장하지 못하는 경우를 가정하여 만듬
 	var nearestForkBlock *big.Int = nil
 
 	for _, transition := range c.Transitions {
