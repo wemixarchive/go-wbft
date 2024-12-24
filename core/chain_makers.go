@@ -350,6 +350,11 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			gen(i, b)
 		}
 
+		err := engine.CallEngineSpecific("SetCoinbase", b.header)
+		if err != nil {
+			panic("invalid call of SetCoinbase")
+		}
+
 		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, b.txs, b.uncles, b.receipts, b.withdrawals)
 		if err != nil {
 			panic(err)
