@@ -11,7 +11,7 @@ import (
 
 // GetValidators Retrieve the Validator List from the Extra field of the EpochBlock's Header.
 func (sb *Backend) GetValidators(blockNumber *big.Int, hash common.Hash) (qbft.ValidatorSet, error) {
-
+	
 	// 1. Return an empty address set if the (Montblanc) HardFork is not supported
 	if !sb.chain.Config().IsMontBlanc(blockNumber) {
 		emptyValSet := make([]common.Address, 0)
@@ -25,7 +25,8 @@ func (sb *Backend) GetValidators(blockNumber *big.Int, hash common.Hash) (qbft.V
 	var valSet qbft.ValidatorSet
 	{
 		// 3-1. Retrieve the nearest EpochBlock for the given block number.
-		//      : (n)th EpochBlock == (n+1)th StartEpochBlock - 1
+		//      : (n)th EpochBlock == Last Block of the (n-1)th Epoch
+		//      : (n)th EpochBlock == Start Block of the (n)th Epoch - 1
 		nearestEpochBlock, err := qbftConfig.GetNearestEpochBlock(sb.chain, blockNumber.Uint64())
 		if err != nil {
 			log.Error("BFT: not found epochBlock", "err", err)
