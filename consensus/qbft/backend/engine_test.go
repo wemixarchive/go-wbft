@@ -133,8 +133,8 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	backend.broadcaster = fb
 
 	backend.Start(blockchain, blockchain.CurrentFullBlock, rawdb.HasBadBlock)
-	
-	valSet, err := backend.GetValidators(big.NewInt(0), common.Hash{})
+
+	valSet, err := backend.GetValidators(blockchain, big.NewInt(0), common.Hash{})
 
 	if err != nil {
 		panic(err)
@@ -1089,7 +1089,7 @@ func TestVerifyProposalBug(t *testing.T) {
 	extra.PrevCommittedSeal = extra.PrevPreparedSeal // invalid prevCommittedSeal
 	setExtra(invalidPrevCommittedSealBlockHeader, extra)
 
-	valSet, _ := engine.GetValidators(firstBlock.Number(), firstBlock.Hash())
+	valSet, _ := engine.GetValidators(chain, firstBlock.Number(), firstBlock.Hash())
 	invalidBlock := types.NewBlock(invalidPrevCommittedSealBlockHeader, nil, nil, nil, trie.NewStackTrie(nil))
 	invalidBlock, _ = engine.Engine().Seal(chain, invalidBlock, valSet)
 
