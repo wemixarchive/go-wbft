@@ -350,6 +350,9 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			gen(i, b)
 		}
 
+		// for WBFT: Coinbase is set in engine.Prepare() but makeHeader() does not call engine.Prepare()
+		// so we need to set it here. gen() set Coinbase to zero address, so we should set it after that.
+		// other engine may not need this
 		err := engine.CallEngineSpecific("SetCoinbase", b.header)
 		if err != nil {
 			panic("invalid call of SetCoinbase")
