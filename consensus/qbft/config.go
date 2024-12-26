@@ -284,6 +284,10 @@ func (c *Config) GetNearestEpochBlock(chain consensus.ChainHeaderReader, block u
 
 	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
 	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
+	if startForkBlock.Sign() == 0 {
+		return big.NewInt(0), nil
+	}
+
 	if blockNumber.Cmp(startForkBlock) < 0 {
 		return nil, errors.New("invalid blockNumber: The BlockNumber must exceed the starting BlockNumber of its HardFork")
 	}
