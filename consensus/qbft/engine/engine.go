@@ -544,7 +544,18 @@ func (e *Engine) IsEpochBlock(h *types.Header) bool {
 	return h.Number.Uint64()%3 == 0
 }
 
-func (e *Engine) calcSealsCountInEpoch(chain consensus.ChainHeaderReader, header *types.Header, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) *types.Header {
+func (e *Engine) GetEpochBlock(chain consensus.ChainHeaderReader, header *types.Header) *types.Header {
+	for {
+		header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+		if e.IsEpochBlock(header) {
+			break
+		}
+	}
+
+	return header
+}
+
+func (e *Engine) calcSealsCountInEpoch(chain consensus.ChainHeaderReader, header *types.Header, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) {
 	for {
 		parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 		e.calcSealsCount(header, parent, proposedSealsInEpoch, committedSealsInEpoch)
@@ -559,8 +570,6 @@ func (e *Engine) calcSealsCountInEpoch(chain consensus.ChainHeaderReader, header
 	log.Trace("Seals counts in epoch", "number", header.Number,
 		"proposedSealsInEpoch", proposedSealsInEpoch,
 		"committedSealsInEpoch", committedSealsInEpoch)
-
-	return header
 }
 
 func (e *Engine) calcSealsCount(header, parent *types.Header, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) {
@@ -633,9 +642,11 @@ func (e *Engine) calcDiligence(epochHeader *types.Header, staker common.Address,
 	return (diligence*9 + d) / 10
 }
 
-// TODO: Choose validators by using VRF.
+// Currently, return validator set same to staker set.
+// In future, choose validators depending on their staking amounts and diligence score.
 func (e *Engine) calcValidators(header *types.Header) []uint32 {
-	validators := e.cfg.Validators
+	newStakers := e.cfg.Validators // TODO: read from gov contract
+	validators := make([]uint32, len(newStakers))
 
 	l := make([]uint32, len(validators))
 	for i := 0; i < len(l); i++ {
@@ -671,12 +682,13 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 		proposedSealsInEpoch := make(map[common.Address]int)
 		committedSealsInEpoch := make(map[common.Address]int)
-		epochHeader := e.calcSealsCountInEpoch(chain, header, proposedSealsInEpoch, committedSealsInEpoch)
+		e.calcSealsCountInEpoch(chain, header, proposedSealsInEpoch, committedSealsInEpoch)
 
 		// Update epoch info.
 		newStakers := e.cfg.Validators // TODO: read from gov contract
 		newEpoch.Stakers = make([]*types.Staker, len(newStakers))
 		for i, addr := range newStakers {
+			epochHeader := e.GetEpochBlock(chain, header)
 			newEpoch.Stakers[i] = &types.Staker{
 				Addr:      addr,
 				Diligence: e.calcDiligence(epochHeader, addr, proposedSealsInEpoch, committedSealsInEpoch),
@@ -843,7 +855,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			r.Mul(r, new(big.Int).SetUint64(beneficiary.Numerator))
 			r.Div(r, new(big.Int).SetUint64(beneficiary.Denominator))
 
-			log.Trace("QBFT: accumulate rewards to", "beneficiary", beneficiary.Addr, "block reward", r)
+			log.Debug("QBFT: accumulate rewards to", "beneficiary", beneficiary.Addr, "block reward", r)
 			state.AddBalance(beneficiary.Addr, uint256.MustFromBig(r))
 			bReward.Add(bReward, r)
 		}
@@ -852,68 +864,63 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		blockReward.Sub(blockReward, bReward)
 
 		// Distribute remaining block reward to validators (including proposer) who signed the block.
+		validatorReward := new(big.Int).Set(blockReward)
 		if err := e.calculateRewards(
 			chain,
 			header,
-			func(addr common.Address, amt *big.Int) { state.AddBalance(addr, uint256.MustFromBig(amt)) },
-			func(addr common.Address, amt *big.Int) { state.AddBalance(addr, uint256.MustFromBig(amt)) },
+			func(addr common.Address, s, tot *big.Int) {
+				r := new(big.Int).Set(validatorReward)
+				r.Mul(r, s)
+				r.Div(r, tot)
+				state.AddBalance(addr, uint256.MustFromBig(r))
+				blockReward.Sub(blockReward, r)
+				log.Trace("QBFT: accumulate rewards to", "validator", addr, "block reward", r)
+			},
 		); err != nil {
 			// TODO: how to handle err here?
 			log.Error("Error while calculating rewards", "err", err)
 		}
+
+		if blockReward.Sign() != 0 {
+			// TODO: handle remainder
+			log.Warn("Block reward left", "amount", blockReward)
+		}
 	}
 }
 
-// TODO: reward to rewardees in gov contract according to their staking.
-func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, prepareRewardFn, commitRewardFn func(common.Address, *big.Int)) error {
-	parentHeader := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-	lastQbftExtra, err := types.ExtractQBFTExtra(parentHeader)
+// calculateRewards calculates the reward for the given block.
+// Currently, seals are not considered for rewards because which we cannot determine malicious validators.
+// Instead, we use diligence score to give faithful validator opportunity to propose more blocks.
+func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, rewardFn func(common.Address, *big.Int, *big.Int)) error {
+	// Get validator set from epoch block.
+	epochHeader := e.GetEpochBlock(chain, header)
+	extra, err := types.ExtractQBFTExtra(epochHeader)
 	if err != nil {
 		return qbftcommon.ErrInvalidExtraDataFormat
 	}
+	validators := extra.EpochInfo.GetValidators()
 
-	// proposal seals of prior block
-	proposalPrepareSeal := core.PrepareSeal(parentHeader, lastQbftExtra.Round, core.SealTypePrepare)
-	proposalCommitSeal := core.PrepareSeal(parentHeader, lastQbftExtra.Round, core.SealTypeCommit)
-
-	var prepareRewardees []common.Address
-	var commitRewardees []common.Address
-
-	qbftExtra, err := types.ExtractQBFTExtra(header)
-	if err != nil {
-		return qbftcommon.ErrInvalidExtraDataFormat
+	// Get staking amounts for rewardees.
+	stakingAmounts := make([]*big.Int, len(validators))
+	rewardees := make([]common.Address, len(validators))
+	totStakingAmount := big.NewInt(0)
+	for i := range validators {
+		// TODO: get rewardee from gov contract.
+		// TODO: get staking amount from gov contract.
+		rewardees[i] = validators[i]
+		stakingAmounts[i] = big.NewInt(100)
+		totStakingAmount.Add(totStakingAmount, stakingAmounts[i])
 	}
 
-	// get prev prepared address
-	for _, seal := range qbftExtra.PrevPreparedSeal {
-		addr, err := qbft.GetSignatureAddressNoHashing(proposalPrepareSeal, seal)
-		if err != nil {
-			return qbftcommon.ErrInvalidSignature
-		}
-		prepareRewardees = append(prepareRewardees, addr)
-	}
+	log.Debug("Calculating block reward", "currentBlock", header.Number,
+		"validators", validators,
+		"rewardees", rewardees,
+		"staking", stakingAmounts,
+	)
 
-	// get prev committed address
-	for _, seal := range qbftExtra.PrevCommittedSeal {
-		addr, err := qbft.GetSignatureAddressNoHashing(proposalCommitSeal, seal)
-		if err != nil {
-			return qbftcommon.ErrInvalidSignature
-		}
-		commitRewardees = append(commitRewardees, addr)
-	}
-	log.Trace("Calculating block reward", "currentBlock", header.Number, "calculatingBlock", parentHeader.Number, "prepareReward", prepareRewardees, "commitReward", commitRewardees)
-
-	if prepareRewardFn != nil {
-		for _, addr := range prepareRewardees {
-			prepareReward := big.NewInt(100)
-			prepareRewardFn(addr, prepareReward)
-		}
-	}
-
-	if commitRewardFn != nil {
-		for _, addr := range commitRewardees {
-			commitReward := big.NewInt(100)
-			commitRewardFn(addr, commitReward)
+	if rewardFn != nil {
+		for i, addr := range rewardees {
+			rewardFn(addr, stakingAmounts[i], totStakingAmount)
 		}
 	}
 
