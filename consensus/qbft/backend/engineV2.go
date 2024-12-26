@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/qbft"
@@ -40,6 +41,10 @@ func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber 
 
 		// 3-2. Retrieve the header of the nearest EpochBlock
 		epochHeader := chain.GetHeaderByNumber(nearestEpochBlock.Uint64())
+		if epochHeader == nil {
+			log.Error("BFT: not found header", "blocknumber", nearestEpochBlock.Uint64())
+			return nil, errors.New("BFT: not found header")
+		}
 
 		// 3-3. Extract the Extra field from the Header to obtain the ValidatorSet
 		if qbftExtra, err := types.ExtractQBFTExtra(epochHeader); err == nil {
