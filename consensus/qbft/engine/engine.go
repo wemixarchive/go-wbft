@@ -574,7 +574,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 	// Add the validatorList to the extra field of the header.
 	callback := func(header *types.Header, state govwbft.StateReader) error {
-		return ApplyHeaderQBFTExtra(header, WriteValidators(govwbft.NCPStakers(state)))
+		return ApplyHeaderQBFTExtra(header, WriteValidators(getValidatorsFromState(state)))
 	}
 
 	if err := e.processFinalize(chain, header, state, txs, uncles, callback); err != nil {
@@ -854,6 +854,10 @@ func mergeSeals(seals [][]byte, extraSeals map[common.Hash][]byte) [][]byte {
 	return mergedSeals
 }
 
+func getValidatorsFromState(state govwbft.StateReader) []common.Address {
+	return govwbft.NCPStakers(state)
+}
+
 // DefaultEpochHandler is a handler that performs default actions when the block is an EpochBlock,
 // and is called during the Finalize process.
 // It validates the validity of the ValidatorList associated with the EpochBlock.
@@ -864,7 +868,7 @@ func DefaultEpochHandler(header *types.Header, state govwbft.StateReader) error 
 	}
 
 	validatorFromHeader := extra.Validators
-	validatorFromState := govwbft.NCPStakers(state)
+	validatorFromState := getValidatorsFromState(state)
 
 	sort := func(addrs []common.Address) {
 		for i := 0; i < len(addrs); i++ {
