@@ -13,7 +13,7 @@ import (
 // GetValidators Retrieve the Validator List from the Extra field of the EpochBlock's Header.
 func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, hash common.Hash) (qbft.ValidatorSet, error) {
 	// 1. Return an empty address set if the (Montblanc) HardFork is not supported
-	if !chain.Config().IsMontBlanc(blockNumber) {
+	if !chain.Config().IsMontBlanc(blockNumber) && chain.Config().MontBlancBlock != nil {
 		emptyValSet := make([]common.Address, 0)
 		return validator.NewSet(emptyValSet, sb.config.ProposerPolicy), nil
 	}
@@ -39,7 +39,7 @@ func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber 
 		}
 
 		// 3-2. Retrieve the header of the nearest EpochBlock
-		epochHeader := chain.GetHeader(hash, nearestEpochBlock.Uint64())
+		epochHeader := chain.GetHeaderByNumber(nearestEpochBlock.Uint64())
 
 		// 3-3. Extract the Extra field from the Header to obtain the ValidatorSet
 		if qbftExtra, err := types.ExtractQBFTExtra(epochHeader); err == nil {
