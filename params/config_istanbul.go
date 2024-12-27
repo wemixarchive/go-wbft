@@ -20,7 +20,7 @@ type QBFTConfig struct {
 	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds"`    // Minimum request timeout for each QBFT round in milliseconds
 	ProposerPolicy           uint64                `json:"proposerPolicy"`           // The policy for proposer selection
 	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`    // Reward from start, works only on QBFT consensus protocol
-	BlockRewardBeneficiaries []Beneficiary         `json:"blockRewardBeneficiaries"` // Reward beneficiaries
+	BlockRewardBeneficiaries []*Beneficiary        `json:"blockRewardBeneficiaries"` // Reward beneficiaries
 	Validators               []common.Address      `json:"validators"`               // Validators list
 	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"` // The max round time
 }
@@ -73,7 +73,7 @@ type Transition struct {
 	MinerGasLimit                uint64                `json:"miner.gaslimit,omitempty"`               // Gas Limit
 	TransactionSizeLimit         uint64                `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 	BlockReward                  *math.HexOrDecimal256 `json:"blockReward,omitempty"`                  // validation rewards
-	BlockRewardBeneficiaries     []Beneficiary         `json:"blockRewardBeneficiaries"`               // Reward beneficiaries
+	BlockRewardBeneficiaries     []*Beneficiary        `json:"blockRewardBeneficiaries"`               // Reward beneficiaries
 	MaxRequestTimeoutSeconds     *uint64               `json:"maxRequestTimeoutSeconds,omitempty"`     // The max a timeout should be for a round change
 }
 
@@ -103,19 +103,3 @@ func (c *ChainConfig) GetBlockReward(num *big.Int) *big.Int {
 }
 
 // ## Quorum QBFT END
-
-func (c *ChainConfig) GetBlockRewardBeneficiaries(num *big.Int) []Beneficiary {
-	var beneficiaries []Beneficiary
-
-	if c.QBFT != nil {
-		beneficiaries = c.QBFT.BlockRewardBeneficiaries
-	}
-
-	c.GetTransitionValue(num, func(transition Transition) {
-		if transition.BlockRewardBeneficiaries != nil {
-			beneficiaries = transition.BlockRewardBeneficiaries
-		}
-	})
-
-	return beneficiaries
-}

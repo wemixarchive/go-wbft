@@ -848,9 +848,10 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		blockReward = chain.Config().GetBlockReward(header.Number)
 	}
 
-	if blockReward.Cmp(big.NewInt(0)) > 0 {
+	// Deduct rewards of beneficiaries.
+	if blockReward.Sign() > 0 {
 		bReward := new(big.Int)
-		for _, beneficiary := range e.cfg.BlockRewardBeneficiaries {
+		for _, beneficiary := range e.cfg.GetConfig(header.Number).BlockRewardBeneficiaries {
 			r := new(big.Int).Set(blockReward)
 			r.Mul(r, new(big.Int).SetUint64(beneficiary.Numerator))
 			r.Div(r, new(big.Int).SetUint64(beneficiary.Denominator))
@@ -860,10 +861,15 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			bReward.Add(bReward, r)
 		}
 
-		// Deduct rewards of beneficiaries.
+		if blockReward.Cmp(bReward) < 0 {
+			// Unreachable if genesis block is set correctly.
+			log.Crit("block reward underflow", "blockReward", blockReward, "bReward", bReward)
+		}
 		blockReward.Sub(blockReward, bReward)
+	}
 
-		// Distribute remaining block reward to validators (including proposer) who signed the block.
+	// Distribute remaining block reward to validators (including proposer) who signed the block.
+	if blockReward.Sign() > 0 {
 		validatorReward := new(big.Int).Set(blockReward)
 		if err := e.calculateRewards(
 			chain,
@@ -880,11 +886,11 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			// TODO: how to handle err here?
 			log.Error("Error while calculating rewards", "err", err)
 		}
+	}
 
-		if blockReward.Sign() != 0 {
-			// TODO: handle remainder
-			log.Warn("Block reward left", "amount", blockReward)
-		}
+	// TODO: handle remainder
+	if blockReward.Sign() > 0 {
+		log.Warn("Block reward left", "amount", blockReward)
 	}
 }
 

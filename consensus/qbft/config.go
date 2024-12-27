@@ -107,7 +107,7 @@ type Config struct {
 	Epoch                    uint64                `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
 	AllowedFutureBlockTime   uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	BlockReward              *math.HexOrDecimal256 `toml:",omitempty"` // Reward
-	BlockRewardBeneficiaries []params.Beneficiary  `toml:",omitempty"`
+	BlockRewardBeneficiaries []*params.Beneficiary `toml:",omitempty"`
 	Validators               []common.Address      `toml:",omitempty"`
 	Client                   bind.ContractCaller   `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`

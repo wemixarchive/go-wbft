@@ -166,6 +166,45 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	return stack, cfg
 }
 
+func checkSanityQBFT(chainConfig *params.ChainConfig) {
+	if chainConfig.QBFT != nil {
+		checkSanityBeneficiaries(chainConfig.QBFT.BlockRewardBeneficiaries)
+	}
+	if chainConfig.Transitions != nil {
+		for _, t := range chainConfig.Transitions {
+			checkSanityBeneficiaries(t.BlockRewardBeneficiaries)
+		}
+	}
+}
+
+func checkSanityBeneficiaries(l []*params.Beneficiary) {
+	var numerator, denominator uint64
+
+	for _, beneficiary := range l {
+		if beneficiary.Denominator == 0 {
+			utils.Fatalf("Denominator cannot be zero")
+		}
+		if denominator == 0 {
+			denominator = beneficiary.Denominator
+		}
+		if denominator != beneficiary.Denominator {
+			utils.Fatalf("Denominator is different to other beneficiary")
+		}
+		if beneficiary.Addr == (common.Address{}) {
+			utils.Fatalf("Beneficiary address cannot be zero address")
+		}
+		if beneficiary.Numerator > beneficiary.Denominator {
+			utils.Fatalf("Numerator (%v) > denominator (%v)", beneficiary.Numerator, beneficiary.Denominator)
+		}
+
+		numerator += beneficiary.Numerator
+	}
+
+	if numerator > denominator {
+		utils.Fatalf("Total of numerator (%v) > denominator (%v)", numerator, denominator)
+	}
+}
+
 // makeFullNode loads geth configuration and creates the Ethereum backend.
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
