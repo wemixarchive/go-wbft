@@ -1,6 +1,6 @@
 ## WBFT Protocol Specification (WEMIX 4.0)
 
-WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT (https://github.com/ethereum/EIPs/issues/650) and QBFT for use in public blockchains. The following improvements have been implemented:
+WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT(https://github.com/ethereum/EIPs/issues/650) and QBFT(https://github.com/Consensys/qbft-formal-spec-and-verification) for use in public blockchains. The following improvements have been implemented:
 
 - Adoption of DPoS: Allows anyone to participate as a validator through staking
 - Validator selection: Chosen via VRF based on staking amount and validation diligence
