@@ -1,4 +1,4 @@
-## [WBFT Protocol Specification (WEMIX 4.0)]
+## WBFT Protocol Specification (WEMIX 4.0)
 
 WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT (https://github.com/ethereum/EIPs/issues/650) and QBFT for use in public blockchains. The following improvements have been implemented:
 
@@ -27,7 +27,7 @@ Removed from IBFT
 - `Snapshot`
 - `Validator voting`
 
-### Adoption of DPoS ###
+### Adoption of DPoS
 In IBFT or QBFT, new validators could be added or removed via validator set voting, which is suitable for PoA chains but not for public blockchains. WBFT allows anyone to participate as a validator through staking. By staking at least the minimum amount, one can become a staker. Stakers have the following attributes:
 
 - `Staker node address`: The nodekey address used in consensus if selected as a validator
@@ -49,7 +49,7 @@ Rules related to staking:
 - `Staking power`: Defined as staking amount + delegated amount
 - Staking power determines both validation rewards and the probability of validator selection
 
-### Validator Selection ###
+### Validator Selection
 In WBFT, the proposer of the last block in an epoch (referred to as the epoch block) selects the validator set for the next epoch and records it in the block. Validator selection rules:
 - The first validator set is defined in genesis.json
 - Validators in the genesis block initially have a staking amount of zero
@@ -62,7 +62,7 @@ In WBFT, the proposer of the last block in an epoch (referred to as the epoch bl
 
 Validators are selected to act as proposers in a round-robin manner.
 
-### Reward System and Diligence Metrics ###
+### Reward System and Diligence Metrics
 WBFT rewards consist of two types:
 - `Transaction Gas Fees`: Granted to the block proposer
 - `Block Minting Rewards`: Distributed to validators proportionally to their staking power
@@ -99,7 +99,7 @@ Cumulative diligence `D(n) = D(n-1) * 0.9 + d(n) * 0.1`
 - `D(n-1)` is the cumulative diligence until the (n-1)th epoch. If it becomes a staker at first, its `D(n-1) = 1.9` (default)
   - If the default value is too low, the probability of being selected as a validator when first becoming a staker will be low. Conversely, if it is too high, it may be advantageous to become a new staker again after even minor mistakes. Therefore, an appropriate value is necessary.
 
-### Concept of Epoch ###
+### Concept of Epoch
 The WBFT configuration allows defining the size of an epoch. An epoch represents the period (in terms of block count) during which a predetermined validator set remains active. The last block of an epoch is referred to as an epoch block. The genesis block is considered an epoch block; hence, the first epoch starts from block 1. When the proposer suggests a block that is an epoch block, the following steps are performed:
 
 - Reflect the diligence shown by the current validator set during this epoch in their cumulative diligence and record it in the extra field of the block header (if an staker was not part of the validator set during this epoch, its cumulative diligence is not updated)
@@ -107,7 +107,7 @@ The WBFT configuration allows defining the size of an epoch. An epoch represents
   - Retrieve stakers from the GovStaking contract
   - Select validators based on their staking power and diligence
 
-### Inclusion of Consensus Proof in the Consensus Process ###
+### Inclusion of Consensus Proof in the Consensus Process
 Traditional IBFT and QBFT protocols only included and stored the minimum necessary consensus proof (commit seal) collected locally by each validator for the finalized block. Since these commit seals could vary by validator, they were not part of the block hash. However, to select validators based on consensus proof, it must be included in the consensus process. The consensus proofs included in WBFT blocks are as follows:
 
 - `Previous Prepare Seal`: The prepare seal for the previous block. It is included in the block hash and consensus
@@ -123,19 +123,19 @@ This approach incentivizes proposers to include as many previous seals as possib
 
 Since each seal is 65 bytes in size and seals are recorded for all validators, block headers could become excessively large. To address this issue, BLS signatures are utilized to reduce the size of the seals.
 
-### Improved Miner Worker Operations ###
+### Improved Miner Worker Operations
 The existing miner worker is designed to be fit to the ethash algorithm. When a new block is received, the worker starts new work and enters a loop to find the nonce. After a certain time (recommit time), it starts new work to include newly in-came transactions in the block. However, this behavior is not suitable for the IBFT algorithm. While it is correct to start work when a new block is received, starting new work at each recommit time is inefficient. Instead, it is more appropriate to start new work when a new round begins. In IBFT, there are cases where consensus fails in a round, and in such cases, a new proposer must start new work. The timing for this should be determined by a round change, not by recommit time. Therefore, in WBFT, the worker is modified to start work at the beginning of each round. The following protocol is applied:
 - When the worker receives a new block, it notifies the WBFT engine to perform the final commit (Same to IBFT)
 - The WBFT engine notifies the worker to start new work whenever a new sequence begins with a new round (round 0) or when a round change occurs
 - The WBFT engine waits for the block period before notifying the worker(In the existing IBFT, the block period was waited for when sealing the block)
 - When new work starts, the worker begins the process of preparing the block
 
-### Enhanced Block Header Verification ###
+### Enhanced Block Header Verification
 In the existing IBFT, the block verification process involved validating the consensus proof of the validators. This process required knowledge of the validator set, which is available for blocks being added to the canonical chain. However, during the snap sync process, the target block for verification could belong to a distant future in the canonical chain, making it impossible to determine the validator set. As a result, errors would escalate, and the snap sync process was implemented to ignore such errors. This logic had the potential to overlook errors that should have been detected, necessitating improvement.
 
 In WBFT, verification requiring the validator set is performed only when the block is attached to the canonical chain. The validation step has been removed from the standard block verification logic to address this issue.
 
-### Modified Sturctures ###
+### Modified Sturctures
 The existing QBFT Config was revised by removing unnecessary fields and adding required ones, resulting in the following structure.
 ```
 "qbft": {
@@ -185,11 +185,11 @@ type WBFTExtra struct {
 }
 ```
 
-### WEMIX 3.5 ###
+### WEMIX 3.5
 
 WEMIX 3.5 defines a hard fork from the existing WEMIX PoA consensus to the WBFT consensus and adopts an intermediate consensus method with some features disabled for a safe transition to WBFT.
 
-#### montblanc hard fork ####
+#### montblanc hard fork
 
 WBFT is designed to record the first epoch information in the genesis block. However, since the WEMIX chain needs to transition from an already existing chain to a WBFT chain, exception rules for this are defined in the mont blanc hard fork. The following protocol applies to this hard fork:
 - WPoA validator nodes stop block creation when it is time to create the mont blanc block (i.e., they create blocks up to just before the mont blanc hard fork)
@@ -202,7 +202,7 @@ WBFT is designed to record the first epoch information in the genesis block. How
 - If the number of stakers is equal to or greater than the minimum stakers during the first epoch, these stakers become validators from the next epoch
 - If the number of stakers is less than the minimum stakers during the first epoch, the initial validator set is maintained
 
-#### NCP ####
+#### NCP
 
 Although WBFT is designed and implemented to be used as a public chain, the Wemix chain executes WBFT consensus in the existing PoA method for a safer transition to a public chain. To this end, a group called NCP is defined, and only these NCPs can become validators. NCPs are selected from the existing Wemix 3.0 NCPs and are defined by contract. They have the obligation to maintain WEMIX 3.5 safely. The addition/removal of NCPs is decided by voting among NCPs, so it can proceed without a separate hard fork. Anyone can know the NCP list by querying the NCP contract. The NCP system is a temporary feature used only in WEMIX 3.5 and will not be used in WEMIX 4.0.
 
