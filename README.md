@@ -116,7 +116,7 @@ Traditional IBFT and QBFT protocols only included and stored the minimum necessa
 
 When a validator becomes the proposer, they create the current block by combining the prepare and commit seals stored in the previous block with any additional prepare and commit messages received. These are recorded in the current block as the `Previous Prepare Seal` and `Previous Commit Seal`.
 
-The prepare and commit seals stored in the previous block are messages collected from peers just before the block is finalized. However, before the next block is created, the block period allows additional prepare and commit messages to be received. WBFT improves upon IBFT/QBFT by aiming to collect as many of these messages as possible, rather than stopping at just one-third.
+The prepare and commit seals stored in the previous block are messages collected from peers just before the block is finalized. However, before the next block is created, the block period allows additional prepare and commit messages to be received. WBFT improves upon IBFT/QBFT by aiming to collect as many of these messages as possible, rather than stopping at just two-third.
 
 This approach incentivizes proposers to include as many previous seals as possible in the block, which enhances their diligence score. It also encourages sealers whose seals are included to improve their diligence scores.
 
