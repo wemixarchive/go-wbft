@@ -90,7 +90,7 @@ Diligence is calculated at the end of each epoch:
   - The minimum value of `d` is 0 (no proposals or seals).
 - ex) if `e=200, v=20, w=10` then `d = p / 400 + s / 400`.
 
-When a proposer writes the diligence in a epoch block, it uses accumulated diligence for each staker.
+When a proposer writes the diligence in a epoch block, it uses cumulative diligence for each staker.
 
 Cumulative diligence `D(n) = D(n-1) * 0.9 + d(n) * 0.1`.
 - `D(n)` is the cumulative diligence until the n-th epoch.
