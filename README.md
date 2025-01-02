@@ -2,26 +2,26 @@
 
 WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT(https://github.com/ethereum/EIPs/issues/650) and QBFT(https://github.com/Consensys/qbft-formal-spec-and-verification) for use in public blockchains. The following improvements have been implemented:
 
-- Adoption of DPoS: Allows anyone to participate as a validator through staking
-- Validator selection: Chosen via VRF based on staking amount and validation diligence
-- Reward system and diligence metrics
-- Concept of epoch: Defines a unit where the validator set changes
-- Inclusion of consensus proof in the agreement process
-- Improved miner worker operations
-- Enhanced block header verification
+- Adoption of DPoS: Allows anyone to participate as a validator through staking.
+- Validator selection: Chosen via VRF based on staking amount and validation diligence.
+- Reward system and diligence metrics.
+- Concept of epoch: Defines a unit where the validator set changes.
+- Inclusion of consensus proof in the agreement process.
+- Improved miner worker operations.
+- Enhanced block header verification.
 
 ### Terminology
-- `Staker`: A participant who stakes an amount exceeding the minimum staking threshold. Candidates for validators during an epoch
-- `Validator`: Same as Validator in IBFT. Must be a staker to become a validator
-- `Proposer`: Same as Proposer in IBFT
-- `Epoch`: The duration during which a fixed validator set remains active, represented in the number of blocks
-- `Epoch block`: The last block of an epoch. It records cumulative diligence for all stakers and defines the validator set for the next epoch
-- `Sequence`: Same as Sequence in IBFT
-- `Round`: Same as Round in IBFT
+- `Staker`: A participant who stakes an amount exceeding the minimum staking threshold. Candidates for validators during an epoch.
+- `Validator`: Block validation participant(Same as Validator in IBFT). Must be a staker to become a validator.
+- `Proposer`: A block validation participant that is chosen to propose block in a consensus round(Same as Proposer in IBFT).
+- `Epoch`: The duration during which a fixed validator set remains active, represented in the number of blocks.
+- `Epoch block`: The last block of an epoch. It records cumulative diligence for all stakers and defines the validator set for the next epoch.
+- `Sequence`: Sequence number of a proposal. A sequence number should be greater than all previous sequence numbers. Currently each proposed block height is its associated sequence number(Same as Sequence in IBFT).
+- `Round`: Consensus round. A round starts with the proposer creating a block proposal and ends with a block commitment or round change(Same as Round in IBFT).
 - `Diligence`: Measures validation activity based on the total number of previous seals (previous prepare and commit seals) recorded in the epoch block during an epoch
-- `Round state`: Same as Round state in IBFT
-- `Backlog`: Same as Backlog in IBFT
-- `Consensus proof`: Unlike IBFT, which only had commit seals, WBFT includes prepare seals and seals for previous block verification. Previous seals are part of the consensus process.
+- `Round state`: Consensus messages of a specific sequence and round, including pre-prepare message, prepare message, and commit message(Same as Round state in IBFT).
+- `Backlog`: The storage to keep future consensus messages(Same as Backlog in IBFT).
+- `Consensus proof`: The commitment signatures of a block that can prove the block has gone through the consensus process in IBFT. Unlike IBFT, which only had commit seals, WBFT includes prepare seals and seals for previous block verification. Previous seals are part of the consensus process.
 
 Removed from IBFT
 - `Snapshot`
@@ -30,44 +30,44 @@ Removed from IBFT
 ### Adoption of DPoS
 In IBFT or QBFT, new validators could be added or removed via validator set voting, which is suitable for PoA chains but not for public blockchains. WBFT allows anyone to participate as a validator through staking. By staking at least the minimum amount, one can become a staker. Stakers have the following attributes:
 
-- `Staker node address`: The nodekey address used in consensus if selected as a validator
-- `Staker BLS public key`: The BLS public key used in verifing WBFT seal by others 
-- `Staker operator address`: The wallet address for performing stake/unstake operations
-- `Staker reward address`: The address for receiving block rewards
-- `Staking amount`: The amount staked, which must exceed the minimum staking amount
-- `Delegated amount`: The amount received from delegations
+- `Staker node address`: The nodekey address used in consensus if selected as a validator.
+- `Staker BLS public key`: The BLS public key used in verifing WBFT seal by others.
+- `Staker operator address`: The wallet address for performing stake/unstake operations.
+- `Staker reward address`: The address for receiving block rewards.
+- `Staking amount`: The amount staked, which must exceed the minimum staking amount.
+- `Delegated amount`: The amount received from delegations.
 
 Rules related to staking:
-- Initial staking must exceed the minimum staking threshold
-- No restrictions on amounts for additional staking
-- Validators engaging in malicious behavior may be slashed, reducing their staking amount
-- After unstaking, the remaining staking amount must either exceed the minimum threshold or be zero
-- If the staking amount reaches zero, the staker is removed from staker set
-- Unstaking releases funds to the staker’s address after the unbonding period
-- Funds in the unbonding state can still be slashed
-- Delegation is open to anyone, increasing the staking power of the recipient staker
-- `Staking power`: Defined as staking amount + delegated amount
-- Staking power determines both validation rewards and the probability of validator selection
+- First staking must exceed the minimum staking threshold.
+- No restrictions on amounts for additional staking.
+- Validators engaging in malicious behavior may be slashed, reducing their staking amount.
+- After unstaking, the remaining staking amount must either exceed the minimum threshold or be zero.
+- If the staking amount reaches zero, the staker is removed from staker set.
+- Unstaking releases funds to the staker’s address after the unbonding period.
+- Funds in the unbonding state can still be slashed.
+- Delegation is open to anyone, increasing the staking power of the recipient staker.
+- `Staking power`: Defined as staking amount + delegated amount.
+- Staking power determines both validation rewards and the probability of validator selection.
 
 ### Validator Selection
 In WBFT, the proposer of the last block in an epoch (referred to as the epoch block) selects the validator set for the next epoch and records it in the block. Validator selection rules:
-- The first validator set is defined in genesis.json
-- Validators in the genesis block initially have a staking amount of zero
-- First epoch is in a `stabilization stage`
-- An epoch in a `stabilization stage` has the validator set which is same to the previous epoch
-- If current epoch is in a `stabilization stage` and the number of stakers is below the minimum stakers in last block of an epoch, next epoch will be in a `stabilization stage`
-- If the number of stakers is at least minimum stakers, validators are selected from stakers
-- If the number of stakers equals or exceeds minimum stakers but is less than or equal to target validators, all stakers become validators
-- If the number of stakers exceeds target validators, validators are selected using VRF, considering staking power and diligence
+- The first validator set is defined in genesis.json.
+- Validators in the genesis block initially have a staking amount of zero.
+- First epoch is in a `stabilization stage`.
+- An epoch in a `stabilization stage` has the validator set which is same to the previous epoch.
+- If current epoch is in a `stabilization stage` and the number of stakers is below the minimum stakers in last block of an epoch, next epoch will be in a `stabilization stage`.
+- If the number of stakers is at least minimum stakers, validators are selected from stakers.
+- If the number of stakers equals or exceeds minimum stakers but is less than or equal to target validators, all stakers become validators.
+- If the number of stakers exceeds target validators, validators are selected using VRF, considering staking power and diligence.
 
 Validators are selected to act as proposers in a round-robin manner.
 
 ### Reward System and Diligence Metrics
 WBFT rewards consist of two types:
-- `Transaction Gas Fees`: Granted to the block proposer
-- `Block Minting Rewards`: Distributed to validators proportionally to their staking power
-  - The minting amount is defined in the WBFT configuration
-  - After the "brioche" hard fork, block minting rewards follow a halving cycle
+- `Transaction Gas Fees`: Granted to the block proposer.
+- `Block Minting Rewards`: Distributed to validators proportionally to their staking power.
+  - The minting amount is defined in the WBFT configuration.
+  - After the "brioche" hard fork, block minting rewards follow a halving cycle.
 
 Diligence influences validator selection directly, encouraging validators to perform their roles sincerely.
 Block minting rewards play an important role in BFT. In public network BFTs, if validators do not faithfully 
@@ -78,42 +78,41 @@ Instead, validation rewards are indirectly tied to validator selection. Validato
 validation duties have a better chance of being selected and can earn greater rewards in this structure.
 
 Diligence is calculated at the end of each epoch:
-- Let `e` be the number of blocks in the epoch
-- Let `v` be the number of validators
-- Let `w` be the number of blocks proposed by a validator during the epoch
-  - round change may be occured so `w` is not always equal to `e/v` 
-- Let `p` be the total seals (prepare and commit) included in the proposed blocks by a validator
-  - p can be equal to `2*v*w` at most 
-- Let `s` be the seals submitted by the validator during the epoch
-  - s can be equal to `2*e` at most
-- Diligence `d = p / (2*v*w) + s / (2*e)`
-  - The maximum value of `d` is 2
-  - The minimum value of `d` is 0 (no proposals or seals)
-- ex) if `e=200, v=20, w=10` then `d = p / 400 + s / 400`
+- Let `e` be the number of blocks in the epoch.
+- Let `v` be the number of validators.
+- Let `w` be the number of blocks proposed by a validator during the epoch.
+- Let `p` be the total seals (prepare and commit) included in the proposed blocks by a validator.
+  - p can be equal to `2*v*w` at most.
+- Let `s` be the seals submitted by the validator during the epoch.
+  - s can be equal to `2*e` at most.
+- Diligence `d = p / (2*v*w) + s / (2*e)`.
+  - The maximum value of `d` is 2.
+  - The minimum value of `d` is 0 (no proposals or seals).
+- ex) if `e=200, v=20, w=10` then `d = p / 400 + s / 400`.
 
 When a proposer writes the diligence in a epoch block, it uses accumulated diligence for each staker.
 
-Cumulative diligence `D(n) = D(n-1) * 0.9 + d(n) * 0.1`
-- `D(n)` is the cumulative diligence until the n-th epoch
-- `d(n)` is the diligence of the n-th epoch
-- `D(n-1)` is the cumulative diligence until the (n-1)th epoch. If it becomes a staker at first, its `D(n-1) = 1.9` (default)
+Cumulative diligence `D(n) = D(n-1) * 0.9 + d(n) * 0.1`.
+- `D(n)` is the cumulative diligence until the n-th epoch.
+- `d(n)` is the diligence of the n-th epoch.
+- `D(n-1)` is the cumulative diligence until the (n-1)th epoch. If it becomes a staker at first, its `D(n-1) = 1.9` (default. 95% of the maximum value of diligence).
   - If the default value is too low, the probability of being selected as a validator when first becoming a staker will be low. Conversely, if it is too high, it may be advantageous to become a new staker again after even minor mistakes. Therefore, an appropriate value is necessary.
 
 ### Concept of Epoch
 The WBFT configuration allows defining the size of an epoch. An epoch represents the period (in terms of block count) during which a predetermined validator set remains active. The last block of an epoch is referred to as an epoch block. The genesis block is considered an epoch block; hence, the first epoch starts from block 1. When the proposer suggests a block that is an epoch block, the following steps are performed:
 
-- Reflect the diligence shown by the current validator set during this epoch in their cumulative diligence and record it in the extra field of the block header (if an staker was not part of the validator set during this epoch, its cumulative diligence is not updated)
+- Reflect the diligence shown by the current validator set during this epoch in their cumulative diligence and record it in the extra field of the block header (if an staker was not part of the validator set during this epoch, its cumulative diligence is not updated).
 - Select a new validator set and record it in the extra field:
-  - Retrieve stakers from the GovStaking contract
-  - Select validators based on their staking power and diligence
+  - Retrieve stakers from the GovStaking contract.
+  - Select validators based on their staking power and diligence.
 
 ### Inclusion of Consensus Proof in the Consensus Process
 Traditional IBFT and QBFT protocols only included and stored the minimum necessary consensus proof (commit seal) collected locally by each validator for the finalized block. Since these commit seals could vary by validator, they were not part of the block hash. However, to select validators based on consensus proof, it must be included in the consensus process. The consensus proofs included in WBFT blocks are as follows:
 
-- `Previous Prepare Seal`: The prepare seal for the previous block. It is included in the block hash and consensus
-- `Previous Commit Seal`: The commit seal for the previous block. It is included in the block hash and consensus
-- `Prepare Seal`: The prepare seal for the current block. It is not included in the block hash or consensus
-- `Commit Seal`: The commit seal for the current block. It is not included in the block hash or consensus
+- `Previous Prepare Seal`: The prepare seal for the previous block. It is included in the block hash and consensus.
+- `Previous Commit Seal`: The commit seal for the previous block. It is included in the block hash and consensus.
+- `Prepare Seal`: The prepare seal for the current block. It is not included in the block hash or consensus.
+- `Commit Seal`: The commit seal for the current block. It is not included in the block hash or consensus.
 
 When a validator becomes the proposer, they create the current block by combining the prepare and commit seals stored in the previous block with any additional prepare and commit messages received. These are recorded in the current block as the `Previous Prepare Seal` and `Previous Commit Seal`.
 
@@ -125,10 +124,10 @@ Since each seal is 65 bytes in size and seals are recorded for all validators, b
 
 ### Improved Miner Worker Operations
 The existing miner worker is designed to be fit to the ethash algorithm. When a new block is received, the worker starts new work and enters a loop to find the nonce. After a certain time (recommit time), it starts new work to include newly in-came transactions in the block. However, this behavior is not suitable for the IBFT algorithm. While it is correct to start work when a new block is received, starting new work at each recommit time is inefficient. Instead, it is more appropriate to start new work when a new round begins. In IBFT, there are cases where consensus fails in a round, and in such cases, a new proposer must start new work. The timing for this should be determined by a round change, not by recommit time. Therefore, in WBFT, the worker is modified to start work at the beginning of each round. The following protocol is applied:
-- When the worker receives a new block, it notifies the WBFT engine to perform the final commit (Same to IBFT)
-- The WBFT engine notifies the worker to start new work whenever a new sequence begins with a new round (round 0) or when a round change occurs
-- The WBFT engine waits for the block period before notifying the worker(In the existing IBFT, the block period was waited for when sealing the block)
-- When new work starts, the worker begins the process of preparing the block
+- When the worker receives a new block, it notifies the WBFT engine to perform the final commit (Same to IBFT).
+- The WBFT engine notifies the worker to start new work whenever a new sequence begins with a new round (round 0) or when a round change occurs.
+- The WBFT engine waits for the block period before notifying the worker(In the existing IBFT, the block period was waited for when sealing the block).
+- When new work starts, the worker begins the process of preparing the block.
 
 ### Enhanced Block Header Verification
 In the existing IBFT, the block verification process involved validating the consensus proof of the validators. This process required knowledge of the validator set, which is available for blocks being added to the canonical chain. However, during the snap sync process, the target block for verification could belong to a distant future in the canonical chain, making it impossible to determine the validator set. As a result, errors would escalate, and the snap sync process was implemented to ignore such errors. This logic had the potential to overlook errors that should have been detected, necessitating improvement.
@@ -189,32 +188,36 @@ type WBFTExtra struct {
 
 WEMIX 3.5 defines a hard fork from the existing WEMIX PoA consensus to the WBFT consensus and adopts an intermediate consensus method with some features disabled for a safe transition to WBFT.
 
-#### montblanc hard fork
+#### MontBlanc hard fork
 
 WBFT is designed to record the first epoch information in the genesis block. However, since the WEMIX chain needs to transition from an already existing chain to a WBFT chain, exception rules for this are defined in the mont blanc hard fork. The following protocol applies to this hard fork:
-- WPoA validator nodes stop block creation when it is time to create the mont blanc block (i.e., they create blocks up to just before the mont blanc hard fork)
-- WBFT validator nodes receive block propagation normally up to the block before mont blanc
-- WBFT validator nodes recognize the mont blanc hard fork and can obtain the validator set from the WBFT config when it is their turn to create this block
-- WBFT validator nodes can create blocks and proceed with consensus once they can obtain the validator set
-- The mont blanc block is a special block. Validators that receive this block perform additional tasks to deploy and initialize the NCP contract and GovStaking contract
-- The mont blanc block is the first epoch block of WBFT. Therefore, the minimum validator set is recorded
-- The first epoch starts from the block after the mont blanc block, during which stakers start staking from zero
-- If the number of stakers is equal to or greater than the minimum stakers during the first epoch, these stakers become validators from the next epoch
-- If the number of stakers is less than the minimum stakers during the first epoch, the initial validator set is maintained
+- WPoA validator nodes stop block creation when it is time to create the mont blanc block (i.e., they create blocks up to just before the mont blanc hard fork).
+- WBFT validator nodes receive block propagation normally up to the block before mont blanc.
+- WBFT validator nodes recognize the mont blanc hard fork and can obtain the validator set from the WBFT config when it is their turn to create this block.
+- WBFT validator nodes can create blocks and proceed with consensus once they can obtain the validator set.
+- The mont blanc block is a special block. Validators that receive this block perform additional tasks to deploy and initialize the NCP contract and GovStaking contract.
+- The mont blanc block is the first epoch block of WBFT. Therefore, the minimum validator set is recorded.
+- The first epoch starts from the block after the mont blanc block, during which stakers start staking from zero.
+- If the number of stakers is equal to or greater than the minimum stakers during the first epoch, these stakers become validators from the next epoch.
+- If the number of stakers is less than the minimum stakers during the first epoch, the initial validator set is maintained.
 
 #### NCP
 
 Although WBFT is designed and implemented to be used as a public chain, the Wemix chain executes WBFT consensus in the existing PoA method for a safer transition to a public chain. To this end, a group called NCP is defined, and only these NCPs can become validators. NCPs are selected from the existing Wemix 3.0 NCPs and are defined by contract. They have the obligation to maintain WEMIX 3.5 safely. The addition/removal of NCPs is decided by voting among NCPs, so it can proceed without a separate hard fork. Anyone can know the NCP list by querying the NCP contract. The NCP system is a temporary feature used only in WEMIX 3.5 and will not be used in WEMIX 4.0.
 
 During the WEMIX 3.5 period, the validator set selection rules are as follows:
-- Retrieve stakers from the GovStaking contract
-- Among these stakers, nodes that are NCPs are selected for the validator set
-- Stakers who are not NCPs are not included in the validator set
+- Retrieve stakers from the GovStaking contract.
+- Among these stakers, nodes that are NCPs are selected for the validator set.
+- Stakers who are not NCPs are not included in the validator set.
 
 The process of obtaining the validator set at any block height is as follows (replacing the snapshot function in the existing IBFT):
-- If the current block is an epoch block, obtain the validator set from the current block
-- If the current block is not an epoch block, go back from the height - 1 block to find the most recent epoch block and obtain the validator set
-- If you go back in time and encounter the mont blanc hard fork block or the genesis block, it is a failure if you do not meet them
+- If the current block is an epoch block, obtain the validator set from the current block.
+- If the current block is not an epoch block, go back from the height - 1 block to find the most recent epoch block and obtain the validator set.
+- If you go back in time and encounter the mont blanc hard fork block or the genesis block, it is a failure if you do not meet them.
+
+#### Not implemented in WEMIX 3.5
+- Slashing: The NCP system is used to ensure the safety of the chain during the transition period, and the slashing mechanism is not necessary.
+- VRF for validator selection: All NCPs are validators, so the VRF is not used for validator selection.
 
 ## Building the source
 
