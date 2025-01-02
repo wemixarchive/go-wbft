@@ -101,7 +101,7 @@ Cumulative diligence `D(n) = D(n-1) * 0.9 + d(n) * 0.1`.
 ### Concept of Epoch
 The WBFT configuration allows defining the size of an epoch. An epoch represents the period (in terms of block count) during which a predetermined validator set remains active. The last block of an epoch is referred to as an epoch block. The genesis block is considered an epoch block; hence, the first epoch starts from block 1. When the proposer suggests a block that is an epoch block, the following steps are performed:
 
-- Reflect the diligence shown by the current validator set during this epoch in their cumulative diligence and record it in the extra field of the block header (if an staker was not part of the validator set during this epoch, its cumulative diligence is not updated).
+- Reflect the diligence shown by the current staker set during this epoch in their cumulative diligence and record it in the extra field of the block header (if an staker was not part of the validator set during this epoch, its cumulative diligence is not updated).
 - Select a new validator set and record it in the extra field:
   - Retrieve stakers from the GovStaking contract.
   - Select validators based on their staking power and diligence.
