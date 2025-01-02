@@ -214,8 +214,8 @@ func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *bi
 
 	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
 	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
-	if startForkBlock == nil {
-		return false
+	if startForkBlock.Sign() == 0 {
+		return true
 	}
 
 	// 2. Calculate the offset relative to the fork start block.
@@ -234,6 +234,9 @@ func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *bi
 }
 
 // GetNearestForkBlock retrieves the starting block number of the hard fork closest to the provided block number.
+//
+// Returns:
+//   - This function guarantees that it will never return a nil value.
 func (c *Config) GetNearestForkBlock(chain consensus.ChainHeaderReader, blockNumber *big.Int) *big.Int {
 
 	nearestForkBlock := c.getNearestForkBlock(blockNumber)
@@ -243,6 +246,8 @@ func (c *Config) GetNearestForkBlock(chain consensus.ChainHeaderReader, blockNum
 		switch {
 		case chain.Config().IsMontBlanc(blockNumber):
 			return chain.Config().MontBlancBlock
+		default:
+			return big.NewInt(0)
 		}
 	}
 	return nearestForkBlock
@@ -250,6 +255,9 @@ func (c *Config) GetNearestForkBlock(chain consensus.ChainHeaderReader, blockNum
 
 // getNearestForkBlock is the internal implementation of GetNearestForkBlock.
 // assumes that the epoch value is only changed in a HardFork block, and not in any other block.
+//
+// Returns:
+// - It can be nil if the nearest hard fork block number corresponding to the given block number does not exist.
 func (c *Config) getNearestForkBlock(blockNumber *big.Int) *big.Int {
 	// TODO: (noah) transition의 Block 순서를 보장하지 못하는 경우를 가정하여 만듬
 	var nearestForkBlock *big.Int = nil
@@ -285,7 +293,7 @@ func (c *Config) GetNearestEpochBlock(chain consensus.ChainHeaderReader, block u
 	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
 	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
 	if startForkBlock.Sign() == 0 {
-		return big.NewInt(0), nil
+		return startForkBlock, nil
 	}
 
 	if blockNumber.Cmp(startForkBlock) < 0 {
