@@ -2,7 +2,7 @@
 
 WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT(https://github.com/ethereum/EIPs/issues/650) and QBFT(https://github.com/Consensys/qbft-formal-spec-and-verification) for use in public blockchains. The following improvements have been implemented:
 
-- Adoption of DPoS: Allows anyone to participate as a validator through staking.
+- Adoption of DPoS(Delegated Proof of Stake): Allows anyone to participate as a validator through staking.
 - Validator selection: Chosen via VRF based on staking amount and validation diligence.
 - Reward system and diligence metrics.
 - Concept of epoch: Defines a unit where the validator set changes.
@@ -27,7 +27,7 @@ Removed from IBFT
 - `Snapshot`
 - `Validator voting`
 
-### Adoption of DPoS
+### Adoption of DPoS(Delegated Proof of Stake)
 In IBFT or QBFT, new validators could be added or removed via validator set voting, which is suitable for PoA chains but not for public blockchains. WBFT allows anyone to participate as a validator through staking. By staking at least the minimum amount, one can become a staker. Stakers have the following attributes:
 
 - `Staker node address`: The nodekey address used in consensus if selected as a validator.
@@ -186,7 +186,7 @@ type WBFTExtra struct {
 
 ### WEMIX 3.5
 
-WEMIX 3.5 defines a hard fork from the existing WEMIX PoA consensus to the WBFT consensus and adopts an intermediate consensus method with some features disabled for a safe transition to WBFT.
+WEMIX 3.5 defines a hard fork from the existing WEMIX SPoA consensus to the WBFT consensus and adopts an intermediate consensus method with some features disabled for a safe transition to WBFT.
 
 #### MontBlanc hard fork
 
@@ -196,24 +196,24 @@ WBFT is designed to record the first epoch information in the genesis block. How
 - WBFT validator nodes recognize the mont blanc hard fork and can obtain the validator set from the WBFT config when it is their turn to create this block.
 - WBFT validator nodes can create blocks and proceed with consensus once they can obtain the validator set.
 - The mont blanc block is a special block. Validators that receive this block perform additional tasks to deploy and initialize the NCP contract and GovStaking contract.
-- The mont blanc block is the first epoch block of WBFT. Therefore, the minimum validator set is recorded.
+- The mont blanc block is the first epoch block of WBFT. Therefore, the first validator set is recorded.
 - The first epoch starts from the block after the mont blanc block, during which stakers start staking from zero.
 - If the number of stakers is equal to or greater than the minimum stakers during the first epoch, these stakers become validators from the next epoch.
 - If the number of stakers is less than the minimum stakers during the first epoch, the initial validator set is maintained.
 
 #### NCP
 
-Although WBFT is designed and implemented to be used as a public chain, the Wemix chain executes WBFT consensus in the existing PoA method for a safer transition to a public chain. To this end, a group called NCP is defined, and only these NCPs can become validators. NCPs are selected from the existing Wemix 3.0 NCPs and are defined by contract. They have the obligation to maintain WEMIX 3.5 safely. The addition/removal of NCPs is decided by voting among NCPs, so it can proceed without a separate hard fork. Anyone can know the NCP list by querying the NCP contract. The NCP system is a temporary feature used only in WEMIX 3.5 and will not be used in WEMIX 4.0.
+Although WBFT is designed and implemented to be used as a public chain, the Wemix chain continues selecting validators from NCPs for a safer transition to a public chain as an intermediate step. NCPs are selected from the existing Wemix 3.0 NCPs and are defined by contract. They have the obligation to run (mining) nodes for maintaining WEMIX 3.5 safely. The addition/removal of NCPs is decided by voting among NCPs, so it can proceed without a separate hard fork. Anyone can know the NCP list by querying the NCP contract. The NCP system is a temporary feature used only in WEMIX 3.5 and will not be used in WEMIX 4.0.
 
-During the WEMIX 3.5 period, the validator set selection rules are as follows:
+During the WEMIX 3.5 phase, the validator set selection rules are as follows:
 - Retrieve stakers from the GovStaking contract.
 - Among these stakers, nodes that are NCPs are selected for the validator set.
 - Stakers who are not NCPs are not included in the validator set.
 
 The process of obtaining the validator set at any block height is as follows (replacing the snapshot function in the existing IBFT):
 - If the current block is an epoch block, obtain the validator set from the current block.
-- If the current block is not an epoch block, go back from the height - 1 block to find the most recent epoch block and obtain the validator set.
-- If you go back in time and encounter the mont blanc hard fork block or the genesis block, it is a failure if you do not meet them.
+- If the current block is not an epoch block, traverse blocks backward from the height - 1 block to find the most recent epoch block and obtain the validator set.
+- It should meet the mont blanc hard fork block or the genesis block during traversing, otherwise it is a failure.
 
 #### Not implemented in WEMIX 3.5
 - Slashing: The NCP system is used to ensure the safety of the chain during the transition period, and the slashing mechanism is not necessary.
