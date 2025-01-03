@@ -439,7 +439,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 				t.Errorf("Unexpected coinbase got %x want %x", block.Coinbase(), coinbase)
 			}
 		} else {
-			if block.Coinbase() != (common.Address{}) {
+			if block.Coinbase() != testBankAddress {
 				t.Error("Unexpected coinbase")
 			}
 		}
