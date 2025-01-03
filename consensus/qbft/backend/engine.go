@@ -300,7 +300,7 @@ func (sb *Backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(db ethdb.Reader, hash common.Hash) bool) error {
+func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(db ethdb.Reader, hash common.Hash) bool, tryCommit func()) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -317,6 +317,7 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	sb.chain = chain
 	sb.currentBlock = currentBlock
 	sb.hasBadBlock = hasBadBlock
+	sb.tryCommit = tryCommit
 
 	log.Info("start QBFT")
 	err := sb.startQBFT()
@@ -328,6 +329,12 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	sb.coreStarted = true
 
 	return nil
+}
+
+func (sb *Backend) TryCommit() {
+	if sb.tryCommit != nil {
+		sb.tryCommit()
+	}
 }
 
 // Stop implements consensus.Istanbul.Stop
@@ -364,10 +371,14 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		if !ok {
 			return qbftcommon.ErrInvalidSpecificCall
 		}
+		tryCommit, ok := args[3].(func())
+		if !ok {
+			return qbftcommon.ErrInvalidSpecificCall
+		}
 		if sb.coreStarted {
 			_ = sb.Stop()
 		}
-		return sb.Start(chain, currentBlock, hasBadBlock)
+		return sb.Start(chain, currentBlock, hasBadBlock, tryCommit)
 	case "SetExtra":
 		if len(args) != 2 {
 			return qbftcommon.ErrInvalidSpecificCall

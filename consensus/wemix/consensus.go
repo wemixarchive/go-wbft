@@ -44,7 +44,7 @@ func NewWemixEngine(backend wemixgov.GovBackend, config *qbft.Config, privateKey
 	return result
 }
 
-func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.ChainHeaderReader, currentBlock func() *types.Block, subscribeChainHead func(ch chan<- core.ChainHeadEvent) event.Subscription) {
+func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.ChainHeaderReader, currentBlock func() *types.Block, subscribeChainHead func(ch chan<- core.ChainHeadEvent) event.Subscription, tryCommit func()) {
 	we.stopCh = make(chan struct{})
 
 	chainHeadCh := make(chan core.ChainHeadEvent)
@@ -53,7 +53,7 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 	// WEMIX engine is waiting for MontBlanc hard fork then triggers qbft engine and quits its loop
 	go func() {
 		if config.IsMontBlanc(new(big.Int).Add(currentBlock().Number(), common.Big1)) {
-			err := we.wbft.Start(chain, currentBlock, rawdb.HasBadBlock)
+			err := we.wbft.Start(chain, currentBlock, rawdb.HasBadBlock, tryCommit)
 			if err != nil {
 				log.Error("cannot start WEMIX BFT engine", "err", err)
 			}
@@ -66,7 +66,7 @@ func (we *WemixConsensus) Start(config *params.ChainConfig, chain consensus.Chai
 				case head := <-chainHeadCh:
 					if config.IsMontBlanc(new(big.Int).Add(head.Block.Number(), common.Big1)) {
 						log.Info("MontBlanc hard fork is activated. Starting WEMIX BFT engine")
-						err := we.wbft.Start(chain, currentBlock, rawdb.HasBadBlock)
+						err := we.wbft.Start(chain, currentBlock, rawdb.HasBadBlock, tryCommit)
 						if err != nil {
 							log.Error("cannot start WEMIX BFT engine", "err", err)
 						}
