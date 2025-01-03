@@ -140,9 +140,10 @@ The existing QBFT Config was revised by removing unnecessary fields and adding r
 "qbft": {
       "epochLength": 200,
       "blockPeriodSeconds": 1,
+      "requestTimeoutSeconds": 2,
+      "maxRequestTimeoutSeconds": 2,
       "targetValidators": 20,
       "minStakers": 13,
-      "requestTimeoutSeconds": 1,
       "blockReward": 1000000000000000000,
       "blockRewardBeneficiary":  {
          "denominator": 10000,
