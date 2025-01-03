@@ -39,9 +39,11 @@ var (
 	QBFTDefaultDifficulty = big.NewInt(1) // ## Wemix
 
 	// Diligence is used to choose validators for next epoch
-	// Diligence has maximum value of 4 * DiligenceDenominator.
-	DiligenceDenominator = 1_000_000
-	DefaultDiligence     = uint64(3_800_000)
+	// Diligence has maximum value of 2 * DiligenceDenominator.
+	DiligenceDenominator = uint64(1_000_000)
+
+	// DefaultDiligence is 95% of maximum diligence.
+	DefaultDiligence = 2 * DiligenceDenominator * 95 / 100
 
 	// ErrInvalidIstanbulHeaderExtra is returned if the length of extra-data is less than 32 bytes
 	ErrInvalidIstanbulHeaderExtra = errors.New("invalid qbft header extra-data")

@@ -38,7 +38,7 @@ func TestPrepareExtra(t *testing.T) {
 }
 
 func TestWriteCommittedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a8339fbc0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f82128339fbc0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a68339fbc0d9948be76812f765c24641ec63dc2852b378aba2b4408339fbc0c480010203")
+	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
@@ -49,10 +49,10 @@ func TestWriteCommittedSeals(t *testing.T) {
 		Round:             0,
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")), Diligence: types.DefaultDiligence},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")), Diligence: 1_900_000},
 			},
 			Validators: []uint32{0, 1, 2, 3},
 		},
@@ -92,7 +92,7 @@ func TestWriteCommittedSeals(t *testing.T) {
 }
 
 func TestWritePreparedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a8339fbc0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f82128339fbc0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a68339fbc0d9948be76812f765c24641ec63dc2852b378aba2b4408339fbc0c480010203")
+	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
 	expectedPreparedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
@@ -103,10 +103,10 @@ func TestWritePreparedSeals(t *testing.T) {
 		Round:             0,
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")), Diligence: types.DefaultDiligence},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")), Diligence: 1_900_000},
 			},
 			Validators: []uint32{0, 1, 2, 3},
 		},
@@ -146,7 +146,7 @@ func TestWritePreparedSeals(t *testing.T) {
 }
 
 func TestWriteRoundNumber(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a8339fbc0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f82128339fbc0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a68339fbc0d9948be76812f765c24641ec63dc2852b378aba2b4408339fbc0c480010203")
+	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
 		CommittedSeal:     [][]byte{},
@@ -156,10 +156,10 @@ func TestWriteRoundNumber(t *testing.T) {
 		Round:             5,
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")), Diligence: types.DefaultDiligence},
-				{Addr: common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")), Diligence: types.DefaultDiligence},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x6beaaed781d2d2ab6350f5c4566a2c6eaac407a6")), Diligence: 1_900_000},
+				{Addr: common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440")), Diligence: 1_900_000},
 			},
 			Validators: []uint32{0, 1, 2, 3},
 		},

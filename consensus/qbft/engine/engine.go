@@ -555,91 +555,133 @@ func (e *Engine) GetEpochBlock(chain consensus.ChainHeaderReader, header *types.
 	return header
 }
 
-func (e *Engine) calcSealsCountInEpoch(chain consensus.ChainHeaderReader, header *types.Header, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) {
+type stakerInfo struct {
+	isValidator bool
+	staker      *types.Staker
+}
+
+func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header) *types.EpochInfo {
+	var newEpoch types.EpochInfo
+
+	proposedSealsInEpoch := make(map[common.Address]int)
+	submittedSealsInEpoch := make(map[common.Address]int)
+	proposedCountsInEpoch := make(map[common.Address]int)
+	epochLength, epochHeader := 0, header
+
+	// Traverse blocks until reaching the epoch block.
 	for {
-		parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-		e.calcSealsCount(header, parent, proposedSealsInEpoch, committedSealsInEpoch)
-		header = parent
+		parent := chain.GetHeader(epochHeader.ParentHash, epochHeader.Number.Uint64()-1)
+
+		extra, err := types.ExtractQBFTExtra(epochHeader)
+		if err != nil {
+			log.Crit("failed to extract qbft extra data", "err", err)
+		}
+
+		// Accumulate proposer counts.
+		proposer, err := e.Author(epochHeader)
+		if err != nil {
+			log.Crit("failed to get proposer", "err", err)
+		}
+		if proposer == (common.Address{}) { // HACK
+			proposer = e.signer
+		}
+		proposedCountsInEpoch[proposer]++
+
+		// Accumulate PrevPreparedSeal counts.
+		preparedSeal := extra.PrevPreparedSeal
+		prepareSigners, err := e.GetSignerAddress(parent, preparedSeal, core.SealTypePrepare)
+		if err != nil {
+			log.Crit("failed to get prev prepare signers", "err", err)
+		}
+
+		proposedSealsInEpoch[proposer] += len(prepareSigners)
+		for _, addr := range prepareSigners {
+			submittedSealsInEpoch[addr]++
+		}
+
+		// Accumulate PrevCommittedSeal counts.
+		committedSeal := extra.PrevCommittedSeal
+		commitSigners, err := e.GetSignerAddress(parent, committedSeal, core.SealTypeCommit)
+		if err != nil {
+			log.Crit("failed to get prev commit signers", "err", err)
+		}
+
+		proposedSealsInEpoch[proposer] += len(commitSigners)
+		for _, addr := range commitSigners {
+			submittedSealsInEpoch[addr]++
+		}
+
+		log.Trace("Seals count", "current block number", epochHeader.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
+
+		// Update current header.
+		epochHeader = parent
+		epochLength++
 
 		// Stop counting if the block reaches to the epoch block.
-		if e.IsEpochBlock(header) {
+		if e.IsEpochBlock(epochHeader) {
 			break
 		}
 	}
 
-	log.Trace("Seals counts in epoch", "number", header.Number,
+	extra, _ := types.ExtractQBFTExtra(epochHeader)
+	stakerMap := make(map[common.Address]*stakerInfo)
+	for _, staker := range extra.EpochInfo.Stakers {
+		stakerMap[staker.Addr] = &stakerInfo{staker: staker}
+	}
+	for _, validator := range extra.EpochInfo.Validators {
+		addr := extra.EpochInfo.GetValidator(validator)
+		stakerMap[addr].isValidator = true
+	}
+
+	log.Trace("Seals counts in epoch", "header.number", header.Number,
+		"current block number", epochHeader.Number,
 		"proposedSealsInEpoch", proposedSealsInEpoch,
-		"committedSealsInEpoch", committedSealsInEpoch)
-}
+		"submittedSealsInEpoch", submittedSealsInEpoch,
+	)
 
-func (e *Engine) calcSealsCount(header, parent *types.Header, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) {
-	extra, err := types.ExtractQBFTExtra(header)
-	if err != nil {
-		log.Crit("failed to extract qbft extra data", "err", err)
-	}
+	// Update epoch info.
+	newStakers := e.cfg.Validators // TODO: read from gov contract
+	newEpoch.Stakers = make([]*types.Staker, len(newStakers))
+	for i, staker := range newStakers {
+		var d uint64
 
-	proposer, err := e.Author(header)
-	if err != nil {
-		log.Crit("failed to get proposer", "err", err)
-	}
-	if proposer == (common.Address{}) { // HACK
-		proposer = e.signer
-	}
-
-	// Accumulate PrevPreparedSeal counts.
-	preparedSeal := extra.PrevPreparedSeal
-	prepareSigners, err := e.GetSignerAddress(parent, preparedSeal, core.SealTypePrepare)
-	if err != nil {
-		log.Crit("failed to get prev prepare signers", "err", err)
-	}
-
-	proposedSealsInEpoch[proposer] += len(prepareSigners)
-	for _, addr := range prepareSigners {
-		committedSealsInEpoch[addr]++
-	}
-
-	// Accumulate PrevCommittedSeal counts.
-	committedSeal := extra.PrevCommittedSeal
-	commitSigners, err := e.GetSignerAddress(parent, committedSeal, core.SealTypeCommit)
-	if err != nil {
-		log.Crit("failed to get prev commit signers", "err", err)
-	}
-
-	proposedSealsInEpoch[proposer] += len(commitSigners)
-	for _, addr := range commitSigners {
-		committedSealsInEpoch[addr]++
-	}
-
-	log.Trace("calcSealsCount", "header.Number", header.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
-}
-
-func (e *Engine) calcDiligence(epochHeader *types.Header, staker common.Address, proposedSealsInEpoch, committedSealsInEpoch map[common.Address]int) uint64 {
-	epochLength := 3 // TODO: get epoch length
-
-	clamp := func(n int) int {
-		if n > epochLength*2 {
-			return epochLength * 2
+		stakerInfo := stakerMap[staker]
+		if stakerInfo == nil {
+			// Assign default diligence for new staker.
+			d = types.DefaultDiligence
+		} else if !stakerInfo.isValidator {
+			// Keep current cumulative diligence if staker is not validator for current epoch.
+			d = stakerInfo.staker.Diligence
 		} else {
-			return n
+			// Calculate validator's diligence for current epoch.
+			//
+			// If validator proposed any blocks, d(h) = p / (2*v*w) + s / (2*e),
+			// Otherwise, d(h) = s / (2*e)
+			d += uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2*epochLength)
+			if proposedCountsInEpoch[staker] > 0 {
+				d += uint64(proposedSealsInEpoch[staker]) * types.DiligenceDenominator /
+					uint64(2*len(extra.EpochInfo.Validators)*proposedCountsInEpoch[staker])
+			}
+
+			// Calculate validator's cumulative diligence for next epoch.
+			//
+			// D(h) = D(h-1) * 0.9 + d(h) * 0.1
+			d = (stakerInfo.staker.Diligence*9 + d) / 10
+		}
+
+		newEpoch.Stakers[i] = &types.Staker{
+			Addr:      staker,
+			Diligence: d,
 		}
 	}
+	newEpoch.Validators = e.calcValidators(header)
 
-	// Calculate diligence for epoch.
-	proposedSealsInEpoch[staker] = clamp(proposedSealsInEpoch[staker])
-	committedSealsInEpoch[staker] = clamp(committedSealsInEpoch[staker])
-	d := uint64((proposedSealsInEpoch[staker] + committedSealsInEpoch[staker]) * types.DiligenceDenominator / epochLength)
-
-	// Calculate accumulated diligence for epoch.
-	var diligence uint64
-	extra, _ := types.ExtractQBFTExtra(epochHeader)
-	_, currStaker := extra.EpochInfo.FindStakerByAddress(staker)
-	if currStaker != nil {
-		diligence = currStaker.Diligence
-	} else {
-		diligence = types.DefaultDiligence
+	log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
+	for i, staker := range newEpoch.Stakers {
+		log.Trace(fmt.Sprintf("  - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
 	}
 
-	return (diligence*9 + d) / 10
+	return &newEpoch
 }
 
 // Currently, return validator set same to staker set.
@@ -678,30 +720,8 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 
 	// Update the epoch block.
 	if e.IsEpochBlock(header) {
-		newEpoch := &types.EpochInfo{}
-
-		proposedSealsInEpoch := make(map[common.Address]int)
-		committedSealsInEpoch := make(map[common.Address]int)
-		e.calcSealsCountInEpoch(chain, header, proposedSealsInEpoch, committedSealsInEpoch)
-
-		// Update epoch info.
-		newStakers := e.cfg.Validators // TODO: read from gov contract
-		newEpoch.Stakers = make([]*types.Staker, len(newStakers))
-		for i, addr := range newStakers {
-			epochHeader := e.GetEpochBlock(chain, header)
-			newEpoch.Stakers[i] = &types.Staker{
-				Addr:      addr,
-				Diligence: e.calcDiligence(epochHeader, addr, proposedSealsInEpoch, committedSealsInEpoch),
-			}
-		}
-		newEpoch.Validators = e.calcValidators(header)
-
+		newEpoch := e.buildEpochInfo(chain, header)
 		ApplyHeaderQBFTExtra(header, WriteEpochInfo(newEpoch))
-
-		log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
-		for i, staker := range newEpoch.Stakers {
-			log.Trace(fmt.Sprintf("  - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
-		}
 	}
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -883,14 +903,18 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 				log.Trace("QBFT: accumulate rewards to", "validator", addr, "block reward", r)
 			},
 		); err != nil {
-			// TODO: how to handle err here?
-			log.Error("Error while calculating rewards", "err", err)
+			log.Crit("Error while calculating rewards", "err", err)
 		}
 	}
 
-	// TODO: handle remainder
+	// The reward left moves to the proposer.
 	if blockReward.Sign() > 0 {
-		log.Warn("Block reward left", "amount", blockReward)
+		rewardee, err := e.Author(header)
+		if err != nil {
+			log.Crit("failed to get proposer", "err", err)
+		}
+		state.AddBalance(rewardee, uint256.MustFromBig(blockReward))
+		log.Trace("Block reward left", "address", rewardee, "amount", blockReward)
 	}
 }
 
