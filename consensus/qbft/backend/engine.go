@@ -356,7 +356,7 @@ func (sb *Backend) Stop() error {
 func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interface{} {
 	switch method {
 	case "Start":
-		if len(args) != 3 {
+		if len(args) != 4 {
 			return qbftcommon.ErrInvalidSpecificCall
 		}
 		chain, ok := args[0].(consensus.ChainHeaderReader)
