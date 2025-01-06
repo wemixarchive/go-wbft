@@ -563,6 +563,10 @@ type stakerInfo struct {
 func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header) *types.EpochInfo {
 	var newEpoch types.EpochInfo
 
+	if !e.IsEpochBlock(header) {
+		return nil
+	}
+
 	proposedSealsInEpoch := make(map[common.Address]int)
 	submittedSealsInEpoch := make(map[common.Address]int)
 	proposedCountsInEpoch := make(map[common.Address]int)
@@ -674,7 +678,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			Diligence: d,
 		}
 	}
-	newEpoch.Validators = e.calcValidators(header)
+	newEpoch.Validators = e.calcValidators(header, newStakers)
 
 	log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
 	for i, staker := range newEpoch.Stakers {
@@ -686,8 +690,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 // Currently, return validator set same to staker set.
 // In future, choose validators depending on their staking amounts and diligence score.
-func (e *Engine) calcValidators(header *types.Header) []uint32 {
-	newStakers := e.cfg.Validators // TODO: read from gov contract
+func (e *Engine) calcValidators(header *types.Header, newStakers []common.Address) []uint32 {
 	validators := make([]uint32, len(newStakers))
 
 	l := make([]uint32, len(validators))
@@ -719,10 +722,8 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 	}
 
 	// Update the epoch block.
-	if e.IsEpochBlock(header) {
-		newEpoch := e.buildEpochInfo(chain, header)
-		ApplyHeaderQBFTExtra(header, WriteEpochInfo(newEpoch))
-	}
+	newEpoch := e.buildEpochInfo(chain, header)
+	ApplyHeaderQBFTExtra(header, WriteEpochInfo(newEpoch))
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
