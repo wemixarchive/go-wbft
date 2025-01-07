@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
 )
@@ -586,7 +587,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		if err != nil {
 			log.Crit("failed to get proposer", "err", err)
 		}
-		if proposer == (common.Address{}) { // HACK
+		if proposer == (common.Address{}) { // TODO: to be removed.
 			proposer = e.signer
 		}
 		proposedCountsInEpoch[proposer]++
@@ -889,40 +890,66 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		blockReward.Sub(blockReward, bReward)
 	}
 
+	getStakerInfo := func(addr common.Address) *govwbft.Staker {
+		// If the staker is removed from gov, use fallback staker info with zero staking.
+		if !govwbft.IsStaker(state, addr) {
+			log.Trace("QBFT: fallback staker info", "staker", addr)
+			return &govwbft.Staker{
+				Operator:  addr,
+				Rewardee:  addr,
+				Staking:   big.NewInt(0),
+				Delegated: big.NewInt(0),
+			}
+		}
+
+		s := govwbft.StakerInfo(state, addr)
+		return &s
+	}
+
 	// Distribute remaining block reward to validators (including proposer) who signed the block.
 	if blockReward.Sign() > 0 {
 		validatorReward := new(big.Int).Set(blockReward)
 		if err := e.calculateRewards(
 			chain,
 			header,
-			func(addr common.Address, s, tot *big.Int) {
+			func(staker *govwbft.Staker, tot *big.Int) {
 				r := new(big.Int).Set(validatorReward)
-				r.Mul(r, s)
+				r.Mul(r, staker.Staking)
 				r.Div(r, tot)
-				state.AddBalance(addr, uint256.MustFromBig(r))
-				blockReward.Sub(blockReward, r)
-				log.Trace("QBFT: accumulate rewards to", "validator", addr, "block reward", r)
+				if r.Sign() > 0 {
+					state.AddBalance(staker.Rewardee, uint256.MustFromBig(r))
+					blockReward.Sub(blockReward, r)
+					log.Trace("QBFT: accumulate rewards to", "rewardee", staker.Rewardee, "block reward", r)
+				} else {
+					log.Trace("QBFT: skip accumulating rewards to", "rewardee", staker.Rewardee)
+				}
 			},
+			getStakerInfo,
 		); err != nil {
 			log.Crit("Error while calculating rewards", "err", err)
 		}
 	}
 
-	// The reward left moves to the proposer.
+	// The reward left rewards to the proposer.
 	if blockReward.Sign() > 0 {
-		rewardee, err := e.Author(header)
+		proposer, err := e.Author(header)
 		if err != nil {
 			log.Crit("failed to get proposer", "err", err)
 		}
-		state.AddBalance(rewardee, uint256.MustFromBig(blockReward))
-		log.Trace("Block reward left", "address", rewardee, "amount", blockReward)
+
+		if proposer == (common.Address{}) { // TODO: to be removed.
+			proposer = e.signer
+		}
+		staker := getStakerInfo(proposer)
+		state.AddBalance(staker.Rewardee, uint256.MustFromBig(blockReward))
+		log.Trace("Block reward left rewards to", "rewardee", staker.Rewardee, "amount", blockReward)
 	}
 }
 
 // calculateRewards calculates the reward for the given block.
 // Currently, seals are not considered for rewards because which we cannot determine malicious validators.
 // Instead, we use diligence score to give faithful validator opportunity to propose more blocks.
-func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, rewardFn func(common.Address, *big.Int, *big.Int)) error {
+func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, rewardFn func(*govwbft.Staker, *big.Int), getStakerInfo func(common.Address) *govwbft.Staker) error {
 	// Get validator set from epoch block.
 	epochHeader := e.GetEpochBlock(chain, header)
 	extra, err := types.ExtractQBFTExtra(epochHeader)
@@ -932,26 +959,19 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 	validators := extra.EpochInfo.GetValidators()
 
 	// Get staking amounts for rewardees.
-	stakingAmounts := make([]*big.Int, len(validators))
-	rewardees := make([]common.Address, len(validators))
+	stakers := make([]*govwbft.Staker, len(validators))
 	totStakingAmount := big.NewInt(0)
-	for i := range validators {
-		// TODO: get rewardee from gov contract.
-		// TODO: get staking amount from gov contract.
-		rewardees[i] = validators[i]
-		stakingAmounts[i] = big.NewInt(100)
-		totStakingAmount.Add(totStakingAmount, stakingAmounts[i])
+	for i, val := range validators {
+		staker := getStakerInfo(val)
+		stakers[i] = staker
+		totStakingAmount.Add(totStakingAmount, staker.Staking)
 	}
 
-	log.Debug("Calculating block reward", "currentBlock", header.Number,
-		"validators", validators,
-		"rewardees", rewardees,
-		"staking", stakingAmounts,
-	)
+	log.Debug("Calculating block reward", "currentBlock", header.Number, "totStakingAmount", totStakingAmount, "validator", validators)
 
-	if rewardFn != nil {
-		for i, addr := range rewardees {
-			rewardFn(addr, stakingAmounts[i], totStakingAmount)
+	if rewardFn != nil && totStakingAmount.Sign() > 0 {
+		for _, staker := range stakers {
+			rewardFn(staker, totStakingAmount)
 		}
 	}
 
