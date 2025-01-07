@@ -80,7 +80,7 @@ validation duties have a better chance of being selected and can earn greater re
 Diligence is calculated at the end of each epoch:
 - Let `e` be the number of blocks in the epoch.
 - Let `v` be the number of validators.
-- Let `w` be the number of blocks proposed by a validator during the epoch.
+- Let `w` be the number of times a validator is selected as a proposer during an epoch(including times by round change).
 - Let `p` be the total seals (prepare and commit) included in the proposed blocks by a validator.
   - p can be equal to `2*v*w` at most.
 - Let `s` be the seals submitted by the validator during the epoch.
