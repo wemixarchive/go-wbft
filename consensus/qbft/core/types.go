@@ -141,5 +141,5 @@ type Backend interface {
 
 	Close() error
 
-	TryCommit()
+	NotifyNewRound(round *big.Int)
 }

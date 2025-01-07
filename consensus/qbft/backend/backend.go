@@ -127,7 +127,7 @@ type Backend struct {
 
 	simApplier SimApplier
 
-	tryCommit func()
+	notifyNewRound func(waitTime time.Duration, round *big.Int)
 }
 
 func (sb *Backend) InjectSimApplier(applier SimApplier) {

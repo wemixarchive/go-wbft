@@ -206,7 +206,7 @@ type worker struct {
 	exitCh             chan struct{}
 	resubmitIntervalCh chan time.Duration
 	resubmitAdjustCh   chan *intervalAdjust
-	tryCommitCh        chan struct{}
+	readyToCommitCh    chan *big.Int
 
 	wg sync.WaitGroup
 
@@ -276,7 +276,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		exitCh:             make(chan struct{}),
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
-		tryCommitCh:        make(chan struct{}, 1),
+		readyToCommitCh:    make(chan *big.Int),
 	}
 	// Subscribe for transaction insertion events (whether from network or resurrects)
 	worker.txsSub = eth.TxPool().SubscribeTransactions(worker.txsCh, true)
@@ -384,17 +384,24 @@ func (w *worker) pendingBlockAndReceipts() (*types.Block, types.Receipts) {
 	return w.snapshotBlock, w.snapshotReceipts
 }
 
+func (w *worker) readyToCommit(waitTime time.Duration, round *big.Int) {
+	if w.config.SimulatedEnabled {
+		w.readyToCommitCh <- round
+	} else {
+		go func() {
+			time.Sleep(waitTime)
+			w.readyToCommitCh <- round
+		}()
+	}
+}
+
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	w.running.Store(true)
 	if qbftEngine, ok := w.engine.(*qbftBackend.Backend); ok {
-		qbftEngine.Start(w.chain, w.chain.CurrentFullBlock, rawdb.HasBadBlock, func() {
-			w.tryCommitCh <- struct{}{}
-		})
+		qbftEngine.Start(w.chain, w.chain.CurrentFullBlock, rawdb.HasBadBlock, w.readyToCommit)
 	} else if wemixEngine, ok := w.engine.(*wemix.WemixConsensus); ok {
-		wemixEngine.Start(w.chainConfig, w.chain, w.chain.CurrentFullBlock, w.eth.BlockChain().SubscribeChainHeadEvent, func() {
-			w.tryCommitCh <- struct{}{}
-		})
+		wemixEngine.Start(w.chainConfig, w.chain, w.chain.CurrentFullBlock, w.eth.BlockChain().SubscribeChainHeadEvent, w.readyToCommit)
 	}
 	w.startCh <- struct{}{}
 }
@@ -561,14 +568,8 @@ func (w *worker) newWorkLoopOrigin(recommit time.Duration) {
 func (w *worker) newWorkLoopWBFT() {
 	defer w.wg.Done()
 	var (
-		interrupt            *atomic.Int32
-		timestamp            int64 // timestamp for each round of sealing.
-		delayedInterruptType int32
+		interrupt *atomic.Int32
 	)
-
-	delayTimer := time.NewTimer(0)
-	defer delayTimer.Stop()
-	<-delayTimer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(s int32) {
@@ -577,26 +578,11 @@ func (w *worker) newWorkLoopWBFT() {
 		}
 		interrupt = new(atomic.Int32)
 		select {
-		case w.newWorkCh <- &newWorkReq{interrupt: interrupt, timestamp: timestamp}:
+		case w.newWorkCh <- &newWorkReq{interrupt: interrupt, timestamp: time.Now().Unix()}:
 		case <-w.exitCh:
 			return
 		}
 		w.newTxs.Store(0)
-	}
-
-	tryCommit := func(s int32) {
-		if w.config.SimulatedEnabled {
-			delayTimer.Reset(0)
-		} else {
-			// There is some engine in which worker needs to wait until the next block time to commit new work(ex: qbft).
-			// In the previous QBFT engine, worker should wait for the block period when sealing.
-			// However, to create a finalized block(including extra seals) during the prepare phase, it is necessary
-			// to wait for the block period when processing new work. The reason for waiting during the prepare phase is
-			// to gather more extra seals.
-			// If another `tryCommit` call happens before delayTimer tick occurs, prior timer is discarded.
-			delayTimer.Reset(time.Until(time.Unix(int64(w.engine.TimeForNextWork()), 0)))
-		}
-		delayedInterruptType = s
 	}
 
 	// clearPending cleans the stale pending tasks.
@@ -629,12 +615,12 @@ func (w *worker) newWorkLoopWBFT() {
 			handler.NewChainHead()
 			clearPending(head.Block.NumberU64())
 
-		case <-w.tryCommitCh:
-			timestamp = time.Now().Unix()
-			tryCommit(commitInterruptNewHead)
-
-		case <-delayTimer.C:
-			commit(delayedInterruptType)
+		case round := <-w.readyToCommitCh:
+			if round.Uint64() == 0 {
+				commit(commitInterruptNewHead)
+			} else {
+				commit(commitInterruptResubmit)
+			}
 
 		case <-w.resubmitIntervalCh:
 			log.Warn("ResubmitAdjust is not used in WBFT")
