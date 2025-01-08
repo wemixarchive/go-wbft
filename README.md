@@ -163,6 +163,8 @@ The existing QBFT Config was revised by removing unnecessary fields and adding r
 ```
 
 `blockRewardBeneficiary` defines the address that will receive the block minting rewards consistently.
+`targetValidators` should be less than or equals to `epochLength`.
+`minStakers` should be less than or equals to `targetValidators`.
 
 ```
 type Staker struct {
