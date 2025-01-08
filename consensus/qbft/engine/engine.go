@@ -326,10 +326,20 @@ func (e *Engine) verifyPrevSeals(chain consensus.ChainHeaderReader, header *type
 		return err
 	}
 
+	var firstWbftBlockNum *big.Int
+
+	if chain.Config().MontBlancBlock == nil {
+		// wbft engine started from genesis
+		firstWbftBlockNum = common.Big0
+	} else {
+		// wbft engine started with montblanc hardfork
+		firstWbftBlockNum = chain.Config().MontBlancBlock
+	}
+
 	prevPreparedSeal := extra.PrevPreparedSeal
 	if len(prevPreparedSeal) == 0 {
 		// prevPreparedSeal validation for monblanc block or first block after genesis is skipped because it's empty
-		if chain.Config().MontBlancBlock.Cmp(header.Number) != 0 && number != 1 {
+		if firstWbftBlockNum.Cmp(header.Number) != 0 && number != 1 {
 			return qbftcommon.ErrEmptyPrevPreparedSeals
 		}
 	} else {
@@ -348,7 +358,7 @@ func (e *Engine) verifyPrevSeals(chain consensus.ChainHeaderReader, header *type
 	prevCommittedSeal := extra.PrevCommittedSeal
 	if len(prevCommittedSeal) == 0 {
 		// prevCommittedSeal validation for monblanc block is skipped because it's empty
-		if chain.Config().MontBlancBlock.Cmp(header.Number) != 0 && number != 1 {
+		if firstWbftBlockNum.Cmp(header.Number) != 0 && number != 1 {
 			return qbftcommon.ErrEmptyPrevCommittedSeals
 		}
 	} else {
@@ -446,7 +456,11 @@ func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal map[common.Hash][]byte) error {
-	header.Coinbase = common.Address{}
+	if _, v := validators.GetByAddress(e.signer); v == nil {
+		return qbftcommon.ErrUnauthorized
+	}
+
+	header.Coinbase = e.signer
 	header.Nonce = qbftcommon.EmptyBlockNonce
 
 	// copy the parent extra data as the header extra data
@@ -490,7 +504,17 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			break
 		}
 	}
-	if chain.Config().MontBlancBlock.Cmp(header.Number) == 0 {
+
+	var firstWbftBlockNum *big.Int
+	if chain.Config().MontBlancBlock == nil {
+		// wbft engine started from genesis
+		firstWbftBlockNum = common.Big0
+	} else {
+		// wbft engine started with montblanc hardfork
+		firstWbftBlockNum = chain.Config().MontBlancBlock
+	}
+
+	if firstWbftBlockNum.Cmp(header.Number) == 0 {
 		// monblac hardFork block has empty prevCommittedSeal
 		return ApplyHeaderQBFTExtra(
 			header,
@@ -586,9 +610,6 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		proposer, err := e.Author(epochHeader)
 		if err != nil {
 			log.Crit("failed to get proposer", "err", err)
-		}
-		if proposer == (common.Address{}) { // TODO: to be removed.
-			proposer = e.signer
 		}
 		proposedCountsInEpoch[proposer]++
 
@@ -738,27 +759,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil
 }
 
-// Seal generates a new block for the given input block with the local miner's
-// seal place on top.
-func (e *Engine) Seal(chain consensus.ChainHeaderReader, block *types.Block, validators qbft.ValidatorSet) (*types.Block, error) {
-	if _, v := validators.GetByAddress(e.signer); v == nil {
-		return block, qbftcommon.ErrUnauthorized
-	}
-
-	header := block.Header()
-	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-	if parent == nil {
-		return block, consensus.ErrUnknownAncestor
-	}
-
-	// Set Coinbase
-	header.Coinbase = e.signer
-
-	return block.WithSeal(header), nil
-}
-
 func (e *Engine) SealHash(header *types.Header) common.Hash {
-	header.Coinbase = e.signer
 	return sigHash(header)
 }
 
@@ -937,9 +938,6 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			log.Crit("failed to get proposer", "err", err)
 		}
 
-		if proposer == (common.Address{}) { // TODO: to be removed.
-			proposer = e.signer
-		}
 		staker := getStakerInfo(proposer)
 		state.AddBalance(staker.Rewardee, uint256.MustFromBig(blockReward))
 		log.Trace("Block reward left rewards to", "rewardee", staker.Rewardee, "amount", blockReward)

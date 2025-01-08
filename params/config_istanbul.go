@@ -87,19 +87,19 @@ func (c *ChainConfig) GetTransitionValue(num *big.Int, callback func(transition 
 }
 
 func (c *ChainConfig) GetBlockReward(num *big.Int) *big.Int {
-	blockReward := *math.NewHexOrDecimal256(0)
+	blockReward := big.NewInt(0)
 
 	if c.QBFT != nil && c.QBFT.BlockReward != nil {
-		blockReward = *c.QBFT.BlockReward
+		blockReward = new(big.Int).Set((*big.Int)(c.QBFT.BlockReward))
 	}
 
 	c.GetTransitionValue(num, func(transition Transition) {
 		if transition.BlockReward != nil {
-			blockReward = *transition.BlockReward
+			blockReward = new(big.Int).Set((*big.Int)(transition.BlockReward))
 		}
 	})
 
-	return (*big.Int)(&blockReward)
+	return blockReward
 }
 
 // ## Quorum QBFT END
