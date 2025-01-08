@@ -566,7 +566,7 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 
 // TODO: check if the given block is epoch block correctly
 func (e *Engine) IsEpochBlock(h *types.Header) bool {
-	return h.Number.Uint64()%3 == 0
+	return h.Number.Uint64()%e.cfg.GetConfig(h.Number).Epoch == 0
 }
 
 func (e *Engine) GetEpochBlock(chain consensus.ChainHeaderReader, header *types.Header) *types.Header {
@@ -666,7 +666,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	)
 
 	// Update epoch info.
-	newStakers := e.cfg.Validators // TODO: read from gov contract
+	newStakers := e.cfg.GetConfig(header.Number).Validators // TODO: read from gov contract
 	newEpoch.Stakers = make([]*types.Staker, len(newStakers))
 	for i, staker := range newStakers {
 		var d uint64
@@ -861,6 +861,22 @@ func setExtra(h *types.Header, qbftExtra *types.QBFTExtra) error {
 	return nil
 }
 
+func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.Staker, *big.Int) {
+	validatorReward := new(big.Int).Set(blockReward)
+	return func(staker *govwbft.Staker, tot *big.Int) {
+		r := new(big.Int).Set(validatorReward)
+		r.Mul(r, staker.Staking)
+		r.Div(r, tot)
+		if r.Sign() > 0 {
+			state.AddBalance(staker.Rewardee, uint256.MustFromBig(r))
+			blockReward.Sub(blockReward, r)
+			log.Trace("QBFT: accumulate rewards to", "rewardee", staker.Rewardee, "block reward", r)
+		} else {
+			log.Trace("QBFT: skip accumulating rewards to", "rewardee", staker.Rewardee)
+		}
+	}
+}
+
 // AccumulateRewards credits the beneficiary of the given block with a reward.
 func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
 	var blockReward *big.Int
@@ -909,22 +925,10 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 
 	// Distribute remaining block reward to validators (including proposer) who signed the block.
 	if blockReward.Sign() > 0 {
-		validatorReward := new(big.Int).Set(blockReward)
 		if err := e.calculateRewards(
 			chain,
 			header,
-			func(staker *govwbft.Staker, tot *big.Int) {
-				r := new(big.Int).Set(validatorReward)
-				r.Mul(r, staker.Staking)
-				r.Div(r, tot)
-				if r.Sign() > 0 {
-					state.AddBalance(staker.Rewardee, uint256.MustFromBig(r))
-					blockReward.Sub(blockReward, r)
-					log.Trace("QBFT: accumulate rewards to", "rewardee", staker.Rewardee, "block reward", r)
-				} else {
-					log.Trace("QBFT: skip accumulating rewards to", "rewardee", staker.Rewardee)
-				}
-			},
+			makeRewardFunc(state, blockReward),
 			getStakerInfo,
 		); err != nil {
 			log.Crit("Error while calculating rewards", "err", err)
