@@ -1773,6 +1773,26 @@ func (bc *BlockChain) insertChain(chain types.Blocks, setHead bool) (int, error)
 		}
 		ptime := time.Since(pstart)
 
+		// Checking if the headers contains at least one MontBlanc block.
+		if bc.chainConfig.IsMontBlanc(headers[len(headers)-1].Number) || bc.chainConfig.MontBlancBlock == nil {
+
+			for _, header := range headers {
+				// Checking if it is a MontBlanc Block or a new chain.
+				if bc.chainConfig.IsMontBlanc(header.Number) || bc.chainConfig.MontBlancBlock == nil {
+					extra, err := types.ExtractQBFTExtra(header)
+					if err != nil {
+						return it.index, err
+					}
+
+					if extra != nil && len(extra.Validators) > 0 {
+						if err := VerifyValidators(extra.Validators, statedb); err != nil {
+							return it.index, err
+						}
+					}
+				}
+			}
+		}
+
 		vstart := time.Now()
 		if err := bc.validator.ValidateState(block, statedb, receipts, usedGas); err != nil {
 			bc.reportBlock(block, receipts, err)
