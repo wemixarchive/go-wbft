@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft/core"
+	ethcore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -369,7 +370,6 @@ func (e *Engine) verifyPrevSeals(chain consensus.ChainHeaderReader, header *type
 			return qbftcommon.ErrInvalidPrevCommittedSeals
 		}
 	}
-
 	return nil
 }
 
@@ -574,7 +574,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 
 	// Add the validatorList to the extra field of the header.
 	callback := func(header *types.Header, state govwbft.StateReader) error {
-		return ApplyHeaderQBFTExtra(header, WriteValidators(getValidatorsFromState(state)))
+		return ApplyHeaderQBFTExtra(header, WriteValidators(ethcore.GetValidatorsFromState(state)))
 	}
 
 	if err := e.processFinalize(chain, header, state, txs, uncles, callback); err != nil {
@@ -854,10 +854,6 @@ func mergeSeals(seals [][]byte, extraSeals map[common.Hash][]byte) [][]byte {
 	return mergedSeals
 }
 
-func getValidatorsFromState(state govwbft.StateReader) []common.Address {
-	return govwbft.NCPStakers(state)
-}
-
 // DefaultEpochHandler is a handler that performs default actions when the block is an EpochBlock,
 // and is called during the Finalize process.
 // It validates the validity of the ValidatorList associated with the EpochBlock.
@@ -866,35 +862,5 @@ func DefaultEpochHandler(header *types.Header, state govwbft.StateReader) error 
 	if err != nil {
 		return err
 	}
-
-	validatorFromHeader := extra.Validators
-	validatorFromState := getValidatorsFromState(state)
-
-	sort := func(addrs []common.Address) {
-		for i := 0; i < len(addrs); i++ {
-			for j := i + 1; j < len(addrs); j++ {
-				if bytes.Compare(addrs[i][:], addrs[j][:]) > 0 {
-					addrs[i], addrs[j] = addrs[j], addrs[i]
-				}
-			}
-		}
-	}
-	sort(validatorFromHeader)
-	sort(validatorFromState)
-
-	// 1. Checks if two arrays have the same elements in the same order
-	{
-		// 1-1. Check if the lengths are different
-		if len(validatorFromHeader) != len(validatorFromState) {
-			return errors.New("WBFT: mismatch in ValidatorList sizes")
-		}
-
-		// 1-2. Compare each element
-		for i := range validatorFromHeader {
-			if validatorFromHeader[i] != validatorFromState[i] {
-				return errors.New("WBFT: The two validators do not match")
-			}
-		}
-	}
-	return nil
+	return ethcore.VerifyValidators(extra.Validators, state)
 }
