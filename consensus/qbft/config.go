@@ -266,7 +266,7 @@ func (c *Config) getNearestForkBlock(blockNumber *big.Int) *big.Int {
 		if transition.Block.Cmp(blockNumber) == 0 {
 			return transition.Block
 		}
-		if transition.Block.Cmp(blockNumber) < -1 && transition.Block.Cmp(nearestForkBlock) > 0 {
+		if transition.Block.Cmp(blockNumber) < 0 && transition.Block.Cmp(nearestForkBlock) > 0 {
 			nearestForkBlock = transition.Block
 		}
 	}
