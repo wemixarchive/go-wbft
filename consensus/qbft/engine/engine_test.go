@@ -468,10 +468,6 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup validators
 			signers := newAccounts(4)
-			var validators []common.Address
-			for _, s := range signers {
-				validators = append(validators, s.addr)
-			}
 
 			// Setup test chain genesis
 			c := new(fakeChain)
@@ -536,10 +532,6 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup validators
 			signers := newAccounts(len(tc.stakes))
-			var validators []common.Address
-			for _, s := range signers {
-				validators = append(validators, s.addr)
-			}
 
 			// Setup test chain genesis (non-Brioche config)
 			c := new(fakeChain)

@@ -21,7 +21,6 @@
 package backend
 
 import (
-	"crypto/ecdsa"
 	"reflect"
 	"testing"
 
@@ -29,36 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/crypto"
 )
-
-type testerVote struct {
-	validator string
-	voted     string
-	auth      bool
-}
-
-// testerAccountPool is a pool to maintain currently active tester accounts,
-// mapped from textual names used in the tests below to actual Ethereum private
-// keys capable of signing transactions.
-type testerAccountPool struct {
-	accounts map[string]*ecdsa.PrivateKey
-}
-
-func newTesterAccountPool() *testerAccountPool {
-	return &testerAccountPool{
-		accounts: make(map[string]*ecdsa.PrivateKey),
-	}
-}
-
-func (ap *testerAccountPool) address(account string) common.Address {
-	// Ensure we have a persistent key for the account
-	if ap.accounts[account] == nil {
-		ap.accounts[account], _ = crypto.GenerateKey()
-	}
-	// Resolve and return the Ethereum address
-	return crypto.PubkeyToAddress(ap.accounts[account].PublicKey)
-}
 
 func TestSaveAndLoad(t *testing.T) {
 	snap := &Snapshot{
