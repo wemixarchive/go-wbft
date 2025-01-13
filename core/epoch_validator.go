@@ -24,15 +24,15 @@ func VerifyValidators(validators []common.Address, state govwbft.StateReader) er
 			}
 		}
 	}
-	sort(validatorFromState)
-	sort(validators)
-
 	// Checks if two arrays have the same elements in the same order
 	{
 		// Check if the lengths are different
 		if len(validators) != len(validatorFromState) {
 			return errors.New("WBFT: mismatch in ValidatorList sizes")
 		}
+
+		sort(validatorFromState)
+		sort(validators)
 
 		// Compare each element
 		for i := range validators {
