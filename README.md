@@ -38,27 +38,34 @@ In IBFT or QBFT, new validators could be added or removed via validator set voti
 - `Delegated amount`: The amount received from delegations.
 
 Rules related to staking:
-- First staking must exceed the minimum staking threshold.
-- No restrictions on amounts for additional staking.
-- Validators engaging in malicious behavior may be slashed, reducing their staking amount.
-- After unstaking, the remaining staking amount must either exceed the minimum threshold or be zero.
-- If the staking amount reaches zero, the staker is removed from staker set.
-- Unstaking releases funds to the staker’s address after the unbonding period.
-- Funds in the unbonding state can still be slashed.
-- Delegation is open to anyone, increasing the staking power of the recipient staker.
-- `Staking power`: Defined as staking amount + delegated amount.
-- Staking power determines both validation rewards and the probability of validator selection.
+- Staking/Unstaking
+  - First staking must exceed the minimum staking threshold and then it becomes a staker.
+  - No restrictions on amounts for additional staking.
+  - Staking amount is staker's own staking amount + delegated amount.
+  - Staker's own staking amount should be greater than or equal to the minimum staking threshold.
+  - When unstaking, if the remaining staking amount falls below the minimum threshold and is not zero, the unstaking will fail.  
+  - If the own staking amount reaches under minimum staking threshold by unstaking or slashing, it is removed from staker set.
+  - If a staker is removed from staker set, its remaining own staking amounts are unstaked and its delegated amounts are refunded to each delegator.
+  - Unstaked funds are released to the _staker operator address_ after the unbonding period (1 weeks).
+- Slashing
+  - Stakers considered as malicious may be slashed, paying their some own staked amounts to WEMIX ecosystem.
+  - Funds in the unbonding state can still be slashed.
+- Delegation
+  - Anyone can delegate funds to the staker with no amount limit.
+  - Delegated amounts are credited to the recipient staker's staking amount.
+  - Undelegated funds are released to the _delegator address_ after the unbonding period (72 hours).
 
 ### Validator Selection
 In WBFT, the proposer of the last block in an epoch (referred to as the epoch block) selects the validator set for the next epoch and records it in the block. Validator selection rules:
-- The first validator set is defined in genesis.json.
-- Validators in the genesis block initially have a staking amount of zero.
-- First epoch is in a `stabilization stage`.
-- An epoch in a `stabilization stage` has the validator set which is same to the previous epoch.
-- If current epoch is in a `stabilization stage` and the number of stakers is below the minimum stakers in last block of an epoch, next epoch will be in a `stabilization stage`.
-- If the number of stakers is at least minimum stakers, validators are selected from stakers.
-- If the number of stakers equals or exceeds minimum stakers but is less than or equal to target validators, all stakers become validators.
-- If the number of stakers exceeds target validators, validators are selected using VRF, considering staking power and diligence.
+- Stabilization stage
+  - The stabilization stage is the period from the first epoch until just before the first epoch when the number of stakers reaches the minimum required.
+  - If current epoch is in a stabilization stage and the number of stakers is below the minimum stakers in last block of an epoch, next epoch will be in a stabilization stage.
+  - An epoch in a stabilization stage has the validator set which is same to the previous epoch.
+  - The very first validator set is defined in genesis.json, and validators in the genesis block initially have a staking amount of zero.
+- After stabilization stage, validator selection follows below rules
+  - `minimum stakers <= number of stakers <= target validators`: every stakers become validators.
+  - `number of stakers > target validators`: validators are selected using VRF, considering staking amount and diligence.
+  - `number of stakers < minimum stakers`: all remaining stakers become validators, which should not occur in a public network after stabilization stage for the sake of network security.
 
 Validators are selected to act as proposers in a round-robin manner.
 
