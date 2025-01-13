@@ -214,7 +214,7 @@ func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *bi
 
 	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
 	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
-	if startForkBlock.Sign() == 0 {
+	if startForkBlock.Cmp(blockNumber) == 0 {
 		return true
 	}
 
@@ -297,7 +297,7 @@ func (c *Config) GetNearestEpochBlock(chain consensus.ChainHeaderReader, block u
 
 	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
 	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
-	if startForkBlock.Sign() == 0 {
+	if startForkBlock.Cmp(blockNumber) == 0 {
 		return startForkBlock, nil
 	}
 
