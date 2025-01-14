@@ -57,7 +57,7 @@ func TestExtractToQBFTExtra(t *testing.T) {
 	}{
 		{
 			// normal case
-			hexutil.MustDecode("0xf85d80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440c080c0c0c0c0"),
+			hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203"),
 			&QBFTExtra{
 				VanityData: []byte{},
 				EpochInfo: &EpochInfo{
