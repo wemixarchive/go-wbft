@@ -444,9 +444,12 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 			"Proposer and 2 beneficiaries share rewards",
 			&qbft.Config{
 				Epoch: 1,
-				BlockRewardBeneficiaries: []*params.Beneficiary{
-					{Name: "B1", Addr: common.Address{0x1}, Numerator: 2000, Denominator: 10000},
-					{Name: "B2", Addr: common.Address{0x2}, Numerator: 3500, Denominator: 10000},
+				BlockRewardBeneficiary: &params.BeneficiaryInfo{
+					Denominator: 10000,
+					Beneficiaries: []*params.Beneficiary{
+						{Name: "B1", Addr: common.Address{0x1}, Numerator: 2000},
+						{Name: "B2", Addr: common.Address{0x2}, Numerator: 3500},
+					},
 				},
 			},
 			450000000000000000,
@@ -455,9 +458,12 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 			"Beneficiaries gets all rewards",
 			&qbft.Config{
 				Epoch: 1,
-				BlockRewardBeneficiaries: []*params.Beneficiary{
-					{Name: "B1", Addr: common.Address{0x1}, Numerator: 2000, Denominator: 10000},
-					{Name: "B2", Addr: common.Address{0x2}, Numerator: 8000, Denominator: 10000},
+				BlockRewardBeneficiary: &params.BeneficiaryInfo{
+					Denominator: 10000,
+					Beneficiaries: []*params.Beneficiary{
+						{Name: "B1", Addr: common.Address{0x1}, Numerator: 2000},
+						{Name: "B2", Addr: common.Address{0x2}, Numerator: 8000},
+					},
 				},
 			},
 			0,

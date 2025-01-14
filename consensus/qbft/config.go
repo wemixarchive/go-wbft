@@ -101,16 +101,16 @@ func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 }
 
 type Config struct {
-	RequestTimeout           uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
-	BlockPeriod              uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
-	ProposerPolicy           *ProposerPolicy       `toml:",omitempty"` // The policy for proposer selection
-	Epoch                    uint64                `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
-	AllowedFutureBlockTime   uint64                `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	BlockReward              *math.HexOrDecimal256 `toml:",omitempty"` // Reward
-	BlockRewardBeneficiaries []*params.Beneficiary `toml:",omitempty"`
-	Validators               []common.Address      `toml:",omitempty"`
-	Client                   bind.ContractCaller   `toml:",omitempty"`
-	MaxRequestTimeoutSeconds uint64                `toml:",omitempty"`
+	RequestTimeout           uint64                  `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
+	BlockPeriod              uint64                  `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
+	ProposerPolicy           *ProposerPolicy         `toml:",omitempty"` // The policy for proposer selection
+	Epoch                    uint64                  `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
+	AllowedFutureBlockTime   uint64                  `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	BlockReward              *math.HexOrDecimal256   `toml:",omitempty"` // Reward
+	BlockRewardBeneficiary   *params.BeneficiaryInfo `toml:",omitempty"`
+	Validators               []common.Address        `toml:",omitempty"`
+	Client                   bind.ContractCaller     `toml:",omitempty"`
+	MaxRequestTimeoutSeconds uint64                  `toml:",omitempty"`
 	Transitions              []params.Transition
 }
 
@@ -139,8 +139,8 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.BlockReward != nil {
 			newConfig.BlockReward = transition.BlockReward
 		}
-		if transition.BlockRewardBeneficiaries != nil {
-			newConfig.BlockRewardBeneficiaries = transition.BlockRewardBeneficiaries
+		if transition.BlockRewardBeneficiary != nil {
+			newConfig.BlockRewardBeneficiary = transition.BlockRewardBeneficiary
 		}
 		if len(transition.Validators) > 0 {
 			newConfig.Validators = transition.Validators

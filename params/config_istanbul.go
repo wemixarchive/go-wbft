@@ -15,21 +15,25 @@ import (
 
 // ## Quorum QBFT START
 type QBFTConfig struct {
-	EpochLength              uint64                `json:"epochLength"`              // Number of blocks that should pass before pending validator votes are reset
-	BlockPeriodSeconds       uint64                `json:"blockPeriodSeconds"`       // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
-	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds"`    // Minimum request timeout for each QBFT round in milliseconds
-	ProposerPolicy           uint64                `json:"proposerPolicy"`           // The policy for proposer selection
-	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`    // Reward from start, works only on QBFT consensus protocol
-	BlockRewardBeneficiaries []*Beneficiary        `json:"blockRewardBeneficiaries"` // Reward beneficiaries
-	Validators               []common.Address      `json:"validators"`               // Validators list
-	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"` // The max round time
+	EpochLength              uint64                `json:"epochLength"`                      // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64                `json:"blockPeriodSeconds"`               // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
+	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds"`            // Minimum request timeout for each QBFT round in milliseconds
+	ProposerPolicy           uint64                `json:"proposerPolicy"`                   // The policy for proposer selection
+	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
+	BlockRewardBeneficiary   *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
+	Validators               []common.Address      `json:"validators"`                       // Validators list
+	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"`         // The max round time
+}
+
+type BeneficiaryInfo struct {
+	Denominator   uint64         `json:"denominator"`
+	Beneficiaries []*Beneficiary `json:"beneficiaries"`
 }
 
 type Beneficiary struct {
-	Name        string         `json:"name"`
-	Addr        common.Address `json:"addr"`
-	Numerator   uint64         `json:"numerator"`
-	Denominator uint64         `json:"denominator"`
+	Name      string         `json:"name"`
+	Addr      common.Address `json:"addr"`
+	Numerator uint64         `json:"numerator"`
 }
 
 func (c *QBFTConfig) String() string {
@@ -53,7 +57,7 @@ func (c *QBFTConfig) String() string {
 		c.RequestTimeoutSeconds,
 		c.ProposerPolicy,
 		blockReward,
-		c.BlockRewardBeneficiaries,
+		c.BlockRewardBeneficiary,
 		c.Validators,
 		maxRequestTimeoutSeconds,
 	)
@@ -73,7 +77,7 @@ type Transition struct {
 	MinerGasLimit                uint64                `json:"miner.gaslimit,omitempty"`               // Gas Limit
 	TransactionSizeLimit         uint64                `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 	BlockReward                  *math.HexOrDecimal256 `json:"blockReward,omitempty"`                  // validation rewards
-	BlockRewardBeneficiaries     []*Beneficiary        `json:"blockRewardBeneficiaries"`               // Reward beneficiaries
+	BlockRewardBeneficiary       *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"`       // Reward beneficiaries
 	MaxRequestTimeoutSeconds     *uint64               `json:"maxRequestTimeoutSeconds,omitempty"`     // The max a timeout should be for a round change
 }
 

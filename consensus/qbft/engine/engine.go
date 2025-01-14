@@ -890,14 +890,17 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	// Deduct rewards of beneficiaries.
 	if blockReward.Sign() > 0 {
 		bReward := new(big.Int)
-		for _, beneficiary := range e.cfg.GetConfig(header.Number).BlockRewardBeneficiaries {
-			r := new(big.Int).Set(blockReward)
-			r.Mul(r, new(big.Int).SetUint64(beneficiary.Numerator))
-			r.Div(r, new(big.Int).SetUint64(beneficiary.Denominator))
+		beneficiaryInfo := e.cfg.GetConfig(header.Number).BlockRewardBeneficiary
+		if beneficiaryInfo != nil {
+			for _, beneficiary := range beneficiaryInfo.Beneficiaries {
+				r := new(big.Int).Set(blockReward)
+				r.Mul(r, new(big.Int).SetUint64(beneficiary.Numerator))
+				r.Div(r, new(big.Int).SetUint64(beneficiaryInfo.Denominator))
 
-			log.Debug("QBFT: accumulate rewards to", "beneficiary", beneficiary.Addr, "block reward", r)
-			state.AddBalance(beneficiary.Addr, uint256.MustFromBig(r))
-			bReward.Add(bReward, r)
+				log.Debug("QBFT: accumulate rewards to", "beneficiary", beneficiary.Addr, "block reward", r)
+				state.AddBalance(beneficiary.Addr, uint256.MustFromBig(r))
+				bReward.Add(bReward, r)
+			}
 		}
 
 		if blockReward.Cmp(bReward) < 0 {

@@ -699,8 +699,13 @@ func (c *ChainConfig) Description() string {
 		} else {
 			banner += fmt.Sprintf("   - BlockReward:               %-8v\n", ((*big.Int)(c.QBFT.BlockReward)).Int64())
 		}
-		for i, b := range c.QBFT.BlockRewardBeneficiaries {
-			banner += fmt.Sprintf("   - BlockRewardBeneficiary[%v]: %v\n", i, b)
+		if c.QBFT.BlockRewardBeneficiary == nil {
+			banner += fmt.Sprintf("   - BlockRewardBeneficiary:    %v\n", nil)
+		} else {
+			banner += fmt.Sprintf("   - BlockRewardBeneficiary.Denominator: %v\n", c.QBFT.BlockRewardBeneficiary.Denominator)
+			for i, b := range c.QBFT.BlockRewardBeneficiary.Beneficiaries {
+				banner += fmt.Sprintf("   - BlockRewardBeneficiary[%v]: %v\n", i, b)
+			}
 		}
 		banner += fmt.Sprintf("   - Validators:                %v\n", c.QBFT.Validators)
 		if c.QBFT.MaxRequestTimeoutSeconds == nil {

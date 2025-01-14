@@ -168,40 +168,39 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 
 func checkSanityQBFT(chainConfig *params.ChainConfig) {
 	if chainConfig.QBFT != nil {
-		checkSanityBeneficiaries(chainConfig.QBFT.BlockRewardBeneficiaries)
+		checkSanityBeneficiaries(chainConfig.QBFT.BlockRewardBeneficiary)
 	}
 	if chainConfig.Transitions != nil {
 		for _, t := range chainConfig.Transitions {
-			checkSanityBeneficiaries(t.BlockRewardBeneficiaries)
+			checkSanityBeneficiaries(t.BlockRewardBeneficiary)
 		}
 	}
 }
 
-func checkSanityBeneficiaries(l []*params.Beneficiary) {
-	var numerator, denominator uint64
+func checkSanityBeneficiaries(l *params.BeneficiaryInfo) {
+	var totNumerator uint64
 
-	for _, beneficiary := range l {
-		if beneficiary.Denominator == 0 {
-			utils.Fatalf("Denominator cannot be zero")
-		}
-		if denominator == 0 {
-			denominator = beneficiary.Denominator
-		}
-		if denominator != beneficiary.Denominator {
-			utils.Fatalf("Denominator is different to other beneficiary")
-		}
+	if l == nil {
+		return
+	}
+
+	if l.Denominator == 0 {
+		utils.Fatalf("Denominator cannot be zero")
+	}
+
+	for _, beneficiary := range l.Beneficiaries {
 		if beneficiary.Addr == (common.Address{}) {
 			utils.Fatalf("Beneficiary address cannot be zero address")
 		}
-		if beneficiary.Numerator > beneficiary.Denominator {
-			utils.Fatalf("Numerator (%v) > denominator (%v)", beneficiary.Numerator, beneficiary.Denominator)
+		if beneficiary.Numerator > l.Denominator {
+			utils.Fatalf("Numerator (%v) > denominator (%v)", beneficiary.Numerator, l.Denominator)
 		}
 
-		numerator += beneficiary.Numerator
+		totNumerator += beneficiary.Numerator
 	}
 
-	if numerator > denominator {
-		utils.Fatalf("Total of numerator (%v) > denominator (%v)", numerator, denominator)
+	if totNumerator > l.Denominator {
+		utils.Fatalf("Total of numerator (%v) > denominator (%v)", totNumerator, l.Denominator)
 	}
 }
 
