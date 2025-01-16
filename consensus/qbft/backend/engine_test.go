@@ -1085,10 +1085,6 @@ func TestVerifyProposalBug(t *testing.T) {
 
 	valSet, _ := engine.GetValidators(chain, firstBlock.Number(), firstBlock.Hash())
 	invalidBlock := types.NewBlock(invalidPrevCommittedSealBlockHeader, nil, nil, nil, trie.NewStackTrie(nil))
-<<<<<<< HEAD
-	invalidBlock, _ = engine.Engine().Seal(chain, invalidBlock, valSet)
-=======
->>>>>>> d6b69aed16487bfdcdc4cb1e68248f7c93bf2bcb
 
 	time.Sleep(time.Second) // wait for the block time
 	_, err = engine.Engine().VerifyBlockProposal(chain, invalidBlock, valSet, valSet)
