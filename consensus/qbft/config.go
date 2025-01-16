@@ -22,12 +22,12 @@ package qbft
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/consensus"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/params"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 
@@ -211,7 +211,6 @@ func (c *Config) getTransitionValue(num *big.Int, callback func(transition param
 //
 // Returns true if the block number corresponds to an EpochBlock, otherwise false.
 func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *big.Int) bool {
-
 	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
 	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
 	if startForkBlock.Cmp(blockNumber) == 0 {
@@ -232,10 +231,7 @@ func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *bi
 	epochInterval := new(big.Int).SetUint64(c.Epoch)
 	remainder := new(big.Int).Mod(offset, epochInterval)
 	// checking : offset % epochInterval == epochInterval - 1
-	if new(big.Int).Add(remainder, big.NewInt(1)).Cmp(epochInterval) == 0 {
-		return true
-	}
-	return false
+	return new(big.Int).Add(remainder, big.NewInt(1)).Cmp(epochInterval) == 0
 }
 
 // GetNearestForkBlock retrieves the starting block number of the hard fork closest to the provided block number.
@@ -243,7 +239,6 @@ func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *bi
 // Returns:
 //   - This function guarantees that it will never return a nil value.
 func (c *Config) GetNearestForkBlock(chain consensus.ChainHeaderReader, blockNumber *big.Int) *big.Int {
-
 	nearestForkBlock := c.getNearestForkBlock(blockNumber)
 
 	// If the associated HardFork of the block cannot be found, retrieve it from the chainConfig
@@ -289,7 +284,6 @@ func (c *Config) getNearestForkBlock(blockNumber *big.Int) *big.Int {
 // Returns:
 //   - epochBlock : Block number of the last block in the (N-1)th Epoch, which serves as the EpochBlock for the (N)th Epoch.
 func (c *Config) GetNearestEpochBlock(chain consensus.ChainHeaderReader, block uint64) (*big.Int, error) {
-
 	if block == 0 {
 		return big.NewInt(0), nil
 	}

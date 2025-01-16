@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 )

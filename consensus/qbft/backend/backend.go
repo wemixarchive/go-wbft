@@ -59,8 +59,6 @@ type SimApplier interface {
 
 // New creates an Ethereum backend for Istanbul core engine.
 func New(config *qbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) *Backend {
-	// Allocate the snapshot caches and create the engine
-	recents := lru.NewCache[common.Hash, *Snapshot](inmemorySnapshots)
 	recentMessages := lru.NewCache[common.Address, *lru.Cache[common.Hash, bool]](inmemoryPeers)
 	knownMessages := lru.NewCache[common.Hash, bool](inmemoryMessages)
 
@@ -72,7 +70,6 @@ func New(config *qbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) *
 		logger:           log.New(),
 		db:               db,
 		commitCh:         make(chan *types.Block, 1),
-		recents:          recents,
 		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
 		recentMessages:   recentMessages,
@@ -116,8 +113,6 @@ type Backend struct {
 	candidates map[common.Address]bool
 	// Protects the signer fields
 	candidatesLock sync.RWMutex
-	// Snapshots for recent block to speed up reorgs
-	recents *lru.Cache[common.Hash, *Snapshot]
 
 	// event subscription for ChainHeadEvent event
 	broadcaster consensus.Broadcaster

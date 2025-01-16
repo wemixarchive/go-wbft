@@ -9,8 +9,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
-	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"math/big"
 	"time"
 
@@ -22,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft/core"
+	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	ethcore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -29,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
 )
@@ -593,7 +593,6 @@ func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *type
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-
 	// Add the validatorList to the extra field of the header.
 	if err := e.processFinalize(chain, header, state, txs, uncles, writeValidatorsToEpoch); err != nil {
 		return nil, err

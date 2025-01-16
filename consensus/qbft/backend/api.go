@@ -22,11 +22,11 @@ package backend
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
+	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
