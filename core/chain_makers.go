@@ -19,6 +19,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -232,7 +233,7 @@ func (b *BlockGen) AddUncle(h *types.Header) {
 	if b.cm.config.IsLondon(h.Number) {
 		h.BaseFee = eip1559.CalcBaseFee(b.cm.config, parent)
 		if !b.cm.config.IsLondon(parent.Number) {
-			parentGasLimit := parent.GasLimit
+			parentGasLimit := parent.GasLimit * b.cm.config.ElasticityMultiplier()
 			h.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
 		}
 	}
@@ -312,7 +313,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 	cm := newChainMaker(parent, config, engine)
 
-	err := engine.CallEngineSpecific("Start", cm, cm.CurrentBlock, rawdb.HasBadBlock)
+	err := engine.CallEngineSpecific("Start", cm, cm.CurrentBlock, rawdb.HasBadBlock, func(waitTime time.Duration, round *big.Int) {})
 	if err != nil {
 		panic("invalid engine specific call")
 	}
@@ -348,6 +349,14 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		// Execute any user modifications to the block
 		if gen != nil {
 			gen(i, b)
+		}
+
+		// for WBFT: Coinbase is set in engine.Prepare() but makeHeader() does not call engine.Prepare()
+		// so we need to set it here. gen() set Coinbase to zero address, so we should set it after that.
+		// other engine may not need this
+		err := engine.CallEngineSpecific("SetCoinbase", b.header)
+		if err != nil {
+			panic("invalid call of SetCoinbase")
 		}
 
 		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, b.txs, b.uncles, b.receipts, b.withdrawals)
@@ -446,7 +455,7 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 	if cm.config.IsLondon(header.Number) {
 		header.BaseFee = eip1559.CalcBaseFee(cm.config, parent.Header())
 		if !cm.config.IsLondon(parent.Number()) {
-			parentGasLimit := parent.GasLimit()
+			parentGasLimit := parent.GasLimit() * cm.config.ElasticityMultiplier()
 			header.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
 		}
 	}

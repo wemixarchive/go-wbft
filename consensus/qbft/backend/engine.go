@@ -23,6 +23,7 @@ package backend
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -82,7 +83,6 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	var err error
 
 	// Retrieve the ValidatorSet of block
-	// (old) if snap, err = sb.snapshot(chain, header.Number.Uint64()-1, header.ParentHash, parents); err != nil {
 	if valSet, err = sb.GetValidators(chain, header.Number, header.Hash()); err != nil {
 		return err
 	}
@@ -177,8 +177,8 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	return sb.Engine().VerifySeal(chain, header, valSet)
 }
 
-// TimeForNextWork returns the time to wait for next work namely next block time
-func (sb *Backend) TimeForNextWork() uint64 {
+// timeForNextWork returns the time to wait for next work namely next block time
+func (sb *Backend) timeForNextWork() uint64 {
 	if sb.currentBlock == nil {
 		return 0 // if it has no current block function then it returns zero time
 	}
@@ -231,21 +231,6 @@ func (sb *Backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
-	// update the block header timestamp and signature and propose the block to core engine
-	header := block.Header()
-	number := header.Number.Uint64()
-
-	// Bail out if we're unauthorized to sign a block
-	valSet, err := sb.GetValidators(chain, new(big.Int).SetUint64(number), header.Hash())
-	if err != nil {
-		return err
-	}
-
-	block, err = sb.Engine().Seal(chain, block, valSet)
-	if err != nil {
-		return err
-	}
-
 	go func() {
 		// get the proposed block hash and clear it if the seal() is completed.
 		sb.sealMu.Lock()
@@ -301,7 +286,7 @@ func (sb *Backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(db ethdb.Reader, hash common.Hash) bool) error {
+func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(db ethdb.Reader, hash common.Hash) bool, notifyNewRound func(waitTime time.Duration, round *big.Int)) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -318,6 +303,7 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	sb.chain = chain
 	sb.currentBlock = currentBlock
 	sb.hasBadBlock = hasBadBlock
+	sb.notifyNewRound = notifyNewRound
 
 	log.Info("start QBFT")
 	err := sb.startQBFT()
@@ -329,6 +315,16 @@ func (sb *Backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	sb.coreStarted = true
 
 	return nil
+}
+
+func (sb *Backend) NotifyNewRound(round *big.Int) {
+	if sb.notifyNewRound != nil {
+		waitDuration := time.Duration(0)
+		if round.Uint64() == 0 {
+			waitDuration = time.Until(time.Unix(int64(sb.timeForNextWork()), 0))
+		}
+		sb.notifyNewRound(waitDuration, round)
+	}
 }
 
 // Stop implements consensus.Istanbul.Stop
@@ -350,7 +346,7 @@ func (sb *Backend) Stop() error {
 func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interface{} {
 	switch method {
 	case "Start":
-		if len(args) != 3 {
+		if len(args) != 4 {
 			return qbftcommon.ErrInvalidSpecificCall
 		}
 		chain, ok := args[0].(consensus.ChainHeaderReader)
@@ -365,10 +361,14 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		if !ok {
 			return qbftcommon.ErrInvalidSpecificCall
 		}
+		notifyNewRound, ok := args[3].(func(waitTime time.Duration, round *big.Int))
+		if !ok {
+			return qbftcommon.ErrInvalidSpecificCall
+		}
 		if sb.coreStarted {
 			_ = sb.Stop()
 		}
-		return sb.Start(chain, currentBlock, hasBadBlock)
+		return sb.Start(chain, currentBlock, hasBadBlock, notifyNewRound)
 	case "SetExtra":
 		if len(args) != 2 {
 			return qbftcommon.ErrInvalidSpecificCall
@@ -423,6 +423,14 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		return nil
 	case "NewChainHead":
 		return sb.NewChainHead()
+
+	case "SetCoinbase":
+		header, ok := args[0].(*types.Header)
+		if !ok {
+			return qbftcommon.ErrInvalidSpecificCall
+		}
+		header.Coinbase = sb.Engine().Address()
+		return nil
 	default:
 		return qbftcommon.ErrInvalidSpecificCall
 	}
