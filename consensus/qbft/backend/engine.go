@@ -86,7 +86,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	// Retrieve the ValidatorSet of block
 	parentNum := new(big.Int).Set(header.Number)
 	parentNum = parentNum.Sub(parentNum, common.Big1)
-	if valSet, err = sb.GetValidators(chain, parentNum, header.ParentHash); err != nil {
+	if valSet, err = sb.GetValidators(chain, parentNum, header.ParentHash, parents); err != nil {
 		return consensus.ErrUnknownAncestor
 	}
 
@@ -119,7 +119,7 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// Retrieve the ValidatorSet of the previous block
-	if prevValSet, err = sb.GetValidators(chain, new(big.Int).SetUint64(ancestorBlockNumber), ancestorHash); err != nil {
+	if prevValSet, err = sb.GetValidators(chain, new(big.Int).SetUint64(ancestorBlockNumber), ancestorHash, parents[:len(parents)-1]); err != nil {
 		return err
 	}
 	return sb.Engine().VerifyHeader(chain, header, parents, valSet, prevValSet, true)
@@ -172,7 +172,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(chain, new(big.Int).SetUint64(number), header.Hash())
+	valSet, err := sb.GetValidators(chain, new(big.Int).SetUint64(number), header.Hash(), nil)
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,7 @@ func (sb *Backend) timeForNextWork() uint64 {
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(chain, header.Number, header.Hash())
+	valSet, err := sb.GetValidators(chain, header.Number, header.Hash(), nil)
 	if err != nil {
 		return err
 	}
@@ -444,23 +444,43 @@ func (sb *Backend) SealHash(header *types.Header) common.Hash {
 	return sb.Engine().SealHash(header)
 }
 
-// GetValidators Retrieve the Validator List from the Extra field of the EpochBlock's Header.
-func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, hash common.Hash) (qbft.ValidatorSet, error) {
+// GetValidators Retrieve the Validator List of the epoch block for the given block number
+// if given block is an epoch block, return the validators of previous epoch block
+func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, hash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
 	// 1. Check if the block is not a WBFT block
 	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
 		return nil, qbftcommon.ErrIsNotWBFTBlock
 	}
 
+	if (chain.Config().MontBlancBlock == nil && blockNumber.Cmp(common.Big0) == 0) ||
+		(chain.Config().MontBlancBlock != nil && chain.Config().MontBlancBlock.Cmp(blockNumber) == 0) {
+		// genesis validators or montblanc hard fork validators from wbft config
+		return validator.NewSet(sb.config.Validators, sb.config.ProposerPolicy), nil
+	}
+
+	// traverse back to the last epoch block
+	blockNumber = new(big.Int).Sub(blockNumber, common.Big1)
 	isEpoch, latestEpoch, err := sb.Engine().IsEpochBlockNumber(chain.Config(), blockNumber)
 	if err != nil {
 		return nil, err
 	}
-	block := chain.GetHeader(hash, blockNumber.Uint64())
+	var block *types.Header
+	if len(parents) > 0 {
+		block = parents[len(parents)-1]
+		parents = parents[:len(parents)-1]
+	} else {
+		block = chain.GetHeader(hash, blockNumber.Uint64())
+	}
 	if block == nil {
 		return nil, consensus.ErrUnknownAncestor
 	}
 	for !isEpoch && block.Number.Cmp(latestEpoch) > 0 {
-		block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
+		if len(parents) > 0 {
+			block = parents[len(parents)-1]
+			parents = parents[:len(parents)-1]
+		} else {
+			block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
+		}
 		if block == nil {
 			return nil, consensus.ErrUnknownAncestor
 		}

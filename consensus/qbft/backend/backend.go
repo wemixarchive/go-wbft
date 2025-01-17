@@ -266,9 +266,9 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	var valSet, prevValSet qbft.ValidatorSet
 	var err error
 
-	if valSet, err = sb.GetValidators(sb.chain, header.Number, header.Hash()); err != nil {
+	if valSet, err = sb.GetValidators(sb.chain, header.Number, header.Hash(), nil); err != nil {
 		return 0, err
-	} else if prevValSet, err = sb.GetValidators(sb.chain, new(big.Int).SetUint64(header.Number.Uint64()-1), header.ParentHash); err != nil {
+	} else if prevValSet, err = sb.GetValidators(sb.chain, new(big.Int).SetUint64(header.Number.Uint64()-1), header.ParentHash, nil); err != nil {
 		return 0, err
 	}
 	return sb.Engine().VerifyBlockProposal(sb.chain, block, valSet, prevValSet)
@@ -322,7 +322,7 @@ func (sb *Backend) ParentValidators(proposal qbft.Proposal) qbft.ValidatorSet {
 }
 
 func (sb *Backend) getValidators(number uint64, hash common.Hash) qbft.ValidatorSet {
-	valSet, err := sb.GetValidators(sb.chain, new(big.Int).SetUint64(number), hash)
+	valSet, err := sb.GetValidators(sb.chain, new(big.Int).SetUint64(number), hash, nil)
 	if err != nil {
 		return validator.NewSet(nil, sb.config.ProposerPolicy)
 	}

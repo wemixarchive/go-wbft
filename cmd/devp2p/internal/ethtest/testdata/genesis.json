@@ -28,7 +28,7 @@
       "halvingRate": 50
     },
     "qbft": {
-      "epochLength": 10,
+      "epochLength": 1000,
       "blockPeriodSeconds": 3,
       "emptyBlockPeriodSeconds": 6,
       "requestTimeoutSeconds": 1000,
