@@ -7,14 +7,17 @@ package qbftengine
 
 import (
 	"bytes"
+	"errors"
 	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 func TestPrepareExtra(t *testing.T) {
@@ -223,5 +226,260 @@ func TestWriteValidatorVote(t *testing.T) {
 	}
 	if !reflect.DeepEqual(istExtra.Vote, expectedIstExtra.Vote) {
 		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
+	}
+}
+
+func TestIsEpochBlock(t *testing.T) {
+	engine := NewEngine(nil, common.Address{}, nil)
+
+	testCases := []struct {
+		chainConfig         params.ChainConfig
+		config              qbft.Config
+		blockNumber         *big.Int
+		expectedResult      bool
+		expectedLatestEpoch *big.Int
+		expectedError       error
+	}{
+		// case 1: no montblanc fork, zero block is an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int),
+			true,
+			new(big.Int),
+			nil,
+		},
+		// case 2: no montblanc fork, 1 block is not an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(1),
+			false,
+			new(big.Int),
+			nil,
+		},
+		// case 3: no montblanc fork, epoch - 1 block is not an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(99),
+			false,
+			new(big.Int),
+			nil,
+		},
+		// case 4: no montblanc fork, epoch block is an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(100),
+			true,
+			new(big.Int).SetUint64(100),
+			nil,
+		},
+		// case 5: no montblanc fork, epoch block * n is an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(300),
+			true,
+			new(big.Int).SetUint64(300),
+			nil,
+		},
+		// case 6: montblanc fork, error before fork
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int),
+			false,
+			nil,
+			qbftcommon.ErrIsNotWBFTBlock,
+		},
+		// case 7: montblanc fork, fork block is an epoch block
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(13),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(13),
+			true,
+			new(big.Int).SetUint64(13),
+			nil,
+		},
+		// case 8: montblanc fork, next of fork block is not an epoch block
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(13),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(14),
+			false,
+			new(big.Int).SetUint64(13),
+			nil,
+		},
+		// case 9: montblanc fork, fork block + epoch is an epoch block
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(13),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(113),
+			true,
+			new(big.Int).SetUint64(113),
+			nil,
+		},
+		// case 10: montblanc fork, transition exist, before transition
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1101), EpochLength: 200},
+				},
+			},
+			new(big.Int).SetUint64(1100), // before transition
+			true,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 11: montblanc fork, transition exist, just on transition
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+				},
+			},
+			new(big.Int).SetUint64(1100), // on transition
+			true,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 12: montblanc fork, transition exist, after transition, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+				},
+			},
+			new(big.Int).SetUint64(1200),
+			false,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 13: edge case; transition before montblanc fork?
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(950), EpochLength: 50}, // it should be ignored
+				},
+			},
+			new(big.Int).SetUint64(1050),
+			false,
+			new(big.Int).SetUint64(1000),
+			nil,
+		},
+		// case 14: montblanc fork, transitions exist, after transition, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+					{Block: new(big.Int).SetUint64(1300), EpochLength: 100},
+				},
+			},
+			new(big.Int).SetUint64(1200),
+			false,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 15: montblanc fork, transitions exist, after transitions, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+					{Block: new(big.Int).SetUint64(1300), EpochLength: 50},
+				},
+			},
+			new(big.Int).SetUint64(1350),
+			true,
+			new(big.Int).SetUint64(1350),
+			nil,
+		},
+		// case 16: montblanc fork, transitions exist, after transitions, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 10},
+					{Block: new(big.Int).SetUint64(1300), EpochLength: 50},
+				},
+			},
+			new(big.Int).SetUint64(1310),
+			false,
+			new(big.Int).SetUint64(1300),
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		engine.cfg = &tc.config
+		if r, epoch, err := engine.IsEpochBlockNumber(&tc.chainConfig, tc.blockNumber); err != nil {
+			if !errors.Is(err, tc.expectedError) {
+				t.Errorf("unexpected error: have %v, want %v", err, tc.expectedError)
+			}
+			if epoch != nil {
+				t.Errorf("unexpected epoch: have %v, want nil", epoch)
+			}
+		} else {
+			if r != tc.expectedResult {
+				t.Errorf("unexpected result: have %v, want %v", r, tc.expectedResult)
+			}
+			if epoch.Cmp(tc.expectedLatestEpoch) != 0 {
+				t.Errorf("unexpected epoch: have %v, want %v", epoch, tc.expectedLatestEpoch)
+			}
+		}
 	}
 }
