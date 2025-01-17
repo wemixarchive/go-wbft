@@ -465,7 +465,8 @@ func TestIsEpochBlock(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		engine.cfg = &tc.config
+		testConfig := tc.config
+		engine.cfg = &testConfig
 		if r, epoch, err := engine.IsEpochBlockNumber(&tc.chainConfig, tc.blockNumber); err != nil {
 			if !errors.Is(err, tc.expectedError) {
 				t.Errorf("unexpected error: have %v, want %v", err, tc.expectedError)
