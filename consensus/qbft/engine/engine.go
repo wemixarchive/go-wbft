@@ -682,11 +682,13 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			// Calculate validator's diligence for current epoch.
 			//
 			// If validator proposed any blocks, d(h) = p / (2*v*w) + s / (2*e),
-			// Otherwise, d(h) = s / (2*e)
+			// Otherwise, d(h) = 1 + s / (2*e)
 			d += uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2*epochLength)
 			if proposedCountsInEpoch[staker] > 0 {
 				d += uint64(proposedSealsInEpoch[staker]) * types.DiligenceDenominator /
 					uint64(2*len(extra.EpochInfo.Validators)*proposedCountsInEpoch[staker])
+			} else {
+				d += types.DiligenceDenominator
 			}
 
 			// Calculate validator's cumulative diligence for next epoch.
