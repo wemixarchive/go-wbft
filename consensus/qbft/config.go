@@ -21,7 +21,6 @@
 package qbft
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -271,52 +270,6 @@ func (c *Config) getNearestForkBlock(blockNumber *big.Int) *big.Int {
 		}
 	}
 	return nearestForkBlock
-}
-
-// GetNearestEpochBlock returns the nearest EpochBlock (for the given block number)
-//
-// Defined the EpochBlock as the block that records the ValidatorList for the Nth Epoch.
-// Specifies that the EpochBlock for the Nth Epoch is the last block of the (N-1)th Epoch.
-//
-// Parameters:
-//   - block : Block number for which the nearest EpochBlock is to be found (for the (N)th Epoch).
-//
-// Returns:
-//   - epochBlock : Block number of the last block in the (N-1)th Epoch, which serves as the EpochBlock for the (N)th Epoch.
-func (c *Config) GetNearestEpochBlock(chain consensus.ChainHeaderReader, block uint64) (*big.Int, error) {
-	if block == 0 {
-		return big.NewInt(0), nil
-	}
-	blockNumber := new(big.Int).SetUint64(block)
-
-	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
-	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
-	if startForkBlock.Cmp(blockNumber) == 0 {
-		return startForkBlock, nil
-	}
-
-	if blockNumber.Cmp(startForkBlock) < 0 {
-		return nil, errors.New("invalid blockNumber: The BlockNumber must exceed the starting BlockNumber of its HardFork")
-	}
-
-	// 2. Calculate the offset from the fork start block
-	offset := new(big.Int).Sub(blockNumber, startForkBlock)
-	if offset.Sign() == 0 { // starting block of the HardFork
-		return new(big.Int).SetUint64(block - 1), nil
-	}
-
-	// 3. Check if block itself is an EpochBlock
-	epochInterval := new(big.Int).SetUint64(c.Epoch)
-	if new(big.Int).Mod(offset, epochInterval).Sign() == 0 { // starting block of a certain Epoch
-		return new(big.Int).SetUint64(block - 1), nil
-	}
-
-	// 4. Calculate the nearest EpochBlock (based on the given offset and epoch interval)
-	//  = startForkBlock + ( (offset / epoch) * epoch )
-	q := new(big.Int).Div(offset, epochInterval)
-	nearestEpochBlock := new(big.Int).Add(startForkBlock, q.Mul(q, epochInterval))
-
-	return nearestEpochBlock.Sub(nearestEpochBlock, big.NewInt(1)), nil
 }
 
 // String implements the stringer interface, returning the consensus engine details.

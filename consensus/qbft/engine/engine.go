@@ -579,8 +579,10 @@ func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *type
 		}
 	}
 
-	if e.cfg.IsEpochBlock(chain, header.Number) && epochHandler != nil {
-		if err := epochHandler(header, state); err != nil {
+	if isEpoch, _, err := e.IsEpochBlockNumber(chain.Config(), header.Number); err != nil {
+		return err
+	} else if isEpoch && epochHandler != nil {
+		if err = epochHandler(header, state); err != nil {
 			return err
 		}
 	}
@@ -617,6 +619,38 @@ func (e *Engine) ExtractGenesisValidators(header *types.Header) ([]common.Addres
 	}
 
 	return extra.Validators, nil
+}
+
+// IsEpochBlockNumber returns whether the given block number is an epoch block.
+// it returns whether the given block number is an epoch block and the last epoch block number.
+func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int) (bool, *big.Int, error) {
+	if config.MontBlancBlock != nil && !config.IsMontBlanc(number) {
+		return false, nil, qbftcommon.ErrIsNotWBFTBlock
+	}
+
+	epochLength := new(big.Int).SetUint64(e.cfg.Epoch)
+	firstNewEpoch := new(big.Int).SetUint64(0)
+	if config.MontBlancBlock != nil {
+		firstNewEpoch.Set(config.MontBlancBlock)
+	}
+	for _, transition := range e.cfg.Transitions {
+		if config.MontBlancBlock != nil {
+			if transition.Block.Cmp(config.MontBlancBlock) < 0 {
+				// skip transitions before MontBlancBlock; it should be ignored
+				continue
+			}
+		}
+		if transition.Block.Cmp(number) > 0 {
+			break
+		}
+		// EPOCH RULE: all epoch transition blocks are an epoch block
+		firstNewEpoch.Set(transition.Block)
+		epochLength.SetUint64(transition.EpochLength)
+	}
+	num := number.Uint64()
+	first := firstNewEpoch.Uint64()
+	epochLen := epochLength.Uint64()
+	return (num-first)%epochLen == 0, new(big.Int).SetUint64((num-first)/epochLen*epochLen + first), nil
 }
 
 func (e *Engine) GetSignerAddress(header *types.Header, signedSeal [][]byte, sealType core.SealType) ([]common.Address, error) {
@@ -855,7 +889,7 @@ func writeValidatorsToEpoch(header *types.Header, state govwbft.StateReader) err
 	return ApplyHeaderQBFTExtra(header, WriteValidators(ethcore.GetValidatorsFromState(state)))
 }
 
-// DefaultEpochHandler is a handler that performs default actions when the block is an EpochBlock,
+// verifyEpoch is a handler that performs default actions when the block is an EpochBlock,
 // and is called during the Finalize process.
 // It validates the validity of the ValidatorList associated with the EpochBlock.
 func verifyEpoch(header *types.Header, state govwbft.StateReader) error {

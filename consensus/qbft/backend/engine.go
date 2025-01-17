@@ -84,8 +84,10 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 	var err error
 
 	// Retrieve the ValidatorSet of block
-	if valSet, err = sb.GetValidators(chain, header.Number, header.Hash()); err != nil {
-		return err
+	parentNum := new(big.Int).Set(header.Number)
+	parentNum = parentNum.Sub(parentNum, common.Big1)
+	if valSet, err = sb.GetValidators(chain, parentNum, header.ParentHash); err != nil {
+		return consensus.ErrUnknownAncestor
 	}
 
 	if header.Number.Uint64() < 2 {
@@ -444,46 +446,29 @@ func (sb *Backend) SealHash(header *types.Header) common.Hash {
 
 // GetValidators Retrieve the Validator List from the Extra field of the EpochBlock's Header.
 func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, hash common.Hash) (qbft.ValidatorSet, error) {
-	// 1. Return an empty address set if the (Montblanc) HardFork is not supported
-	if !chain.Config().IsMontBlanc(blockNumber) && chain.Config().MontBlancBlock != nil {
-		emptyValSet := make([]common.Address, 0)
-		return validator.NewSet(emptyValSet, sb.config.ProposerPolicy), nil
+	// 1. Check if the block is not a WBFT block
+	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
+		return nil, qbftcommon.ErrIsNotWBFTBlock
 	}
 
-	// 2. Retrieve the QBFT configuration for a specific block number
-	qbftConfig := sb.config.GetConfig(blockNumber)
-
-	// 3. Calculate the ValidatorSet based on the current state
-	var valSet qbft.ValidatorSet
-	{
-		// 3-1. Retrieve the nearest EpochBlock for the given block number.
-		//      : (n)th EpochBlock == Last Block of the (n-1)th Epoch
-		//      : (n)th EpochBlock == Start Block of the (n)th Epoch - 1
-		nearestEpochBlock, err := qbftConfig.GetNearestEpochBlock(chain, blockNumber.Uint64())
-		if err != nil {
-			log.Error("BFT: not found epochBlock", "err", err)
-			return nil, err
-		}
-
-		// Return the QBFT Config from chainConfig if the nearest epochBlock is not detected in transitions.
-		if nearestEpochBlock.Sign() == 0 {
-			return validator.NewSet(qbftConfig.Validators, sb.config.ProposerPolicy), nil
-		}
-
-		// 3-2. Retrieve the header of the nearest EpochBlock
-		epochHeader := chain.GetHeaderByNumber(nearestEpochBlock.Uint64())
-		if epochHeader == nil {
-			log.Error("BFT: not found header", "blocknumber", nearestEpochBlock.Uint64())
-			return nil, errors.New("BFT: not found header")
-		}
-
-		// 3-3. Extract the Extra field from the Header to obtain the ValidatorSet
-		if qbftExtra, err := types.ExtractQBFTExtra(epochHeader); err == nil {
-			valSet = validator.NewSet(qbftExtra.Validators, qbftConfig.ProposerPolicy)
-		} else {
-			log.Error("BFT: invalid epoch header", "err", err)
-			return nil, err
+	isEpoch, latestEpoch, err := sb.Engine().IsEpochBlockNumber(chain.Config(), blockNumber)
+	if err != nil {
+		return nil, err
+	}
+	block := chain.GetHeader(hash, blockNumber.Uint64())
+	if block == nil {
+		return nil, consensus.ErrUnknownAncestor
+	}
+	for !isEpoch && block.Number.Cmp(latestEpoch) > 0 {
+		block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
+		if block == nil {
+			return nil, consensus.ErrUnknownAncestor
 		}
 	}
-	return valSet, nil
+	qbftExtra, err := types.ExtractQBFTExtra(block)
+	if err != nil {
+		log.Error("BFT: invalid epoch header", "err", err)
+		return nil, err
+	}
+	return validator.NewSet(qbftExtra.Validators, sb.config.ProposerPolicy), nil
 }
