@@ -21,7 +21,6 @@ import (
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft/core"
 	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
-	ethcore "github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -886,7 +885,7 @@ func mergeSeals(seals [][]byte, extraSeals map[common.Hash][]byte) [][]byte {
 }
 
 func writeValidatorsToEpoch(header *types.Header, state govwbft.StateReader) error {
-	return ApplyHeaderQBFTExtra(header, WriteValidators(ethcore.GetValidatorsFromState(state)))
+	return ApplyHeaderQBFTExtra(header, WriteValidators(getValidatorsFromState(state)))
 }
 
 // verifyEpoch is a handler that performs default actions when the block is an EpochBlock,
@@ -897,5 +896,37 @@ func verifyEpoch(header *types.Header, state govwbft.StateReader) error {
 	if err != nil {
 		return err
 	}
-	return ethcore.VerifyValidators(extra.Validators, state)
+	return verifyValidators(extra.Validators, state)
+}
+
+func getValidatorsFromState(state govwbft.StateReader) []common.Address {
+	// WEMIX 3.5:
+	// - Stabilization stage:
+	//   - validator list(ordered) defined at wbft config
+	// - After stabilization stage:
+	//   - NCP & Staker
+	//   - order: address alphabetically (temporary, vrf random order possible)
+	// WEMIX 4.0:
+	// - vrf random selection from Stakers
+	// - order: vrf random order (selected order)
+	//
+	// this is a temporary solution; stabilization stage is not implemented yet
+	return govwbft.NCPStakers(state)
+}
+
+// VerifyValidators checks whether the ValidatorList matches the ValidatorList in the state.
+func verifyValidators(validators []common.Address, state govwbft.StateReader) error {
+	validatorFromState := getValidatorsFromState(state)
+
+	if len(validators) != len(validatorFromState) {
+		return errors.New("WBFT: mismatch in ValidatorList sizes")
+	}
+
+	// Compare each element
+	for i := range validators {
+		if validators[i] != validatorFromState[i] {
+			return errors.New("WBFT: The two validators do not match")
+		}
+	}
+	return nil
 }
