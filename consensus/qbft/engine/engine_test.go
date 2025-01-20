@@ -10,6 +10,7 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -234,6 +235,7 @@ func newAccounts(n int) (accounts []account) {
 		addr := crypto.PubkeyToAddress(key.PublicKey)
 		accounts = append(accounts, account{key: key, addr: addr})
 	}
+	sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.Cmp(accounts[j].addr) < 0 })
 	return accounts
 }
 
@@ -300,7 +302,7 @@ func TestEpochInfo(t *testing.T) {
 			},
 		},
 		{
-			"Validators propose different number of blocks (2 validators, 3 blocks / epoch)",
+			"Validators propose multiple number of blocks (2 validators, 3 blocks / epoch)",
 			2,
 			[]int{0, 1, 0, 1, 0, 1},
 			[][]int{
@@ -350,6 +352,23 @@ func TestEpochInfo(t *testing.T) {
 				{1910000, 1910000, 1910000, 1910000}, {1910000, 1910000, 1910000, 1910000}, {1919000, 1919000, 1919000, 1919000},
 			},
 		},
+		{
+			"Round changes occur (3 validators, 3 blocks / epoch)",
+			3,
+			[]int{2, 1, 0, 2, 1, 1}, // 0, 1, "2", 0, "1", 2, "0", 1, "2", 0, "1", 2, 0, "1"
+			[][]int{
+				{0, 1, 2}, {0, 1, 2}, {0, 1, 2},
+				{0, 1, 2}, {0, 1, 2}, {0, 1, 2},
+			},
+			[][]int{
+				{0, 1, 2}, {0, 1, 2}, {0, 1, 2},
+				{0, 1, 2}, {0, 1, 2}, {0, 1, 2},
+			},
+			[][]uint64{
+				{1900000, 1900000, 1900000}, {1900000, 1900000, 1900000}, {1843333, 1860000, 1860000},
+				{1843333, 1860000, 1860000}, {1843333, 1860000, 1860000}, {1758999, 1840666, 1824000},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -366,7 +385,7 @@ func TestEpochInfo(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = params.TestChainConfig
-			engine := NewEngine(&qbft.Config{Validators: validators, Epoch: 3}, common.Address{}, nil)
+			engine := NewEngine(&qbft.Config{Validators: validators, ProposerPolicy: qbft.NewRoundRobinProposerPolicy(), Epoch: 3}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 

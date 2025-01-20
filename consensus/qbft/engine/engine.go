@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/consensus/qbft/core"
+	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -595,6 +596,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	proposedSealsInEpoch := make(map[common.Address]int)
 	submittedSealsInEpoch := make(map[common.Address]int)
 	proposedCountsInEpoch := make(map[common.Address]int)
+	proposers := []common.Address{}
 	epochLength, epochHeader := 0, header
 
 	// Traverse blocks until reaching the epoch block.
@@ -606,12 +608,11 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			log.Crit("failed to extract qbft extra data", "err", err)
 		}
 
-		// Accumulate proposer counts.
 		proposer, err := e.Author(epochHeader)
 		if err != nil {
 			log.Crit("failed to get proposer", "err", err)
 		}
-		proposedCountsInEpoch[proposer]++
+		proposers = append(proposers, proposer)
 
 		// Accumulate PrevPreparedSeal counts.
 		preparedSeal := extra.PrevPreparedSeal
@@ -651,12 +652,38 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 	extra, _ := types.ExtractQBFTExtra(epochHeader)
 	stakerMap := make(map[common.Address]*stakerInfo)
+	validators := []common.Address{}
 	for _, staker := range extra.EpochInfo.Stakers {
 		stakerMap[staker.Addr] = &stakerInfo{staker: staker}
 	}
 	for _, validator := range extra.EpochInfo.Validators {
 		addr := extra.EpochInfo.GetValidator(validator)
 		stakerMap[addr].isValidator = true
+		validators = append(validators, addr)
+	}
+
+	// Accumulate proposer counts being selected within epoch.
+	lastProposer, _ := e.Author(epochHeader)
+	valSet := validator.NewSet(validators, e.cfg.ProposerPolicy)
+	for i := len(proposers) - 1; i >= 0; i-- {
+		proposer := proposers[i]
+		for round := 0; ; round++ {
+			// NOTE: WEMIX uses a round-robin policy to select proposers.
+			// If round change occurs for every validators more than once,
+			// latest round change cycle window will be used for counting.
+			if round >= len(validators) {
+				log.Crit("Invalid round")
+			}
+
+			valSet.CalcProposer(lastProposer, uint64(round))
+			currP := valSet.GetProposer().Address()
+			proposedCountsInEpoch[currP]++
+
+			if currP == proposer {
+				break
+			}
+		}
+		lastProposer = proposer
 	}
 
 	log.Trace("Seals counts in epoch", "header.number", header.Number,
@@ -942,11 +969,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 
 	// The reward left rewards to the proposer.
 	if blockReward.Sign() > 0 {
-		proposer, err := e.Author(header)
-		if err != nil {
-			log.Crit("failed to get proposer", "err", err)
-		}
-
+		proposer, _ := e.Author(header)
 		staker := getStakerInfo(proposer)
 		state.AddBalance(staker.Rewardee, uint256.MustFromBig(blockReward))
 		log.Trace("Block reward left rewards to", "rewardee", staker.Rewardee, "amount", blockReward)
