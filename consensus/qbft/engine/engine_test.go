@@ -10,6 +10,7 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 	"reflect"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -240,7 +241,6 @@ func newAccounts(n int) (accounts []account) {
 }
 
 // TODO: WEMIX chain
-// TODO: change epoch
 func TestEpochInfo(t *testing.T) {
 	var testCases = []struct {
 		name           string
@@ -522,13 +522,15 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 // Test distributing rewards only for consensus proof (using non-Brioche config)
 func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 	var testCases = []struct {
-		name       string
-		qbftConfig *qbft.Config
-		stakes     []*big.Int
-		expRewards []uint64
+		name          string
+		totValidators int
+		qbftConfig    *qbft.Config
+		stakes        []*big.Int
+		expRewards    []uint64
 	}{
 		{
 			"Stakers share rewards",
+			4,
 			&qbft.Config{
 				Epoch: 1,
 			},
@@ -536,7 +538,17 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			[]uint64{1200000, 900000, 600000, 300000},
 		},
 		{
+			"Stakers share rewards (validator set is subset of stakers)",
+			2,
+			&qbft.Config{
+				Epoch: 1,
+			},
+			[]*big.Int{big.NewInt(4000), big.NewInt(6000), big.NewInt(2000), big.NewInt(1000)},
+			[]uint64{1200000, 1800000, 0, 0},
+		},
+		{
 			"Stakers share rewards, which sum of sharing does not equal to original amounts",
+			4,
 			&qbft.Config{
 				Epoch: 1,
 			},
@@ -545,6 +557,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 		},
 		{
 			"Stakers have zero staking amounts",
+			4,
 			&qbft.Config{
 				Epoch: 1,
 			},
@@ -567,6 +580,12 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			engine := NewEngine(tc.qbftConfig, common.Address{}, nil)
 			parent := makeGenesis(signers)
 			c.insertHeader(parent)
+
+			// Change validator set
+			extra, _ := types.ExtractQBFTExtra(parent)
+			extra.EpochInfo.Validators = extra.EpochInfo.Validators[:tc.totValidators]
+			slices.Reverse(extra.EpochInfo.Validators) // deterministic shuffle
+			ApplyHeaderQBFTExtra(parent, WriteEpochInfo(extra.EpochInfo))
 
 			// Proposer makes a block
 			proposer := signers[0].addr
