@@ -236,7 +236,12 @@ func newAccounts(n int) (accounts []account) {
 		addr := crypto.PubkeyToAddress(key.PublicKey)
 		accounts = append(accounts, account{key: key, addr: addr})
 	}
-	sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.Cmp(accounts[j].addr) < 0 })
+
+	// Sort by lexicographic order
+	//sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.Cmp(accounts[j].addr) < 0 })
+	// Sort by dictionary order
+	sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.String() < accounts[j].addr.String() })
+
 	return accounts
 }
 
@@ -410,7 +415,7 @@ func TestEpochInfo(t *testing.T) {
 				)
 
 				// Build epoch info
-				newEpoch := engine.buildEpochInfo(c, h)
+				newEpoch := engine.buildEpochInfo(c, h, nil)
 				ApplyHeaderQBFTExtra(h, WriteEpochInfo(newEpoch))
 				if newEpoch != nil && !engine.IsEpochBlock(h) {
 					t.Errorf("expected epoch info to be nil")

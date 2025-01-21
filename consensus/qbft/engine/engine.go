@@ -581,12 +581,65 @@ func (e *Engine) GetEpochBlock(chain consensus.ChainHeaderReader, header *types.
 	return header
 }
 
+// If number of stakers <= minStakers, use validator list (may be ordered) from wbft config only.
+// If number of stakers > minStakers, use staker list from gov.
+//
+// Once the number of stakers is over minStakers, network should prevent the
+// number from dropping to minStakers so that the list in config is no longer
+// used.
+const minStakers = 4
+
+// Staker list returned must be sorted by lexicographic order.
+func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common.Address {
+	var stakers []common.Address
+	var stakerSetFromGov []common.Address
+
+	if state != nil {
+		stakerSetFromGov = govwbft.NCPStakers(state)
+	}
+
+	if len(stakerSetFromGov) <= minStakers {
+		stakerSetFromConfig := e.cfg.GetConfig(number).Validators
+		stakers = append(stakers, stakerSetFromConfig...)
+	} else {
+		stakers = append(stakers, stakerSetFromGov...)
+	}
+
+	valSet := validator.NewSet(stakers, e.cfg.ProposerPolicy)
+	valSet.SortValidators()
+
+	vals := valSet.List()
+	for i := range vals {
+		stakers[i] = vals[i].Address()
+	}
+
+	return stakers
+}
+
+// 1. WEMIX 3.5
+// Use staker list as it is.
+//
+// 2. WEMIX 4.0 (not implemented yet)
+// If number of stakers <= targetValidators, use staker list as it is.
+// If number of stakers > targetValidators, random selection from the list in VRF manner
+// depending on their staking amounts and diligence score.
+func (e *Engine) calcValidators(header *types.Header, newStakers []common.Address) []uint32 {
+	validators := make([]uint32, len(newStakers))
+
+	l := make([]uint32, len(validators))
+	for i := 0; i < len(l); i++ {
+		l[i] = uint32(i)
+	}
+
+	return l
+}
+
 type stakerInfo struct {
 	isValidator bool
 	staker      *types.Staker
 }
 
-func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header) *types.EpochInfo {
+func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
 	var newEpoch types.EpochInfo
 
 	if !e.IsEpochBlock(header) {
@@ -693,7 +746,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	)
 
 	// Update epoch info.
-	newStakers := e.cfg.GetConfig(header.Number).Validators // TODO: read from gov contract
+	newStakers := e.GetStakers(header.Number, state)
 	newEpoch.Stakers = make([]*types.Staker, len(newStakers))
 	for i, staker := range newStakers {
 		var d uint64
@@ -739,19 +792,6 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	return &newEpoch
 }
 
-// Currently, return validator set same to staker set.
-// In future, choose validators depending on their staking amounts and diligence score.
-func (e *Engine) calcValidators(header *types.Header, newStakers []common.Address) []uint32 {
-	validators := make([]uint32, len(newStakers))
-
-	l := make([]uint32, len(validators))
-	for i := 0; i < len(l); i++ {
-		l[i] = uint32(i)
-	}
-
-	return l
-}
-
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 //
@@ -773,7 +813,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 	}
 
 	// Update the epoch block.
-	newEpoch := e.buildEpochInfo(chain, header)
+	newEpoch := e.buildEpochInfo(chain, header, state)
 	ApplyHeaderQBFTExtra(header, WriteEpochInfo(newEpoch))
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
