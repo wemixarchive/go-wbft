@@ -305,7 +305,7 @@ func (sb *Backend) GetProposer(number uint64) common.Address {
 }
 
 func (sb *Backend) Validators(proposal qbft.Proposal) qbft.ValidatorSet {
-	valSet, err := sb.GetValidators(sb.chain, new(big.Int).Add(proposal.Number(), common.Big1), proposal.Hash(), nil)
+	valSet, err := sb.Engine().GetValidators(sb.chain, new(big.Int).Add(proposal.Number(), common.Big1), proposal.Hash(), nil)
 	if err != nil {
 		return validator.NewSet(nil, sb.config.ProposerPolicy)
 	}

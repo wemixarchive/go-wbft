@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	qbftengine "github.com/ethereum/go-ethereum/consensus/qbft/engine"
-	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -132,7 +131,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(chain, header.Number, header.ParentHash, nil)
+	valSet, err := sb.Engine().GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -158,7 +157,7 @@ func (sb *Backend) timeForNextWork() uint64 {
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(chain, header.Number, header.ParentHash, nil)
+	valSet, err := sb.Engine().GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -409,7 +408,7 @@ func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, 
 	var err error
 
 	// Retrieve the ValidatorSet for the block height
-	if valSet, err = sb.GetValidators(chain, blockNumber, parentHash, parents); err != nil {
+	if valSet, err = sb.Engine().GetValidators(chain, blockNumber, parentHash, parents); err != nil {
 		return nil, nil, consensus.ErrUnknownAncestor
 	}
 
@@ -428,7 +427,7 @@ func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, 
 			return nil, nil, consensus.ErrUnknownAncestor
 		}
 		// Retrieve the ValidatorSet of the previous block
-		if prevValSet, err = sb.GetValidators(chain, parent.Number, parent.ParentHash, newParents); err != nil {
+		if prevValSet, err = sb.Engine().GetValidators(chain, parent.Number, parent.ParentHash, newParents); err != nil {
 			return nil, nil, err
 		}
 	} else {
@@ -436,56 +435,4 @@ func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, 
 	}
 
 	return valSet, prevValSet, nil
-}
-
-// GetValidators retrieve the validator list of the epoch to which block of given number belongs.
-// If the given block is an epoch block, it returns the validators of prior epoch.
-// `parents` is a hint for backward traverse.
-// exceptional case: blockNumber is genesis block number or montblanc hard fork block number, then
-// it returns the validators from chain config.
-func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
-	// 1. Check if the block is not a WBFT block
-	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
-		return nil, qbftcommon.ErrIsNotWBFTBlock
-	}
-
-	if (chain.Config().MontBlancBlock == nil && blockNumber.Cmp(common.Big0) == 0) ||
-		(chain.Config().MontBlancBlock != nil && chain.Config().MontBlancBlock.Cmp(blockNumber) == 0) {
-		// genesis validators or montblanc hard fork validators from wbft config
-		return validator.NewSet(sb.config.Validators, sb.config.ProposerPolicy), nil
-	}
-
-	// traverse back to the last epoch block
-	blockNumber = new(big.Int).Sub(blockNumber, common.Big1)
-	isEpoch, latestEpoch, err := sb.Engine().IsEpochBlockNumber(chain.Config(), blockNumber)
-	if err != nil {
-		return nil, err
-	}
-	var block *types.Header
-	if len(parents) > 0 {
-		block = parents[len(parents)-1]
-		parents = parents[:len(parents)-1]
-	} else {
-		block = chain.GetHeader(parentHash, blockNumber.Uint64())
-	}
-	if block == nil {
-		return nil, consensus.ErrUnknownAncestor
-	}
-	for !isEpoch && block.Number.Cmp(latestEpoch) > 0 {
-		if len(parents) > 0 {
-			block = parents[len(parents)-1]
-			parents = parents[:len(parents)-1]
-		} else {
-			block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
-		}
-		if block == nil {
-			return nil, consensus.ErrUnknownAncestor
-		}
-	}
-	qbftExtra, err := types.ExtractQBFTExtra(block)
-	if err != nil {
-		log.Error("BFT: invalid epoch header", "err", err)
-		return nil, err
-	}
-	return validator.NewSet(qbftExtra.Validators, sb.config.ProposerPolicy), nil
 }

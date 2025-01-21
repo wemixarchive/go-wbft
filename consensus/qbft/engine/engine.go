@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	errors2 "github.com/pkg/errors"
 	"math/big"
 	"time"
 
@@ -550,7 +551,7 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 //   - epochHandler: A function that is executed when the block is an EpochBlock.
 //     It processes actions specific to the EpochBlock, which records the ValidatorList for the next Epoch,
 //     and is the last block of the (N-1)th Epoch for the (N)th Epoch.
-func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, epochHandler func(*types.Header, govwbft.StateReader) error) error {
+func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, epochHandler func(*Engine, consensus.ChainHeaderReader, *types.Header, govwbft.StateReader) error) error {
 	// Accumulate any block and uncle rewards and commit the final state root
 	e.accumulateRewards(chain, state, header)
 
@@ -568,7 +569,7 @@ func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *type
 	if isEpoch, _, err := e.IsEpochBlockNumber(chain.Config(), header.Number); err != nil {
 		return err
 	} else if isEpoch && epochHandler != nil {
-		if err = epochHandler(header, state); err != nil {
+		if err = epochHandler(e, chain, header, state); err != nil {
 			return err
 		}
 	}
@@ -633,6 +634,58 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 	rem := new(big.Int).Sub(number, firstNewEpoch)
 	rem.Rem(rem, epochLength)
 	return rem.Sign() == 0, new(big.Int).Sub(number, rem), nil
+}
+
+// GetValidators retrieve the validator list of the epoch to which block of given number belongs.
+// If the given block is an epoch block, it returns the validators of prior epoch.
+// `parents` is a hint for backward traverse.
+// exceptional case: blockNumber is genesis block number or montblanc hard fork block number, then
+// it returns the validators from chain config.
+func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
+	// 1. Check if the block is not a WBFT block
+	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
+		return nil, qbftcommon.ErrIsNotWBFTBlock
+	}
+
+	if (chain.Config().MontBlancBlock == nil && blockNumber.Cmp(common.Big0) == 0) ||
+		(chain.Config().MontBlancBlock != nil && chain.Config().MontBlancBlock.Cmp(blockNumber) == 0) {
+		// genesis validators or montblanc hard fork validators from wbft config
+		return validator.NewSet(e.cfg.Validators, e.cfg.ProposerPolicy), nil
+	}
+
+	// traverse back to the last epoch block
+	blockNumber = new(big.Int).Sub(blockNumber, common.Big1)
+	isEpoch, latestEpoch, err := e.IsEpochBlockNumber(chain.Config(), blockNumber)
+	if err != nil {
+		return nil, err
+	}
+	var block *types.Header
+	if len(parents) > 0 {
+		block = parents[len(parents)-1]
+		parents = parents[:len(parents)-1]
+	} else {
+		block = chain.GetHeader(parentHash, blockNumber.Uint64())
+	}
+	if block == nil {
+		return nil, consensus.ErrUnknownAncestor
+	}
+	for !isEpoch && block.Number.Cmp(latestEpoch) > 0 {
+		if len(parents) > 0 {
+			block = parents[len(parents)-1]
+			parents = parents[:len(parents)-1]
+		} else {
+			block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
+		}
+		if block == nil {
+			return nil, consensus.ErrUnknownAncestor
+		}
+	}
+	qbftExtra, err := types.ExtractQBFTExtra(block)
+	if err != nil {
+		log.Error("BFT: invalid epoch header", "err", err)
+		return nil, err
+	}
+	return validator.NewSet(qbftExtra.Validators, e.cfg.ProposerPolicy), nil
 }
 
 func (e *Engine) GetSignerAddress(header *types.Header, round uint32, signedSeal [][]byte, sealType core.SealType) ([]common.Address, error) {
@@ -817,22 +870,42 @@ func mergeSeals(seals [][]byte, extraSeals map[common.Hash][]byte) [][]byte {
 	return mergedSeals
 }
 
-func writeValidatorsToEpoch(header *types.Header, state govwbft.StateReader) error {
-	return ApplyHeaderQBFTExtra(header, WriteValidators(getValidatorsFromState(state)))
+func writeValidatorsToEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
+	vals, err := decideValidators(e, chain, header, state)
+	if err != nil {
+		return errors2.Wrap(err, "cannot write validators")
+	}
+	return ApplyHeaderQBFTExtra(header, WriteValidators(vals))
 }
 
 // verifyEpoch is a handler that performs default actions when the block is an EpochBlock,
 // and is called during the Finalize process.
 // It validates the validity of the ValidatorList associated with the EpochBlock.
-func verifyEpoch(header *types.Header, state govwbft.StateReader) error {
+func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
+	vals, err := decideValidators(e, chain, header, state)
+	if err != nil {
+		return errors2.Wrap(err, "cannot write validators")
+	}
+
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return err
 	}
-	return verifyValidators(extra.Validators, state)
+
+	if len(vals) != len(extra.Validators) {
+		return errors.New("WBFT: mismatch in ValidatorList sizes")
+	}
+
+	// Compare each element
+	for i := range vals {
+		if vals[i] != extra.Validators[i] {
+			return errors.New("WBFT: The two validators do not match")
+		}
+	}
+	return nil
 }
 
-func getValidatorsFromState(state govwbft.StateReader) []common.Address {
+func decideValidators(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) ([]common.Address, error) {
 	// WEMIX 3.5:
 	// - Stabilization stage:
 	//   - validator list(ordered) defined at wbft config
@@ -844,22 +917,13 @@ func getValidatorsFromState(state govwbft.StateReader) []common.Address {
 	// - order: vrf random order (selected order)
 	//
 	// this is a temporary solution; stabilization stage is not implemented yet
-	return govwbft.NCPStakers(state)
-}
-
-// VerifyValidators checks whether the ValidatorList matches the ValidatorList in the state.
-func verifyValidators(validators []common.Address, state govwbft.StateReader) error {
-	validatorFromState := getValidatorsFromState(state)
-
-	if len(validators) != len(validatorFromState) {
-		return errors.New("WBFT: mismatch in ValidatorList sizes")
-	}
-
-	// Compare each element
-	for i := range validators {
-		if validators[i] != validatorFromState[i] {
-			return errors.New("WBFT: The two validators do not match")
+	vals := govwbft.NCPStakers(state)
+	if len(vals) == 0 { // TODO: check this with config.minStakers rather than zero
+		valSet, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
+		if err != nil {
+			return nil, errors2.Wrap(err, "cannot write validators")
 		}
+		vals = valSet.AddressList()
 	}
-	return nil
+	return vals, nil
 }

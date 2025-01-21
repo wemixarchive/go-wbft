@@ -87,6 +87,16 @@ func (valSet *defaultSet) List() []qbft.Validator {
 	return valSet.validators
 }
 
+func (valSet *defaultSet) AddressList() []common.Address {
+	valSet.validatorMu.RLock()
+	defer valSet.validatorMu.RUnlock()
+	result := make([]common.Address, len(valSet.validators))
+	for i, v := range valSet.validators {
+		result[i] = v.Address()
+	}
+	return result
+}
+
 func (valSet *defaultSet) GetByIndex(i uint64) qbft.Validator {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()
