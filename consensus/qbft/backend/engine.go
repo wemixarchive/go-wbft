@@ -21,7 +21,6 @@
 package backend
 
 import (
-	"errors"
 	"math/big"
 	"time"
 
@@ -79,47 +78,8 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 }
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
-	// Assemble the voting snapshot
-	var valSet, prevValSet qbft.ValidatorSet
-	var err error
-
-	// Retrieve the ValidatorSet of block
-	parentNum := new(big.Int).Set(header.Number)
-	parentNum = parentNum.Sub(parentNum, common.Big1)
-	if valSet, err = sb.GetValidators(chain, parentNum, header.ParentHash, parents); err != nil {
-		return consensus.ErrUnknownAncestor
-	}
-
-	if header.Number.Uint64() < 2 {
-		return sb.Engine().VerifyHeader(chain, header, parents, valSet, valSet, true)
-	}
-
-	// Retrieve the BlockNumber and Hash to fetch the ValidatorSet of the previous block
-	var ancestorBlockNumber uint64
-	var ancestorHash common.Hash
-	{
-		var parentHeader *types.Header
-		if len(parents) == 0 {
-			parentHeader = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-		} else {
-			parentHeader = parents[len(parents)-1]
-		}
-
-		if parentHeader == nil || parentHeader.Number.Sign() == 0 {
-			return consensus.ErrUnknownAncestor
-		}
-		ancestorBlockNumber = parentHeader.Number.Uint64() - 1
-		ancestorHash = parentHeader.ParentHash
-
-		if 1 < len(parents) {
-			if ancestorBlockNumber != header.Number.Uint64()-2 {
-				return errors.New("unexpected ancestor block")
-			}
-		}
-	}
-
-	// Retrieve the ValidatorSet of the previous block
-	if prevValSet, err = sb.GetValidators(chain, new(big.Int).SetUint64(ancestorBlockNumber), ancestorHash, parents[:len(parents)-1]); err != nil {
+	valSet, prevValSet, err := sb.GetValidatorsForVerifying(chain, header.Number, header.ParentHash, parents)
+	if err != nil {
 		return err
 	}
 	return sb.Engine().VerifyHeader(chain, header, parents, valSet, prevValSet, true)
@@ -172,7 +132,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(chain, new(big.Int).SetUint64(number), header.Hash(), nil)
+	valSet, err := sb.GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -198,7 +158,7 @@ func (sb *Backend) timeForNextWork() uint64 {
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Assemble the voting snapshot
-	valSet, err := sb.GetValidators(chain, header.Number, header.Hash(), nil)
+	valSet, err := sb.GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -421,8 +381,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		qbftengine.ApplyHeaderQBFTExtra(
 			header,
 			qbftengine.WriteValidators(extra.Validators),
-			qbftengine.WritePrevPreparedSeal(prevPreparedSeal),
-			qbftengine.WritePrevCommittedSeal(prevCommittedSeal))
+			qbftengine.WritePrevSeals(extra.Round, prevPreparedSeal, prevCommittedSeal))
 		return nil
 	case "NewChainHead":
 		return sb.NewChainHead()
@@ -444,9 +403,47 @@ func (sb *Backend) SealHash(header *types.Header) common.Hash {
 	return sb.Engine().SealHash(header)
 }
 
-// GetValidators Retrieve the Validator List of the epoch block for the given block number
-// if given block is an epoch block, return the validators of previous epoch block
-func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, hash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
+func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, qbft.ValidatorSet, error) {
+	// Assemble the voting snapshot
+	var valSet, prevValSet qbft.ValidatorSet
+	var err error
+
+	// Retrieve the ValidatorSet for the block height
+	if valSet, err = sb.GetValidators(chain, blockNumber, parentHash, parents); err != nil {
+		return nil, nil, consensus.ErrUnknownAncestor
+	}
+
+	if (chain.Config().MontBlancBlock == nil && blockNumber.Uint64() >= 2) ||
+		(chain.Config().MontBlancBlock != nil && blockNumber.Uint64() >= chain.Config().MontBlancBlock.Uint64()+2) {
+		var parent *types.Header
+		var newParents []*types.Header
+		if len(parents) == 0 {
+			parent = chain.GetHeader(parentHash, blockNumber.Uint64()-1)
+			newParents = nil
+		} else {
+			parent = parents[len(parents)-1]
+			newParents = parents[:len(parents)-1]
+		}
+		if parent == nil {
+			return nil, nil, consensus.ErrUnknownAncestor
+		}
+		// Retrieve the ValidatorSet of the previous block
+		if prevValSet, err = sb.GetValidators(chain, parent.Number, parent.ParentHash, newParents); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		prevValSet = valSet
+	}
+
+	return valSet, prevValSet, nil
+}
+
+// GetValidators retrieve the validator list of the epoch to which block of given number belongs.
+// If the given block is an epoch block, it returns the validators of prior epoch.
+// `parents` is a hint for backward traverse.
+// exceptional case: blockNumber is genesis block number or montblanc hard fork block number, then
+// it returns the validators from chain config.
+func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
 	// 1. Check if the block is not a WBFT block
 	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
 		return nil, qbftcommon.ErrIsNotWBFTBlock
@@ -469,7 +466,7 @@ func (sb *Backend) GetValidators(chain consensus.ChainHeaderReader, blockNumber 
 		block = parents[len(parents)-1]
 		parents = parents[:len(parents)-1]
 	} else {
-		block = chain.GetHeader(hash, blockNumber.Uint64())
+		block = chain.GetHeader(parentHash, blockNumber.Uint64())
 	}
 	if block == nil {
 		return nil, consensus.ErrUnknownAncestor

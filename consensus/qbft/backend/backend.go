@@ -147,11 +147,6 @@ func (sb *Backend) Address() common.Address {
 	return sb.Engine().Address()
 }
 
-// Validators implements qbft.Backend.Validators
-func (sb *Backend) Validators(proposal qbft.Proposal) qbft.ValidatorSet {
-	return sb.getValidators(proposal.Number().Uint64(), proposal.Hash())
-}
-
 // Broadcast implements qbft.Backend.Broadcast
 func (sb *Backend) Broadcast(valSet qbft.ValidatorSet, code uint64, payload []byte) error {
 	// send to others
@@ -263,12 +258,8 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	}
 
 	header := block.Header()
-	var valSet, prevValSet qbft.ValidatorSet
-	var err error
-
-	if valSet, err = sb.GetValidators(sb.chain, header.Number, header.Hash(), nil); err != nil {
-		return 0, err
-	} else if prevValSet, err = sb.GetValidators(sb.chain, new(big.Int).SetUint64(header.Number.Uint64()-1), header.ParentHash, nil); err != nil {
+	valSet, prevValSet, err := sb.GetValidatorsForVerifying(sb.chain, header.Number, header.ParentHash, nil)
+	if err != nil {
 		return 0, err
 	}
 	return sb.Engine().VerifyBlockProposal(sb.chain, block, valSet, prevValSet)
@@ -313,16 +304,8 @@ func (sb *Backend) GetProposer(number uint64) common.Address {
 	return common.Address{}
 }
 
-// ParentValidators implements qbft.Backend.GetParentValidators
-func (sb *Backend) ParentValidators(proposal qbft.Proposal) qbft.ValidatorSet {
-	if block, ok := proposal.(*types.Block); ok {
-		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
-	}
-	return validator.NewSet(nil, sb.config.ProposerPolicy)
-}
-
-func (sb *Backend) getValidators(number uint64, hash common.Hash) qbft.ValidatorSet {
-	valSet, err := sb.GetValidators(sb.chain, new(big.Int).SetUint64(number), hash, nil)
+func (sb *Backend) Validators(proposal qbft.Proposal) qbft.ValidatorSet {
+	valSet, err := sb.GetValidators(sb.chain, new(big.Int).Add(proposal.Number(), common.Big1), proposal.Hash(), nil)
 	if err != nil {
 		return validator.NewSet(nil, sb.config.ProposerPolicy)
 	}

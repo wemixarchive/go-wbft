@@ -101,6 +101,20 @@ func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 	p.By = v
 }
 
+type QBFTConfig struct {
+	EpochLength              uint64                `json:"epochLength"`                       // Number of blocks that should pass before pending validator votes are reset
+	BlockPeriodSeconds       uint64                `json:"blockPeriodSeconds"`                // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
+	EmptyBlockPeriodSeconds  *uint64               `json:"emptyBlockPeriodSeconds,omitempty"` // Minimum time between two consecutive QBFT a block and empty block’ timestamps in seconds
+	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds"`             // Minimum request timeout for each QBFT round in milliseconds
+	ProposerPolicy           uint64                `json:"proposerPolicy"`                    // The policy for proposer selection
+	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`             // Reward from start, works only on QBFT consensus protocol
+	BeneficiaryMode          *string               `json:"beneficiaryMode,omitempty"`         // Mode for setting the beneficiary, either: list, besu, validators (beneficiary list is the list of validators)
+	MiningBeneficiary        *common.Address       `json:"miningBeneficiary,omitempty"`       // Wallet address that benefits at every new block (besu mode)
+	ValidatorSelectionMode   *string               `json:"validatorselectionmode,omitempty"`  // Select model for validators
+	Validators               []common.Address      `json:"validators"`                        // Validators list
+	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"`          // The max round time
+}
+
 type Config struct {
 	RequestTimeout           uint64                `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
 	BlockPeriod              uint64                `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
