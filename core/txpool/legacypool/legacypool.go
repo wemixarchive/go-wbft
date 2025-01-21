@@ -610,7 +610,8 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 		Accept: 0 |
 			1<<types.LegacyTxType |
 			1<<types.AccessListTxType |
-			1<<types.DynamicFeeTxType,
+			1<<types.DynamicFeeTxType |
+			1<<types.FeeDelegateDynamicFeeTxType,
 		MaxSize: txMaxSize,
 		MinTip:  pool.gasTip.Load().ToBig(),
 	}
