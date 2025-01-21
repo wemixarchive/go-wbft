@@ -109,6 +109,8 @@ type Config struct {
 	BlockReward              *math.HexOrDecimal256   `toml:",omitempty"` // Reward
 	BlockRewardBeneficiary   *params.BeneficiaryInfo `toml:",omitempty"`
 	Validators               []common.Address        `toml:",omitempty"`
+	MinStakers               uint64                  `toml:",omitempty"`
+	TargetValidators         uint64                  `toml:",omitempty"`
 	Client                   bind.ContractCaller     `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                  `toml:",omitempty"`
 	Transitions              []params.Transition
@@ -144,6 +146,12 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		}
 		if len(transition.Validators) > 0 {
 			newConfig.Validators = transition.Validators
+		}
+		if transition.MinStakers != nil {
+			newConfig.MinStakers = *transition.MinStakers
+		}
+		if transition.TargetValidators != nil {
+			newConfig.TargetValidators = *transition.TargetValidators
 		}
 		if transition.MaxRequestTimeoutSeconds != nil {
 			newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds

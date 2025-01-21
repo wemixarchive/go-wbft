@@ -390,7 +390,11 @@ func TestEpochInfo(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = params.TestChainConfig
-			engine := NewEngine(&qbft.Config{Validators: validators, ProposerPolicy: qbft.NewRoundRobinProposerPolicy(), Epoch: 3}, common.Address{}, nil)
+			engine := NewEngine(&qbft.Config{
+				Validators:     validators,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          3,
+			}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 

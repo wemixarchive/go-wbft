@@ -587,8 +587,7 @@ func (e *Engine) GetEpochBlock(chain consensus.ChainHeaderReader, header *types.
 // Once the number of stakers is over minStakers, network should prevent the
 // number from dropping to minStakers so that the list in config is no longer
 // used.
-const minStakers = 4
-
+//
 // Staker list returned must be sorted by lexicographic order.
 func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common.Address {
 	var stakers []common.Address
@@ -598,7 +597,7 @@ func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common
 		stakerSetFromGov = govwbft.NCPStakers(state)
 	}
 
-	if len(stakerSetFromGov) <= minStakers {
+	if len(stakerSetFromGov) <= int(e.cfg.GetConfig(number).MinStakers) {
 		stakerSetFromConfig := e.cfg.GetConfig(number).Validators
 		stakers = append(stakers, stakerSetFromConfig...)
 	} else {

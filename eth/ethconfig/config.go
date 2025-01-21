@@ -212,6 +212,8 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
 		qbftCfg.BlockReward = config.QBFT.BlockReward
 		qbftCfg.BlockRewardBeneficiary = config.QBFT.BlockRewardBeneficiary
+		qbftCfg.MinStakers = config.QBFT.MinStakers
+		qbftCfg.TargetValidators = config.QBFT.TargetValidators
 		qbftCfg.Validators = config.QBFT.Validators
 
 		if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {

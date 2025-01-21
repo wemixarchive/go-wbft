@@ -22,6 +22,8 @@ type QBFTConfig struct {
 	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
 	BlockRewardBeneficiary   *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
 	Validators               []common.Address      `json:"validators"`                       // Validators list
+	MinStakers               uint64                `json:"minStakers"`                       // Minimum number of stakers before stabilization
+	TargetValidators         uint64                `json:"targetValidators"`                 // Target number of validators
 	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"`         // The max round time
 }
 
@@ -51,7 +53,7 @@ func (c *QBFTConfig) String() string {
 		maxRequestTimeoutSeconds = "<nil>"
 	}
 
-	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, Validators: %v, MaxRequestTimeoutSeconds: %v}",
+	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, Validators: %v, MinStakers: %v, TargetValidators: %v, MaxRequestTimeoutSeconds: %v}",
 		c.EpochLength,
 		c.BlockPeriodSeconds,
 		c.RequestTimeoutSeconds,
@@ -59,6 +61,8 @@ func (c *QBFTConfig) String() string {
 		blockReward,
 		c.BlockRewardBeneficiary,
 		c.Validators,
+		c.MinStakers,
+		c.TargetValidators,
 		maxRequestTimeoutSeconds,
 	)
 }
@@ -78,6 +82,8 @@ type Transition struct {
 	TransactionSizeLimit         uint64                `json:"transactionSizeLimit,omitempty"`         // Modify TransactionSizeLimit
 	BlockReward                  *math.HexOrDecimal256 `json:"blockReward,omitempty"`                  // validation rewards
 	BlockRewardBeneficiary       *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"`       // Reward beneficiaries
+	MinStakers                   *uint64               `json:"minStakers,omitempty"`                   // Minimum number of stakers before stabilization
+	TargetValidators             *uint64               `json:"targetValidators,omitempty"`             // Target number of validators
 	MaxRequestTimeoutSeconds     *uint64               `json:"maxRequestTimeoutSeconds,omitempty"`     // The max a timeout should be for a round change
 }
 
