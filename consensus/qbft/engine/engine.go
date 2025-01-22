@@ -494,13 +494,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		firstWbftBlockNum = chain.Config().MontBlancBlock
 	}
 
-	validatorsList := validator.SortedAddresses(validators.List())
 	if firstWbftBlockNum.Cmp(header.Number) == 0 {
-		// monblac hardFork block has empty prevCommittedSeal
-		return ApplyHeaderQBFTExtra(
-			header,
-			WriteValidators(validatorsList),
-		)
+		// monblac hardFork block has empty prev seal
+		// validators will be written at FinalizeAndAssemble
+		return ApplyHeaderQBFTExtra(header)
 	} else {
 		lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
 		extra, err := types.ExtractQBFTExtra(lastCanonicalHeader)

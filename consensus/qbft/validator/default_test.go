@@ -42,6 +42,16 @@ func TestValidatorSet(t *testing.T) {
 	testAddAndRemoveValidator(t)
 }
 
+func extractValidators(extraData []byte) []common.Address {
+	// get the validator addresses
+	addrs := make([]common.Address, (len(extraData) / common.AddressLength))
+	for i := 0; i < len(addrs); i++ {
+		copy(addrs[i][:], extraData[i*common.AddressLength:])
+	}
+
+	return addrs
+}
+
 func testNewValidatorSet(t *testing.T) {
 	var validators []qbft.Validator
 	const ValCnt = 100
@@ -57,7 +67,7 @@ func testNewValidatorSet(t *testing.T) {
 	}
 
 	// Create ValidatorSet
-	valSet := NewSet(ExtractValidators(b), qbft.NewRoundRobinProposerPolicy())
+	valSet := NewSet(extractValidators(b), qbft.NewRoundRobinProposerPolicy())
 	if valSet == nil {
 		t.Errorf("the validator byte array cannot be parsed")
 		t.FailNow()
@@ -122,14 +132,14 @@ func testNormalValSet(t *testing.T) {
 }
 
 func testEmptyValSet(t *testing.T) {
-	valSet := NewSet(ExtractValidators([]byte{}), qbft.NewRoundRobinProposerPolicy())
+	valSet := NewSet(extractValidators([]byte{}), qbft.NewRoundRobinProposerPolicy())
 	if valSet == nil {
 		t.Errorf("validator set should not be nil")
 	}
 }
 
 func testAddAndRemoveValidator(t *testing.T) {
-	valSet := NewSet(ExtractValidators([]byte{}), qbft.NewRoundRobinProposerPolicy())
+	valSet := NewSet(extractValidators([]byte{}), qbft.NewRoundRobinProposerPolicy())
 	if !valSet.AddValidator(common.BytesToAddress([]byte("2"))) {
 		t.Error("the validator should be added")
 	}
