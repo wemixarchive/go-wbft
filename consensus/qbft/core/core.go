@@ -112,9 +112,6 @@ type Core struct {
 	pendingRequestsMu *sync.Mutex
 
 	consensusTimestamp time.Time
-
-	newRoundMutex sync.Mutex
-	newRoundTimer *time.Timer
 }
 
 func (c *Core) currentView() *qbft.View {

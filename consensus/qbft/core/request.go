@@ -48,28 +48,11 @@ func (c *Core) handleRequest(request *Request) error {
 	// if round > 0, then we don't send preprepare because it would be failed due to having no justification
 	// after that we will send preprepare when 2/3+ round change messages are received
 	if c.state == StateAcceptRequest && c.current.Round().Uint64() == 0 {
-		config := c.config.GetConfig(c.current.Sequence())
-		if config.EmptyBlockPeriod == 0 { // emptyBlockPeriod is not set
-			// Start ROUND-CHANGE timer
-			c.newRoundChangeTimer()
+		// Start ROUND-CHANGE timer
+		c.newRoundChangeTimer()
 
-			// Send PRE-PREPARE message to other validators
-			c.sendPreprepareMsg(request)
-		} else { // emptyBlockPeriod is set
-			c.newRoundMutex.Lock()
-			defer c.newRoundMutex.Unlock()
-
-			if c.newRoundTimer != nil {
-				c.newRoundTimer.Stop()
-				c.newRoundTimer = nil
-			}
-
-			// Start ROUND-CHANGE timer
-			c.newRoundChangeTimer()
-
-			// Send PRE-PREPARE message to other validators
-			c.sendPreprepareMsg(request)
-		}
+		// Send PRE-PREPARE message to other validators
+		c.sendPreprepareMsg(request)
 	}
 
 	return nil
