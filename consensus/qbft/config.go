@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/params"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 
@@ -215,75 +214,6 @@ func (c *Config) getTransitionValue(num *big.Int, callback func(transition param
 			callback(c.Transitions[i])
 		}
 	}
-}
-
-// IsEpochBlock checks whether the provided block number corresponds to an EpochBlock.
-//
-// Defined the EpochBlock as the block that records the ValidatorList for the Nth Epoch.
-// Specifies that the EpochBlock for the Nth Epoch is the last block of the (N-1)th Epoch.
-//
-// Returns true if the block number corresponds to an EpochBlock, otherwise false.
-func (c *Config) IsEpochBlock(chain consensus.ChainHeaderReader, blockNumber *big.Int) bool {
-	// 1. Retrieves the starting block number of the hard fork (associated with the given block number)
-	startForkBlock := c.GetNearestForkBlock(chain, blockNumber)
-	if startForkBlock.Cmp(blockNumber) == 0 {
-		return true
-	}
-
-	// 2. Calculate the offset relative to the fork start block.
-	offset := new(big.Int).Sub(blockNumber, startForkBlock)
-	if offset.Sign() == 0 { // starting block of the HardFork
-		return true
-	}
-
-	if offset.Sign() == -1 {
-		return false
-	}
-
-	// 3. Check if block itself is an EpochBlock
-	epochInterval := new(big.Int).SetUint64(c.Epoch)
-	remainder := new(big.Int).Mod(offset, epochInterval)
-	// checking : offset % epochInterval == epochInterval - 1
-	return new(big.Int).Add(remainder, big.NewInt(1)).Cmp(epochInterval) == 0
-}
-
-// GetNearestForkBlock retrieves the starting block number of the hard fork closest to the provided block number.
-//
-// Returns:
-//   - This function guarantees that it will never return a nil value.
-func (c *Config) GetNearestForkBlock(chain consensus.ChainHeaderReader, blockNumber *big.Int) *big.Int {
-	nearestForkBlock := c.getNearestForkBlock(blockNumber)
-
-	// If the associated HardFork of the block cannot be found, retrieve it from the chainConfig
-	if nearestForkBlock == nil {
-		switch {
-		case chain.Config().IsMontBlanc(blockNumber):
-			return chain.Config().MontBlancBlock
-		default:
-			return big.NewInt(0)
-		}
-	}
-	return nearestForkBlock
-}
-
-// getNearestForkBlock is the internal implementation of GetNearestForkBlock.
-// assumes that the epoch value is only changed in a HardFork block, and not in any other block.
-//
-// Returns:
-// - It can be nil if the nearest hard fork block number corresponding to the given block number does not exist.
-func (c *Config) getNearestForkBlock(blockNumber *big.Int) *big.Int {
-	// TODO: (noah) transition의 Block 순서를 보장하지 못하는 경우를 가정하여 만듬
-	var nearestForkBlock *big.Int = nil
-
-	for _, transition := range c.Transitions {
-		if transition.Block.Cmp(blockNumber) == 0 {
-			return transition.Block
-		}
-		if transition.Block.Cmp(blockNumber) < 0 && transition.Block.Cmp(nearestForkBlock) > 0 {
-			nearestForkBlock = transition.Block
-		}
-	}
-	return nearestForkBlock
 }
 
 // String implements the stringer interface, returning the consensus engine details.
