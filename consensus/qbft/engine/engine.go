@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	errors2 "github.com/pkg/errors"
 	"math/big"
 	"time"
 
@@ -892,7 +891,7 @@ func mergeSeals(seals [][]byte, extraSeals map[common.Hash][]byte) [][]byte {
 func writeValidatorsToEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
 	vals, err := decideValidators(e, chain, header, state)
 	if err != nil {
-		return errors2.Wrap(err, "cannot write validators")
+		return err
 	}
 	return ApplyHeaderQBFTExtra(header, WriteValidators(vals))
 }
@@ -903,7 +902,7 @@ func writeValidatorsToEpoch(e *Engine, chain consensus.ChainHeaderReader, header
 func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
 	vals, err := decideValidators(e, chain, header, state)
 	if err != nil {
-		return errors2.Wrap(err, "cannot write validators")
+		return err
 	}
 
 	extra, err := types.ExtractQBFTExtra(header)
@@ -940,7 +939,7 @@ func decideValidators(e *Engine, chain consensus.ChainHeaderReader, header *type
 	if len(vals) == 0 { // TODO: check this with config.minStakers rather than zero
 		valSet, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
 		if err != nil {
-			return nil, errors2.Wrap(err, "cannot write validators")
+			return nil, err
 		}
 		vals = valSet.AddressList()
 	}
