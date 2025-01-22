@@ -15,6 +15,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/lru"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
@@ -33,6 +34,8 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+const inmemoryCache = 128 // Number of recent validator set to keep in memory
+
 var (
 	nilUncleHash = types.CalcUncleHash(nil) // Always Keccak256(RLP([])) as uncles are meaningless outside of PoW.
 )
@@ -40,7 +43,8 @@ var (
 type SignerFn func(data []byte) ([]byte, error)
 
 type Engine struct {
-	cfg *qbft.Config
+	cfg         *qbft.Config
+	valSetCache *lru.Cache[uint64, qbft.ValidatorSet]
 
 	signer common.Address // Ethereum address of the signing key
 	sign   SignerFn       // Signer function to authorize hashes with
@@ -48,9 +52,10 @@ type Engine struct {
 
 func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn) *Engine {
 	return &Engine{
-		cfg:    cfg,
-		signer: signer,
-		sign:   sign,
+		cfg:         cfg,
+		valSetCache: lru.NewCache[uint64, qbft.ValidatorSet](inmemoryCache),
+		signer:      signer,
+		sign:        sign,
 	}
 }
 
@@ -642,6 +647,10 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 // exceptional case: blockNumber is genesis block number or montblanc hard fork block number, then
 // it returns the validators from chain config.
 func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
+	if vs, ok := e.valSetCache.Get(blockNumber.Uint64()); ok {
+		return vs.Copy(), nil
+	}
+
 	// 1. Check if the block is not a WBFT block
 	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
 		return nil, qbftcommon.ErrIsNotWBFTBlock
@@ -654,8 +663,8 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 	}
 
 	// traverse back to the last epoch block
-	blockNumber = new(big.Int).Sub(blockNumber, common.Big1)
-	isEpoch, latestEpoch, err := e.IsEpochBlockNumber(chain.Config(), blockNumber)
+	parentNumber := new(big.Int).Sub(blockNumber, common.Big1)
+	isEpoch, latestEpoch, err := e.IsEpochBlockNumber(chain.Config(), parentNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -664,12 +673,18 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 		block = parents[len(parents)-1]
 		parents = parents[:len(parents)-1]
 	} else {
-		block = chain.GetHeader(parentHash, blockNumber.Uint64())
+		block = chain.GetHeader(parentHash, parentNumber.Uint64())
 	}
 	if block == nil {
 		return nil, consensus.ErrUnknownAncestor
 	}
 	for !isEpoch && block.Number.Cmp(latestEpoch) > 0 {
+		if vs, ok := e.valSetCache.Get(block.Number.Uint64()); ok {
+			// this block is not epoch and this block's epoch is same with requested block
+			// so if cache hit, it must be same validator set with requested one
+			return vs.Copy(), nil
+		}
+
 		if len(parents) > 0 {
 			block = parents[len(parents)-1]
 			parents = parents[:len(parents)-1]
@@ -680,12 +695,16 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 			return nil, consensus.ErrUnknownAncestor
 		}
 	}
+
+	// block must be an epoch block
 	qbftExtra, err := types.ExtractQBFTExtra(block)
 	if err != nil {
 		log.Error("BFT: invalid epoch header", "err", err)
 		return nil, err
 	}
-	return validator.NewSet(qbftExtra.Validators, e.cfg.ProposerPolicy), nil
+	vs := validator.NewSet(qbftExtra.Validators, e.cfg.ProposerPolicy)
+	e.valSetCache.Add(blockNumber.Uint64(), vs)
+	return vs, nil
 }
 
 func (e *Engine) GetSignerAddress(header *types.Header, round uint32, signedSeal [][]byte, sealType core.SealType) ([]common.Address, error) {

@@ -239,9 +239,6 @@ type ValidatorSet interface {
 	QuorumSize() int
 	// Get proposer policy
 	Policy() ProposerPolicy
-
-	// SortValidators sorts the validators based on the configured By function
-	SortValidators()
 }
 
 // ----------------------------------------------------------------------------

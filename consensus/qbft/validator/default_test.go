@@ -21,9 +21,7 @@
 package validator
 
 import (
-	fmt "fmt"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -63,15 +61,6 @@ func testNewValidatorSet(t *testing.T) {
 	if valSet == nil {
 		t.Errorf("the validator byte array cannot be parsed")
 		t.FailNow()
-	}
-
-	// Check validators sorting: should be in ascending order
-	for i := 0; i < ValCnt-1; i++ {
-		val := valSet.GetByIndex(uint64(i))
-		nextVal := valSet.GetByIndex(uint64(i + 1))
-		if strings.Compare(val.String(), nextVal.String()) >= 0 {
-			t.Errorf("validator set is not sorted in ascending order")
-		}
 	}
 }
 
@@ -151,13 +140,6 @@ func testAddAndRemoveValidator(t *testing.T) {
 	valSet.AddValidator(common.BytesToAddress([]byte("0")))
 	if len(valSet.List()) != 3 {
 		t.Error("the size of validator set should be 3")
-	}
-
-	for i, v := range valSet.List() {
-		expected := common.BytesToAddress([]byte((fmt.Sprint(i))))
-		if v.Address() != expected {
-			t.Errorf("the order of validators is wrong: have %v, want %v", v.Address().Hex(), expected.Hex())
-		}
 	}
 
 	if !valSet.RemoveValidator(common.BytesToAddress([]byte("2"))) {
