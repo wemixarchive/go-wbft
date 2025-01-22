@@ -846,23 +846,22 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 	eventSub.Unsubscribe()
 
 	proposedBlock, _ := request.Proposal.(*types.Block)
-	for _, node := range nodes {
-		go func(node otherNode) error {
-			ticker := time.NewTicker(300 * time.Millisecond)
-			defer ticker.Stop()
+	go func() error {
+		ticker := time.NewTicker(300 * time.Millisecond)
+		defer ticker.Stop()
 
-			executed := make(map[qbftcore.State]bool)
-			for {
-				<-ticker.C
-				consensusState := engine.core.GetState()
-				if executed[consensusState] {
-					continue
-				}
+		executed := make(map[qbftcore.State]bool)
+		for {
+			<-ticker.C
+			consensusState := engine.core.GetState()
+			if executed[consensusState] {
+				continue
+			}
 
-				switch consensusState {
-				case qbftcore.StateAcceptRequest:
-					if engine.Validators(proposedBlock).IsProposer(node.address) {
-						fmt.Printf("height=%d, state=acceptRequest(proposer), node=%v, proposer=%v\n", proposedBlock.Number(), node.address, engine.Validators(proposedBlock).GetProposer())
+			switch consensusState {
+			case qbftcore.StateAcceptRequest:
+				for _, node := range nodes {
+					if engine.CurrentProposer() == node.address {
 						header := proposedBlock.Header()
 						header.Coinbase = node.address
 						statedb, err := chain.State()
@@ -874,27 +873,26 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 						if err := nodeSendPreprepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 							return fmt.Errorf("failed to send preprepare msg. err :  %v", err)
 						}
-						executed[consensusState] = true
-					} else {
-						fmt.Printf("height=%d, state=acceptRequest(non proposer), node=%v\n", proposedBlock.Number(), node.address)
-						executed[consensusState] = true
 					}
-				case qbftcore.StatePreprepared:
-					fmt.Printf("height=%d, state=preprepared, node=%v\n", proposedBlock.Number(), node.address)
+				}
+				executed[consensusState] = true
+			case qbftcore.StatePreprepared:
+				for _, node := range nodes {
 					if err := nodeSendPrepareMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 						return fmt.Errorf("failed to send prepare msg. err :  %v", err)
 					}
-					executed[consensusState] = true
-				case qbftcore.StatePrepared:
-					fmt.Printf("height=%d, state=prepared, node=%v\n", proposedBlock.Number(), node.address)
+				}
+				executed[consensusState] = true
+			case qbftcore.StatePrepared:
+				for _, node := range nodes {
 					if err := nodeSendCommitMsg(engine, node, proposedBlock.Number(), big.NewInt(0), proposedBlock); err != nil {
 						return fmt.Errorf("failed to send commit msg. err :  %v", err)
 					}
-					executed[consensusState] = true
 				}
+				executed[consensusState] = true
 			}
-		}(node)
-	}
+		}
+	}()
 
 	select {
 	case blockFromResultCh := <-resultCh:
@@ -906,16 +904,15 @@ func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []
 }
 
 func TestMakingBlock(t *testing.T) {
-	t.Skip("working in progress")
 	chain, engine, nodes := newBlockChain(4)
+	others := nodes[1:]
 	parentBlock := chain.Genesis()
 
 	for i := 0; i < 3; i++ {
-		finalBlock, err := makeBlockThroughConsensus(chain, engine, nodes, parentBlock)
+		finalBlock, err := makeBlockThroughConsensus(chain, engine, others, parentBlock)
 		if err != nil {
 			t.Errorf("failed to make block1 through consensus. err %v", err)
 		}
-		fmt.Printf("block created: %v\n", finalBlock.Header())
 		if parentBlock.Hash() != finalBlock.ParentHash() {
 			t.Errorf("parent hash mismatch: have %v, want %v", finalBlock.ParentHash(), parentBlock.Hash())
 		}
@@ -1045,11 +1042,11 @@ func TestAddingExtraSeals(t *testing.T) {
 }
 
 func TestLackingSealsFromPropagatedBlock(t *testing.T) {
-	t.Skip("working in progress")
 	chain, engine, nodes := newBlockChain(4)
+	others := nodes[1:]
 
 	// 1. generate block through consensus
-	validBlock, err := makeBlockThroughConsensus(chain, engine, nodes, chain.Genesis())
+	validBlock, err := makeBlockThroughConsensus(chain, engine, others, chain.Genesis())
 	if err != nil {
 		t.Errorf("failed to make valid block through consensus. err %v", err)
 	}

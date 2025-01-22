@@ -312,6 +312,10 @@ func (sb *Backend) Validators(proposal qbft.Proposal) qbft.ValidatorSet {
 	return valSet
 }
 
+func (sb *Backend) CurrentProposer() common.Address {
+	return sb.core.GetProposer()
+}
+
 func (sb *Backend) LastProposal() (qbft.Proposal, common.Address) {
 	block := sb.currentBlock()
 
