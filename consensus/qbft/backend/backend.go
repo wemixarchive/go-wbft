@@ -312,7 +312,7 @@ func (sb *Backend) Validators(proposal qbft.Proposal) qbft.ValidatorSet {
 	return valSet
 }
 
-func (sb *Backend) CurrentProposer() common.Address {
+func (sb *Backend) ProposerFromValSet() common.Address {
 	return sb.core.GetProposer()
 }
 

@@ -53,21 +53,18 @@ func extractValidators(extraData []byte) []common.Address {
 }
 
 func testNewValidatorSet(t *testing.T) {
-	var validators []qbft.Validator
+	var validators []common.Address
 	const ValCnt = 100
 
 	// Create 100 validators with random addresses
-	b := []byte{}
 	for i := 0; i < ValCnt; i++ {
 		key, _ := crypto.GenerateKey()
 		addr := crypto.PubkeyToAddress(key.PublicKey)
-		val := New(addr)
-		_ = append(validators, val)
-		b = append(b, val.Address().Bytes()...)
+		_ = append(validators, addr)
 	}
 
 	// Create ValidatorSet
-	valSet := NewSet(extractValidators(b), qbft.NewRoundRobinProposerPolicy())
+	valSet := NewSet(validators, qbft.NewRoundRobinProposerPolicy())
 	if valSet == nil {
 		t.Errorf("the validator byte array cannot be parsed")
 		t.FailNow()
