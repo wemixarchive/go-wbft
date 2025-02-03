@@ -237,10 +237,10 @@ func newAccounts(n int) (accounts []account) {
 		accounts = append(accounts, account{key: key, addr: addr})
 	}
 
-	// Sort by lexicographic order
-	//sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.Cmp(accounts[j].addr) < 0 })
-	// Sort by dictionary order
-	sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.String() < accounts[j].addr.String() })
+	// Sort by case-insensitive
+	sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.Cmp(accounts[j].addr) < 0 })
+	// Sort by case-sensitive (qbft default)
+	//sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.String() < accounts[j].addr.String() })
 
 	return accounts
 }
@@ -510,6 +510,7 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = params.TestChainConfig
+			c.chainConfig.QBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 			engine := NewEngine(tc.qbftConfig, common.Address{}, nil)
 			parent := makeGenesis(signers)

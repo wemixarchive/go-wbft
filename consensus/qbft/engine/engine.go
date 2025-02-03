@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -623,13 +624,8 @@ func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common
 		stakers = append(stakers, stakerSetFromGov...)
 	}
 
-	valSet := validator.NewSet(stakers, e.cfg.ProposerPolicy)
-	valSet.SortValidators()
-
-	vals := valSet.List()
-	for i := range vals {
-		stakers[i] = vals[i].Address()
-	}
+	// Sort by case-insensitive.
+	sort.Slice(stakers, func(i, j int) bool { return stakers[i].Cmp(stakers[j]) < 0 })
 
 	return stakers
 }

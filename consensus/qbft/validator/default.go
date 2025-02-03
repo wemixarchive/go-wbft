@@ -122,7 +122,6 @@ func (valSet *defaultSet) CalcProposer(lastProposer common.Address, round uint64
 
 // ValidatorSetSorter sorts the validators based on the configured By function
 func (valSet *defaultSet) SortValidators() {
-	valSet.Policy().By.Sort(valSet.validators)
 }
 
 func calcSeed(valSet qbft.ValidatorSet, proposer common.Address, round uint64) uint64 {
