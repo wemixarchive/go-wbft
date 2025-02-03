@@ -421,7 +421,8 @@ func TestEpochInfo(t *testing.T) {
 				// Build epoch info
 				newEpoch := engine.buildEpochInfo(c, h, nil)
 				ApplyHeaderQBFTExtra(h, WriteEpochInfo(newEpoch))
-				if newEpoch != nil && !engine.IsEpochBlock(h) {
+				isEpoch, _, _ := engine.IsEpochBlockNumber(c.chainConfig, h.Number)
+				if newEpoch != nil && !isEpoch {
 					t.Errorf("expected epoch info to be nil")
 				}
 
@@ -464,14 +465,16 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 		{
 			"Proposer gets all rewards",
 			&qbft.Config{
-				Epoch: 1,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          1,
 			},
 			1000000000000000000,
 		},
 		{
 			"Proposer and 2 beneficiaries share rewards",
 			&qbft.Config{
-				Epoch: 1,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          1,
 				BlockRewardBeneficiary: &params.BeneficiaryInfo{
 					Denominator: 10000,
 					Beneficiaries: []*params.Beneficiary{
@@ -485,7 +488,8 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 		{
 			"Beneficiaries gets all rewards",
 			&qbft.Config{
-				Epoch: 1,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          1,
 				BlockRewardBeneficiary: &params.BeneficiaryInfo{
 					Denominator: 10000,
 					Beneficiaries: []*params.Beneficiary{
@@ -541,7 +545,8 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			"Stakers share rewards",
 			4,
 			&qbft.Config{
-				Epoch: 1,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          1,
 			},
 			[]*big.Int{big.NewInt(4000), big.NewInt(3000), big.NewInt(2000), big.NewInt(1000)},
 			[]uint64{1200000, 900000, 600000, 300000},
@@ -550,7 +555,8 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			"Stakers share rewards (validator set is subset of stakers)",
 			2,
 			&qbft.Config{
-				Epoch: 1,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          1,
 			},
 			[]*big.Int{big.NewInt(4000), big.NewInt(6000), big.NewInt(2000), big.NewInt(1000)},
 			[]uint64{1200000, 1800000, 0, 0},
@@ -559,7 +565,8 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			"Stakers share rewards, which sum of sharing does not equal to original amounts",
 			4,
 			&qbft.Config{
-				Epoch: 1,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          1,
 			},
 			[]*big.Int{big.NewInt(239045), big.NewInt(7233), big.NewInt(732), big.NewInt(10)},
 			[]uint64{2903145, 87843, 8889, 121}, // sum: 2999998
@@ -568,7 +575,8 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			"Stakers have zero staking amounts",
 			4,
 			&qbft.Config{
-				Epoch: 1,
+				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
+				Epoch:          1,
 			},
 			[]*big.Int{big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0)},
 			[]uint64{0, 0, 0, 0},

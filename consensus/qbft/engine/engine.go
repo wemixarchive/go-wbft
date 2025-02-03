@@ -565,15 +565,34 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 	}
 }
 
-// TODO: check if the given block is epoch block correctly
-func (e *Engine) IsEpochBlock(h *types.Header) bool {
-	return h.Number.Uint64()%e.cfg.GetConfig(h.Number).Epoch == 0
+// TODO: to be replaced
+func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int) (bool, *big.Int, error) {
+	return number.Uint64()%e.cfg.GetConfig(number).Epoch == 0, big.NewInt(0), nil
+}
+
+// TODO: to be replaced
+func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
+	header := &types.Header{
+		ParentHash: parentHash,
+		Number:     blockNumber,
+	}
+	epochHeader := e.GetEpochBlock(chain, header)
+
+	// Get validator set from epoch block.
+	extra, err := types.ExtractQBFTExtra(epochHeader)
+	if err != nil {
+		return nil, qbftcommon.ErrInvalidExtraDataFormat
+	}
+	return validator.NewSet(extra.EpochInfo.GetValidators(), e.cfg.ProposerPolicy), nil
 }
 
 func (e *Engine) GetEpochBlock(chain consensus.ChainHeaderReader, header *types.Header) *types.Header {
+	config := chain.Config()
 	for {
 		header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-		if e.IsEpochBlock(header) {
+		if isEpoch, _, err := e.IsEpochBlockNumber(config, header.Number); err != nil {
+			log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+		} else if isEpoch {
 			break
 		}
 	}
@@ -641,7 +660,10 @@ type stakerInfo struct {
 func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
 	var newEpoch types.EpochInfo
 
-	if !e.IsEpochBlock(header) {
+	config := chain.Config()
+	if isEpoch, _, err := e.IsEpochBlockNumber(config, header.Number); err != nil {
+		log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+	} else if !isEpoch {
 		return nil
 	}
 
@@ -697,7 +719,9 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		epochLength++
 
 		// Stop counting if the block reaches to the epoch block.
-		if e.IsEpochBlock(epochHeader) {
+		if isEpoch, _, err := e.IsEpochBlockNumber(config, epochHeader.Number); err != nil {
+			log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+		} else if isEpoch {
 			break
 		}
 	}
@@ -1019,13 +1043,14 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 // Currently, seals are not considered for rewards because which we cannot determine malicious validators.
 // Instead, we use diligence score to give faithful validator opportunity to propose more blocks.
 func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, rewardFn func(*govwbft.Staker, *big.Int), getStakerInfo func(common.Address) *govwbft.Staker) error {
-	// Get validator set from epoch block.
-	epochHeader := e.GetEpochBlock(chain, header)
-	extra, err := types.ExtractQBFTExtra(epochHeader)
+	valSet, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
-		return qbftcommon.ErrInvalidExtraDataFormat
+		return err
 	}
-	validators := extra.EpochInfo.GetValidators()
+	validators := make([]common.Address, valSet.Size())
+	for i, val := range valSet.List() {
+		validators[i] = val.Address()
+	}
 
 	// Get staking amounts for rewardees.
 	stakers := make([]*govwbft.Staker, len(validators))
