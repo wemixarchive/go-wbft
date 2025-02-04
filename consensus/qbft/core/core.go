@@ -21,6 +21,7 @@
 package core
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"sync"
@@ -235,13 +236,11 @@ func (c *Core) startNewRound(round *big.Int) {
 		c.roundChangeSet.ClearLowerThan(round)
 	}
 	c.roundChangeSet.NewRound(round)
-
-	if round.Uint64() > 0 {
-		c.newRoundChangeTimer()
-	}
+	c.newRoundChangeTimer()
 
 	oldLogger.Info("QBFT: start new round", "next.round", newView.Round, "next.seq", newView.Sequence, "next.proposer", c.valSet.GetProposer(), "next.valSet", c.valSet.List(), "next.size", c.valSet.Size(), "next.IsProposer", c.IsProposer())
 
+	fmt.Printf("[%s:NEW ROUND %d], proposer=%s\n", c.Address().String(), round.Uint64(), c.GetProposer().String())
 	c.backend.NotifyNewRound(round)
 }
 
@@ -334,6 +333,7 @@ func (c *Core) newRoundChangeTimer() {
 
 	c.currentLogger(true, nil).Trace("QBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
+		fmt.Printf("[%s:TIME OUT]\n", c.Address().String())
 		c.sendEvent(timeoutEvent{})
 	})
 }

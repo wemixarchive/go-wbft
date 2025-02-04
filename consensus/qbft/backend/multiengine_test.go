@@ -19,14 +19,14 @@ import (
 )
 
 type testEnv struct {
-	addrs           []common.Address
-	index           map[common.Address]int
-	chains          map[common.Address]*core.BlockChain
-	engines         map[common.Address]*Backend
-	newRoundReady   map[common.Address]chan uint64
-	parent          *types.Block
-	result          chan *types.Block
-	currentProposer common.Address
+	addrs         []common.Address
+	index         map[common.Address]int
+	chains        map[common.Address]*core.BlockChain
+	engines       map[common.Address]*Backend
+	newRoundReady map[common.Address]chan uint64
+	results       map[common.Address]chan *types.Block
+	parent        *types.Block
+	stopCh        chan struct{}
 
 	// properties for test scenario
 	down map[common.Address]bool
@@ -43,44 +43,57 @@ func (env *testEnv) waitToSync(t *testing.T, rounds ...uint64) {
 }
 
 func (env *testEnv) tryMakeBlock() {
+	env.stopCh = make(chan struct{})
 	for _, engine := range env.engines {
-		env.currentProposer = engine.ProposerFromValSet()
-		break
+		chain := env.chains[engine.address]
+		block := makeBlockNoNewChainHead(chain, engine, env.parent)
+		currState, _ := chain.State()
+		block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
+
+		// all engines try to seal
+		engine.Seal(chain, block, env.results[engine.address], env.stopCh)
 	}
-	block := makeBlockNoNewChainHead(env.chains[env.currentProposer], env.engines[env.currentProposer], env.parent)
-	currState, _ := env.chains[env.currentProposer].State()
-	block, _ = env.engines[env.currentProposer].FinalizeAndAssemble(env.chains[env.currentProposer], block.Header(), currState, nil, nil, nil, nil)
-	stopCh := make(chan struct{})
-	env.engines[env.currentProposer].Seal(env.chains[env.currentProposer], block, env.result, stopCh)
 }
 
 func (env *testEnv) mustSucceed(t *testing.T) *types.Block {
-	block := <-env.result
-
-	if block.ParentHash() != env.parent.Hash() {
-		t.Errorf("parent hash mismatch: have %v, want %v", block.ParentHash(), env.parent.Hash())
+	var result *types.Block
+	var proposer common.Address
+	for _, addr := range env.addrs {
+		go func(addr common.Address) {
+			block := <-env.results[addr]
+			if block != nil {
+				result = block
+				proposer = addr
+				close(env.stopCh) // stop other `Seal`
+			}
+		}(addr)
 	}
-	if _, err := env.chains[env.currentProposer].InsertChain(types.Blocks{block}); err != nil {
+	<-env.stopCh
+
+	if result.ParentHash() != env.parent.Hash() {
+		t.Errorf("parent hash mismatch: have %v, want %v", result.ParentHash(), env.parent.Hash())
+	}
+	if _, err := env.chains[proposer].InsertChain(types.Blocks{result}); err != nil {
 		t.Errorf("failed to make block. err %v", err)
 		return nil
 	}
-	env.engines[env.currentProposer].NewChainHead() // progress to next sequence
-	env.parent = block
-
-	return block
+	env.engines[proposer].NewChainHead() // progress to next sequence
+	env.parent = result
+	t.Logf("A block is created successfully. proposer=%s\n", proposer.String())
+	return result
 }
 
 func (env *testEnv) mustGoToNextRound(t *testing.T) {
 	// for 1 second, wait for result and check round
 }
 
-func (env *testEnv) setScenarioEngineDown(index ...int) {
+func (env *testEnv) setEngineDown(index ...int) {
 	for _, i := range index {
 		env.down[env.addrs[i]] = true
 	}
 }
 
-func (env *testEnv) setScenarioEngineUp(index ...int) {
+func (env *testEnv) setEngineUp(index ...int) {
 	for _, i := range index {
 		env.down[env.addrs[i]] = false
 	}
@@ -159,10 +172,12 @@ func (sp *simPeer) SendQBFTConsensus(msgcode uint64, payload []byte) error {
 // make n engines with given genesis and cfg
 func makeMultiEngineTestEnv(n int) (env *testEnv) {
 	env = &testEnv{}
+
+	// validators are ordered so the proposer will be selected in index order
 	genesis, nodeKeys := testutils.GenesisAndKeys(n)
 	env.parent = genesis.ToBlock()
 	env.down = make(map[common.Address]bool)
-	env.result = make(chan *types.Block)
+	env.results = make(map[common.Address]chan *types.Block)
 
 	config := new(qbft.Config)
 	setConfigFromChainConfig(config, genesis.Config)
@@ -181,6 +196,8 @@ func makeMultiEngineTestEnv(n int) (env *testEnv) {
 		env.addrs[i] = addr
 		env.index[addr] = i
 		env.engines[addr] = New(config, nodeKey, memDB)
+		env.results[addr] = make(chan *types.Block)
+
 		genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
 
 		var err error
@@ -226,25 +243,25 @@ func TestWBFTOneEngineDown(t *testing.T) {
 	env.tryMakeBlock()
 	env.mustSucceed(t)
 
-	// make second block with 3 normal engine and 1 down engine
-	env.setScenarioEngineDown(3)
+	// make second block with 3 normal engine and 1 disconnected engine
+	env.setEngineDown(3)
 	env.waitToSync(t, 0, 0, 0, 0)
 	env.tryMakeBlock()
 	env.mustSucceed(t)
-	env.waitToSync(t, 0, 0, 0, 0)
+	env.waitToSync(t, 0, 0, 0, 1) // engine 3 does not receive a block and changes round
 }
 
 func TestWBFTTwoEngineDown(t *testing.T) {
 	env := makeMultiEngineTestEnv(4)
+	env.waitToSync(t, 0, 0, 0, 0)
 
 	// make first block with 4 normal engine
-	env.waitToSync(t, 0, 0, 0, 0)
 	env.tryMakeBlock()
-	env.mustSucceed(t)
+	env.mustSucceed(t) // proposer is engine 0
 	env.waitToSync(t, 0, 0, 0, 0)
 
-	// make second block with 3 normal engine and 1 down engine
-	env.setScenarioEngineDown(2, 3)
+	// make second block with 2 normal engine and 2 disconnected engine
+	env.setEngineDown(2, 3)
 	env.tryMakeBlock()
 	env.waitToSync(t, 1, 1, 1, 1)
 	t.Log("round changed to 1")
@@ -253,13 +270,13 @@ func TestWBFTTwoEngineDown(t *testing.T) {
 	t.Log("round changed to 2")
 
 	// engine 2 is up
-	env.setScenarioEngineUp(2)
+	env.setEngineUp(2)
 
 	env.waitToSync(t, 3, 3, 3, 3)
 	t.Log("round changed to 3")
 
-	env.mustSucceed(t)
+	env.mustSucceed(t) // proposer is engine 0 again after circulation
 
 	t.Log("round changed to 0")
-	env.waitToSync(t, 0, 0, 0, 0)
+	env.waitToSync(t, 0, 0, 0, 4)
 }
