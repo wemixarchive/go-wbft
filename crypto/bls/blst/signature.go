@@ -4,6 +4,7 @@ package blst
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"sync"
 
@@ -249,14 +250,13 @@ func VerifyMultipleSignatures(sigs [][]byte, msgs [][32]byte, pubKeys []common.P
 		mulP1Aff[i] = pubKeys[i].(*PublicKey).p
 		rawMsgs[i] = msgs[i][:]
 	}
-	// Secure source of RNG
-	randGen := common.NewRandGenerator()
-	randLock := new(sync.Mutex)
 
+	randLock := new(sync.Mutex)
 	randFunc := func(scalar *blst.Scalar) {
 		var rbytes [scalarBytes]byte
+
 		randLock.Lock()
-		randGen.Read(rbytes[:]) // #nosec G104 -- Error will always be nil in `read` in math/rand
+		rand.Read(rbytes[:])
 		randLock.Unlock()
 		// Protect against the generator returning 0. Since the scalar value is
 		// derived from a big endian byte slice, we take the last byte.

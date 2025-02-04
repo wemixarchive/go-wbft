@@ -3,6 +3,7 @@
 package blst
 
 import (
+	"crypto/rand"
 	"crypto/subtle"
 	"fmt"
 
@@ -20,7 +21,7 @@ func RandKey() (common.SecretKey, error) {
 	// Generate 32 bytes of randomness
 	var ikm [32]byte
 
-	_, err := common.NewRandGenerator().Read(ikm[:])
+	_, err := rand.Read(ikm[:])
 	if err != nil {
 		return nil, err
 	}

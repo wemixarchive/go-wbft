@@ -4,6 +4,7 @@ package blst
 
 import (
 	"bytes"
+	"crypto/rand"
 	"errors"
 	"testing"
 
@@ -351,7 +352,8 @@ func TestCopy(t *testing.T) {
 
 	// Generate 32 bytes of randomness
 	var ikm [32]byte
-	_, err := common.NewRandGenerator().Read(ikm[:])
+
+	_, err := rand.Read(ikm[:])
 	require.NoError(t, err)
 	p := sblst.KeyGen(ikm[:])
 
