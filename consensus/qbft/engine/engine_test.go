@@ -8,6 +8,7 @@ package qbftengine
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"errors"
 	"math/big"
 	"reflect"
 	"slices"
@@ -36,7 +37,7 @@ import (
 //   go test -v -count 1 ./consensus/qbft/testutils -run TestGeneratingGenesisExtra
 
 func TestPrepareExtra(t *testing.T) {
-	expectedResult := hexutil.MustDecode("0xe7a0000000000000000000000000000000000000000000000000000000000000000080c0c0c0c0c0")
+	expectedResult := hexutil.MustDecode("0xe8a0000000000000000000000000000000000000000000000000000000000000000080c0c080c0c0c0")
 
 	h := &types.Header{}
 	err := ApplyHeaderQBFTExtra(
@@ -51,15 +52,16 @@ func TestPrepareExtra(t *testing.T) {
 }
 
 func TestWriteCommittedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
+	istRawData := hexutil.MustDecode("0xf8788080c0c080c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
-		CommittedSeal:     [][]byte{expectedCommittedSeal},
-		PreparedSeal:      [][]byte{},
+		PrevRound:         0,
 		PrevCommittedSeal: [][]byte{},
 		PrevPreparedSeal:  [][]byte{},
 		Round:             0,
+		CommittedSeal:     [][]byte{expectedCommittedSeal},
+		PreparedSeal:      [][]byte{},
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: 1_900_000},
@@ -105,15 +107,16 @@ func TestWriteCommittedSeals(t *testing.T) {
 }
 
 func TestWritePreparedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
+	istRawData := hexutil.MustDecode("0xf8788080c0c080c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
 	expectedPreparedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
-		CommittedSeal:     [][]byte{},
-		PreparedSeal:      [][]byte{expectedPreparedSeal},
+		PrevRound:         0,
 		PrevCommittedSeal: [][]byte{},
 		PrevPreparedSeal:  [][]byte{},
 		Round:             0,
+		CommittedSeal:     [][]byte{},
+		PreparedSeal:      [][]byte{expectedPreparedSeal},
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: 1_900_000},
@@ -159,14 +162,15 @@ func TestWritePreparedSeals(t *testing.T) {
 }
 
 func TestWriteRoundNumber(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf8778080c0c0c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
+	istRawData := hexutil.MustDecode("0xf8788080c0c080c0c0f86ff868d99444add0ec310f115a0e603b2d7db9f067778eaf8a831cfde0d994294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212831cfde0d9946beaaed781d2d2ab6350f5c4566a2c6eaac407a6831cfde0d9948be76812f765c24641ec63dc2852b378aba2b440831cfde0c480010203")
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
-		CommittedSeal:     [][]byte{},
-		PreparedSeal:      [][]byte{},
+		PrevRound:         0,
 		PrevCommittedSeal: [][]byte{},
 		PrevPreparedSeal:  [][]byte{},
-		Round:             5,
+		Round:             0,
+		CommittedSeal:     [][]byte{},
+		PreparedSeal:      [][]byte{},
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")), Diligence: 1_900_000},
@@ -198,6 +202,10 @@ func TestWriteRoundNumber(t *testing.T) {
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
+	if istExtra.Round != 5 {
+		t.Errorf("writing round does not effected")
+	}
+	istExtra.Round = expectedIstExtra.Round
 	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
 		t.Errorf("extra data mismatch: have %v, want %v", istExtra.VanityData, expectedIstExtra.VanityData)
 	}
@@ -414,8 +422,7 @@ func TestEpochInfo(t *testing.T) {
 				}
 				ApplyHeaderQBFTExtra(
 					h,
-					WritePrevPreparedSeal(preparedSeals),
-					WritePrevCommittedSeal(committedSeals),
+					WritePrevSeals(0, preparedSeals, committedSeals),
 				)
 
 				// Build epoch info
@@ -693,4 +700,260 @@ func makeCommitSeal(h *types.Header, node account) []byte {
 		panic(err)
 	}
 	return seal
+}
+
+func TestIsEpochBlock(t *testing.T) {
+	engine := NewEngine(nil, common.Address{}, nil)
+
+	testCases := []struct {
+		chainConfig         params.ChainConfig
+		config              qbft.Config
+		blockNumber         *big.Int
+		expectedResult      bool
+		expectedLatestEpoch *big.Int
+		expectedError       error
+	}{
+		// case 1: no montblanc fork, zero block is an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int),
+			true,
+			new(big.Int),
+			nil,
+		},
+		// case 2: no montblanc fork, 1 block is not an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(1),
+			false,
+			new(big.Int),
+			nil,
+		},
+		// case 3: no montblanc fork, epoch - 1 block is not an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(99),
+			false,
+			new(big.Int),
+			nil,
+		},
+		// case 4: no montblanc fork, epoch block is an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(100),
+			true,
+			new(big.Int).SetUint64(100),
+			nil,
+		},
+		// case 5: no montblanc fork, epoch block * n is an epoch block
+		{
+			params.ChainConfig{},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(300),
+			true,
+			new(big.Int).SetUint64(300),
+			nil,
+		},
+		// case 6: montblanc fork, error before fork
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int),
+			false,
+			nil,
+			qbftcommon.ErrIsNotWBFTBlock,
+		},
+		// case 7: montblanc fork, fork block is an epoch block
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(13),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(13),
+			true,
+			new(big.Int).SetUint64(13),
+			nil,
+		},
+		// case 8: montblanc fork, next of fork block is not an epoch block
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(13),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(14),
+			false,
+			new(big.Int).SetUint64(13),
+			nil,
+		},
+		// case 9: montblanc fork, fork block + epoch is an epoch block
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(13),
+			},
+			qbft.Config{
+				Epoch: 100,
+			},
+			new(big.Int).SetUint64(113),
+			true,
+			new(big.Int).SetUint64(113),
+			nil,
+		},
+		// case 10: montblanc fork, transition exist, before transition
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1101), EpochLength: 200},
+				},
+			},
+			new(big.Int).SetUint64(1100), // before transition
+			true,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 11: montblanc fork, transition exist, just on transition
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+				},
+			},
+			new(big.Int).SetUint64(1100), // on transition
+			true,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 12: montblanc fork, transition exist, after transition, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+				},
+			},
+			new(big.Int).SetUint64(1200),
+			false,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 13: edge case; transition before montblanc fork?
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(950), EpochLength: 50},
+				},
+			},
+			new(big.Int).SetUint64(1050),
+			true,
+			new(big.Int).SetUint64(1050),
+			nil,
+		},
+		// case 14: montblanc fork, transitions exist, after transition, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+					{Block: new(big.Int).SetUint64(1300), EpochLength: 100},
+				},
+			},
+			new(big.Int).SetUint64(1200),
+			false,
+			new(big.Int).SetUint64(1100),
+			nil,
+		},
+		// case 15: montblanc fork, transitions exist, after transitions, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+					{Block: new(big.Int).SetUint64(1300), EpochLength: 50},
+				},
+			},
+			new(big.Int).SetUint64(1350),
+			true,
+			new(big.Int).SetUint64(1350),
+			nil,
+		},
+		// case 16: montblanc fork, transitions exist, after transitions, applied new epoch length
+		{
+			params.ChainConfig{
+				MontBlancBlock: new(big.Int).SetUint64(1000),
+			},
+			qbft.Config{
+				Epoch: 100,
+				Transitions: []params.Transition{
+					{Block: new(big.Int).SetUint64(1100), EpochLength: 10},
+					{Block: new(big.Int).SetUint64(1300), EpochLength: 50},
+				},
+			},
+			new(big.Int).SetUint64(1310),
+			false,
+			new(big.Int).SetUint64(1300),
+			nil,
+		},
+	}
+
+	for i, tc := range testCases {
+		testConfig := tc.config
+		engine.cfg = &testConfig
+		if r, epoch, err := engine.IsEpochBlockNumber(&tc.chainConfig, tc.blockNumber); err != nil {
+			if !errors.Is(err, tc.expectedError) {
+				t.Errorf("[case %d] unexpected error: have %v, want %v", i+1, err, tc.expectedError)
+			}
+			if epoch != nil {
+				t.Errorf("[case %d] unexpected epoch: have %v, want nil", i+1, epoch)
+			}
+		} else {
+			if r != tc.expectedResult {
+				t.Errorf("[case %d] unexpected result: have %v, want %v", i+1, r, tc.expectedResult)
+			}
+			if epoch.Cmp(tc.expectedLatestEpoch) != 0 {
+				t.Errorf("[case %d] unexpected epoch: have %v, want %v", i+1, epoch, tc.expectedLatestEpoch)
+			}
+		}
+	}
 }

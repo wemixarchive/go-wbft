@@ -52,11 +52,12 @@ var (
 // QBFTExtra represents header extradata for qbft protocol
 type QBFTExtra struct {
 	VanityData        []byte
+	PrevRound         uint32
+	PrevPreparedSeal  [][]byte
+	PrevCommittedSeal [][]byte // committedSeal of previous local block
 	Round             uint32
 	PreparedSeal      [][]byte
 	CommittedSeal     [][]byte
-	PrevPreparedSeal  [][]byte
-	PrevCommittedSeal [][]byte   // committedSeal of previous local block
 	EpochInfo         *EpochInfo // epoch info is filled only for last block of epoch
 }
 
@@ -74,11 +75,12 @@ type EpochInfo struct {
 func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		qst.VanityData,
+		qst.PrevRound,
+		qst.PrevPreparedSeal,
+		qst.PrevCommittedSeal,
 		qst.Round,
 		qst.PreparedSeal,
 		qst.CommittedSeal,
-		qst.PrevPreparedSeal,
-		qst.PrevCommittedSeal,
 		qst.EpochInfo,
 	})
 }
@@ -87,19 +89,20 @@ func (qst *QBFTExtra) EncodeRLP(w io.Writer) error {
 func (qst *QBFTExtra) DecodeRLP(s *rlp.Stream) error {
 	var qbftExtra struct {
 		VanityData        []byte
+		PrevRound         uint32
+		PrevPreparedSeal  [][]byte
+		PrevCommittedSeal [][]byte
 		Round             uint32
 		PreparedSeal      [][]byte
 		CommittedSeal     [][]byte
-		PrevPreparedSeal  [][]byte
-		PrevCommittedSeal [][]byte
 		EpochInfo         *EpochInfo `rlp:"nil"`
 	}
 	if err := s.Decode(&qbftExtra); err != nil {
 		return err
 	}
 
-	qst.VanityData, qst.Round, qst.PreparedSeal, qst.CommittedSeal, qst.PrevPreparedSeal, qst.PrevCommittedSeal, qst.EpochInfo =
-		qbftExtra.VanityData, qbftExtra.Round, qbftExtra.PreparedSeal, qbftExtra.CommittedSeal, qbftExtra.PrevPreparedSeal, qbftExtra.PrevCommittedSeal, qbftExtra.EpochInfo
+	qst.VanityData, qst.PrevRound, qst.PrevPreparedSeal, qst.PrevCommittedSeal, qst.Round, qst.PreparedSeal, qst.CommittedSeal, qst.EpochInfo =
+		qbftExtra.VanityData, qbftExtra.PrevRound, qbftExtra.PrevPreparedSeal, qbftExtra.PrevCommittedSeal, qbftExtra.Round, qbftExtra.PreparedSeal, qbftExtra.CommittedSeal, qbftExtra.EpochInfo
 
 	return nil
 }
@@ -204,7 +207,7 @@ func ExtractQBFTExtra(h *Header) (*QBFTExtra, error) {
 	return qbftExtra, nil
 }
 
-// QBFTFilteredHeader returns a filtered header which some information (like committed seals, round, validator vote)
+// QBFTFilteredHeader returns a filtered header which some information (like committed seals, round)
 // are clean to fulfill the Istanbul hash rules. It returns nil if the extra-data cannot be
 // decoded/encoded by rlp.
 func QBFTFilteredHeader(h *Header) *Header {

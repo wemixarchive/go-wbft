@@ -14,11 +14,12 @@ import (
 func TestGeneratingGenesisExtra(t *testing.T) {
 	QBFTExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
-		CommittedSeal:     [][]byte{},
-		PrevCommittedSeal: [][]byte{},
+		PrevRound:         0,
 		PreparedSeal:      [][]byte{},
 		PrevPreparedSeal:  [][]byte{},
 		Round:             0,
+		CommittedSeal:     [][]byte{},
+		PrevCommittedSeal: [][]byte{},
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: common.BytesToAddress(hexutil.MustDecode("0xa62987A40E094CbE020313f19F71aeeB3E48B86f")), Diligence: types.DefaultDiligence},

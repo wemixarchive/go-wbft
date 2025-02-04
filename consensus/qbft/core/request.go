@@ -45,7 +45,9 @@ func (c *Core) handleRequest(request *Request) error {
 	}
 
 	c.current.pendingRequest = request
-	if c.state == StateAcceptRequest {
+	// if round > 0, then we don't send preprepare because it would be failed due to having no justification
+	// after that we will send preprepare when 2/3+ round change messages are received
+	if c.state == StateAcceptRequest && c.current.Round().Uint64() == 0 {
 		// Start ROUND-CHANGE timer
 		c.newRoundChangeTimer()
 

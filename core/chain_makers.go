@@ -19,6 +19,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -312,7 +313,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	}
 	cm := newChainMaker(parent, config, engine)
 
-	err := engine.CallEngineSpecific("Start", cm, cm.CurrentBlock, rawdb.HasBadBlock)
+	err := engine.CallEngineSpecific("Start", cm, cm.CurrentBlock, rawdb.HasBadBlock, func(waitTime time.Duration, round *big.Int) {})
 	if err != nil {
 		panic("invalid engine specific call")
 	}
@@ -320,6 +321,8 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	genblock := func(i int, parent *types.Block, triedb *triedb.Database, statedb *state.StateDB) (*types.Block, types.Receipts) {
 		b := &BlockGen{i: i, cm: cm, parent: parent, statedb: statedb, engine: engine}
 		b.header = cm.makeHeader(parent, statedb, b.engine)
+
+		engine.CallEngineSpecific("NewChainHead")
 
 		// Set the difficulty for clique block. The chain maker doesn't have access
 		// to a chain, so the difficulty will be left unset (nil). Set it here to the
@@ -375,7 +378,6 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
 
-		engine.CallEngineSpecific("NewChainHead")
 		if sealErr == nil { // Clique, Ethash engine return error and they don't need to seal
 			block = <-results
 		}

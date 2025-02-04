@@ -133,6 +133,13 @@ func (c *Core) IsProposer() bool {
 	return v.IsProposer(c.backend.Address())
 }
 
+func (c *Core) GetProposer() common.Address {
+	if c.valSet != nil {
+		return c.valSet.GetProposer().Address()
+	}
+	return common.Address{}
+}
+
 func (c *Core) IsCurrentProposal(blockHash common.Hash) bool {
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
@@ -234,6 +241,8 @@ func (c *Core) startNewRound(round *big.Int) {
 	}
 
 	oldLogger.Info("QBFT: start new round", "next.round", newView.Round, "next.seq", newView.Sequence, "next.proposer", c.valSet.GetProposer(), "next.valSet", c.valSet.List(), "next.size", c.valSet.Size(), "next.IsProposer", c.IsProposer())
+
+	c.backend.NotifyNewRound(round)
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
@@ -332,11 +341,6 @@ func (c *Core) newRoundChangeTimer() {
 func (c *Core) checkValidatorSignature(data []byte, sig []byte) (common.Address, error) {
 	return qbft.CheckValidatorSignature(c.valSet, data, sig)
 }
-
-//func (c *Core) QuorumSize() int {
-//	c.currentLogger(true, nil).Trace("QBFT: confirmation Formula used ceil(2N/3)")
-//	return int(math.Ceil(float64(c.valSet.Size()) - c.valSet.F()))
-//}
 
 // PrepareSeal returns a committed seal for the given header and takes current round under consideration
 func PrepareSeal(header *types.Header, round uint32, sealType SealType) []byte {

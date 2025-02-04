@@ -197,11 +197,12 @@ func (g *genesisGenerator) wbftChainConfig() {
 	vanity := append(g.Genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(g.Genesis.ExtraData))...)
 	ist := &types.QBFTExtra{
 		VanityData:        vanity,
-		PreparedSeal:      [][]byte{},
-		CommittedSeal:     [][]byte{},
+		PrevRound:         0,
 		PrevPreparedSeal:  [][]byte{},
 		PrevCommittedSeal: [][]byte{},
 		Round:             0,
+		PreparedSeal:      [][]byte{},
+		CommittedSeal:     [][]byte{},
 		EpochInfo:         epochInfo,
 	}
 

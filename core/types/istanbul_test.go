@@ -69,8 +69,7 @@ func TestExtractToQBFTExtra(t *testing.T) {
 					},
 					Validators: []uint32{0, 1, 2, 3},
 				},
-				PreparedSeal:      [][]byte{},
-				CommittedSeal:     [][]byte{},
+				PrevRound:         0,
 				PrevPreparedSeal:  [][]byte{},
 				PrevCommittedSeal: [][]byte{},
 				Round:             0,
@@ -99,7 +98,12 @@ func TestGenerateExtra(t *testing.T) {
 			},
 			Validators: []uint32{0},
 		},
-		Round: 0,
+		PrevRound:         0,
+		PrevPreparedSeal:  [][]byte{},
+		PrevCommittedSeal: [][]byte{},
+		Round:             0,
+		PreparedSeal:      [][]byte{},
+		CommittedSeal:     [][]byte{},
 	}
 	b, _ := rlp.EncodeToBytes(sampleExtra)
 	t.Logf("extra bytes: %v\n", hexutil.Encode(b))

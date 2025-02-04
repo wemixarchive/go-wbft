@@ -81,11 +81,11 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	}
 
 	ist := &types.QBFTExtra{
-		VanityData:        vanity,
-		CommittedSeal:     [][]byte{},
-		PrevCommittedSeal: [][]byte{},
-		Round:             0,
-		EpochInfo:         epochInfo,
+		VanityData:    vanity,
+		Round:         0,
+		PreparedSeal:  [][]byte{},
+		CommittedSeal: [][]byte{},
+		EpochInfo:     epochInfo,
 	}
 
 	istPayload, err := rlp.EncodeToBytes(&ist)
@@ -112,11 +112,12 @@ func appendValidatorsAndPrevSeals(genesis *core.Genesis, validators []common.Add
 
 	ist := &types.QBFTExtra{
 		VanityData:        vanity,
-		PreparedSeal:      [][]byte{},
-		CommittedSeal:     [][]byte{},
+		PrevRound:         0,
 		PrevPreparedSeal:  [][]byte{},
 		PrevCommittedSeal: [][]byte{},
 		Round:             0,
+		PreparedSeal:      [][]byte{},
+		CommittedSeal:     [][]byte{},
 		EpochInfo:         epochInfo,
 	}
 

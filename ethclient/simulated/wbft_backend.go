@@ -58,6 +58,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	}
 	ethConf.Istanbul.AllowedFutureBlockTime = 3153600000 // disable time verification of a block ( == 100 years )
 	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 1
+	ethConf.Genesis.Config.QBFT.EpochLength = 1000
 	ethConf.Genesis.Config.QBFT.Validators = make([]common.Address, 1)
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
 	ethConf.Genesis.Config.QBFT.Validators[0] = validator
