@@ -29,22 +29,20 @@
     "qbft": {
       "epochLength": 10,
       "blockPeriodSeconds": 3,
-      "emptyBlockPeriodSeconds": 6,
       "requestTimeoutSeconds": 1000,
       "proposerPolicy": 0,
       "blockReward": "0xde0b6b3a7640000",
-      "beneficiaryMode": "validator",
-      "miningBeneficiary": "0x0000000000000000000000000000000000000000",
-      "validatorselectionmode": "blockheader",
       "validators": [
-        "0xcba83b761af03231e843c8212ef26888cb344291"
+        "0x85e3a977aa1726d3e470c765aad4ac57617e2aeb"
       ],
+      "minStakers": 0,
+      "targetValidators": 0,
       "maxRequestTimeoutSeconds": 4
     }
   },
   "nonce": "0x0",
   "timestamp": "0x0",
-  "extraData": "0xf83da00000000000000000000000000000000000000000000000000000000000000000d594cba83b761af03231e843c8212ef26888cb34429180c0c080c0c0",
+  "extraData": "0xf845a0000000000000000000000000000000000000000000000000000000000000000080c0c080c0c0dddad99485e3a977aa1726d3e470c765aad4ac57617e2aeb831cfde0c180",
   "gasLimit": "0x23f3e20",
   "difficulty": "0x1",
   "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -106,6 +104,9 @@
     "84e75c28348fb86acea1a93a39426d7d60f4cc46": {
       "balance": "0xc097ce7bc90715b34b9f1000000000"
     },
+    "85e3a977aa1726d3e470c765aad4ac57617e2aeb": {
+      "balance": "0xc097ce7bc90715b34b9f1000000000"
+    },
     "8bebc8ba651aee624937e7d897853ac30c95a067": {
       "storage": {
         "0x0000000000000000000000000000000000000000000000000000000000000001": "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -116,9 +117,6 @@
       "nonce": "0x1"
     },
     "c7b99a164efd027a93f147376cc7da7c67c6bbe0": {
-      "balance": "0xc097ce7bc90715b34b9f1000000000"
-    },
-    "cba83b761af03231e843c8212ef26888cb344291": {
       "balance": "0xc097ce7bc90715b34b9f1000000000"
     },
     "d803681e487e6ac18053afc5a6cd813c86ec3e4d": {
