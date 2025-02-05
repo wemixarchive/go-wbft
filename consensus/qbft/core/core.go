@@ -21,7 +21,6 @@
 package core
 
 import (
-	"fmt"
 	"math"
 	"math/big"
 	"sync"
@@ -236,12 +235,12 @@ func (c *Core) startNewRound(round *big.Int) {
 		c.roundChangeSet.ClearLowerThan(round)
 	}
 	c.roundChangeSet.NewRound(round)
-	c.newRoundChangeTimer()
+
+	// starting round change timer moved to handleRequest.
+	// instead engine notifies new round to miner so as it requests work to engine back
+	c.backend.NotifyNewRound(round)
 
 	oldLogger.Info("QBFT: start new round", "next.round", newView.Round, "next.seq", newView.Sequence, "next.proposer", c.valSet.GetProposer(), "next.valSet", c.valSet.List(), "next.size", c.valSet.Size(), "next.IsProposer", c.IsProposer())
-
-	fmt.Printf("[%s:NEW ROUND %d], proposer=%s\n", c.Address().String(), round.Uint64(), c.GetProposer().String())
-	c.backend.NotifyNewRound(round)
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
@@ -333,7 +332,6 @@ func (c *Core) newRoundChangeTimer() {
 
 	c.currentLogger(true, nil).Trace("QBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
-		fmt.Printf("[%s:TIME OUT]\n", c.Address().String())
 		c.sendEvent(timeoutEvent{})
 	})
 }
