@@ -78,22 +78,6 @@ func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) {
 	env.commitNewWork()
 }
 
-func (env *testEnv) startRound(t *testing.T, sc *scenario, rounds ...uint64) {
-	// define scenario if any exists
-	if sc != nil {
-		message := ""
-		for _, index := range sc.target {
-			message += sc.set(index) + " "
-		}
-		t.Logf("set scenario: %s", message)
-	}
-
-	// round go ahead
-	for _, roundStartChan := range env.roundStartChan {
-		roundStartChan <- struct{}{}
-	}
-}
-
 func (env *testEnv) commitNewWork() {
 	if env.stopSealingCh != nil {
 		close(env.stopSealingCh) // this quits prior trying to seal a block
@@ -114,7 +98,7 @@ func (env *testEnv) commitNewWork() {
 	}
 }
 
-func (env *testEnv) MustSucceed(t *testing.T, expectedProposer int, expectedRound uint32) *types.Block {
+func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedProposer int, expectedRound uint32) *types.Block {
 	var result *types.Block
 	var proposer common.Address
 	stopCh := make(chan struct{})
@@ -132,6 +116,28 @@ func (env *testEnv) MustSucceed(t *testing.T, expectedProposer int, expectedRoun
 			}
 		}(addr)
 	}
+
+	var roundChangeBackground chan struct{}
+	if allowRoundChange {
+		roundChangeBackground = make(chan struct{}, len(env.addrs))
+		for addr, newRoundReady := range env.newRoundReady {
+			go func(addr common.Address, newRoundChan chan uint64) {
+				for {
+					round := <-newRoundChan
+					if round == 0 {
+						// put it back so as GoNewRound can consume it.
+						// it is possible because newRoundChan has a buffer.
+						newRoundChan <- 0
+						break
+					}
+					// go next round
+					env.roundStartChan[addr] <- struct{}{}
+				}
+				roundChangeBackground <- struct{}{}
+			}(addr, newRoundReady)
+		}
+	}
+
 	select {
 	case <-env.stopSealingCh:
 		env.stopSealingCh = nil
@@ -145,6 +151,7 @@ func (env *testEnv) MustSucceed(t *testing.T, expectedProposer int, expectedRoun
 		return nil
 	}
 	timer.Stop()
+	close(stopCh)
 
 	if result.ParentHash() != env.parent.Hash() {
 		t.Errorf("parent hash mismatch: have %v, want %v", result.ParentHash(), env.parent.Hash())
@@ -178,25 +185,16 @@ func (env *testEnv) MustSucceed(t *testing.T, expectedProposer int, expectedRoun
 			t.Errorf("unexpected round in header (expected=%d, got=%d)", expectedRound, extra.Round)
 		}
 	}
+
+	if roundChangeBackground != nil {
+		// wait for all round change background to quit
+		for range env.addrs {
+			<-roundChangeBackground
+		}
+	}
+
 	t.Logf("[RESULT] A block is created successfully. (proposer=%d, round=%d)", env.index[proposer], extra.Round)
 	return result
-}
-
-func (env *testEnv) backgroundRoundChange(t *testing.T, stopCh chan struct{}) {
-	for addr, newRoundReady := range env.newRoundReady {
-		go func(addr common.Address, newRoundChan chan uint64) {
-			for {
-				select {
-				case round := <-newRoundChan:
-					if round > 0 {
-						env.roundStartChan[addr] <- struct{}{}
-					}
-				case <-stopCh:
-					break
-				}
-			}
-		}(addr, newRoundReady)
-	}
 }
 
 func (env *testEnv) makeScenarioEngineDown(index ...int) *scenario {
@@ -385,7 +383,7 @@ func makeMultiEngineTestEnv(n int) (env *testEnv) {
 	env.roundStartChan = make(map[common.Address]chan struct{})
 	for addr, engine := range env.engines {
 		engine.broadcaster = makeSimBroadcaster(env, addr)
-		env.newRoundReady[addr] = make(chan uint64)
+		env.newRoundReady[addr] = make(chan uint64, 1) // it should have a buffer
 		env.roundStartChan[addr] = make(chan struct{})
 
 		// engine tries to `NotifyNewRound` at `Start`, so it will be blocked until we call `waitToSync`
@@ -407,7 +405,7 @@ func TestWBFTSimpleCase(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		// wait for all engine to ready for new round
 		env.GoNewRound(t, nil, 0, 0, 0, 0)
-		env.MustSucceed(t, i%4, 0)
+		env.MustSucceed(t, false, i%4, 0)
 	}
 }
 
@@ -416,11 +414,11 @@ func TestWBFTOneEngineDown(t *testing.T) {
 
 	// make first block with 4 normal engine
 	env.GoNewRound(t, nil, 0, 0, 0, 0)
-	env.MustSucceed(t, 0, 0)
+	env.MustSucceed(t, false, 0, 0)
 
 	// make second block with 3 normal engine and 1 disconnected engine
 	env.GoNewRound(t, env.makeScenarioEngineDown(3), 0, 0, 0, 0)
-	env.MustSucceed(t, 1, 0)
+	env.MustSucceed(t, false, 1, 0)
 }
 
 func TestWBFTTwoEngineDown(t *testing.T) {
@@ -428,7 +426,7 @@ func TestWBFTTwoEngineDown(t *testing.T) {
 
 	// make first block with 4 normal engine
 	env.GoNewRound(t, nil, 0, 0, 0, 0)
-	env.MustSucceed(t, 0, 0) // proposer is engine 0
+	env.MustSucceed(t, false, 0, 0) // proposer is engine 0
 
 	// make second block with 2 normal engine and 2 disconnected engine
 	env.GoNewRound(t, env.makeScenarioEngineDown(2, 3), 0, 0, 0, 0)
@@ -442,7 +440,7 @@ func TestWBFTTwoEngineDown(t *testing.T) {
 	env.GoNewRound(t, env.makeScenarioEngineUp(2), 3, 3, 3, 3)
 	t.Log("round changed to 3")
 
-	env.MustSucceed(t, 0, 3) // proposer is engine 0 again after circulation
+	env.MustSucceed(t, false, 0, 3) // proposer is engine 0 again after circulation
 }
 
 func TestWBFTPreparedAndRoundChange(t *testing.T) {
@@ -450,7 +448,7 @@ func TestWBFTPreparedAndRoundChange(t *testing.T) {
 
 	// make first block with 4 normal engine
 	env.GoNewRound(t, nil, 0, 0, 0, 0)
-	env.MustSucceed(t, 0, 0) // proposer is engine 0
+	env.MustSucceed(t, false, 0, 0) // proposer is engine 0
 
 	// make second block and 2 engines do not send commit => prepared and round change
 	env.GoNewRound(t, env.makeScenarioDisableCommitMsg(2, 3), 0, 0, 0, 0)
@@ -460,18 +458,14 @@ func TestWBFTPreparedAndRoundChange(t *testing.T) {
 
 	env.GoNewRound(t, env.makeScenarioEnableCommitMsg(2), 2, 2, 2, 2)
 	t.Log("round changed to 2")
-	env.MustSucceed(t, 1, 2) // proposer index should be 1 (second proposer); round changed twice but first proposal is prepared!
+	env.MustSucceed(t, false, 1, 2) // proposer index should be 1 (second proposer); round changed twice but first proposal is prepared!
 }
 
 func TestWBFTRandomEngineDown(t *testing.T) {
 	env := makeMultiEngineTestEnv(4)
 
-	stopCh := make(chan struct{})
-	env.backgroundRoundChange(t, stopCh)
 	for i := 0; i < 10; i++ {
-		env.startRound(t, env.makeScenarioRandomDown(0, 1, 2, 3))
-		env.commitNewWork()
-		env.MustSucceed(t, ANY_PROPOSER, ANY_ROUND)
+		env.GoNewRound(t, env.makeScenarioRandomDown(0, 1, 2, 3))
+		env.MustSucceed(t, true, ANY_PROPOSER, ANY_ROUND)
 	}
-	close(stopCh)
 }
