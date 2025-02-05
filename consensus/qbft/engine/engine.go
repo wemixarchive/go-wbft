@@ -462,11 +462,11 @@ func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal map[common.Hash][]byte) error {
-	if _, v := validators.GetByAddress(e.signer); v == nil {
+	if _, v := validators.GetByAddress(e.Address()); v == nil {
 		return qbftcommon.ErrUnauthorized
 	}
 
-	header.Coinbase = e.signer
+	header.Coinbase = e.Address()
 	header.Nonce = qbftcommon.EmptyBlockNonce
 
 	// copy the parent extra data as the header extra data
