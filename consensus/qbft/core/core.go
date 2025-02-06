@@ -200,6 +200,10 @@ func (c *Core) startNewRound(round *big.Int) {
 		oldLogger = c.logger.New("old.round", c.current.Round().Uint64(), "old.sequence", c.current.Sequence().Uint64(), "old.state", c.state.String(), "old.proposer", c.valSet.GetProposer())
 	}
 
+	if c.current != nil && round.Cmp(c.current.Round()) > 0 {
+		roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
+	}
+
 	// Create next view
 	var newView *qbft.View
 	if roundChange {
@@ -221,10 +225,6 @@ func (c *Core) startNewRound(round *big.Int) {
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.setState(StateAcceptRequest)
-
-	if c.current != nil && round.Cmp(c.current.Round()) > 0 {
-		roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
-	}
 
 	// Update RoundChangeSet by deleting older round messages
 	if round.Uint64() == 0 {
