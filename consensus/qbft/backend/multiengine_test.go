@@ -51,11 +51,15 @@ type scenario struct {
 // all engines are waiting for this to be called
 func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) {
 	// wait for new round
+	actualRound := make([]uint64, len(env.addrs))
+	i := 0
 	for addr, newRoundReady := range env.newRoundReady {
 		round := <-newRoundReady
 		if len(rounds) > 0 && rounds[env.index[addr]] != round {
 			t.Errorf("rounds are mismatch: have %d, want %d", round, rounds[env.index[addr]])
 		}
+		actualRound[i] = round
+		i++
 	}
 
 	// define scenario if any exists
@@ -64,9 +68,9 @@ func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) {
 		for _, index := range sc.target {
 			message += sc.set(index) + " "
 		}
-		t.Logf("[NEW ROUND]: %d with scenario: %s", rounds, message)
+		t.Logf("[NEW ROUND]: %d with scenario: %s", actualRound, message)
 	} else {
-		t.Logf("[NEW ROUND]: %d without scenario", rounds)
+		t.Logf("[NEW ROUND]: %d without scenario", actualRound)
 	}
 
 	// round go ahead
@@ -102,40 +106,22 @@ func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedPro
 	var result *types.Block
 	var proposer common.Address
 	stopCh := make(chan struct{})
-	timer := time.AfterFunc(time.Minute, func() {
-		stopCh <- struct{}{}
+	timer := time.AfterFunc(time.Second, func() {
+		close(stopCh)
 	})
 
 	for _, addr := range env.addrs {
 		go func(addr common.Address) {
-			block := <-env.results[addr]
-			if block != nil {
-				result = block
-				proposer = addr
-				close(env.stopSealingCh) // stop other `Seal`
+			select {
+			case block := <-env.results[addr]:
+				if block != nil {
+					result = block
+					proposer = addr
+					close(env.stopSealingCh) // stop other `Seal`
+				}
+			case <-stopCh:
 			}
 		}(addr)
-	}
-
-	var roundChangeBackground chan struct{}
-	if allowRoundChange {
-		roundChangeBackground = make(chan struct{}, len(env.addrs))
-		for addr, newRoundReady := range env.newRoundReady {
-			go func(addr common.Address, newRoundChan chan uint64) {
-				for {
-					round := <-newRoundChan
-					if round == 0 {
-						// put it back so as GoNewRound can consume it.
-						// it is possible because newRoundChan has a buffer.
-						newRoundChan <- 0
-						break
-					}
-					// go next round
-					env.roundStartChan[addr] <- struct{}{}
-				}
-				roundChangeBackground <- struct{}{}
-			}(addr, newRoundReady)
-		}
 	}
 
 	select {
@@ -147,11 +133,14 @@ func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedPro
 		env.stopSealingCh = nil
 		proposer = result.Coinbase()
 	case <-stopCh:
+		if allowRoundChange {
+			t.Logf("Round changing. Go next round")
+			return nil
+		}
 		t.Errorf("Block producing is timeout")
 		return nil
 	}
 	timer.Stop()
-	close(stopCh)
 
 	if result.ParentHash() != env.parent.Hash() {
 		t.Errorf("parent hash mismatch: have %v, want %v", result.ParentHash(), env.parent.Hash())
@@ -183,13 +172,6 @@ func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedPro
 	if expectedRound != ANY_ROUND {
 		if expectedRound != extra.Round {
 			t.Errorf("unexpected round in header (expected=%d, got=%d)", expectedRound, extra.Round)
-		}
-	}
-
-	if roundChangeBackground != nil {
-		// wait for all round change background to quit
-		for range env.addrs {
-			<-roundChangeBackground
 		}
 	}
 
@@ -466,6 +448,10 @@ func TestWBFTRandomEngineDown(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		env.GoNewRound(t, env.makeScenarioRandomDown(0, 1, 2, 3))
-		env.MustSucceed(t, true, ANY_PROPOSER, ANY_ROUND)
+		result := env.MustSucceed(t, true, ANY_PROPOSER, ANY_ROUND)
+		for result == nil {
+			env.GoNewRound(t, nil)
+			result = env.MustSucceed(t, true, ANY_PROPOSER, ANY_ROUND)
+		}
 	}
 }
