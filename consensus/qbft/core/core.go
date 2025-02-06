@@ -45,9 +45,10 @@ const (
 )
 
 var (
-	roundMeter     = metrics.NewRegisteredMeter("consensus/qbft/core/round", nil)
-	sequenceMeter  = metrics.NewRegisteredMeter("consensus/qbft/core/sequence", nil)
-	consensusTimer = metrics.NewRegisteredTimer("consensus/qbft/core/consensus", nil)
+	roundMeter        = metrics.NewRegisteredMeter("consensus/qbft/core/round", nil)
+	sequenceMeter     = metrics.NewRegisteredMeter("consensus/qbft/core/sequence", nil)
+	consensusTimer    = metrics.NewRegisteredTimer("consensus/qbft/core/consensus", nil)
+	timeoutRoundMeter = metrics.NewRegisteredMeter("consensus/qbft/core/timeout_round", nil)
 )
 
 // New creates a QBFT consensus core
