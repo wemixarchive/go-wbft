@@ -41,6 +41,65 @@ type testEnv struct {
 	msgDisabled map[common.Address]map[uint64]bool
 }
 
+// make n engines with given genesis and cfg
+func MakeMultiEngineTestEnv(n int) (env *testEnv) {
+	env = &testEnv{}
+
+	// validators are ordered so the proposer will be selected in index order
+	genesis, nodeKeys := testutils.GenesisAndKeys(n)
+	env.parent = genesis.ToBlock()
+	env.down = make(map[common.Address]bool)
+	env.msgDisabled = make(map[common.Address]map[uint64]bool)
+	env.results = make(map[common.Address]chan *types.Block)
+
+	config := new(qbft.Config)
+	setConfigFromChainConfig(config, genesis.Config)
+	config.BlockPeriod = 1
+	config.RequestTimeout = 2000
+	config.MaxRequestTimeoutSeconds = 2
+	config.AllowedFutureBlockTime = 100000000 // to skip future block check; this makes block creation time to be very short
+
+	env.addrs = make([]common.Address, n)
+	env.index = make(map[common.Address]int)
+	env.chains = make(map[common.Address]*core.BlockChain)
+	env.engines = make(map[common.Address]*Backend)
+	env.subResult = make(chan *types.Block)
+	for i, nodeKey := range nodeKeys {
+		addr := crypto.PubkeyToAddress(nodeKey.PublicKey)
+		memDB := rawdb.NewMemoryDatabase()
+		env.addrs[i] = addr
+		env.index[addr] = i
+		env.engines[addr] = New(config, nodeKey, memDB)
+		env.results[addr] = make(chan *types.Block)
+
+		genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
+
+		var err error
+		env.chains[addr], err = core.NewBlockChain(memDB, nil, genesis, nil, env.engines[addr], vm.Config{}, nil, nil)
+		if err != nil {
+			panic(err)
+		}
+	}
+	env.newRoundReady = make(map[common.Address]chan uint64)
+	env.roundStartChan = make(map[common.Address]chan struct{})
+	for addr, engine := range env.engines {
+		engine.broadcaster = makeSimBroadcaster(env, addr)
+		env.newRoundReady[addr] = make(chan uint64, 1) // it should have a buffer
+		env.roundStartChan[addr] = make(chan struct{})
+
+		// engine tries to `NotifyNewRound` at `Start`, so it will be blocked until we call `waitToSync`
+		go engine.Start(env.chains[addr], env.chains[addr].CurrentFullBlock, rawdb.HasBadBlock, makeNotifyNewRound(env.newRoundReady[addr], env.roundStartChan[addr]))
+	}
+	return
+}
+
+func makeBlockNoNewChainHead(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
+	header := makeHeader(chain.Config(), engine.config, parent)
+	engine.Prepare(chain, header)
+	block := types.NewBlock(header, nil, nil, nil, trie.NewStackTrie(nil))
+	return block
+}
+
 type scenarioFunc func(index int) string
 
 type scenario struct {
@@ -322,67 +381,8 @@ func (sp *simPeer) SendQBFTConsensus(msgcode uint64, payload []byte) error {
 	return nil
 }
 
-// make n engines with given genesis and cfg
-func makeMultiEngineTestEnv(n int) (env *testEnv) {
-	env = &testEnv{}
-
-	// validators are ordered so the proposer will be selected in index order
-	genesis, nodeKeys := testutils.GenesisAndKeys(n)
-	env.parent = genesis.ToBlock()
-	env.down = make(map[common.Address]bool)
-	env.msgDisabled = make(map[common.Address]map[uint64]bool)
-	env.results = make(map[common.Address]chan *types.Block)
-
-	config := new(qbft.Config)
-	setConfigFromChainConfig(config, genesis.Config)
-	config.BlockPeriod = 1
-	config.RequestTimeout = 2000
-	config.MaxRequestTimeoutSeconds = 2
-	config.AllowedFutureBlockTime = 100000000 // to skip future block check; this makes block creation time to be very short
-
-	env.addrs = make([]common.Address, n)
-	env.index = make(map[common.Address]int)
-	env.chains = make(map[common.Address]*core.BlockChain)
-	env.engines = make(map[common.Address]*Backend)
-	env.subResult = make(chan *types.Block)
-	for i, nodeKey := range nodeKeys {
-		addr := crypto.PubkeyToAddress(nodeKey.PublicKey)
-		memDB := rawdb.NewMemoryDatabase()
-		env.addrs[i] = addr
-		env.index[addr] = i
-		env.engines[addr] = New(config, nodeKey, memDB)
-		env.results[addr] = make(chan *types.Block)
-
-		genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
-
-		var err error
-		env.chains[addr], err = core.NewBlockChain(memDB, nil, genesis, nil, env.engines[addr], vm.Config{}, nil, nil)
-		if err != nil {
-			panic(err)
-		}
-	}
-	env.newRoundReady = make(map[common.Address]chan uint64)
-	env.roundStartChan = make(map[common.Address]chan struct{})
-	for addr, engine := range env.engines {
-		engine.broadcaster = makeSimBroadcaster(env, addr)
-		env.newRoundReady[addr] = make(chan uint64, 1) // it should have a buffer
-		env.roundStartChan[addr] = make(chan struct{})
-
-		// engine tries to `NotifyNewRound` at `Start`, so it will be blocked until we call `waitToSync`
-		go engine.Start(env.chains[addr], env.chains[addr].CurrentFullBlock, rawdb.HasBadBlock, makeNotifyNewRound(env.newRoundReady[addr], env.roundStartChan[addr]))
-	}
-	return
-}
-
-func makeBlockNoNewChainHead(chain *core.BlockChain, engine *Backend, parent *types.Block) *types.Block {
-	header := makeHeader(chain.Config(), engine.config, parent)
-	engine.Prepare(chain, header)
-	block := types.NewBlock(header, nil, nil, nil, trie.NewStackTrie(nil))
-	return block
-}
-
 func TestWBFTSimpleCase(t *testing.T) {
-	env := makeMultiEngineTestEnv(4)
+	env := MakeMultiEngineTestEnv(4)
 
 	for i := 0; i < 5; i++ {
 		// wait for all engine to ready for new round
@@ -392,7 +392,7 @@ func TestWBFTSimpleCase(t *testing.T) {
 }
 
 func TestWBFTOneEngineDown(t *testing.T) {
-	env := makeMultiEngineTestEnv(4)
+	env := MakeMultiEngineTestEnv(4)
 
 	// make first block with 4 normal engine
 	env.GoNewRound(t, nil, 0, 0, 0, 0)
@@ -404,7 +404,7 @@ func TestWBFTOneEngineDown(t *testing.T) {
 }
 
 func TestWBFTTwoEngineDown(t *testing.T) {
-	env := makeMultiEngineTestEnv(4)
+	env := MakeMultiEngineTestEnv(4)
 
 	// make first block with 4 normal engine
 	env.GoNewRound(t, nil, 0, 0, 0, 0)
@@ -426,7 +426,7 @@ func TestWBFTTwoEngineDown(t *testing.T) {
 }
 
 func TestWBFTPreparedAndRoundChange(t *testing.T) {
-	env := makeMultiEngineTestEnv(4)
+	env := MakeMultiEngineTestEnv(4)
 
 	// make first block with 4 normal engine
 	env.GoNewRound(t, nil, 0, 0, 0, 0)
@@ -444,7 +444,7 @@ func TestWBFTPreparedAndRoundChange(t *testing.T) {
 }
 
 func TestWBFTRandomEngineDown(t *testing.T) {
-	env := makeMultiEngineTestEnv(4)
+	env := MakeMultiEngineTestEnv(4)
 
 	for i := 0; i < 10; i++ {
 		env.GoNewRound(t, env.makeScenarioRandomDown(0, 1, 2, 3))
