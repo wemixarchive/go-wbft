@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -544,8 +543,6 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 // Once the number of stakers is over minStakers, network should prevent the
 // number from dropping to minStakers so that the list in config is no longer
 // used.
-//
-// Staker list returned must be sorted by case-insensitive order.
 func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common.Address {
 	var stakers []common.Address
 	var stakerSetFromGov []common.Address
@@ -560,9 +557,6 @@ func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common
 	} else {
 		stakers = append(stakers, stakerSetFromGov...)
 	}
-
-	// Sort by case-insensitive.
-	sort.Slice(stakers, func(i, j int) bool { return stakers[i].Cmp(stakers[j]) < 0 })
 
 	return stakers
 }

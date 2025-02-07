@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"reflect"
 	"slices"
-	"sort"
 	"testing"
 	"time"
 
@@ -245,11 +244,6 @@ func newAccounts(n int) (accounts []account) {
 		addr := crypto.PubkeyToAddress(key.PublicKey)
 		accounts = append(accounts, account{key: key, addr: addr})
 	}
-
-	// Sort by case-insensitive
-	sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.Cmp(accounts[j].addr) < 0 })
-	// Sort by case-sensitive (qbft default)
-	//sort.Slice(accounts, func(i, j int) bool { return accounts[i].addr.String() < accounts[j].addr.String() })
 
 	return accounts
 }
