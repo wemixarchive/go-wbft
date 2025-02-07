@@ -333,23 +333,6 @@ func TestEpochInfo(t *testing.T) {
 			},
 		},
 		{
-			"No validators include seals (2 validators, 3 blocks / epoch)",
-			2,
-			[]int{0, 1, 0, 1, 0, 1},
-			[][]int{
-				{}, {}, {},
-				{}, {}, {},
-			},
-			[][]int{
-				{}, {}, {},
-				{}, {}, {},
-			},
-			[][]uint64{
-				{1900000, 1900000}, {1900000, 1900000}, {1710000, 1710000},
-				{1710000, 1710000}, {1710000, 1710000}, {1539000, 1539000},
-			},
-		},
-		{
 			"Some validators are excluded to propose blocks (4 validators, 3 blocks / epoch)",
 			4,
 			[]int{0, 1, 2, 3, 0, 1},
@@ -415,15 +398,16 @@ func TestEpochInfo(t *testing.T) {
 				h.Coinbase = signers[author].addr
 
 				// Fill prev seals
+				round := uint32((i + 1) % 4) // deterministic random round
 				for _, s := range tc.preparedSeals[i] {
-					preparedSeals = append(preparedSeals, makePrepareSeal(parent, signers[s]))
+					preparedSeals = append(preparedSeals, makePrepareSeal(parent, signers[s], round))
 				}
 				for _, s := range tc.committedSeals[i] {
-					committedSeals = append(committedSeals, makeCommitSeal(parent, signers[s]))
+					committedSeals = append(committedSeals, makeCommitSeal(parent, signers[s], round))
 				}
 				ApplyHeaderQBFTExtra(
 					h,
-					WritePrevSeals(0, preparedSeals, committedSeals),
+					WritePrevSeals(round, preparedSeals, committedSeals),
 				)
 
 				// Build epoch info
@@ -687,16 +671,16 @@ func makeHeader(parent *types.Header) *types.Header {
 	return header
 }
 
-func makePrepareSeal(h *types.Header, node account) []byte {
-	seal, err := crypto.Sign(qbftcore.PrepareSeal(h, 0, qbftcore.SealTypePrepare), node.key)
+func makePrepareSeal(h *types.Header, node account, round uint32) []byte {
+	seal, err := crypto.Sign(qbftcore.PrepareSeal(h, round, qbftcore.SealTypePrepare), node.key)
 	if err != nil {
 		panic(err)
 	}
 	return seal
 }
 
-func makeCommitSeal(h *types.Header, node account) []byte {
-	seal, err := crypto.Sign(qbftcore.PrepareSeal(h, 0, qbftcore.SealTypeCommit), node.key)
+func makeCommitSeal(h *types.Header, node account, round uint32) []byte {
+	seal, err := crypto.Sign(qbftcore.PrepareSeal(h, round, qbftcore.SealTypeCommit), node.key)
 	if err != nil {
 		panic(err)
 	}

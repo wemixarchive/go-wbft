@@ -572,6 +572,7 @@ type stakerInfo struct {
 	staker      *types.Staker
 }
 
+// verifyHeader() must catch inconsistent seals before calling this. Or, client exits.
 func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
 	var newEpoch types.EpochInfo
 
@@ -606,7 +607,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 		// Accumulate PrevPreparedSeal counts.
 		preparedSeal := extra.PrevPreparedSeal
-		prepareSigners, err := e.GetSignerAddress(parent, extra.Round, preparedSeal, core.SealTypePrepare)
+		prepareSigners, err := e.GetSignerAddress(parent, extra.PrevRound, preparedSeal, core.SealTypePrepare)
 		if err != nil {
 			log.Crit("failed to get prev prepare signers", "err", err)
 		}
@@ -618,7 +619,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 		// Accumulate PrevCommittedSeal counts.
 		committedSeal := extra.PrevCommittedSeal
-		commitSigners, err := e.GetSignerAddress(parent, extra.Round, committedSeal, core.SealTypeCommit)
+		commitSigners, err := e.GetSignerAddress(parent, extra.PrevRound, committedSeal, core.SealTypeCommit)
 		if err != nil {
 			log.Crit("failed to get prev commit signers", "err", err)
 		}
@@ -655,9 +656,18 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		validators = append(validators, addr)
 	}
 
+	// Check if all seals are signed by validators.
+	valSet := validator.NewSet(validators, e.cfg.ProposerPolicy)
+	keys := []common.Address{}
+	for k := range submittedSealsInEpoch {
+		keys = append(keys, k)
+	}
+	if err := verifySealers(keys, valSet); err != nil {
+		log.Crit(qbftcommon.ErrInvalidPrevPreparedSeals.Error())
+	}
+
 	// Accumulate proposer counts being selected within epoch.
 	lastProposer, _ := e.Author(epochHeader)
-	valSet := validator.NewSet(validators, e.cfg.ProposerPolicy)
 	for i := len(proposers) - 1; i >= 0; i-- {
 		proposer := proposers[i]
 		for round := 0; ; round++ {
