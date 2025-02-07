@@ -538,20 +538,6 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 	}
 }
 
-func (e *Engine) GetEpochBlock(chain consensus.ChainHeaderReader, header *types.Header) *types.Header {
-	config := chain.Config()
-	for {
-		header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-		if isEpoch, _, err := e.IsEpochBlockNumber(config, header.Number); err != nil {
-			log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
-		} else if isEpoch {
-			break
-		}
-	}
-
-	return header
-}
-
 // If number of stakers <= minStakers, use validator list (may be ordered) from wbft config only.
 // If number of stakers > minStakers, use staker list from gov.
 //

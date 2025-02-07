@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 )
@@ -441,7 +442,7 @@ func TestEpochInfo(t *testing.T) {
 				if newEpoch != nil {
 					eb = h
 				} else {
-					eb = engine.GetEpochBlock(c, h)
+					eb = getEpochBlock(engine, c, h)
 				}
 				qbftExtra, _ := types.ExtractQBFTExtra(eb)
 
@@ -700,6 +701,20 @@ func makeCommitSeal(h *types.Header, node account) []byte {
 		panic(err)
 	}
 	return seal
+}
+
+func getEpochBlock(e *Engine, chain consensus.ChainHeaderReader, header *types.Header) *types.Header {
+	config := chain.Config()
+	for {
+		header = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+		if isEpoch, _, err := e.IsEpochBlockNumber(config, header.Number); err != nil {
+			log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+		} else if isEpoch {
+			break
+		}
+	}
+
+	return header
 }
 
 func TestIsEpochBlock(t *testing.T) {
