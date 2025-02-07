@@ -582,22 +582,23 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		return nil
 	}
 
+	var epochHeader *types.Header
 	proposedSealsInEpoch := make(map[common.Address]int)
 	submittedSealsInEpoch := make(map[common.Address]int)
 	proposedCountsInEpoch := make(map[common.Address]int)
 	proposers := []common.Address{}
-	epochLength, epochHeader := 0, header
+	epochLength := 0
 
 	// Traverse blocks until reaching the epoch block.
-	for {
-		parent := chain.GetHeader(epochHeader.ParentHash, epochHeader.Number.Uint64()-1)
+	for it := header; ; {
+		parent := chain.GetHeader(it.ParentHash, it.Number.Uint64()-1)
 
-		extra, err := types.ExtractQBFTExtra(epochHeader)
+		extra, err := types.ExtractQBFTExtra(it)
 		if err != nil {
 			log.Crit("failed to extract qbft extra data", "err", err)
 		}
 
-		proposer, err := e.Author(epochHeader)
+		proposer, err := e.Author(it)
 		if err != nil {
 			log.Crit("failed to get proposer", "err", err)
 		}
@@ -627,16 +628,17 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			submittedSealsInEpoch[addr]++
 		}
 
-		log.Trace("Seals count", "current block number", epochHeader.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
+		log.Trace("Seals count", "current block number", it.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
 
 		// Update current header.
-		epochHeader = parent
+		it = parent
 		epochLength++
 
 		// Stop counting if the block reaches to the epoch block.
-		if isEpoch, _, err := e.IsEpochBlockNumber(config, epochHeader.Number); err != nil {
+		if isEpoch, _, err := e.IsEpochBlockNumber(config, it.Number); err != nil {
 			log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
 		} else if isEpoch {
+			epochHeader = it
 			break
 		}
 	}
@@ -1122,21 +1124,30 @@ func writeEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Head
 // and is called during the Finalize process.
 // It validates the validity of the ValidatorList associated with the EpochBlock.
 func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
-	stakers := e.GetStakers(header.Number, state)
-	vals := e.decideValidators(header, stakers)
+	bHeader := types.CopyHeader(header)
+	epoch := e.buildEpochInfo(chain, bHeader, state)
 
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return err
 	}
 
-	if len(vals) != len(extra.EpochInfo.Validators) {
-		return errors.New("WBFT: mismatch in ValidatorList sizes")
+	// Check Stakers.
+	if len(epoch.Stakers) != len(extra.EpochInfo.Stakers) {
+		return errors.New("WBFT: mismatch in staker sizes")
+	}
+	for i := range epoch.Stakers {
+		if epoch.Stakers[i].Addr != extra.EpochInfo.Stakers[i].Addr {
+			return errors.New("WBFT: The two stakers do not match")
+		}
 	}
 
-	// Compare each element
-	for _, valIdx := range vals {
-		if stakers[valIdx] != extra.EpochInfo.GetValidator(valIdx) {
+	// Check validators.
+	if len(epoch.Validators) != len(extra.EpochInfo.Validators) {
+		return errors.New("WBFT: mismatch in validator sizes")
+	}
+	for _, valIdx := range epoch.Validators {
+		if epoch.Stakers[valIdx].Addr != extra.EpochInfo.GetValidator(valIdx) {
 			return errors.New("WBFT: The two validators do not match")
 		}
 	}
