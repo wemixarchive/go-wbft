@@ -538,12 +538,12 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 }
 
 // GetStakers
-// If number of stakers <= minStakers, use validator list (may be ordered) from wbft config only.
+// If number of stakers <= minStakers, use validator list (regarded as staker list) from wbft config.
 // If number of stakers > minStakers, use staker list from gov.
 //
-// Once the number of stakers is over minStakers, network should prevent the
-// number from dropping to minStakers so that the list in config is no longer
-// used.
+// TODO: After stabilization stage, although the number of stakers below
+// minStakers can cause the network unstable, use staker list only from gov
+// instead of the one from wbft config.
 func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common.Address {
 	var stakers []common.Address
 	var stakerSetFromGov []common.Address
@@ -798,15 +798,6 @@ func (e *Engine) SealHash(header *types.Header) common.Hash {
 
 func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
 	return new(big.Int).Set(types.QBFTDefaultDifficulty)
-}
-
-func (e *Engine) ExtractGenesisValidators(header *types.Header) ([]common.Address, error) {
-	extra, err := types.ExtractQBFTExtra(header)
-	if err != nil {
-		return nil, err
-	}
-
-	return extra.EpochInfo.GetStakers(), nil
 }
 
 // IsEpochBlockNumber returns whether the given block number is an epoch block.
