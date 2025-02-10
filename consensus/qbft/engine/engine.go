@@ -537,6 +537,7 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 	}
 }
 
+// GetStakers
 // If number of stakers <= minStakers, use validator list (may be ordered) from wbft config only.
 // If number of stakers > minStakers, use staker list from gov.
 //
