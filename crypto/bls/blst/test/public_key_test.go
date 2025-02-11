@@ -191,9 +191,10 @@ func BenchmarkPublicKeyFromBytes(b *testing.B) {
 
 	b.Run("cache off", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
+			blst.PurgePubKeyCache()
+
 			_, err := blst.PublicKeyFromBytes(pubkeyBytes)
 			require.NoError(b, err)
-			blst.PurgePubKeyCache()
 		}
 	})
 

@@ -17,5 +17,5 @@ func init() {
 		maxProcs = 1
 	}
 	blst.SetMaxProcs(maxProcs)
-	pubkeyCache = lru.NewCache[[48]byte, common.PublicKey](maxKeys)
+	pubkeyCache = lru.NewCache[[common.BLS_PUBLIC_KEY_LENGTH]byte, common.PublicKey](maxKeys)
 }
