@@ -105,7 +105,7 @@ type Core struct {
 
 	roundChangeSet          *roundChangeSet
 	roundChangeTimer        *time.Timer
-	lastSentTimeoutCalceled *bool
+	lastSentTimeoutCanceled *bool
 
 	QBFTPreparedPrepares []*qbftmessage.Prepare
 
@@ -293,8 +293,8 @@ func (c *Core) stopTimer() {
 	if c.roundChangeTimer != nil {
 		c.roundChangeTimer.Stop()
 	}
-	if c.lastSentTimeoutCalceled != nil {
-		*c.lastSentTimeoutCalceled = true
+	if c.lastSentTimeoutCanceled != nil {
+		*c.lastSentTimeoutCanceled = true
 	}
 }
 
@@ -337,10 +337,10 @@ func (c *Core) newRoundChangeTimer() {
 	}
 
 	c.currentLogger(true, nil).Trace("QBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
-	c.lastSentTimeoutCalceled = new(bool)
-	*c.lastSentTimeoutCalceled = false
+	c.lastSentTimeoutCanceled = new(bool)
+	*c.lastSentTimeoutCanceled = false
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
-		c.sendEvent(timeoutEvent{c.lastSentTimeoutCalceled})
+		c.sendEvent(timeoutEvent{c.lastSentTimeoutCanceled})
 	})
 }
 
