@@ -550,6 +550,10 @@ func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common
 
 	if state != nil {
 		stakerSetFromGov = govwbft.NCPStakers(state)
+		// WBFT chain
+		if len(stakerSetFromGov) == 0 {
+			stakerSetFromGov = govwbft.Stakers(state)
+		}
 	}
 
 	if len(stakerSetFromGov) <= int(e.cfg.GetConfig(number).MinStakers) {
@@ -567,7 +571,7 @@ type stakerInfo struct {
 	staker      *types.Staker
 }
 
-// verifyHeader() must catch inconsistent seals before calling this. Or, client exits.
+// verifyHeader() must catch inconsistent seals before calling this.
 func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
 	var newEpoch types.EpochInfo
 
@@ -651,17 +655,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		validators = append(validators, addr)
 	}
 
-	// Check if all seals are signed by validators.
-	valSet := validator.NewSet(validators, e.cfg.ProposerPolicy)
-	keys := []common.Address{}
-	for k := range submittedSealsInEpoch {
-		keys = append(keys, k)
-	}
-	if err := verifySealers(keys, valSet); err != nil {
-		log.Crit(qbftcommon.ErrInvalidPrevPreparedSeals.Error())
-	}
-
 	// Accumulate proposer counts being selected within epoch.
+	valSet := validator.NewSet(validators, e.cfg.ProposerPolicy)
 	lastProposer, _ := e.Author(epochHeader)
 	for i := len(proposers) - 1; i >= 0; i-- {
 		proposer := proposers[i]
