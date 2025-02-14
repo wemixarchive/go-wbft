@@ -165,7 +165,7 @@ func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedPro
 	var result *types.Block
 	var proposer common.Address
 	stopCh := make(chan struct{})
-	timer := time.AfterFunc(time.Second, func() {
+	timer := time.AfterFunc(500*time.Millisecond, func() {
 		close(stopCh)
 	})
 

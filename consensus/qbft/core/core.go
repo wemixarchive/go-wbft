@@ -235,10 +235,10 @@ func (c *Core) startNewRound(round *big.Int) {
 		c.roundChangeSet.ClearLowerThan(round)
 	}
 	c.roundChangeSet.NewRound(round)
-
-	// starting round change timer moved to handleRequest.
-	// instead engine notifies new round to miner so as it requests work to engine back
 	c.backend.NotifyNewRound(round)
+	// the order of NotifyNewRound() and newRoundChangeTimer() does not matter on actual consensus, but
+	// it matters on multi-engine test, so we keep the order as it is
+	c.newRoundChangeTimer()
 
 	oldLogger.Info("QBFT: start new round", "next.round", newView.Round, "next.seq", newView.Sequence, "next.proposer", c.valSet.GetProposer(), "next.valSet", c.valSet.List(), "next.size", c.valSet.Size(), "next.IsProposer", c.IsProposer())
 }
