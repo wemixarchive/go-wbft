@@ -544,15 +544,16 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 // TODO: After stabilization stage, although the number of stakers below
 // minStakers can cause the network unstable, use staker list only from gov
 // instead of the one from wbft config.
-func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common.Address {
+func (e *Engine) GetStakers(config *params.ChainConfig, number *big.Int, state govwbft.StateReader) []common.Address {
 	var stakers []common.Address
 	var stakerSetFromGov []common.Address
 
 	if state != nil {
-		stakerSetFromGov = govwbft.NCPStakers(state)
-		// WBFT chain
-		if len(stakerSetFromGov) == 0 {
+		if config.MontBlancBlock == nil {
+			// WBFT chain
 			stakerSetFromGov = govwbft.Stakers(state)
+		} else {
+			stakerSetFromGov = govwbft.NCPStakers(state)
 		}
 	}
 
@@ -686,7 +687,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	)
 
 	// Update epoch info.
-	newStakers := e.GetStakers(header.Number, state)
+	newStakers := e.GetStakers(config, header.Number, state)
 	newEpoch.Stakers = make([]*types.Staker, len(newStakers))
 	for i, staker := range newStakers {
 		var d uint64

@@ -380,6 +380,7 @@ func TestEpochInfo(t *testing.T) {
 				Validators:     validators,
 				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
 				Epoch:          3,
+				MinStakers:     999,
 			}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
