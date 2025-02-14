@@ -142,13 +142,6 @@ func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) {
 }
 
 func (env *testEnv) commitNewWork() {
-	if env.stopSealingCh != nil {
-		close(env.stopSealingCh) // this quits prior trying to seal a block
-		for _, addr := range env.addrs {
-			<-env.results[addr]
-		}
-		env.stopSealingCh = nil
-	}
 	env.stopSealingCh = make(chan struct{})
 	for _, engine := range env.engines {
 		chain := env.chains[engine.address]
@@ -164,21 +157,18 @@ func (env *testEnv) commitNewWork() {
 func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedProposer int, expectedRound uint32) *types.Block {
 	var result *types.Block
 	var proposer common.Address
-	stopCh := make(chan struct{})
+	timeoutCh := make(chan struct{})
 	timer := time.AfterFunc(500*time.Millisecond, func() {
-		close(stopCh)
+		close(timeoutCh)
 	})
 
 	for _, addr := range env.addrs {
 		go func(addr common.Address) {
-			select {
-			case block := <-env.results[addr]:
-				if block != nil {
-					result = block
-					proposer = addr
-					close(env.stopSealingCh) // stop other `Seal`
-				}
-			case <-stopCh:
+			block := <-env.results[addr]
+			if block != nil {
+				result = block
+				proposer = addr
+				close(env.stopSealingCh) // stop other `Seal`
 			}
 		}(addr)
 	}
@@ -191,7 +181,9 @@ func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedPro
 		close(env.stopSealingCh)
 		env.stopSealingCh = nil
 		proposer = result.Coinbase()
-	case <-stopCh:
+	case <-timeoutCh:
+		close(env.stopSealingCh)
+		env.stopSealingCh = nil
 		if allowRoundChange {
 			t.Logf("Round changing. Go next round")
 			return nil
