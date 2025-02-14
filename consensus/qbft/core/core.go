@@ -45,9 +45,10 @@ const (
 )
 
 var (
-	roundMeter     = metrics.NewRegisteredMeter("consensus/qbft/core/round", nil)
-	sequenceMeter  = metrics.NewRegisteredMeter("consensus/qbft/core/sequence", nil)
-	consensusTimer = metrics.NewRegisteredTimer("consensus/qbft/core/consensus", nil)
+	roundMeter        = metrics.NewRegisteredMeter("consensus/qbft/core/round", nil)
+	sequenceMeter     = metrics.NewRegisteredMeter("consensus/qbft/core/sequence", nil)
+	consensusTimer    = metrics.NewRegisteredTimer("consensus/qbft/core/consensus", nil)
+	timeoutRoundMeter = metrics.NewRegisteredMeter("consensus/qbft/core/timeout_round", nil)
 )
 
 // New creates a QBFT consensus core
@@ -103,8 +104,9 @@ type Core struct {
 	currentMutex sync.Mutex
 	handlerWg    *sync.WaitGroup
 
-	roundChangeSet   *roundChangeSet
-	roundChangeTimer *time.Timer
+	roundChangeSet          *roundChangeSet
+	roundChangeTimer        *time.Timer
+	lastSentTimeoutCanceled *bool
 
 	QBFTPreparedPrepares []*qbftmessage.Prepare
 
@@ -200,6 +202,10 @@ func (c *Core) startNewRound(round *big.Int) {
 		oldLogger = c.logger.New("old.round", c.current.Round().Uint64(), "old.sequence", c.current.Sequence().Uint64(), "old.state", c.state.String(), "old.proposer", c.valSet.GetProposer())
 	}
 
+	if c.current != nil && round.Cmp(c.current.Round()) > 0 {
+		roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
+	}
+
 	// Create next view
 	var newView *qbft.View
 	if roundChange {
@@ -221,10 +227,6 @@ func (c *Core) startNewRound(round *big.Int) {
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.setState(StateAcceptRequest)
-
-	if c.current != nil && round.Cmp(c.current.Round()) > 0 {
-		roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
-	}
 
 	// Update RoundChangeSet by deleting older round messages
 	if round.Uint64() == 0 {
@@ -290,6 +292,9 @@ func (c *Core) stopTimer() {
 	if c.roundChangeTimer != nil {
 		c.roundChangeTimer.Stop()
 	}
+	if c.lastSentTimeoutCanceled != nil {
+		*c.lastSentTimeoutCanceled = true
+	}
 }
 
 func (c *Core) newRoundChangeTimer() {
@@ -331,8 +336,10 @@ func (c *Core) newRoundChangeTimer() {
 	}
 
 	c.currentLogger(true, nil).Trace("QBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
+	c.lastSentTimeoutCanceled = new(bool)
+	*c.lastSentTimeoutCanceled = false
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
-		c.sendEvent(timeoutEvent{})
+		c.sendEvent(timeoutEvent{c.lastSentTimeoutCanceled})
 	})
 }
 

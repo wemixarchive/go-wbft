@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
@@ -86,6 +87,10 @@ var (
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
+)
+
+var (
+	commitWorkTimer = metrics.NewRegisteredTimer("consensus/qbft/core/commitwork", nil)
 )
 
 // environment is the worker's current environment and holds all
@@ -1118,6 +1123,12 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		header.ExcessBlobGas = &excessBlobGas
 		header.ParentBeaconRoot = genParams.beaconRoot
 	}
+
+	if w.chainConfig.MontBlancBlock != nil && !w.chainConfig.IsMontBlanc(header.Number) {
+		// If we are not in the MontBlanc phase, we don't prepare a block
+		log.Info("Skipping block preparation before MontBlanc hard fork", "number", header.Number, "fork", w.chainConfig.MontBlancBlock)
+		return nil, errors.New("skipping block preparation before MontBlanc hard fork")
+	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for sealing", "err", err)
@@ -1320,6 +1331,7 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 				log.Info("Commit new sealing work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
 					"txs", env.tcount, "gas", block.GasUsed(), "fees", feesInEther,
 					"elapsed", common.PrettyDuration(time.Since(start)))
+				commitWorkTimer.Update(time.Since(start))
 
 			case <-w.exitCh:
 				log.Info("Worker has exited")
