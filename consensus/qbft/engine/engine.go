@@ -538,8 +538,8 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 }
 
 // GetStakers
-// If number of stakers <= minStakers, use validator list (regarded as staker list) from wbft config.
-// If number of stakers > minStakers, use staker list from gov.
+// If number of stakers < minStakers, use validator list (regarded as staker list) from wbft config.
+// If number of stakers >= minStakers, use staker list from gov.
 //
 // TODO: After stabilization stage, although the number of stakers below
 // minStakers can cause the network unstable, use staker list only from gov
@@ -556,7 +556,7 @@ func (e *Engine) GetStakers(number *big.Int, state govwbft.StateReader) []common
 		}
 	}
 
-	if len(stakerSetFromGov) <= int(e.cfg.GetConfig(number).MinStakers) {
+	if len(stakerSetFromGov) < int(e.cfg.GetConfig(number).MinStakers) {
 		stakerSetFromConfig := e.cfg.GetConfig(number).Validators
 		stakers = append(stakers, stakerSetFromConfig...)
 	} else {
