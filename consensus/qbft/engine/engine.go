@@ -572,15 +572,43 @@ type stakerInfo struct {
 	staker      *types.Staker
 }
 
+func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
+	var newEpoch types.EpochInfo
+
+	// Init diligence score of every staker to DefaultDiligence.
+	newStakers := e.GetStakers(config, header.Number, state)
+	newEpoch.Stakers = make([]*types.Staker, len(newStakers))
+	for i, staker := range newStakers {
+		newEpoch.Stakers[i] = &types.Staker{
+			Addr:      staker,
+			Diligence: types.DefaultDiligence,
+		}
+	}
+	newEpoch.Validators = e.decideValidators(header, newStakers)
+
+	log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
+	for i, staker := range newEpoch.Stakers {
+		log.Trace(fmt.Sprintf("  - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
+	}
+
+	return &newEpoch
+}
+
 // verifyHeader() must catch inconsistent seals before calling this.
 func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
 	var newEpoch types.EpochInfo
 
 	config := chain.Config()
 	if isEpoch, _, err := e.IsEpochBlockNumber(config, header.Number); err != nil {
-		log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+		log.Warn("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+		return nil
 	} else if !isEpoch {
 		return nil
+	}
+
+	// Generate initial epoch block if a transition occurs.
+	if config.MontBlancBlock != nil && header.Number.Cmp(config.MontBlancBlock) == 0 {
+		return e.createInitialEpochBlock(config, header, state)
 	}
 
 	var epochHeader *types.Header
@@ -637,7 +665,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 		// Stop counting if the block reaches to the epoch block.
 		if isEpoch, _, err := e.IsEpochBlockNumber(config, it.Number); err != nil {
-			log.Crit("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+			log.Crit("IsEpochBlockNumber failed", "number (it)", it.Number, "err", err)
 		} else if isEpoch {
 			epochHeader = it
 			break
