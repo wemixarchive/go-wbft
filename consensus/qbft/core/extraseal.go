@@ -95,28 +95,30 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 	}
 
 	// process prepare seal
-	for _, msg := range c.prepareExtraSeals {
+	for addr, msg := range c.prepareExtraSeals {
 		if msg != nil {
 			view := msg.View()
 			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
+				// this seal(c.prepareExtraSeals[addr]) is valid and re-usable for this sequence
 				preparedSeal[common.BytesToHash(msg.PrepareSeal[:])] = msg.PrepareSeal[:]
+			} else {
+				c.prepareExtraSeals[addr] = nil // erase invalid seal
 			}
 		}
 	}
 
 	// process commit seal
-	for _, msg := range c.commitExtraSeals {
+	for addr, msg := range c.commitExtraSeals {
 		if msg != nil {
 			view := msg.View()
 			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
+				// this seal(c.prepareExtraSeals[addr]) is valid and re-usable for this sequence
 				committedSeal[common.BytesToHash(msg.CommitSeal[:])] = msg.CommitSeal[:]
+			} else {
+				c.commitExtraSeals[addr] = nil // erase invalid seal
 			}
 		}
 	}
 
-	// erase all seals after processing
-	c.prepareExtraSeals = make(map[common.Address]*qbftmessage.Prepare)
-	c.commitExtraSeals = make(map[common.Address]*qbftmessage.Commit)
-	c.logger.Debug("QBFT: processed extra seal messages", "prepared", len(preparedSeal), "committed", len(committedSeal), "view", latestView)
 	return preparedSeal, committedSeal
 }
