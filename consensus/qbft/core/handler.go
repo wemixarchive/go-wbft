@@ -145,12 +145,15 @@ func (c *Core) handleEvents() {
 				// if successfully processed, we gossip message to other validators
 				c.backend.Gossip(c.valSet, ev.msg.Code(), data)
 			}
-		case _, ok := <-c.timeoutSub.Chan():
+		case toEvent, ok := <-c.timeoutSub.Chan():
 			// we received a round change timeout
 			if !ok {
 				return
 			}
-			c.handleTimeoutMsg()
+			if !*toEvent.Data.(timeoutEvent).canceled {
+				// timeout event can be canceled if a new round is started before timeout
+				c.handleTimeoutMsg()
+			}
 		case event, ok := <-c.finalCommittedSub.Chan():
 			// our block proposal got committed
 			if !ok {
@@ -240,6 +243,8 @@ func (c *Core) handleTimeoutMsg() {
 	logger.Warn("QBFT: TIMER CHANGING ROUND", "pr", c.current.preparedRound)
 	c.startNewRound(nextRound)
 	logger.Warn("QBFT: TIMER CHANGED ROUND", "pr", c.current.preparedRound)
+
+	timeoutRoundMeter.Mark(1)
 
 	// Send Round Change
 	c.broadcastRoundChange(nextRound)
