@@ -117,5 +117,6 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 	// erase all seals after processing
 	c.prepareExtraSeals = make(map[common.Address]*qbftmessage.Prepare)
 	c.commitExtraSeals = make(map[common.Address]*qbftmessage.Commit)
+	c.logger.Debug("QBFT: processed extra seal messages", "prepared", len(preparedSeal), "committed", len(committedSeal), "view", latestView)
 	return preparedSeal, committedSeal
 }
