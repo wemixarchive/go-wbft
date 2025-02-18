@@ -600,7 +600,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 	config := chain.Config()
 	if isEpoch, _, err := e.IsEpochBlockNumber(config, header.Number); err != nil {
-		log.Warn("IsEpochBlockNumber failed", "number", header.Number, "err", err)
+		log.Error("IsEpochBlockNumber failed", "number", header.Number, "err", err)
 		return nil
 	} else if !isEpoch {
 		return nil
