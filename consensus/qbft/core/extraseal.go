@@ -102,7 +102,7 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 				// this seal(c.prepareExtraSeals[addr]) is valid and re-usable for this sequence
 				preparedSeal[common.BytesToHash(msg.PrepareSeal[:])] = msg.PrepareSeal[:]
 			} else {
-				c.prepareExtraSeals[addr] = nil // erase invalid seal
+				delete(c.prepareExtraSeals, addr) // erase invalid seal
 			}
 		}
 	}
@@ -112,10 +112,10 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int)
 		if msg != nil {
 			view := msg.View()
 			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
-				// this seal(c.prepareExtraSeals[addr]) is valid and re-usable for this sequence
+				// this seal(c.commitExtraSeals[addr]) is valid and re-usable for this sequence
 				committedSeal[common.BytesToHash(msg.CommitSeal[:])] = msg.CommitSeal[:]
 			} else {
-				c.commitExtraSeals[addr] = nil // erase invalid seal
+				delete(c.commitExtraSeals, addr) // erase invalid seal
 			}
 		}
 	}
