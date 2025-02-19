@@ -61,6 +61,7 @@ func MakeMultiEngineTestEnv(n int) (env *testEnv) {
 	config.MinStakers = 1
 	config.AllowedFutureBlockTime = 100000000 // to skip future block check; this makes block creation time to be very short
 	config.Validators = vals
+
 	env.addrs = make([]common.Address, n)
 	env.index = make(map[common.Address]int)
 	env.chains = make(map[common.Address]*core.BlockChain)
