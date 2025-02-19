@@ -8,6 +8,7 @@ package testutils
 import (
 	"bytes"
 	"crypto/ecdsa"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
