@@ -46,7 +46,7 @@ func MakeMultiEngineTestEnv(n int) (env *testEnv) {
 	env = &testEnv{}
 
 	// validators are ordered so the proposer will be selected in index order
-	genesis, nodeKeys, vals := testutils.GenesisAndKeys(n)
+	genesis, nodeKeys, vals := testutils.GenesisAndFixedKeys(n)
 	env.parent = genesis.ToBlock()
 	env.down = make(map[common.Address]bool)
 	env.msgDisabled = make(map[common.Address]map[uint64]bool)
