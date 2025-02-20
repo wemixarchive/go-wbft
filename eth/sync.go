@@ -30,9 +30,8 @@ import (
 )
 
 const (
-	forceSyncCycle        = 10 * time.Second // Time interval to force syncs, even if few peers are available
-	forceSyncCycleForWBFT = 3 * time.Second
-	defaultMinSyncPeers   = 5 // Amount of peers desired to start syncing
+	forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
+	defaultMinSyncPeers = 5                // Amount of peers desired to start syncing
 )
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
@@ -99,7 +98,7 @@ func (cs *chainSyncer) loop() {
 
 	// The force timer lowers the peer count threshold down to one when it fires.
 	// This ensures we'll always start sync even if there aren't enough peers.
-	cs.force = time.NewTimer(forceSyncCycleForWBFT)
+	cs.force = time.NewTimer(forceSyncCycle)
 	defer cs.force.Stop()
 
 	for {
@@ -111,7 +110,7 @@ func (cs *chainSyncer) loop() {
 			// Peer information changed, recheck.
 		case err := <-cs.doneCh:
 			cs.doneCh = nil
-			cs.force.Reset(forceSyncCycleForWBFT)
+			cs.force.Reset(forceSyncCycle)
 			cs.forced = false
 
 			// If we've reached the merge transition but no beacon client is available, or
