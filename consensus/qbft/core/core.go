@@ -32,6 +32,7 @@ import (
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/bls"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
@@ -361,6 +362,25 @@ func verifySeal(header *types.Header, round uint32, sealType SealType, seal []by
 		return err
 	}
 	if calcSealer.Cmp(sealer) != 0 {
+		return errInvalidSigner
+	}
+	return nil
+}
+
+func (c *Core) verifySeal(header *types.Header, round uint32, sealType SealType, seal []byte, sealer common.Address) error {
+	_, validator := c.valSet.GetByAddress(sealer)
+
+	pubkey, err := bls.PublicKeyFromBytes(validator.BLSPublicKey())
+	if err != nil {
+		return err
+	}
+
+	sig, err := bls.SignatureFromBytes(seal)
+	if err != nil {
+		return errInvalidSeal
+	}
+
+	if !sig.Verify(pubkey, PrepareSeal(header, round, sealType)) {
 		return errInvalidSigner
 	}
 	return nil

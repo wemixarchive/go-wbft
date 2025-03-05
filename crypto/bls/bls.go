@@ -75,8 +75,6 @@ func RandKey() (common.SecretKey, error) {
 	return blst.RandKey()
 }
 
-// kaia
-
 // GenerateKey generates a BLS secret key from the initial key material (IKM).
 // It is deterministic process. Same IKM yields the same secret key.
 func GenerateKey(ikm []byte) (SecretKey, error) {
@@ -87,9 +85,4 @@ func GenerateKey(ikm []byte) (SecretKey, error) {
 // It is deterministic process. Same EC private key yields the same secret key.
 func DeriveFromECDSA(priv *ecdsa.PrivateKey) (SecretKey, error) {
 	return GenerateKey(crypto.FromECDSA(priv))
-}
-
-// Sign calculates a signature.
-func Sign(sk SecretKey, msg []byte) Signature {
-	return sk.Sign(msg)
 }

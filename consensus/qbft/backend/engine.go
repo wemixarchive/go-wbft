@@ -56,15 +56,15 @@ func (sb *Backend) Author(header *types.Header) (common.Address, error) {
 // PrepareSigners extracts all the addresses who have signed the given header
 // during the prepare phase. It will extract for each seal who signed it,
 // regardless of if the seal is repeated
-func (sb *Backend) PrepareSigners(header *types.Header) ([]common.Address, error) {
-	return sb.Engine().PrepareSigners(header)
+func (sb *Backend) PrepareSigners(chain consensus.ChainHeaderReader, header *types.Header) ([]common.Address, error) {
+	return sb.Engine().PrepareSigners(chain, header)
 }
 
 // CommitSigners extracts all the addresses who have signed the given header
 // during the commit phase. It will extract for each seal who signed it,
 // regardless of if the seal is repeated
-func (sb *Backend) CommitSigners(header *types.Header) ([]common.Address, error) {
-	return sb.Engine().CommitSigners(header)
+func (sb *Backend) CommitSigners(chain consensus.ChainHeaderReader, header *types.Header) ([]common.Address, error) {
+	return sb.Engine().CommitSigners(chain, header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
@@ -226,7 +226,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	return nil
 }
 
-func (sb *Backend) processExtraSeals() (map[common.Hash][]byte, map[common.Hash][]byte) {
+func (sb *Backend) processExtraSeals() ([]qbft.SealData, []qbft.SealData) {
 	sb.coreMu.RLock()
 	defer sb.coreMu.RUnlock()
 	if sb.core == nil {
@@ -234,8 +234,7 @@ func (sb *Backend) processExtraSeals() (map[common.Hash][]byte, map[common.Hash]
 		return nil, nil
 	} else {
 		lastProposal := sb.currentBlock()
-		extraPreparedSeal, extraCommittedSeal := sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
-		return extraPreparedSeal, extraCommittedSeal
+		return sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
 	}
 }
 

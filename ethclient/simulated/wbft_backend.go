@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/bls"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
@@ -59,9 +60,11 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	ethConf.Istanbul.AllowedFutureBlockTime = 3153600000 // disable time verification of a block ( == 100 years )
 	ethConf.Genesis.Config.QBFT.BlockPeriodSeconds = 1
 	ethConf.Genesis.Config.QBFT.EpochLength = 1000
-	ethConf.Genesis.Config.QBFT.Validators = make([]common.Address, 1)
+	ethConf.Genesis.Config.QBFT.MinStakers = 999
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
-	ethConf.Genesis.Config.QBFT.Validators[0] = validator
+	blsPubKey, _ := bls.DeriveFromECDSA(nodeConf.P2P.PrivateKey)
+	ethConf.Genesis.Config.QBFT.Validators = []common.Address{validator}
+	ethConf.Genesis.Config.QBFT.BLSPublicKeys = []string{hexutil.Encode(blsPubKey.PublicKey().Marshal())}
 	ethConf.Genesis.ExtraData = genExtraData(validator) // simulated chain block
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
