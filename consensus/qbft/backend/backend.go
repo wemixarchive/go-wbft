@@ -276,7 +276,6 @@ func (sb *Backend) Sign(data []byte) ([]byte, error) {
 // SignWithoutHashing implements qbft.Backend.SignWithoutHashing and signs input data with the backend's private key without hashing the input data
 func (sb *Backend) SignWithoutHashing(data []byte) []byte {
 	return sb.blsSecretKey.Sign(data).Marshal()
-	// return crypto.Sign(data, sb.privateKey)
 }
 
 // CheckSignature implements qbft.Backend.CheckSignature
