@@ -4,8 +4,10 @@ pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+
 import "./GovConst.sol";
-import {GovRewarderImp} from "./GovRewarderImp.sol";
+import {GovRewardeeImp} from "./GovRewardeeImp.sol";
+import {GovRewardee} from "./GovRewardee.sol";
 
 contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -15,20 +17,19 @@ contract GovStaking {
         // configuration
         address operator;
         address rewardee;
+        address feeRecipient;
         uint256 feeRate;
 
         // mutable
-        uint256 lastUpdated;
-        uint256 staking; // staker staking + delegated
-        uint256 delegated;
-        uint256 accRewardPerStaking;
-        uint256 lastBalance;
+        uint256 totalStaked; // updated when stake/unstake/delegate/undelegate
+        uint256 accRewardPerStaking; // updated when stake/unstake/delegate/undelegate/claim
+        uint256 lastRewardBalance; // updated when stake/unstake/delegate/undelegate/claim
     }
 
-    struct UserRewardInfo {
-        uint256 accRewardPerStaking;
-        uint256 claimedReward;
-        uint256 lastClaimed;
+    struct UserInfo {
+        uint256 stakingAmount;
+        uint256 pendingReward;
+        uint256 rewardPerStaking;
     }
 
     struct WithdrawalCredential {
@@ -49,7 +50,7 @@ contract GovStaking {
         Requested,
         Withdrawn
     }
-    event StakerRegistered(address indexed staker, address operator, address rewardee, uint256 staking);
+    event StakerRegistered(address indexed staker, address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 staking);
     event Staked(address indexed staker, uint256 amount);
     event Unstaked(address indexed staker, uint256 amount);
     event StakerRemoved(address indexed staker);
@@ -57,6 +58,11 @@ contract GovStaking {
     event Undelegated(address indexed delegator, address indexed staker, uint256 amount);
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
     event Withdrawn(uint256 indexed credentialID, address requester, uint256 amount);
+    event RewardInfoUpdated(address indexed staker, uint256 staking, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking);
+    event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking);
+    event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake);
+    event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient);
+    event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
 
     GovConst public constant GOV_CONST = GovConst(address(0x1000));
 
@@ -68,31 +74,36 @@ contract GovStaking {
     mapping(address => address) public stakerByOperator; // 0x4
     mapping(address => address) public stakerByRewardee; // 0x5
 
-    // Delegate
-    mapping(address => mapping(address => uint256)) public delegateTo; // 0x5
-
     // Withdrawal Credential
     uint256 public credentialCount; // 0x6
     mapping(uint256 => WithdrawalCredential) public credentials; // 0x7
 
-    GovRewarderImp public rewarderImp; // 0x8
+    GovRewardeeImp public rewarderImp; // 0x8
 
     // pending request
     mapping(address => ChangeFeeRequest) public pendingRequest; // 0x9
     // User Reward Info
-    mapping(address => mapping(address => UserRewardInfo)) public userRewardInfo; // 0xA
+    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xA
 
     modifier checkAmount(uint256 _amount) {
         require(msg.value == _amount, "amount and msg.value mismatch");
         _;
     }
 
+    modifier checkStaker(address _staker) {
+        require(_staker != address(0), "unregistered staker");
+        require(isStaker(_staker), "unregistered staker");
+        _;
+    }
+
+    receive() external payable {}
+
     function isStaker(address _staker) public view returns (bool) {
         return __stakerSet.contains(_staker);
     }
 
-    function isOperatorOrRewardee(address _addr) public view returns (bool) {
-        return stakerByOperator[_addr] != address(0) || stakerByRewardee[_addr] != address(0);
+    function isOperator(address _addr) public view returns (bool) {
+        return stakerByOperator[_addr] != address(0);
     }
 
     function stakerLength() external view returns (uint256) {
@@ -103,190 +114,175 @@ contract GovStaking {
         return __stakerSet.values();
     }
 
-    function registerStaker(uint256 _amount, address _staker, address _rewardee, uint256 _feeRate) external payable checkAmount(_amount) {
+    function registerStaker(uint256 _amount, address _staker, address _feeRecipient, uint256 _feeRate) external payable checkAmount(_amount) {
         require(_amount >= GOV_CONST.MINIMUM_STAKING() && _amount <= GOV_CONST.MAXIMUM_STAKING(), "out of bounds");
-        require(msg.sender != _staker && msg.sender != _rewardee, "operator cannot be staker or rewardee");
-        require(_staker != address(0) && _rewardee != address(0), "zero address");
-        require(_staker != _rewardee, "staker cannot be rewardee");
-        require(!isOperatorOrRewardee(msg.sender), "operator is already registered");
-        require(!isOperatorOrRewardee(_staker), "staker is already registered");
-        require(!isOperatorOrRewardee(_rewardee), "rewardee is already registered");
+        require(msg.sender != _staker, "operator cannot be staker");
+        require(_staker != address(0), "zero address");
+        require(!isOperator(msg.sender), "operator is already registered");
+        require(!isStaker(_staker), "staker is already registered");
+        require(_feeRecipient != address(0), "fee recipient is zero address");
         require(_feeRate <= GOV_CONST.FEE_PRECISION(), "fee rate exceeds precision");
 
-        require(__stakerSet.add(_staker), "staker exists");
-        stakerInfo[_staker] = Staker({ operator: msg.sender, rewardee: _rewardee, staking: _amount, delegated: 0, feeRate: _feeRate });
+        GovRewardee _rewardee = new GovRewardee();
+        stakerInfo[_staker].operator = msg.sender;
+        stakerInfo[_staker].rewardee = address(_rewardee);
+        stakerInfo[_staker].feeRecipient = _feeRecipient;
+        stakerInfo[_staker].feeRate = _feeRate;
 
         stakerByOperator[msg.sender] = _staker;
-        stakerByRewardee[_rewardee] = _staker;
+        stakerByRewardee[address(_rewardee)] = _staker;
 
-        totalStaking += _amount;
+        __stakerSet.add(_staker);
 
-        emit StakerRegistered(_staker, msg.sender, _rewardee, _amount);
+        _updateRewardInfo(_staker, msg.sender);
+
+        _addStaking(_staker, msg.sender, _amount);
+
+        emit StakerRegistered(
+            _staker,
+            msg.sender,
+            address(_rewardee),
+            _feeRecipient,
+            _feeRate,
+            _amount
+        );
     }
 
-    function _updateAccReward(address _staker) internal {
-        Staker storage _stakerInfo = stakerInfo[_staker];
-
-        if (_stakerInfo.lastUpdated < block.number) {
-            uint256 _accBalance = _stakerInfo.rewardee.balance - _stakerInfo.lastBalance;
-            _stakerInfo.accRewardPerStaking += _accBalance * GOV_CONST.REWARD_PRECISION() / _stakerInfo.staking;
-            _stakerInfo.lastBalance = _stakerInfo.rewardee.balance;
-            _stakerInfo.lastUpdated = block.number;
-
-            emit AccRewardUpdated(
-                _staker,
-                _stakerInfo.lastUpdated,
-                _stakerInfo.staking,
-                _stakerInfo.rewardee.balance,
-                _accBalance,
-                _stakerInfo.accRewardPerStaking
-            );
-        }
-    }
-
-    function requestChangeFee(uint256 _feeRate) external {
+    function changeFeeRecipient(address _newRecipient) external checkStaker(stakerByOperator[msg.sender]) {
+        require(_newRecipient != address(0), "zero address");
         address _staker = stakerByOperator[msg.sender];
-        require(_staker != address(0), "unregistered staker");
-        require(_feeRate <= GOV_CONST.FEE_PRECISION(), "fee rate exceeds precision");
 
-        if (stakerInfo[_staker].delegated > 0) {
+        address oldRecipient = stakerInfo[_staker].feeRecipient;
+        stakerInfo[_staker].feeRecipient = _newRecipient;
+
+        emit FeeRecipientChanged(_staker, oldRecipient, _newRecipient);
+    }
+
+    function requestChangeFee(uint256 _feeRate) external checkStaker(stakerByOperator[msg.sender]) {
+        require(_feeRate <= GOV_CONST.FEE_PRECISION(), "fee rate exceeds precision");
+        address _staker = stakerByOperator[msg.sender];
+
+        uint256 oldFeeRate = stakerInfo[_staker].feeRate;
+        if (getDelegatedAmount(_staker) > 0) {
             pendingRequest[_staker] = ChangeFeeRequest({ newFeeRate: _feeRate, requestTime: block.timestamp });
         }
         else {
             // if no delegator exists, change fee immediately
             stakerInfo[_staker].feeRate = _feeRate;
         }
+
+        emit FeeRateChangeRequested(_staker, oldFeeRate, _feeRate);
     }
 
-    function updateFeeRate(address _staker) internal {
-        if (pendingRequest[_staker].requestTime > 0) {
-            if (block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY()) {
-                stakerInfo[_staker].feeRate = pendingRequest[_staker].newFeeRate;
-                delete pendingRequest[_staker];
-            }
-        }
-    }
-
-    function getFeeRate(address _staker) view returns (uint256) {
+    function getFeeRate(address _staker) public view returns (uint256) {
         if (pendingRequest[_staker].requestTime > 0 && block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY()) {
             return pendingRequest[_staker].newFeeRate;
         }
         return stakerInfo[_staker].feeRate;
     }
 
-    function stake(uint256 _amount) external payable checkAmount(_amount) {
+    function stake(uint256 _amount) external payable checkAmount(_amount) checkStaker(stakerByOperator[msg.sender]) {
         address _staker = stakerByOperator[msg.sender];
 
         // update stake info
-        _updateAccReward(_staker);
+        _updateRewardInfo(_staker, msg.sender);
 
-        _addStaking(_staker, _amount, false);
+        _addStaking(_staker, msg.sender, _amount);
 
         emit Staked(_staker, _amount);
     }
 
-    function unstake(uint256 _amount) external {
-        address _staker = stakerByOperator[msg.sender];
-        require(_staker != address(0), "unregistered staker");
+    function unstake(uint256 _amount) external checkStaker(stakerByOperator[msg.sender]) {
         require(_amount > 0, "amount is zero");
 
+        address _staker = stakerByOperator[msg.sender];
+        UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
+        require(_userInfo.stakingAmount >= _amount, "insufficient balance");
+
         // update stake info
-        _updateAccReward(_staker);
+        _updateRewardInfo(_staker, msg.sender);
 
         Staker storage _stakerInfo = stakerInfo[_staker];
-        uint256 _stakerStaking = _stakerInfo.staking - _stakerInfo.delegated;
+        _subStaking(_staker, msg.sender, _amount);
 
-        require(_stakerStaking >= _amount, "insufficient balance");
-        if (_stakerStaking - _amount < GOV_CONST.MINIMUM_STAKING()) {
-            require(_stakerStaking == _amount, "amount must equal balance to remove staker");
+        if (_userInfo.stakingAmount < GOV_CONST.MINIMUM_STAKING()) {
+            require(_userInfo.stakingAmount == 0, "amount must equal balance to remove staker");
 
             __stakerSet.remove(_staker);
             delete stakerByOperator[msg.sender];
             delete stakerByRewardee[_stakerInfo.rewardee];
-            delete stakerInfo[_staker];
 
             emit StakerRemoved(_staker);
-        } else {
-            _stakerInfo.staking -= _amount;
         }
 
-        totalStaking -= _amount;
         _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_STAKER());
 
         emit Unstaked(_staker, _amount);
     }
 
-    function delegate(address _staker, uint256 _amount) external payable checkAmount(_amount) {
-        require(!isStaker(msg.sender), "staker cannot delegate");
-        require(!isOperatorOrRewardee(msg.sender), "operator(rewardee) cannot delegate");
+    function delegate(address _staker, uint256 _amount) external payable checkAmount(_amount) checkStaker(_staker) {
+        require(msg.sender != _staker, "staker cannot delegate to self");
+        require(msg.sender != stakerInfo[_staker].operator, "operator cannot delegate to self");
 
-        // update stake info
-        _updateAccReward(_staker);
+        _updateRewardInfo(_staker, msg.sender);
 
-        _addStaking(_staker, _amount, true);
-        delegateTo[msg.sender][_staker] += _amount;
+        _addStaking(_staker, msg.sender, _amount);
 
         emit Delegated(msg.sender, _staker, _amount);
     }
 
     function undelegate(address _staker, uint256 _amount) external {
-        require(delegateTo[msg.sender][_staker] >= _amount, "insufficient balance");
+        // we don't checkStaker; one can undelegate even if the staker is not active
+
+        require(msg.sender != _staker, "staker cannot undelegate to self");
+        require(msg.sender != stakerInfo[_staker].operator, "operator cannot undelegate to self");
 
         // update stake info
-        _updateAccReward(_staker);
+        _updateRewardInfo(_staker, msg.sender);
+
+        _subStaking(_staker, msg.sender, _amount);
 
         if (isStaker(_staker)) {
-            Staker storage _stakerInfo = stakerInfo[_staker];
-            _stakerInfo.delegated -= _amount;
-            _stakerInfo.staking -= _amount;
-
             _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_DELEGATOR());
         } else {
-            payable(msg.sender).sendValue(_amount);
+            (bool success, ) = payable(msg.sender).call{value: _amount}("");
+            require(success, "failed to send undelegating amount");
         }
-
-        delegateTo[msg.sender][_staker] -= _amount;
-        totalStaking -= _amount;
 
         emit Undelegated(msg.sender, _staker, _amount);
     }
 
-    function claimByStaker(bool restake) external {
-        address _staker = stakerByOperator[msg.sender];
+    function claim(address _staker, bool _restake) external {
+        require(userRewardInfo[_staker][msg.sender].stakingAmount > 0 ||
+                userRewardInfo[_staker][msg.sender].pendingReward > 0, "no reward to claim");
         require(_staker != address(0), "unregistered staker");
+        Staker storage _stakerInfo = stakerInfo[_staker];
 
         // update stake info
-        _updateAccReward(_staker);
+        _updateRewardInfo(_staker, msg.sender);
 
-        Staker storage _stakerInfo = stakerInfo[_staker];
-        uint256 _reward = (_stakerInfo.accRewardPerStaking - _stakerInfo.calculatedReward) * _stakerInfo.staking / GOV_CONST.REWARD_PRECISION();
-        _stakerInfo.calculatedReward = _stakerInfo.accRewardPerStaking;
-
-        if (restake) {
-            _addStaking(_staker, _reward, false);
-        } else {
-            payable(msg.sender).sendValue(_reward);
+        uint256 _reward = userRewardInfo[_staker][msg.sender].pendingReward;
+        uint256 _fee = 0;
+        if (msg.sender != _stakerInfo.operator) {
+            _fee = _reward * getFeeRate(_staker) / GOV_CONST.FEE_PRECISION();
+            _reward = _reward - _fee;
         }
-    }
+        userRewardInfo[_staker][msg.sender].pendingReward = 0;
+        if (_restake) {
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward);
 
-    function claimByDelegator(address staker, bool restake) external {
-        address _staker = stakerByRewardee[msg.sender];
-        require(_staker != address(0), "unregistered rewardee");
-
-        // update stake info
-        _updateAccReward(_staker);
-
-        Staker storage _stakerInfo = stakerInfo[_staker];
-        uint256 _reward = (_stakerInfo.accRewardPerStaking - _stakerInfo.calculatedReward) * _stakerInfo.staking / GOV_CONST.REWARD_PRECISION();
-        _stakerInfo.calculatedReward = _stakerInfo.accRewardPerStaking;
-
-        if (restake) {
-            _addStaking(_staker, _reward, false);
+            _addStaking(_staker, msg.sender, _reward);
         } else {
-            payable(msg.sender).sendValue(_reward);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward);
         }
 
-        emit Claimed(_staker, msg.sender, _reward, restake);
+        if (_fee > 0) {
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(_stakerInfo.feeRecipient), _fee);
+        }
+
+        _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;
+
+        emit Claimed(_staker, msg.sender, _reward, _restake);
     }
 
     function withdraw(uint256 _cid) external {
@@ -295,23 +291,64 @@ contract GovStaking {
         require(_credential.requester == msg.sender, "msg.sender is not requester");
         require(block.timestamp >= _credential.withdrawableTime, "not yet time to withdraw");
 
-        payable(_credential.requester).sendValue(_credential.amount);
-        _credential.status = WithdrawalStatus.Withdrawn;
+        _credential.status = WithdrawalStatus.Withdrawn; // modify status first to prevent reentrancy
+        (bool success, ) = payable(_credential.requester).call{value: _credential.amount}("");
+        require(success, "failed to send withdrawal amount");
 
         emit Withdrawn(_cid, msg.sender, _credential.amount);
     }
 
-    function _addStaking(address _staker, uint256 _amount, bool _delegated) private {
-        require(isStaker(_staker), "unregistered staker");
-
+    function _updateRewardInfo(address _staker, address _user) internal {
         Staker storage _stakerInfo = stakerInfo[_staker];
-        require(_stakerInfo.staking + _amount <= GOV_CONST.MAXIMUM_STAKING(), "exceeded the maximum");
+        if (_stakerInfo.totalStaked > 0) {
+            uint256 _accBalance = _stakerInfo.rewardee.balance - _stakerInfo.lastRewardBalance;
+            _stakerInfo.accRewardPerStaking += _accBalance * GOV_CONST.REWARD_PRECISION() / _stakerInfo.totalStaked;
+            _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;
 
-        totalStaking += _amount;
-        _stakerInfo.staking += _amount;
-        if (_delegated) {
-            _stakerInfo.delegated += _amount;
+            emit RewardInfoUpdated(
+                _staker,
+                _stakerInfo.totalStaked,
+                _stakerInfo.rewardee.balance,
+                _accBalance,
+                _stakerInfo.accRewardPerStaking
+            );
+
+            UserInfo storage _userInfo = userRewardInfo[_staker][_user];
+            _userInfo.pendingReward += _userInfo.stakingAmount * (stakerInfo[_staker].accRewardPerStaking - _userInfo.rewardPerStaking) / GOV_CONST.REWARD_PRECISION();
+            _userInfo.rewardPerStaking = stakerInfo[_staker].accRewardPerStaking;
+
+            emit UserRewardUpdated(_staker, _user, _userInfo.stakingAmount, _userInfo.pendingReward, _userInfo.rewardPerStaking);
         }
+    }
+
+    function _updateFeeRate(address _staker) internal {
+        if (pendingRequest[_staker].requestTime > 0) {
+            if (block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY()) {
+                stakerInfo[_staker].feeRate = pendingRequest[_staker].newFeeRate;
+                delete pendingRequest[_staker];
+            }
+        }
+    }
+
+    function _addStaking(address _staker, address _user, uint256 _amount) private {
+        Staker storage _stakerInfo = stakerInfo[_staker];
+        require(_stakerInfo.totalStaked + _amount <= GOV_CONST.MAXIMUM_STAKING(), "exceeded the maximum");
+        UserInfo storage _userInfo = userRewardInfo[_staker][_user];
+
+        _stakerInfo.totalStaked += _amount;
+        _userInfo.stakingAmount += _amount;
+        totalStaking += _amount;
+    }
+
+    function _subStaking(address _staker, address _user, uint256 _amount) private {
+        Staker storage _stakerInfo = stakerInfo[_staker];
+        UserInfo storage _userInfo = userRewardInfo[_staker][_user];
+        require(_userInfo.stakingAmount >= _amount, "insufficient balance");
+        require(_stakerInfo.totalStaked >= _amount, "insufficient balance");
+
+        _stakerInfo.totalStaked -= _amount;
+        _userInfo.stakingAmount -= _amount;
+        totalStaking -= _amount;
     }
 
     function _newCredential(uint256 _amount, uint256 _unbondingPeriod) private {
@@ -324,5 +361,13 @@ contract GovStaking {
         });
 
         emit NewCredential(credentialCount, msg.sender, _amount, block.timestamp, _unbondingPeriod);
+    }
+
+    function getStakerAmount(address _staker) public view returns (uint256) {
+        return userRewardInfo[_staker][stakerInfo[_staker].operator].stakingAmount;
+    }
+
+    function getDelegatedAmount(address _staker) public view returns (uint256) {
+        return stakerInfo[_staker].totalStaked - userRewardInfo[_staker][stakerInfo[_staker].operator].stakingAmount;
     }
 }

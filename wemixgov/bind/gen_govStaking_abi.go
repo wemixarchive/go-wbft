@@ -31,16 +31,23 @@ var (
 
 // GovStakingMetaData contains all meta data concerning the GovStaking contract.
 var GovStakingMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"delegator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Delegated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"credentialID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"time\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"unbonding\",\"type\":\"uint256\"}],\"name\":\"NewCredential\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Staked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"rewardee\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"staking\",\"type\":\"uint256\"}],\"name\":\"StakerRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"}],\"name\":\"StakerRemoved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"delegator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Undelegated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Unstaked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"credentialID\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Withdrawn\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"GOV_CONST\",\"outputs\":[{\"internalType\":\"contractGovConst\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"credentialCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"credentials\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"requestTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"withdrawableTime\",\"type\":\"uint256\"},{\"internalType\":\"enumGovStaking.WithdrawalStatus\",\"name\":\"status\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"delegate\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"delegateTo\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"isOperatorOrRewardee\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"}],\"name\":\"isStaker\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rewardee\",\"type\":\"address\"}],\"name\":\"registerStaker\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"stake\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakerByOperator\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakerByRewardee\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakerInfo\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"rewardee\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"staking\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"delegated\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stakerLength\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stakers\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"totalStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"undelegate\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"unstake\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_cid\",\"type\":\"uint256\"}],\"name\":\"withdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"rewardee\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"restake\",\"type\":\"bool\"}],\"name\":\"Claimed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"delegator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Delegated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"oldFeeRate\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newFeeRate\",\"type\":\"uint256\"}],\"name\":\"FeeRateChangeRequested\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"oldRecipient\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"newRecipient\",\"type\":\"address\"}],\"name\":\"FeeRecipientChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"credentialID\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"time\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"unbonding\",\"type\":\"uint256\"}],\"name\":\"NewCredential\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"staking\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"accBalance\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"accRewardPerStaking\",\"type\":\"uint256\"}],\"name\":\"RewardInfoUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Staked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"rewardee\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"feeRecipient\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"feeRate\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"staking\",\"type\":\"uint256\"}],\"name\":\"StakerRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"}],\"name\":\"StakerRemoved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"delegator\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Undelegated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Unstaked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"staker\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"stakingAmount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"pendingReward\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"accRewardPerStaking\",\"type\":\"uint256\"}],\"name\":\"UserRewardUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"credentialID\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Withdrawn\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"GOV_CONST\",\"outputs\":[{\"internalType\":\"contractGovConst\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_newRecipient\",\"type\":\"address\"}],\"name\":\"changeFeeRecipient\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"_restake\",\"type\":\"bool\"}],\"name\":\"claim\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"credentialCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"credentials\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"requester\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"requestTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"withdrawableTime\",\"type\":\"uint256\"},{\"internalType\":\"enumGovStaking.WithdrawalStatus\",\"name\":\"status\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"delegate\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"}],\"name\":\"getDelegatedAmount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"}],\"name\":\"getFeeRate\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"}],\"name\":\"getStakerAmount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"isOperator\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"}],\"name\":\"isStaker\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingRequest\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"newFeeRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"requestTime\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_feeRecipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_feeRate\",\"type\":\"uint256\"}],\"name\":\"registerStaker\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_feeRate\",\"type\":\"uint256\"}],\"name\":\"requestChangeFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rewarderImp\",\"outputs\":[{\"internalType\":\"contractGovRewardeeImp\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"stake\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakerByOperator\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakerByRewardee\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"stakerInfo\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"operator\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"rewardee\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"feeRecipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"feeRate\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"totalStaked\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"accRewardPerStaking\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastRewardBalance\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stakerLength\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stakers\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"totalStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_staker\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"undelegate\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"unstake\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"userRewardInfo\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"stakingAmount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"pendingReward\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rewardPerStaking\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_cid\",\"type\":\"uint256\"}],\"name\":\"withdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}]",
 	Sigs: map[string]string{
 		"e8aaca24": "GOV_CONST()",
+		"23604071": "changeFeeRecipient(address)",
+		"92fd2daf": "claim(address,bool)",
 		"cd0e35b9": "credentialCount()",
 		"e0574e3f": "credentials(uint256)",
 		"026e402b": "delegate(address,uint256)",
-		"438bb7e5": "delegateTo(address,address)",
-		"cdb72f06": "isOperatorOrRewardee(address)",
+		"073ea6ae": "getDelegatedAmount(address)",
+		"8198edbf": "getFeeRate(address)",
+		"e86d059e": "getStakerAmount(address)",
+		"6d70f7ae": "isOperator(address)",
 		"6f1e8533": "isStaker(address)",
-		"af716c40": "registerStaker(uint256,address,address)",
+		"a664d90f": "pendingRequest(address)",
+		"3ba2b5a4": "registerStaker(uint256,address,address,uint256)",
+		"b4461e54": "requestChangeFee(uint256)",
+		"79bad121": "rewarderImp()",
 		"a694fc3a": "stake(uint256)",
 		"9dbccf6a": "stakerByOperator(address)",
 		"264ebc38": "stakerByRewardee(address)",
@@ -50,9 +57,10 @@ var GovStakingMetaData = &bind.MetaData{
 		"165defa4": "totalStaking()",
 		"4d99dd16": "undelegate(address,uint256)",
 		"2e17de78": "unstake(uint256)",
+		"66993646": "userRewardInfo(address,address)",
 		"2e1a7d4d": "withdraw(uint256)",
 	},
-	Bin: "0x608060405234801561001057600080fd5b50611a57806100206000396000f3fe6080604052600436106101095760003560e01c80636f1e853311610095578063cd0e35b911610064578063cd0e35b91461034f578063cdb72f0614610365578063e0574e3f14610385578063e8aaca24146103ed578063fed1252a1461040357600080fd5b80636f1e8533146102c35780639dbccf6a146102f3578063a694fc3a14610329578063af716c401461033c57600080fd5b80632e1a7d4d116100dc5780632e1a7d4d146101ba578063438bb7e5146101da5780634d99dd16146102125780634e745f1f146102325780635748f6f3146102ae57600080fd5b8063026e402b1461010e578063165defa414610123578063264ebc381461014c5780632e17de781461019a575b600080fd5b61012161011c3660046117c4565b610425565b005b34801561012f57600080fd5b5061013960005481565b6040519081526020015b60405180910390f35b34801561015857600080fd5b506101826101673660046117ee565b6005602052600090815260409020546001600160a01b031681565b6040516001600160a01b039091168152602001610143565b3480156101a657600080fd5b506101216101b5366004611809565b610587565b3480156101c657600080fd5b506101216101d5366004611809565b610901565b3480156101e657600080fd5b506101396101f5366004611822565b600660209081526000928352604080842090915290825290205481565b34801561021e57600080fd5b5061012161022d3660046117c4565b610a89565b34801561023e57600080fd5b5061028361024d3660046117ee565b600360208190526000918252604090912080546001820154600283015492909301546001600160a01b0391821693909116919084565b604080516001600160a01b039586168152949093166020850152918301526060820152608001610143565b3480156102ba57600080fd5b50610139610c3a565b3480156102cf57600080fd5b506102e36102de3660046117ee565b610c4b565b6040519015158152602001610143565b3480156102ff57600080fd5b5061018261030e3660046117ee565b6004602052600090815260409020546001600160a01b031681565b610121610337366004611809565b610c5e565b61012161034a366004611855565b610ced565b34801561035b57600080fd5b5061013960075481565b34801561037157600080fd5b506102e36103803660046117ee565b61119f565b34801561039157600080fd5b506103dc6103a0366004611809565b600860205260009081526040902080546001820154600283015460038401546004909401546001600160a01b0390931693919290919060ff1685565b6040516101439594939291906118a7565b3480156103f957600080fd5b5061018261100081565b34801561040f57600080fd5b506104186111e5565b60405161014391906118fa565b8080341461044e5760405162461bcd60e51b815260040161044590611947565b60405180910390fd5b61045733610c4b565b1561049d5760405162461bcd60e51b81526020600482015260166024820152757374616b65722063616e6e6f742064656c656761746560501b6044820152606401610445565b6104a63361119f565b156104fe5760405162461bcd60e51b815260206004820152602260248201527f6f70657261746f72287265776172646565292063616e6e6f742064656c656761604482015261746560f01b6064820152608401610445565b61050a838360016111f1565b3360009081526006602090815260408083206001600160a01b03871684529091528120805484929061053d908490611994565b90915550506040518281526001600160a01b0384169033907fe5541a6b6103d4fa7e021ed54fad39c66f27a76bd13d374cf6240ae6bd0bb72b9060200160405180910390a3505050565b336000908152600460205260409020546001600160a01b0316806105e35760405162461bcd60e51b81526020600482015260136024820152723ab73932b3b4b9ba32b932b21039ba30b5b2b960691b6044820152606401610445565b600082116106245760405162461bcd60e51b815260206004820152600e60248201526d616d6f756e74206973207a65726f60901b6044820152606401610445565b6001600160a01b0381166000908152600360208190526040822090810154600282015491929161065491906119ac565b90508381101561069d5760405162461bcd60e51b8152602060048201526014602482015273696e73756666696369656e742062616c616e636560601b6044820152606401610445565b6110006001600160a01b031663ba631d3f6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156106dd573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061070191906119c3565b61070b85836119ac565b1015610819578381146107735760405162461bcd60e51b815260206004820152602a60248201527f616d6f756e74206d75737420657175616c2062616c616e636520746f2072656d60448201526937bb329039ba30b5b2b960b11b6064820152608401610445565b61077e600184611361565b5033600090815260046020908152604080832080546001600160a01b03199081169091556001868101546001600160a01b0390811686526005855283862080548416905588168086526003948590528386208054841681559182018054909316909255600281018590559092018390555190917fb97b17a738bc54faf4f156f2072573525abf5a6f9fe4e3f78a2f159d7a85180591a2610833565b8382600201600082825461082d91906119ac565b90915550505b8360008082825461084491906119ac565b925050819055506108b8846110006001600160a01b031663fde7f3716040518163ffffffff1660e01b8152600401602060405180830381865afa15801561088f573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906108b391906119c3565b61137d565b826001600160a01b03167f0f5bb82176feb1b5e747e28471aa92156a04d9f3ab9f45f28e2d704232b93f75856040516108f391815260200190565b60405180910390a250505050565b60008181526008602052604090206001600482015460ff16600281111561092a5761092a611891565b1461096c5760405162461bcd60e51b81526020600482015260126024820152711a5b9d985b1a590818dc9959195b9d1a585b60721b6044820152606401610445565b80546001600160a01b031633146109c55760405162461bcd60e51b815260206004820152601b60248201527f6d73672e73656e646572206973206e6f742072657175657374657200000000006044820152606401610445565b8060030154421015610a195760405162461bcd60e51b815260206004820152601860248201527f6e6f74207965742074696d6520746f20776974686472617700000000000000006044820152606401610445565b60018101548154610a35916001600160a01b039091169061149e565b60048101805460ff19166002179055600181015460408051338152602081019290925283917fcf7d23a3cbe4e8b36ff82fd1b05b1b17373dc7804b4ebbd6e2356716ef202372910160405180910390a25050565b3360009081526006602090815260408083206001600160a01b0386168452909152902054811115610af35760405162461bcd60e51b8152602060048201526014602482015273696e73756666696369656e742062616c616e636560601b6044820152606401610445565b610afc82610c4b565b15610b9b576001600160a01b03821660009081526003602081905260408220908101805491928492610b2f9084906119ac565b9250508190555081816002016000828254610b4a91906119ac565b92505081905550610b95826110006001600160a01b031663840c17716040518163ffffffff1660e01b8152600401602060405180830381865afa15801561088f573d6000803e3d6000fd5b50610ba5565b610ba5338261149e565b3360009081526006602090815260408083206001600160a01b038616845290915281208054839290610bd89084906119ac565b9250508190555080600080828254610bf091906119ac565b90915550506040518181526001600160a01b0383169033907f4d10bd049775c77bd7f255195afba5088028ecb3c7c277d393ccff7934f2f92c906020015b60405180910390a35050565b6000610c4660016115bc565b905090565b6000610c586001836115c6565b92915050565b80803414610c7e5760405162461bcd60e51b815260040161044590611947565b336000908152600460205260408120546001600160a01b031690610ca590829085906111f1565b806001600160a01b03167f9e71bc8eea02a63969f509818f2dafb9254532904319f9dbda79b67bd34a5f3d84604051610ce091815260200190565b60405180910390a2505050565b82803414610d0d5760405162461bcd60e51b815260040161044590611947565b6110006001600160a01b031663ba631d3f6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610d4d573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610d7191906119c3565b8410158015610de357506110006001600160a01b031663129060ab6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610dbb573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610ddf91906119c3565b8411155b610e1f5760405162461bcd60e51b815260206004820152600d60248201526c6f7574206f6620626f756e647360981b6044820152606401610445565b336001600160a01b03841614801590610e415750336001600160a01b03831614155b610e9b5760405162461bcd60e51b815260206004820152602560248201527f6f70657261746f722063616e6e6f74206265207374616b6572206f7220726577604482015264617264656560d81b6064820152608401610445565b6001600160a01b03831615801590610ebb57506001600160a01b03821615155b610ef65760405162461bcd60e51b815260206004820152600c60248201526b7a65726f206164647265737360a01b6044820152606401610445565b816001600160a01b0316836001600160a01b031603610f575760405162461bcd60e51b815260206004820152601960248201527f7374616b65722063616e6e6f74206265207265776172646565000000000000006044820152606401610445565b610f603361119f565b15610fad5760405162461bcd60e51b815260206004820152601e60248201527f6f70657261746f7220697320616c7265616479207265676973746572656400006044820152606401610445565b610fb68361119f565b156110035760405162461bcd60e51b815260206004820152601c60248201527f7374616b657220697320616c72656164792072656769737465726564000000006044820152606401610445565b61100c8261119f565b156110595760405162461bcd60e51b815260206004820152601e60248201527f726577617264656520697320616c7265616479207265676973746572656400006044820152606401610445565b6110646001846115e8565b6110a05760405162461bcd60e51b815260206004820152600d60248201526c7374616b65722065786973747360981b6044820152606401610445565b60408051608081018252338082526001600160a01b0385811660208085018281528587018b81526000606088018181528c871680835260038087528b84209a518b54908a166001600160a01b0319918216178c55955160018c01805491909a1690871617909855925160028a015551979095019690965593835260048152858320805485168617905590825260059052928320805490911690911790558054859190819061114f908490611994565b9091555050604080513381526001600160a01b038481166020830152918101869052908416907f8705598e75e33b571bb9c5bcdbf2506dc4e7b88c0262532269bfee3fd15b3d86906060016108f3565b6001600160a01b03818116600090815260046020526040812054909116151580610c585750506001600160a01b0390811660009081526005602052604090205416151590565b6060610c4660016115fd565b6111fa83610c4b565b61123c5760405162461bcd60e51b81526020600482015260136024820152723ab73932b3b4b9ba32b932b21039ba30b5b2b960691b6044820152606401610445565b6001600160a01b038316600090815260036020908152604091829020825163129060ab60e01b8152925190926110009263129060ab926004808401938290030181865afa158015611291573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906112b591906119c3565b8382600201546112c59190611994565b111561130a5760405162461bcd60e51b8152602060048201526014602482015273657863656564656420746865206d6178696d756d60601b6044820152606401610445565b8260008082825461131b9190611994565b92505081905550828160020160008282546113369190611994565b9091555050811561135b57828160030160008282546113559190611994565b90915550505b50505050565b6000611376836001600160a01b03841661160a565b9392505050565b6040518060a00160405280336001600160a01b0316815260200183815260200142815260200182426113af9190611994565b81526020016001815250600860006007600081546113cc906119dc565b919050819055815260200190815260200160002060008201518160000160006101000a8154816001600160a01b0302191690836001600160a01b0316021790555060208201518160010155604082015181600201556060820151816003015560808201518160040160006101000a81548160ff0219169083600281111561145557611455611891565b021790555050600754604080518581524260208201529081018490523392507f4846f03be8ef87cb6e611b3a3b878a0aadd7c010f3f25707aa472b41de9dc75d90606001610c2e565b804710156114ee5760405162461bcd60e51b815260206004820152601d60248201527f416464726573733a20696e73756666696369656e742062616c616e63650000006044820152606401610445565b6000826001600160a01b03168260405160006040518083038185875af1925050503d806000811461153b576040519150601f19603f3d011682016040523d82523d6000602084013e611540565b606091505b50509050806115b75760405162461bcd60e51b815260206004820152603a60248201527f416464726573733a20756e61626c6520746f2073656e642076616c75652c207260448201527f6563697069656e74206d617920686176652072657665727465640000000000006064820152608401610445565b505050565b6000610c58825490565b6001600160a01b03811660009081526001830160205260408120541515611376565b6000611376836001600160a01b0384166116fd565b606060006113768361174c565b600081815260018301602052604081205480156116f357600061162e6001836119ac565b8554909150600090611642906001906119ac565b90508181146116a7576000866000018281548110611662576116626119f5565b9060005260206000200154905080876000018481548110611685576116856119f5565b6000918252602080832090910192909255918252600188019052604090208390555b85548690806116b8576116b8611a0b565b600190038181906000526020600020016000905590558560010160008681526020019081526020016000206000905560019350505050610c58565b6000915050610c58565b600081815260018301602052604081205461174457508154600181810184556000848152602080822090930184905584548482528286019093526040902091909155610c58565b506000610c58565b60608160000180548060200260200160405190810160405280929190818152602001828054801561179c57602002820191906000526020600020905b815481526020019060010190808311611788575b50505050509050919050565b80356001600160a01b03811681146117bf57600080fd5b919050565b600080604083850312156117d757600080fd5b6117e0836117a8565b946020939093013593505050565b60006020828403121561180057600080fd5b611376826117a8565b60006020828403121561181b57600080fd5b5035919050565b6000806040838503121561183557600080fd5b61183e836117a8565b915061184c602084016117a8565b90509250929050565b60008060006060848603121561186a57600080fd5b8335925061187a602085016117a8565b9150611888604085016117a8565b90509250925092565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b038616815260208101859052604081018490526060810183905260a08101600383106118ea57634e487b7160e01b600052602160045260246000fd5b8260808301529695505050505050565b6020808252825182820181905260009190848201906040850190845b8181101561193b5783516001600160a01b031683529284019291840191600101611916565b50909695505050505050565b6020808252601d908201527f616d6f756e7420616e64206d73672e76616c7565206d69736d61746368000000604082015260600190565b634e487b7160e01b600052601160045260246000fd5b600082198211156119a7576119a761197e565b500190565b6000828210156119be576119be61197e565b500390565b6000602082840312156119d557600080fd5b5051919050565b6000600182016119ee576119ee61197e565b5060010190565b634e487b7160e01b600052603260045260246000fd5b634e487b7160e01b600052603160045260246000fdfea2646970667358221220edb4faf434f7b6ad1d1afa89ff38d064a75b36b637e7078a6ab53bf5e904113464736f6c634300080e0033",
+	Bin: "0x608060405234801561001057600080fd5b50612a5b806100206000396000f3fe6080604052600436106101855760003560e01c80636f1e8533116100d1578063a694fc3a1161008a578063e0574e3f11610064578063e0574e3f14610588578063e86d059e146105f0578063e8aaca241461063c578063fed1252a1461065257600080fd5b8063a694fc3a1461053f578063b4461e5414610552578063cd0e35b91461057257600080fd5b80636f1e85331461044057806379bad121146104605780638198edbf1461048057806392fd2daf146104a05780639dbccf6a146104c0578063a664d90f146104f657600080fd5b80632e1a7d4d1161013e5780634e745f1f116101185780634e745f1f146102d05780635748f6f31461037e57806366993646146103935780636d70f7ae146103f557600080fd5b80632e1a7d4d1461027d5780633ba2b5a41461029d5780634d99dd16146102b057600080fd5b8063026e402b14610191578063073ea6ae146101a6578063165defa4146101d957806323604071146101ef578063264ebc381461020f5780632e17de781461025d57600080fd5b3661018c57005b600080fd5b6101a461019f366004612604565b610674565b005b3480156101b257600080fd5b506101c66101c136600461262e565b610805565b6040519081526020015b60405180910390f35b3480156101e557600080fd5b506101c660005481565b3480156101fb57600080fd5b506101a461020a36600461262e565b610852565b34801561021b57600080fd5b5061024561022a36600461262e565b6005602052600090815260409020546001600160a01b031681565b6040516001600160a01b0390911681526020016101d0565b34801561026957600080fd5b506101a4610278366004612649565b610972565b34801561028957600080fd5b506101a4610298366004612649565b610c89565b6101a46102ab366004612662565b610e9c565b3480156102bc57600080fd5b506101a46102cb366004612604565b611493565b3480156102dc57600080fd5b506103386102eb36600461262e565b600360208190526000918252604090912080546001820154600283015493830154600484015460058501546006909501546001600160a01b03948516969385169593909416939192909187565b604080516001600160a01b039889168152968816602088015294909616938501939093526060840191909152608083015260a082015260c081019190915260e0016101d0565b34801561038a57600080fd5b506101c66116b5565b34801561039f57600080fd5b506103da6103ae3660046126a6565b600a60209081526000928352604080842090915290825290208054600182015460029092015490919083565b604080519384526020840192909252908201526060016101d0565b34801561040157600080fd5b5061043061041036600461262e565b6001600160a01b0390811660009081526004602052604090205416151590565b60405190151581526020016101d0565b34801561044c57600080fd5b5061043061045b36600461262e565b6116c6565b34801561046c57600080fd5b50600854610245906001600160a01b031681565b34801561048c57600080fd5b506101c661049b36600461262e565b6116d3565b3480156104ac57600080fd5b506101a46104bb3660046126d9565b6117c6565b3480156104cc57600080fd5b506102456104db36600461262e565b6004602052600090815260409020546001600160a01b031681565b34801561050257600080fd5b5061052a61051136600461262e565b6009602052600090815260409020805460019091015482565b604080519283526020830191909152016101d0565b6101a461054d366004612649565b611b41565b34801561055e57600080fd5b506101a461056d366004612649565b611c27565b34801561057e57600080fd5b506101c660065481565b34801561059457600080fd5b506105df6105a3366004612649565b600760205260009081526040902080546001820154600283015460038401546004909401546001600160a01b0390931693919290919060ff1685565b6040516101d095949392919061272b565b3480156105fc57600080fd5b506101c661060b36600461262e565b6001600160a01b039081166000908152600a6020908152604080832060038352818420549094168352929052205490565b34801561064857600080fd5b5061024561100081565b34801561065e57600080fd5b50610667611e11565b6040516101d0919061277e565b8080341461069d5760405162461bcd60e51b8152600401610694906127cb565b60405180910390fd5b826001600160a01b0381166106c45760405162461bcd60e51b815260040161069490612802565b6106cd816116c6565b6106e95760405162461bcd60e51b815260040161069490612802565b6001600160a01b03841633036107415760405162461bcd60e51b815260206004820152601e60248201527f7374616b65722063616e6e6f742064656c656761746520746f2073656c6600006044820152606401610694565b6001600160a01b038085166000908152600360205260409020541633036107aa5760405162461bcd60e51b815260206004820181905260248201527f6f70657261746f722063616e6e6f742064656c656761746520746f2073656c666044820152606401610694565b6107b48433611e1d565b6107bf8433856120b4565b6040518381526001600160a01b0385169033907fe5541a6b6103d4fa7e021ed54fad39c66f27a76bd13d374cf6240ae6bd0bb72b9060200160405180910390a350505050565b6001600160a01b038082166000818152600a6020908152604080832060038084528285208054909716855290835290832054938352905260049092015461084c9190612845565b92915050565b336000908152600460205260409020546001600160a01b0316806108885760405162461bcd60e51b815260040161069490612802565b610891816116c6565b6108ad5760405162461bcd60e51b815260040161069490612802565b6001600160a01b0382166108f25760405162461bcd60e51b815260206004820152600c60248201526b7a65726f206164647265737360a01b6044820152606401610694565b336000908152600460209081526040808320546001600160a01b03908116808552600384529382902060020180548783166001600160a01b031982168117909255835192168083529382015283917ff1dbd322e431f00d83a6dbf85d09896187639f7dd04d0a0baeaf298d7e2c4ec591015b60405180910390a250505050565b336000908152600460205260409020546001600160a01b0316806109a85760405162461bcd60e51b815260040161069490612802565b6109b1816116c6565b6109cd5760405162461bcd60e51b815260040161069490612802565b60008211610a0e5760405162461bcd60e51b815260206004820152600e60248201526d616d6f756e74206973207a65726f60901b6044820152606401610694565b336000818152600460209081526040808320546001600160a01b0316808452600a83528184209484529390915290208054841115610a5e5760405162461bcd60e51b81526004016106949061285c565b610a688233611e1d565b6001600160a01b0382166000908152600360205260409020610a8b8333876121fb565b6110006001600160a01b031663ba631d3f6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610acb573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610aef919061288a565b82541015610bd257815415610b595760405162461bcd60e51b815260206004820152602a60248201527f616d6f756e74206d75737420657175616c2062616c616e636520746f2072656d60448201526937bb329039ba30b5b2b960b11b6064820152608401610694565b610b646001846122b3565b5033600090815260046020908152604080832080546001600160a01b031990811690915560018501546001600160a01b03908116855260059093528184208054909116905551908516917fb97b17a738bc54faf4f156f2072573525abf5a6f9fe4e3f78a2f159d7a85180591a25b610c3f856110006001600160a01b031663fde7f3716040518163ffffffff1660e01b8152600401602060405180830381865afa158015610c16573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610c3a919061288a565b6122cf565b826001600160a01b03167f0f5bb82176feb1b5e747e28471aa92156a04d9f3ab9f45f28e2d704232b93f7586604051610c7a91815260200190565b60405180910390a25050505050565b60008181526007602052604090206001600482015460ff166002811115610cb257610cb2612715565b14610cf45760405162461bcd60e51b81526020600482015260126024820152711a5b9d985b1a590818dc9959195b9d1a585b60721b6044820152606401610694565b80546001600160a01b03163314610d4d5760405162461bcd60e51b815260206004820152601b60248201527f6d73672e73656e646572206973206e6f742072657175657374657200000000006044820152606401610694565b8060030154421015610da15760405162461bcd60e51b815260206004820152601860248201527f6e6f74207965742074696d6520746f20776974686472617700000000000000006044820152606401610694565b60048101805460ff19166002179055805460018201546040516000926001600160a01b031691908381818185875af1925050503d8060008114610e00576040519150601f19603f3d011682016040523d82523d6000602084013e610e05565b606091505b5050905080610e565760405162461bcd60e51b815260206004820181905260248201527f6661696c656420746f2073656e64207769746864726177616c20616d6f756e746044820152606401610694565b600182015460408051338152602081019290925284917fcf7d23a3cbe4e8b36ff82fd1b05b1b17373dc7804b4ebbd6e2356716ef202372910160405180910390a2505050565b83803414610ebc5760405162461bcd60e51b8152600401610694906127cb565b6110006001600160a01b031663ba631d3f6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610efc573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610f20919061288a565b8510158015610f9257506110006001600160a01b031663129060ab6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610f6a573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610f8e919061288a565b8511155b610fce5760405162461bcd60e51b815260206004820152600d60248201526c6f7574206f6620626f756e647360981b6044820152606401610694565b6001600160a01b03841633036110265760405162461bcd60e51b815260206004820152601960248201527f6f70657261746f722063616e6e6f74206265207374616b6572000000000000006044820152606401610694565b6001600160a01b03841661106b5760405162461bcd60e51b815260206004820152600c60248201526b7a65726f206164647265737360a01b6044820152606401610694565b336000908152600460205260409020546001600160a01b0316156110d15760405162461bcd60e51b815260206004820152601e60248201527f6f70657261746f7220697320616c7265616479207265676973746572656400006044820152606401610694565b6110da846116c6565b156111275760405162461bcd60e51b815260206004820152601c60248201527f7374616b657220697320616c72656164792072656769737465726564000000006044820152606401610694565b6001600160a01b03831661117d5760405162461bcd60e51b815260206004820152601d60248201527f66656520726563697069656e74206973207a65726f20616464726573730000006044820152606401610694565b6110006001600160a01b031663e63a391f6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156111bd573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906111e1919061288a565b8211156112305760405162461bcd60e51b815260206004820152601a60248201527f6665652072617465206578636565647320707265636973696f6e0000000000006044820152606401610694565b600060405161123e906125dc565b604051809103906000f08015801561125a573d6000803e3d6000fd5b5090503360036000876001600160a01b03166001600160a01b0316815260200190815260200160002060000160006101000a8154816001600160a01b0302191690836001600160a01b031602179055508060036000876001600160a01b03166001600160a01b0316815260200190815260200160002060010160006101000a8154816001600160a01b0302191690836001600160a01b031602179055508360036000876001600160a01b03166001600160a01b0316815260200190815260200160002060020160006101000a8154816001600160a01b0302191690836001600160a01b031602179055508260036000876001600160a01b03166001600160a01b03168152602001908152602001600020600301819055508460046000336001600160a01b03166001600160a01b0316815260200190815260200160002060006101000a8154816001600160a01b0302191690836001600160a01b031602179055508460056000836001600160a01b03166001600160a01b0316815260200190815260200160002060006101000a8154816001600160a01b0302191690836001600160a01b031602179055506114198560016123f090919063ffffffff16565b506114248533611e1d565b61142f8533886120b4565b604080513381526001600160a01b0383811660208301528681168284015260608201869052608082018990529151918716917f07cb51d48c52d43e8656868d1af85c1123ba44c231bde63467a1225edc179afb9181900360a00190a2505050505050565b6001600160a01b03821633036114eb5760405162461bcd60e51b815260206004820181905260248201527f7374616b65722063616e6e6f7420756e64656c656761746520746f2073656c666044820152606401610694565b6001600160a01b0380831660009081526003602052604090205416330361155f5760405162461bcd60e51b815260206004820152602260248201527f6f70657261746f722063616e6e6f7420756e64656c656761746520746f207365604482015261363360f11b6064820152608401610694565b6115698233611e1d565b6115748233836121fb565b61157d826116c6565b156115cb576115c6816110006001600160a01b031663840c17716040518163ffffffff1660e01b8152600401602060405180830381865afa158015610c16573d6000803e3d6000fd5b611670565b604051600090339083908381818185875af1925050503d806000811461160d576040519150601f19603f3d011682016040523d82523d6000602084013e611612565b606091505b505090508061166e5760405162461bcd60e51b815260206004820152602260248201527f6661696c656420746f2073656e6420756e64656c65676174696e6720616d6f756044820152611b9d60f21b6064820152608401610694565b505b6040518181526001600160a01b0383169033907f4d10bd049775c77bd7f255195afba5088028ecb3c7c277d393ccff7934f2f92c906020015b60405180910390a35050565b60006116c16001612405565b905090565b600061084c60018361240f565b6001600160a01b0381166000908152600960205260408120600101541580159061178557506110006001600160a01b031663af2a57bb6040518163ffffffff1660e01b8152600401602060405180830381865afa158015611738573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061175c919061288a565b6001600160a01b0383166000908152600960205260409020600101546117829042612845565b10155b156117a657506001600160a01b031660009081526009602052604090205490565b506001600160a01b03166000908152600360208190526040909120015490565b6001600160a01b0382166000908152600a6020908152604080832033845290915290205415158061181c57506001600160a01b0382166000908152600a6020908152604080832033845290915290206001015415155b61185d5760405162461bcd60e51b81526020600482015260126024820152716e6f2072657761726420746f20636c61696d60701b6044820152606401610694565b6001600160a01b0382166118835760405162461bcd60e51b815260040161069490612802565b6001600160a01b03821660009081526003602052604090206118a58333611e1d565b6001600160a01b038084166000908152600a60209081526040808320338085529252822060010154845490931614611967576110006001600160a01b031663e63a391f6040518163ffffffff1660e01b8152600401602060405180830381865afa158015611917573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061193b919061288a565b611944866116d3565b61194e90846128a3565b61195891906128c2565b90506119648183612845565b91505b6001600160a01b0385166000908152600a602090815260408083203384529091528120600101558315611a0a5760018301546040516351664d5b60e11b8152306004820152602481018490526001600160a01b039091169063a2cc9ab690604401600060405180830381600087803b1580156119e257600080fd5b505af11580156119f6573d6000803e3d6000fd5b50505050611a058533846120b4565b611a71565b60018301546040516351664d5b60e11b8152336004820152602481018490526001600160a01b039091169063a2cc9ab690604401600060405180830381600087803b158015611a5857600080fd5b505af1158015611a6c573d6000803e3d6000fd5b505050505b8015611ae457600183015460028401546040516351664d5b60e11b81526001600160a01b0391821660048201526024810184905291169063a2cc9ab690604401600060405180830381600087803b158015611acb57600080fd5b505af1158015611adf573d6000803e3d6000fd5b505050505b60018301546001600160a01b0390811631600685015560408051848152861515602082015233928816917f474b676872b832a32b60b6ff2df36847e8fd775f466e7cf289d1a0ab7aaffe4e91015b60405180910390a35050505050565b80803414611b615760405162461bcd60e51b8152600401610694906127cb565b336000908152600460205260409020546001600160a01b031680611b975760405162461bcd60e51b815260040161069490612802565b611ba0816116c6565b611bbc5760405162461bcd60e51b815260040161069490612802565b336000818152600460205260409020546001600160a01b031690611be1908290611e1d565b611bec8133866120b4565b806001600160a01b03167f9e71bc8eea02a63969f509818f2dafb9254532904319f9dbda79b67bd34a5f3d8560405161096491815260200190565b336000908152600460205260409020546001600160a01b031680611c5d5760405162461bcd60e51b815260040161069490612802565b611c66816116c6565b611c825760405162461bcd60e51b815260040161069490612802565b6110006001600160a01b031663e63a391f6040518163ffffffff1660e01b8152600401602060405180830381865afa158015611cc2573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190611ce6919061288a565b821115611d355760405162461bcd60e51b815260206004820152601a60248201527f6665652072617465206578636565647320707265636973696f6e0000000000006044820152606401610694565b336000908152600460209081526040808320546001600160a01b0316808452600392839052908320909101549091611d6c83610805565b1115611db0576040805180820182528581524260208083019182526001600160a01b0386166000908152600990915292909220905181559051600190910155611dd0565b6001600160a01b0382166000908152600360208190526040909120018490555b60408051828152602081018690526001600160a01b038416917f22c4a01a341bee1aa646ce4c769dfdfbd4fdd574f88bcdbca249176f5c9d5ba49101610964565b60606116c16001612431565b6001600160a01b03821660009081526003602052604090206004810154156120af5760068101546001820154600091611e5f916001600160a01b031631612845565b905081600401546110006001600160a01b0316633d6aa5e16040518163ffffffff1660e01b8152600401602060405180830381865afa158015611ea6573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190611eca919061288a565b611ed490836128a3565b611ede91906128c2565b826005016000828254611ef191906128e4565b909155505060018201546001600160a01b039081168031600685015560048401546005850154604080519283529231602083015281830185905260608201529051918616917f7e94c5f084695ec3efbb02254060502a3b6194c8ca6c1a2471094ac231b105499181900360800190a26001600160a01b038085166000908152600a602090815260408083209387168352928152908290208251633d6aa5e160e01b81529251909261100092633d6aa5e1926004808401938290030181865afa158015611fc1573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190611fe5919061288a565b60028201546001600160a01b0387166000908152600360205260409020600501546120109190612845565b825461201c91906128a3565b61202691906128c2565b81600101600082825461203991906128e4565b90915550506001600160a01b03808616600081815260036020526040908190206005015460028501819055845460018601549251948916947f45d3fba448686746b042ea2d8f14bd34ab4f7c9c7e2ce7a1f1d777b17204952e93611b329390919283526020830191909152604082015260600190565b505050565b6001600160a01b038316600090815260036020908152604091829020825163129060ab60e01b8152925190926110009263129060ab926004808401938290030181865afa158015612109573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061212d919061288a565b82826004015461213d91906128e4565b11156121825760405162461bcd60e51b8152602060048201526014602482015273657863656564656420746865206d6178696d756d60601b6044820152606401610694565b6001600160a01b038085166000908152600a602090815260408083209387168352929052908120600483018054919285926121be9084906128e4565b90915550508054839082906000906121d79084906128e4565b92505081905550826000808282546121ef91906128e4565b90915550505050505050565b6001600160a01b038084166000908152600360209081526040808320600a83528184209487168452939091529020805483111561224a5760405162461bcd60e51b81526004016106949061285c565b828260040154101561226e5760405162461bcd60e51b81526004016106949061285c565b828260040160008282546122829190612845565b909155505080548390829060009061229b908490612845565b92505081905550826000808282546121ef9190612845565b60006122c8836001600160a01b03841661243e565b9392505050565b6040518060a00160405280336001600160a01b03168152602001838152602001428152602001824261230191906128e4565b815260200160018152506007600060066000815461231e906128fc565b919050819055815260200190815260200160002060008201518160000160006101000a8154816001600160a01b0302191690836001600160a01b0316021790555060208201518160010155604082015181600201556060820151816003015560808201518160040160006101000a81548160ff021916908360028111156123a7576123a7612715565b021790555050600654604080518581524260208201529081018490523392507f4846f03be8ef87cb6e611b3a3b878a0aadd7c010f3f25707aa472b41de9dc75d906060016116a9565b60006122c8836001600160a01b038416612531565b600061084c825490565b6001600160a01b038116600090815260018301602052604081205415156122c8565b606060006122c883612580565b60008181526001830160205260408120548015612527576000612462600183612845565b855490915060009061247690600190612845565b90508181146124db57600086600001828154811061249657612496612915565b90600052602060002001549050808760000184815481106124b9576124b9612915565b6000918252602080832090910192909255918252600188019052604090208390555b85548690806124ec576124ec61292b565b60019003818190600052602060002001600090559055856001016000868152602001908152602001600020600090556001935050505061084c565b600091505061084c565b60008181526001830160205260408120546125785750815460018181018455600084815260208082209093018490558454848252828601909352604090209190915561084c565b50600061084c565b6060816000018054806020026020016040519081016040528092919081815260200182805480156125d057602002820191906000526020600020905b8154815260200190600101908083116125bc575b50505050509050919050565b60e48061294283390190565b80356001600160a01b03811681146125ff57600080fd5b919050565b6000806040838503121561261757600080fd5b612620836125e8565b946020939093013593505050565b60006020828403121561264057600080fd5b6122c8826125e8565b60006020828403121561265b57600080fd5b5035919050565b6000806000806080858703121561267857600080fd5b84359350612688602086016125e8565b9250612696604086016125e8565b9396929550929360600135925050565b600080604083850312156126b957600080fd5b6126c2836125e8565b91506126d0602084016125e8565b90509250929050565b600080604083850312156126ec57600080fd5b6126f5836125e8565b91506020830135801515811461270a57600080fd5b809150509250929050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b038616815260208101859052604081018490526060810183905260a081016003831061276e57634e487b7160e01b600052602160045260246000fd5b8260808301529695505050505050565b6020808252825182820181905260009190848201906040850190845b818110156127bf5783516001600160a01b03168352928401929184019160010161279a565b50909695505050505050565b6020808252601d908201527f616d6f756e7420616e64206d73672e76616c7565206d69736d61746368000000604082015260600190565b6020808252601390820152723ab73932b3b4b9ba32b932b21039ba30b5b2b960691b604082015260600190565b634e487b7160e01b600052601160045260246000fd5b6000828210156128575761285761282f565b500390565b602080825260149082015273696e73756666696369656e742062616c616e636560601b604082015260600190565b60006020828403121561289c57600080fd5b5051919050565b60008160001904831182151516156128bd576128bd61282f565b500290565b6000826128df57634e487b7160e01b600052601260045260246000fd5b500490565b600082198211156128f7576128f761282f565b500190565b60006001820161290e5761290e61282f565b5060010190565b634e487b7160e01b600052603260045260246000fd5b634e487b7160e01b600052603160045260246000fdfe608060405234801561001057600080fd5b5060c58061001f6000396000f3fe608060405260043610601f5760003560e01c806357eea0a314603157602b565b36602b5760296061565b005b60296061565b348015603c57600080fd5b50604561100381565b6040516001600160a01b03909116815260200160405180910390f35b606a611003606c565b565b3660008037600080366000845af43d6000803e808015608a573d6000f35b3d6000fdfea2646970667358221220b88f7b4896b60b4db020f14e0198ce5d7169edc9fde2eefdf9e348ebd1a5ef4164736f6c634300080e0033a2646970667358221220e408c5274e631a171258b9f6a8a94990e7df77530a38f335096479c45652a13c64736f6c634300080e0033",
 }
 
 // GovStakingABI is the input ABI used to generate the binding from.
@@ -348,12 +356,12 @@ func (_GovStaking *GovStakingCallerSession) Credentials(arg0 *big.Int) (struct {
 	return _GovStaking.Contract.Credentials(&_GovStaking.CallOpts, arg0)
 }
 
-// DelegateTo is a free data retrieval call binding the contract method 0x438bb7e5.
+// GetDelegatedAmount is a free data retrieval call binding the contract method 0x073ea6ae.
 //
-// Solidity: function delegateTo(address , address ) view returns(uint256)
-func (_GovStaking *GovStakingCaller) DelegateTo(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address) (*big.Int, error) {
+// Solidity: function getDelegatedAmount(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingCaller) GetDelegatedAmount(opts *bind.CallOpts, _staker common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _GovStaking.contract.Call(opts, &out, "delegateTo", arg0, arg1)
+	err := _GovStaking.contract.Call(opts, &out, "getDelegatedAmount", _staker)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -365,26 +373,88 @@ func (_GovStaking *GovStakingCaller) DelegateTo(opts *bind.CallOpts, arg0 common
 
 }
 
-// DelegateTo is a free data retrieval call binding the contract method 0x438bb7e5.
+// GetDelegatedAmount is a free data retrieval call binding the contract method 0x073ea6ae.
 //
-// Solidity: function delegateTo(address , address ) view returns(uint256)
-func (_GovStaking *GovStakingSession) DelegateTo(arg0 common.Address, arg1 common.Address) (*big.Int, error) {
-	return _GovStaking.Contract.DelegateTo(&_GovStaking.CallOpts, arg0, arg1)
+// Solidity: function getDelegatedAmount(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingSession) GetDelegatedAmount(_staker common.Address) (*big.Int, error) {
+	return _GovStaking.Contract.GetDelegatedAmount(&_GovStaking.CallOpts, _staker)
 }
 
-// DelegateTo is a free data retrieval call binding the contract method 0x438bb7e5.
+// GetDelegatedAmount is a free data retrieval call binding the contract method 0x073ea6ae.
 //
-// Solidity: function delegateTo(address , address ) view returns(uint256)
-func (_GovStaking *GovStakingCallerSession) DelegateTo(arg0 common.Address, arg1 common.Address) (*big.Int, error) {
-	return _GovStaking.Contract.DelegateTo(&_GovStaking.CallOpts, arg0, arg1)
+// Solidity: function getDelegatedAmount(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingCallerSession) GetDelegatedAmount(_staker common.Address) (*big.Int, error) {
+	return _GovStaking.Contract.GetDelegatedAmount(&_GovStaking.CallOpts, _staker)
 }
 
-// IsOperatorOrRewardee is a free data retrieval call binding the contract method 0xcdb72f06.
+// GetFeeRate is a free data retrieval call binding the contract method 0x8198edbf.
 //
-// Solidity: function isOperatorOrRewardee(address _addr) view returns(bool)
-func (_GovStaking *GovStakingCaller) IsOperatorOrRewardee(opts *bind.CallOpts, _addr common.Address) (bool, error) {
+// Solidity: function getFeeRate(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingCaller) GetFeeRate(opts *bind.CallOpts, _staker common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _GovStaking.contract.Call(opts, &out, "isOperatorOrRewardee", _addr)
+	err := _GovStaking.contract.Call(opts, &out, "getFeeRate", _staker)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetFeeRate is a free data retrieval call binding the contract method 0x8198edbf.
+//
+// Solidity: function getFeeRate(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingSession) GetFeeRate(_staker common.Address) (*big.Int, error) {
+	return _GovStaking.Contract.GetFeeRate(&_GovStaking.CallOpts, _staker)
+}
+
+// GetFeeRate is a free data retrieval call binding the contract method 0x8198edbf.
+//
+// Solidity: function getFeeRate(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingCallerSession) GetFeeRate(_staker common.Address) (*big.Int, error) {
+	return _GovStaking.Contract.GetFeeRate(&_GovStaking.CallOpts, _staker)
+}
+
+// GetStakerAmount is a free data retrieval call binding the contract method 0xe86d059e.
+//
+// Solidity: function getStakerAmount(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingCaller) GetStakerAmount(opts *bind.CallOpts, _staker common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _GovStaking.contract.Call(opts, &out, "getStakerAmount", _staker)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetStakerAmount is a free data retrieval call binding the contract method 0xe86d059e.
+//
+// Solidity: function getStakerAmount(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingSession) GetStakerAmount(_staker common.Address) (*big.Int, error) {
+	return _GovStaking.Contract.GetStakerAmount(&_GovStaking.CallOpts, _staker)
+}
+
+// GetStakerAmount is a free data retrieval call binding the contract method 0xe86d059e.
+//
+// Solidity: function getStakerAmount(address _staker) view returns(uint256)
+func (_GovStaking *GovStakingCallerSession) GetStakerAmount(_staker common.Address) (*big.Int, error) {
+	return _GovStaking.Contract.GetStakerAmount(&_GovStaking.CallOpts, _staker)
+}
+
+// IsOperator is a free data retrieval call binding the contract method 0x6d70f7ae.
+//
+// Solidity: function isOperator(address _addr) view returns(bool)
+func (_GovStaking *GovStakingCaller) IsOperator(opts *bind.CallOpts, _addr common.Address) (bool, error) {
+	var out []interface{}
+	err := _GovStaking.contract.Call(opts, &out, "isOperator", _addr)
 
 	if err != nil {
 		return *new(bool), err
@@ -396,18 +466,18 @@ func (_GovStaking *GovStakingCaller) IsOperatorOrRewardee(opts *bind.CallOpts, _
 
 }
 
-// IsOperatorOrRewardee is a free data retrieval call binding the contract method 0xcdb72f06.
+// IsOperator is a free data retrieval call binding the contract method 0x6d70f7ae.
 //
-// Solidity: function isOperatorOrRewardee(address _addr) view returns(bool)
-func (_GovStaking *GovStakingSession) IsOperatorOrRewardee(_addr common.Address) (bool, error) {
-	return _GovStaking.Contract.IsOperatorOrRewardee(&_GovStaking.CallOpts, _addr)
+// Solidity: function isOperator(address _addr) view returns(bool)
+func (_GovStaking *GovStakingSession) IsOperator(_addr common.Address) (bool, error) {
+	return _GovStaking.Contract.IsOperator(&_GovStaking.CallOpts, _addr)
 }
 
-// IsOperatorOrRewardee is a free data retrieval call binding the contract method 0xcdb72f06.
+// IsOperator is a free data retrieval call binding the contract method 0x6d70f7ae.
 //
-// Solidity: function isOperatorOrRewardee(address _addr) view returns(bool)
-func (_GovStaking *GovStakingCallerSession) IsOperatorOrRewardee(_addr common.Address) (bool, error) {
-	return _GovStaking.Contract.IsOperatorOrRewardee(&_GovStaking.CallOpts, _addr)
+// Solidity: function isOperator(address _addr) view returns(bool)
+func (_GovStaking *GovStakingCallerSession) IsOperator(_addr common.Address) (bool, error) {
+	return _GovStaking.Contract.IsOperator(&_GovStaking.CallOpts, _addr)
 }
 
 // IsStaker is a free data retrieval call binding the contract method 0x6f1e8533.
@@ -439,6 +509,82 @@ func (_GovStaking *GovStakingSession) IsStaker(_staker common.Address) (bool, er
 // Solidity: function isStaker(address _staker) view returns(bool)
 func (_GovStaking *GovStakingCallerSession) IsStaker(_staker common.Address) (bool, error) {
 	return _GovStaking.Contract.IsStaker(&_GovStaking.CallOpts, _staker)
+}
+
+// PendingRequest is a free data retrieval call binding the contract method 0xa664d90f.
+//
+// Solidity: function pendingRequest(address ) view returns(uint256 newFeeRate, uint256 requestTime)
+func (_GovStaking *GovStakingCaller) PendingRequest(opts *bind.CallOpts, arg0 common.Address) (struct {
+	NewFeeRate  *big.Int
+	RequestTime *big.Int
+}, error) {
+	var out []interface{}
+	err := _GovStaking.contract.Call(opts, &out, "pendingRequest", arg0)
+
+	outstruct := new(struct {
+		NewFeeRate  *big.Int
+		RequestTime *big.Int
+	})
+	if err != nil {
+		return *outstruct, err
+	}
+
+	outstruct.NewFeeRate = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	outstruct.RequestTime = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
+
+	return *outstruct, err
+
+}
+
+// PendingRequest is a free data retrieval call binding the contract method 0xa664d90f.
+//
+// Solidity: function pendingRequest(address ) view returns(uint256 newFeeRate, uint256 requestTime)
+func (_GovStaking *GovStakingSession) PendingRequest(arg0 common.Address) (struct {
+	NewFeeRate  *big.Int
+	RequestTime *big.Int
+}, error) {
+	return _GovStaking.Contract.PendingRequest(&_GovStaking.CallOpts, arg0)
+}
+
+// PendingRequest is a free data retrieval call binding the contract method 0xa664d90f.
+//
+// Solidity: function pendingRequest(address ) view returns(uint256 newFeeRate, uint256 requestTime)
+func (_GovStaking *GovStakingCallerSession) PendingRequest(arg0 common.Address) (struct {
+	NewFeeRate  *big.Int
+	RequestTime *big.Int
+}, error) {
+	return _GovStaking.Contract.PendingRequest(&_GovStaking.CallOpts, arg0)
+}
+
+// RewarderImp is a free data retrieval call binding the contract method 0x79bad121.
+//
+// Solidity: function rewarderImp() view returns(address)
+func (_GovStaking *GovStakingCaller) RewarderImp(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _GovStaking.contract.Call(opts, &out, "rewarderImp")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// RewarderImp is a free data retrieval call binding the contract method 0x79bad121.
+//
+// Solidity: function rewarderImp() view returns(address)
+func (_GovStaking *GovStakingSession) RewarderImp() (common.Address, error) {
+	return _GovStaking.Contract.RewarderImp(&_GovStaking.CallOpts)
+}
+
+// RewarderImp is a free data retrieval call binding the contract method 0x79bad121.
+//
+// Solidity: function rewarderImp() view returns(address)
+func (_GovStaking *GovStakingCallerSession) RewarderImp() (common.Address, error) {
+	return _GovStaking.Contract.RewarderImp(&_GovStaking.CallOpts)
 }
 
 // StakerByOperator is a free data retrieval call binding the contract method 0x9dbccf6a.
@@ -505,21 +651,27 @@ func (_GovStaking *GovStakingCallerSession) StakerByRewardee(arg0 common.Address
 
 // StakerInfo is a free data retrieval call binding the contract method 0x4e745f1f.
 //
-// Solidity: function stakerInfo(address ) view returns(address operator, address rewardee, uint256 staking, uint256 delegated)
+// Solidity: function stakerInfo(address ) view returns(address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 totalStaked, uint256 accRewardPerStaking, uint256 lastRewardBalance)
 func (_GovStaking *GovStakingCaller) StakerInfo(opts *bind.CallOpts, arg0 common.Address) (struct {
-	Operator  common.Address
-	Rewardee  common.Address
-	Staking   *big.Int
-	Delegated *big.Int
+	Operator            common.Address
+	Rewardee            common.Address
+	FeeRecipient        common.Address
+	FeeRate             *big.Int
+	TotalStaked         *big.Int
+	AccRewardPerStaking *big.Int
+	LastRewardBalance   *big.Int
 }, error) {
 	var out []interface{}
 	err := _GovStaking.contract.Call(opts, &out, "stakerInfo", arg0)
 
 	outstruct := new(struct {
-		Operator  common.Address
-		Rewardee  common.Address
-		Staking   *big.Int
-		Delegated *big.Int
+		Operator            common.Address
+		Rewardee            common.Address
+		FeeRecipient        common.Address
+		FeeRate             *big.Int
+		TotalStaked         *big.Int
+		AccRewardPerStaking *big.Int
+		LastRewardBalance   *big.Int
 	})
 	if err != nil {
 		return *outstruct, err
@@ -527,8 +679,11 @@ func (_GovStaking *GovStakingCaller) StakerInfo(opts *bind.CallOpts, arg0 common
 
 	outstruct.Operator = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 	outstruct.Rewardee = *abi.ConvertType(out[1], new(common.Address)).(*common.Address)
-	outstruct.Staking = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
-	outstruct.Delegated = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	outstruct.FeeRecipient = *abi.ConvertType(out[2], new(common.Address)).(*common.Address)
+	outstruct.FeeRate = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+	outstruct.TotalStaked = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
+	outstruct.AccRewardPerStaking = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
+	outstruct.LastRewardBalance = *abi.ConvertType(out[6], new(*big.Int)).(**big.Int)
 
 	return *outstruct, err
 
@@ -536,24 +691,30 @@ func (_GovStaking *GovStakingCaller) StakerInfo(opts *bind.CallOpts, arg0 common
 
 // StakerInfo is a free data retrieval call binding the contract method 0x4e745f1f.
 //
-// Solidity: function stakerInfo(address ) view returns(address operator, address rewardee, uint256 staking, uint256 delegated)
+// Solidity: function stakerInfo(address ) view returns(address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 totalStaked, uint256 accRewardPerStaking, uint256 lastRewardBalance)
 func (_GovStaking *GovStakingSession) StakerInfo(arg0 common.Address) (struct {
-	Operator  common.Address
-	Rewardee  common.Address
-	Staking   *big.Int
-	Delegated *big.Int
+	Operator            common.Address
+	Rewardee            common.Address
+	FeeRecipient        common.Address
+	FeeRate             *big.Int
+	TotalStaked         *big.Int
+	AccRewardPerStaking *big.Int
+	LastRewardBalance   *big.Int
 }, error) {
 	return _GovStaking.Contract.StakerInfo(&_GovStaking.CallOpts, arg0)
 }
 
 // StakerInfo is a free data retrieval call binding the contract method 0x4e745f1f.
 //
-// Solidity: function stakerInfo(address ) view returns(address operator, address rewardee, uint256 staking, uint256 delegated)
+// Solidity: function stakerInfo(address ) view returns(address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 totalStaked, uint256 accRewardPerStaking, uint256 lastRewardBalance)
 func (_GovStaking *GovStakingCallerSession) StakerInfo(arg0 common.Address) (struct {
-	Operator  common.Address
-	Rewardee  common.Address
-	Staking   *big.Int
-	Delegated *big.Int
+	Operator            common.Address
+	Rewardee            common.Address
+	FeeRecipient        common.Address
+	FeeRate             *big.Int
+	TotalStaked         *big.Int
+	AccRewardPerStaking *big.Int
+	LastRewardBalance   *big.Int
 }, error) {
 	return _GovStaking.Contract.StakerInfo(&_GovStaking.CallOpts, arg0)
 }
@@ -651,6 +812,98 @@ func (_GovStaking *GovStakingCallerSession) TotalStaking() (*big.Int, error) {
 	return _GovStaking.Contract.TotalStaking(&_GovStaking.CallOpts)
 }
 
+// UserRewardInfo is a free data retrieval call binding the contract method 0x66993646.
+//
+// Solidity: function userRewardInfo(address , address ) view returns(uint256 stakingAmount, uint256 pendingReward, uint256 rewardPerStaking)
+func (_GovStaking *GovStakingCaller) UserRewardInfo(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address) (struct {
+	StakingAmount    *big.Int
+	PendingReward    *big.Int
+	RewardPerStaking *big.Int
+}, error) {
+	var out []interface{}
+	err := _GovStaking.contract.Call(opts, &out, "userRewardInfo", arg0, arg1)
+
+	outstruct := new(struct {
+		StakingAmount    *big.Int
+		PendingReward    *big.Int
+		RewardPerStaking *big.Int
+	})
+	if err != nil {
+		return *outstruct, err
+	}
+
+	outstruct.StakingAmount = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	outstruct.PendingReward = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
+	outstruct.RewardPerStaking = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
+
+	return *outstruct, err
+
+}
+
+// UserRewardInfo is a free data retrieval call binding the contract method 0x66993646.
+//
+// Solidity: function userRewardInfo(address , address ) view returns(uint256 stakingAmount, uint256 pendingReward, uint256 rewardPerStaking)
+func (_GovStaking *GovStakingSession) UserRewardInfo(arg0 common.Address, arg1 common.Address) (struct {
+	StakingAmount    *big.Int
+	PendingReward    *big.Int
+	RewardPerStaking *big.Int
+}, error) {
+	return _GovStaking.Contract.UserRewardInfo(&_GovStaking.CallOpts, arg0, arg1)
+}
+
+// UserRewardInfo is a free data retrieval call binding the contract method 0x66993646.
+//
+// Solidity: function userRewardInfo(address , address ) view returns(uint256 stakingAmount, uint256 pendingReward, uint256 rewardPerStaking)
+func (_GovStaking *GovStakingCallerSession) UserRewardInfo(arg0 common.Address, arg1 common.Address) (struct {
+	StakingAmount    *big.Int
+	PendingReward    *big.Int
+	RewardPerStaking *big.Int
+}, error) {
+	return _GovStaking.Contract.UserRewardInfo(&_GovStaking.CallOpts, arg0, arg1)
+}
+
+// ChangeFeeRecipient is a paid mutator transaction binding the contract method 0x23604071.
+//
+// Solidity: function changeFeeRecipient(address _newRecipient) returns()
+func (_GovStaking *GovStakingTransactor) ChangeFeeRecipient(opts *bind.TransactOpts, _newRecipient common.Address) (*types.Transaction, error) {
+	return _GovStaking.contract.Transact(opts, "changeFeeRecipient", _newRecipient)
+}
+
+// ChangeFeeRecipient is a paid mutator transaction binding the contract method 0x23604071.
+//
+// Solidity: function changeFeeRecipient(address _newRecipient) returns()
+func (_GovStaking *GovStakingSession) ChangeFeeRecipient(_newRecipient common.Address) (*types.Transaction, error) {
+	return _GovStaking.Contract.ChangeFeeRecipient(&_GovStaking.TransactOpts, _newRecipient)
+}
+
+// ChangeFeeRecipient is a paid mutator transaction binding the contract method 0x23604071.
+//
+// Solidity: function changeFeeRecipient(address _newRecipient) returns()
+func (_GovStaking *GovStakingTransactorSession) ChangeFeeRecipient(_newRecipient common.Address) (*types.Transaction, error) {
+	return _GovStaking.Contract.ChangeFeeRecipient(&_GovStaking.TransactOpts, _newRecipient)
+}
+
+// Claim is a paid mutator transaction binding the contract method 0x92fd2daf.
+//
+// Solidity: function claim(address _staker, bool _restake) returns()
+func (_GovStaking *GovStakingTransactor) Claim(opts *bind.TransactOpts, _staker common.Address, _restake bool) (*types.Transaction, error) {
+	return _GovStaking.contract.Transact(opts, "claim", _staker, _restake)
+}
+
+// Claim is a paid mutator transaction binding the contract method 0x92fd2daf.
+//
+// Solidity: function claim(address _staker, bool _restake) returns()
+func (_GovStaking *GovStakingSession) Claim(_staker common.Address, _restake bool) (*types.Transaction, error) {
+	return _GovStaking.Contract.Claim(&_GovStaking.TransactOpts, _staker, _restake)
+}
+
+// Claim is a paid mutator transaction binding the contract method 0x92fd2daf.
+//
+// Solidity: function claim(address _staker, bool _restake) returns()
+func (_GovStaking *GovStakingTransactorSession) Claim(_staker common.Address, _restake bool) (*types.Transaction, error) {
+	return _GovStaking.Contract.Claim(&_GovStaking.TransactOpts, _staker, _restake)
+}
+
 // Delegate is a paid mutator transaction binding the contract method 0x026e402b.
 //
 // Solidity: function delegate(address _staker, uint256 _amount) payable returns()
@@ -672,25 +925,46 @@ func (_GovStaking *GovStakingTransactorSession) Delegate(_staker common.Address,
 	return _GovStaking.Contract.Delegate(&_GovStaking.TransactOpts, _staker, _amount)
 }
 
-// RegisterStaker is a paid mutator transaction binding the contract method 0xaf716c40.
+// RegisterStaker is a paid mutator transaction binding the contract method 0x3ba2b5a4.
 //
-// Solidity: function registerStaker(uint256 _amount, address _staker, address _rewardee) payable returns()
-func (_GovStaking *GovStakingTransactor) RegisterStaker(opts *bind.TransactOpts, _amount *big.Int, _staker common.Address, _rewardee common.Address) (*types.Transaction, error) {
-	return _GovStaking.contract.Transact(opts, "registerStaker", _amount, _staker, _rewardee)
+// Solidity: function registerStaker(uint256 _amount, address _staker, address _feeRecipient, uint256 _feeRate) payable returns()
+func (_GovStaking *GovStakingTransactor) RegisterStaker(opts *bind.TransactOpts, _amount *big.Int, _staker common.Address, _feeRecipient common.Address, _feeRate *big.Int) (*types.Transaction, error) {
+	return _GovStaking.contract.Transact(opts, "registerStaker", _amount, _staker, _feeRecipient, _feeRate)
 }
 
-// RegisterStaker is a paid mutator transaction binding the contract method 0xaf716c40.
+// RegisterStaker is a paid mutator transaction binding the contract method 0x3ba2b5a4.
 //
-// Solidity: function registerStaker(uint256 _amount, address _staker, address _rewardee) payable returns()
-func (_GovStaking *GovStakingSession) RegisterStaker(_amount *big.Int, _staker common.Address, _rewardee common.Address) (*types.Transaction, error) {
-	return _GovStaking.Contract.RegisterStaker(&_GovStaking.TransactOpts, _amount, _staker, _rewardee)
+// Solidity: function registerStaker(uint256 _amount, address _staker, address _feeRecipient, uint256 _feeRate) payable returns()
+func (_GovStaking *GovStakingSession) RegisterStaker(_amount *big.Int, _staker common.Address, _feeRecipient common.Address, _feeRate *big.Int) (*types.Transaction, error) {
+	return _GovStaking.Contract.RegisterStaker(&_GovStaking.TransactOpts, _amount, _staker, _feeRecipient, _feeRate)
 }
 
-// RegisterStaker is a paid mutator transaction binding the contract method 0xaf716c40.
+// RegisterStaker is a paid mutator transaction binding the contract method 0x3ba2b5a4.
 //
-// Solidity: function registerStaker(uint256 _amount, address _staker, address _rewardee) payable returns()
-func (_GovStaking *GovStakingTransactorSession) RegisterStaker(_amount *big.Int, _staker common.Address, _rewardee common.Address) (*types.Transaction, error) {
-	return _GovStaking.Contract.RegisterStaker(&_GovStaking.TransactOpts, _amount, _staker, _rewardee)
+// Solidity: function registerStaker(uint256 _amount, address _staker, address _feeRecipient, uint256 _feeRate) payable returns()
+func (_GovStaking *GovStakingTransactorSession) RegisterStaker(_amount *big.Int, _staker common.Address, _feeRecipient common.Address, _feeRate *big.Int) (*types.Transaction, error) {
+	return _GovStaking.Contract.RegisterStaker(&_GovStaking.TransactOpts, _amount, _staker, _feeRecipient, _feeRate)
+}
+
+// RequestChangeFee is a paid mutator transaction binding the contract method 0xb4461e54.
+//
+// Solidity: function requestChangeFee(uint256 _feeRate) returns()
+func (_GovStaking *GovStakingTransactor) RequestChangeFee(opts *bind.TransactOpts, _feeRate *big.Int) (*types.Transaction, error) {
+	return _GovStaking.contract.Transact(opts, "requestChangeFee", _feeRate)
+}
+
+// RequestChangeFee is a paid mutator transaction binding the contract method 0xb4461e54.
+//
+// Solidity: function requestChangeFee(uint256 _feeRate) returns()
+func (_GovStaking *GovStakingSession) RequestChangeFee(_feeRate *big.Int) (*types.Transaction, error) {
+	return _GovStaking.Contract.RequestChangeFee(&_GovStaking.TransactOpts, _feeRate)
+}
+
+// RequestChangeFee is a paid mutator transaction binding the contract method 0xb4461e54.
+//
+// Solidity: function requestChangeFee(uint256 _feeRate) returns()
+func (_GovStaking *GovStakingTransactorSession) RequestChangeFee(_feeRate *big.Int) (*types.Transaction, error) {
+	return _GovStaking.Contract.RequestChangeFee(&_GovStaking.TransactOpts, _feeRate)
 }
 
 // Stake is a paid mutator transaction binding the contract method 0xa694fc3a.
@@ -775,6 +1049,182 @@ func (_GovStaking *GovStakingSession) Withdraw(_cid *big.Int) (*types.Transactio
 // Solidity: function withdraw(uint256 _cid) returns()
 func (_GovStaking *GovStakingTransactorSession) Withdraw(_cid *big.Int) (*types.Transaction, error) {
 	return _GovStaking.Contract.Withdraw(&_GovStaking.TransactOpts, _cid)
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_GovStaking *GovStakingTransactor) Receive(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _GovStaking.contract.RawTransact(opts, nil) // calldata is disallowed for receive function
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_GovStaking *GovStakingSession) Receive() (*types.Transaction, error) {
+	return _GovStaking.Contract.Receive(&_GovStaking.TransactOpts)
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_GovStaking *GovStakingTransactorSession) Receive() (*types.Transaction, error) {
+	return _GovStaking.Contract.Receive(&_GovStaking.TransactOpts)
+}
+
+// GovStakingClaimedIterator is returned from FilterClaimed and is used to iterate over the raw logs and unpacked data for Claimed events raised by the GovStaking contract.
+type GovStakingClaimedIterator struct {
+	Event *GovStakingClaimed // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *GovStakingClaimedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(GovStakingClaimed)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(GovStakingClaimed)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *GovStakingClaimedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *GovStakingClaimedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// GovStakingClaimed represents a Claimed event raised by the GovStaking contract.
+type GovStakingClaimed struct {
+	Staker   common.Address
+	Rewardee common.Address
+	Amount   *big.Int
+	Restake  bool
+	Raw      types.Log // Blockchain specific contextual infos
+}
+
+// FilterClaimed is a free log retrieval operation binding the contract event 0x474b676872b832a32b60b6ff2df36847e8fd775f466e7cf289d1a0ab7aaffe4e.
+//
+// Solidity: event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake)
+func (_GovStaking *GovStakingFilterer) FilterClaimed(opts *bind.FilterOpts, staker []common.Address, rewardee []common.Address) (*GovStakingClaimedIterator, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+	var rewardeeRule []interface{}
+	for _, rewardeeItem := range rewardee {
+		rewardeeRule = append(rewardeeRule, rewardeeItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.FilterLogs(opts, "Claimed", stakerRule, rewardeeRule)
+	if err != nil {
+		return nil, err
+	}
+	return &GovStakingClaimedIterator{contract: _GovStaking.contract, event: "Claimed", logs: logs, sub: sub}, nil
+}
+
+// WatchClaimed is a free log subscription operation binding the contract event 0x474b676872b832a32b60b6ff2df36847e8fd775f466e7cf289d1a0ab7aaffe4e.
+//
+// Solidity: event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake)
+func (_GovStaking *GovStakingFilterer) WatchClaimed(opts *bind.WatchOpts, sink chan<- *GovStakingClaimed, staker []common.Address, rewardee []common.Address) (event.Subscription, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+	var rewardeeRule []interface{}
+	for _, rewardeeItem := range rewardee {
+		rewardeeRule = append(rewardeeRule, rewardeeItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.WatchLogs(opts, "Claimed", stakerRule, rewardeeRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(GovStakingClaimed)
+				if err := _GovStaking.contract.UnpackLog(event, "Claimed", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseClaimed is a log parse operation binding the contract event 0x474b676872b832a32b60b6ff2df36847e8fd775f466e7cf289d1a0ab7aaffe4e.
+//
+// Solidity: event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake)
+func (_GovStaking *GovStakingFilterer) ParseClaimed(log types.Log) (*GovStakingClaimed, error) {
+	event := new(GovStakingClaimed)
+	if err := _GovStaking.contract.UnpackLog(event, "Claimed", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // GovStakingDelegatedIterator is returned from FilterDelegated and is used to iterate over the raw logs and unpacked data for Delegated events raised by the GovStaking contract.
@@ -931,6 +1381,298 @@ func (_GovStaking *GovStakingFilterer) ParseDelegated(log types.Log) (*GovStakin
 	return event, nil
 }
 
+// GovStakingFeeRateChangeRequestedIterator is returned from FilterFeeRateChangeRequested and is used to iterate over the raw logs and unpacked data for FeeRateChangeRequested events raised by the GovStaking contract.
+type GovStakingFeeRateChangeRequestedIterator struct {
+	Event *GovStakingFeeRateChangeRequested // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *GovStakingFeeRateChangeRequestedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(GovStakingFeeRateChangeRequested)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(GovStakingFeeRateChangeRequested)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *GovStakingFeeRateChangeRequestedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *GovStakingFeeRateChangeRequestedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// GovStakingFeeRateChangeRequested represents a FeeRateChangeRequested event raised by the GovStaking contract.
+type GovStakingFeeRateChangeRequested struct {
+	Staker     common.Address
+	OldFeeRate *big.Int
+	NewFeeRate *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
+}
+
+// FilterFeeRateChangeRequested is a free log retrieval operation binding the contract event 0x22c4a01a341bee1aa646ce4c769dfdfbd4fdd574f88bcdbca249176f5c9d5ba4.
+//
+// Solidity: event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate)
+func (_GovStaking *GovStakingFilterer) FilterFeeRateChangeRequested(opts *bind.FilterOpts, staker []common.Address) (*GovStakingFeeRateChangeRequestedIterator, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.FilterLogs(opts, "FeeRateChangeRequested", stakerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &GovStakingFeeRateChangeRequestedIterator{contract: _GovStaking.contract, event: "FeeRateChangeRequested", logs: logs, sub: sub}, nil
+}
+
+// WatchFeeRateChangeRequested is a free log subscription operation binding the contract event 0x22c4a01a341bee1aa646ce4c769dfdfbd4fdd574f88bcdbca249176f5c9d5ba4.
+//
+// Solidity: event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate)
+func (_GovStaking *GovStakingFilterer) WatchFeeRateChangeRequested(opts *bind.WatchOpts, sink chan<- *GovStakingFeeRateChangeRequested, staker []common.Address) (event.Subscription, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.WatchLogs(opts, "FeeRateChangeRequested", stakerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(GovStakingFeeRateChangeRequested)
+				if err := _GovStaking.contract.UnpackLog(event, "FeeRateChangeRequested", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseFeeRateChangeRequested is a log parse operation binding the contract event 0x22c4a01a341bee1aa646ce4c769dfdfbd4fdd574f88bcdbca249176f5c9d5ba4.
+//
+// Solidity: event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate)
+func (_GovStaking *GovStakingFilterer) ParseFeeRateChangeRequested(log types.Log) (*GovStakingFeeRateChangeRequested, error) {
+	event := new(GovStakingFeeRateChangeRequested)
+	if err := _GovStaking.contract.UnpackLog(event, "FeeRateChangeRequested", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// GovStakingFeeRecipientChangedIterator is returned from FilterFeeRecipientChanged and is used to iterate over the raw logs and unpacked data for FeeRecipientChanged events raised by the GovStaking contract.
+type GovStakingFeeRecipientChangedIterator struct {
+	Event *GovStakingFeeRecipientChanged // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *GovStakingFeeRecipientChangedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(GovStakingFeeRecipientChanged)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(GovStakingFeeRecipientChanged)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *GovStakingFeeRecipientChangedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *GovStakingFeeRecipientChangedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// GovStakingFeeRecipientChanged represents a FeeRecipientChanged event raised by the GovStaking contract.
+type GovStakingFeeRecipientChanged struct {
+	Staker       common.Address
+	OldRecipient common.Address
+	NewRecipient common.Address
+	Raw          types.Log // Blockchain specific contextual infos
+}
+
+// FilterFeeRecipientChanged is a free log retrieval operation binding the contract event 0xf1dbd322e431f00d83a6dbf85d09896187639f7dd04d0a0baeaf298d7e2c4ec5.
+//
+// Solidity: event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient)
+func (_GovStaking *GovStakingFilterer) FilterFeeRecipientChanged(opts *bind.FilterOpts, staker []common.Address) (*GovStakingFeeRecipientChangedIterator, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.FilterLogs(opts, "FeeRecipientChanged", stakerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &GovStakingFeeRecipientChangedIterator{contract: _GovStaking.contract, event: "FeeRecipientChanged", logs: logs, sub: sub}, nil
+}
+
+// WatchFeeRecipientChanged is a free log subscription operation binding the contract event 0xf1dbd322e431f00d83a6dbf85d09896187639f7dd04d0a0baeaf298d7e2c4ec5.
+//
+// Solidity: event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient)
+func (_GovStaking *GovStakingFilterer) WatchFeeRecipientChanged(opts *bind.WatchOpts, sink chan<- *GovStakingFeeRecipientChanged, staker []common.Address) (event.Subscription, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.WatchLogs(opts, "FeeRecipientChanged", stakerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(GovStakingFeeRecipientChanged)
+				if err := _GovStaking.contract.UnpackLog(event, "FeeRecipientChanged", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseFeeRecipientChanged is a log parse operation binding the contract event 0xf1dbd322e431f00d83a6dbf85d09896187639f7dd04d0a0baeaf298d7e2c4ec5.
+//
+// Solidity: event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient)
+func (_GovStaking *GovStakingFilterer) ParseFeeRecipientChanged(log types.Log) (*GovStakingFeeRecipientChanged, error) {
+	event := new(GovStakingFeeRecipientChanged)
+	if err := _GovStaking.contract.UnpackLog(event, "FeeRecipientChanged", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
 // GovStakingNewCredentialIterator is returned from FilterNewCredential and is used to iterate over the raw logs and unpacked data for NewCredential events raised by the GovStaking contract.
 type GovStakingNewCredentialIterator struct {
 	Event *GovStakingNewCredential // Event containing the contract specifics and raw log
@@ -1081,6 +1823,154 @@ func (_GovStaking *GovStakingFilterer) WatchNewCredential(opts *bind.WatchOpts, 
 func (_GovStaking *GovStakingFilterer) ParseNewCredential(log types.Log) (*GovStakingNewCredential, error) {
 	event := new(GovStakingNewCredential)
 	if err := _GovStaking.contract.UnpackLog(event, "NewCredential", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// GovStakingRewardInfoUpdatedIterator is returned from FilterRewardInfoUpdated and is used to iterate over the raw logs and unpacked data for RewardInfoUpdated events raised by the GovStaking contract.
+type GovStakingRewardInfoUpdatedIterator struct {
+	Event *GovStakingRewardInfoUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *GovStakingRewardInfoUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(GovStakingRewardInfoUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(GovStakingRewardInfoUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *GovStakingRewardInfoUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *GovStakingRewardInfoUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// GovStakingRewardInfoUpdated represents a RewardInfoUpdated event raised by the GovStaking contract.
+type GovStakingRewardInfoUpdated struct {
+	Staker              common.Address
+	Staking             *big.Int
+	Balance             *big.Int
+	AccBalance          *big.Int
+	AccRewardPerStaking *big.Int
+	Raw                 types.Log // Blockchain specific contextual infos
+}
+
+// FilterRewardInfoUpdated is a free log retrieval operation binding the contract event 0x7e94c5f084695ec3efbb02254060502a3b6194c8ca6c1a2471094ac231b10549.
+//
+// Solidity: event RewardInfoUpdated(address indexed staker, uint256 staking, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking)
+func (_GovStaking *GovStakingFilterer) FilterRewardInfoUpdated(opts *bind.FilterOpts, staker []common.Address) (*GovStakingRewardInfoUpdatedIterator, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.FilterLogs(opts, "RewardInfoUpdated", stakerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &GovStakingRewardInfoUpdatedIterator{contract: _GovStaking.contract, event: "RewardInfoUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchRewardInfoUpdated is a free log subscription operation binding the contract event 0x7e94c5f084695ec3efbb02254060502a3b6194c8ca6c1a2471094ac231b10549.
+//
+// Solidity: event RewardInfoUpdated(address indexed staker, uint256 staking, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking)
+func (_GovStaking *GovStakingFilterer) WatchRewardInfoUpdated(opts *bind.WatchOpts, sink chan<- *GovStakingRewardInfoUpdated, staker []common.Address) (event.Subscription, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.WatchLogs(opts, "RewardInfoUpdated", stakerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(GovStakingRewardInfoUpdated)
+				if err := _GovStaking.contract.UnpackLog(event, "RewardInfoUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseRewardInfoUpdated is a log parse operation binding the contract event 0x7e94c5f084695ec3efbb02254060502a3b6194c8ca6c1a2471094ac231b10549.
+//
+// Solidity: event RewardInfoUpdated(address indexed staker, uint256 staking, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking)
+func (_GovStaking *GovStakingFilterer) ParseRewardInfoUpdated(log types.Log) (*GovStakingRewardInfoUpdated, error) {
+	event := new(GovStakingRewardInfoUpdated)
+	if err := _GovStaking.contract.UnpackLog(event, "RewardInfoUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -1301,16 +2191,18 @@ func (it *GovStakingStakerRegisteredIterator) Close() error {
 
 // GovStakingStakerRegistered represents a StakerRegistered event raised by the GovStaking contract.
 type GovStakingStakerRegistered struct {
-	Staker   common.Address
-	Operator common.Address
-	Rewardee common.Address
-	Staking  *big.Int
-	Raw      types.Log // Blockchain specific contextual infos
+	Staker       common.Address
+	Operator     common.Address
+	Rewardee     common.Address
+	FeeRecipient common.Address
+	FeeRate      *big.Int
+	Staking      *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterStakerRegistered is a free log retrieval operation binding the contract event 0x8705598e75e33b571bb9c5bcdbf2506dc4e7b88c0262532269bfee3fd15b3d86.
+// FilterStakerRegistered is a free log retrieval operation binding the contract event 0x07cb51d48c52d43e8656868d1af85c1123ba44c231bde63467a1225edc179afb.
 //
-// Solidity: event StakerRegistered(address indexed staker, address operator, address rewardee, uint256 staking)
+// Solidity: event StakerRegistered(address indexed staker, address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 staking)
 func (_GovStaking *GovStakingFilterer) FilterStakerRegistered(opts *bind.FilterOpts, staker []common.Address) (*GovStakingStakerRegisteredIterator, error) {
 
 	var stakerRule []interface{}
@@ -1325,9 +2217,9 @@ func (_GovStaking *GovStakingFilterer) FilterStakerRegistered(opts *bind.FilterO
 	return &GovStakingStakerRegisteredIterator{contract: _GovStaking.contract, event: "StakerRegistered", logs: logs, sub: sub}, nil
 }
 
-// WatchStakerRegistered is a free log subscription operation binding the contract event 0x8705598e75e33b571bb9c5bcdbf2506dc4e7b88c0262532269bfee3fd15b3d86.
+// WatchStakerRegistered is a free log subscription operation binding the contract event 0x07cb51d48c52d43e8656868d1af85c1123ba44c231bde63467a1225edc179afb.
 //
-// Solidity: event StakerRegistered(address indexed staker, address operator, address rewardee, uint256 staking)
+// Solidity: event StakerRegistered(address indexed staker, address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 staking)
 func (_GovStaking *GovStakingFilterer) WatchStakerRegistered(opts *bind.WatchOpts, sink chan<- *GovStakingStakerRegistered, staker []common.Address) (event.Subscription, error) {
 
 	var stakerRule []interface{}
@@ -1367,9 +2259,9 @@ func (_GovStaking *GovStakingFilterer) WatchStakerRegistered(opts *bind.WatchOpt
 	}), nil
 }
 
-// ParseStakerRegistered is a log parse operation binding the contract event 0x8705598e75e33b571bb9c5bcdbf2506dc4e7b88c0262532269bfee3fd15b3d86.
+// ParseStakerRegistered is a log parse operation binding the contract event 0x07cb51d48c52d43e8656868d1af85c1123ba44c231bde63467a1225edc179afb.
 //
-// Solidity: event StakerRegistered(address indexed staker, address operator, address rewardee, uint256 staking)
+// Solidity: event StakerRegistered(address indexed staker, address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 staking)
 func (_GovStaking *GovStakingFilterer) ParseStakerRegistered(log types.Log) (*GovStakingStakerRegistered, error) {
 	event := new(GovStakingStakerRegistered)
 	if err := _GovStaking.contract.UnpackLog(event, "StakerRegistered", log); err != nil {
@@ -1816,6 +2708,162 @@ func (_GovStaking *GovStakingFilterer) WatchUnstaked(opts *bind.WatchOpts, sink 
 func (_GovStaking *GovStakingFilterer) ParseUnstaked(log types.Log) (*GovStakingUnstaked, error) {
 	event := new(GovStakingUnstaked)
 	if err := _GovStaking.contract.UnpackLog(event, "Unstaked", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// GovStakingUserRewardUpdatedIterator is returned from FilterUserRewardUpdated and is used to iterate over the raw logs and unpacked data for UserRewardUpdated events raised by the GovStaking contract.
+type GovStakingUserRewardUpdatedIterator struct {
+	Event *GovStakingUserRewardUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *GovStakingUserRewardUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(GovStakingUserRewardUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(GovStakingUserRewardUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *GovStakingUserRewardUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *GovStakingUserRewardUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// GovStakingUserRewardUpdated represents a UserRewardUpdated event raised by the GovStaking contract.
+type GovStakingUserRewardUpdated struct {
+	Staker              common.Address
+	User                common.Address
+	StakingAmount       *big.Int
+	PendingReward       *big.Int
+	AccRewardPerStaking *big.Int
+	Raw                 types.Log // Blockchain specific contextual infos
+}
+
+// FilterUserRewardUpdated is a free log retrieval operation binding the contract event 0x45d3fba448686746b042ea2d8f14bd34ab4f7c9c7e2ce7a1f1d777b17204952e.
+//
+// Solidity: event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking)
+func (_GovStaking *GovStakingFilterer) FilterUserRewardUpdated(opts *bind.FilterOpts, staker []common.Address, user []common.Address) (*GovStakingUserRewardUpdatedIterator, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+	var userRule []interface{}
+	for _, userItem := range user {
+		userRule = append(userRule, userItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.FilterLogs(opts, "UserRewardUpdated", stakerRule, userRule)
+	if err != nil {
+		return nil, err
+	}
+	return &GovStakingUserRewardUpdatedIterator{contract: _GovStaking.contract, event: "UserRewardUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchUserRewardUpdated is a free log subscription operation binding the contract event 0x45d3fba448686746b042ea2d8f14bd34ab4f7c9c7e2ce7a1f1d777b17204952e.
+//
+// Solidity: event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking)
+func (_GovStaking *GovStakingFilterer) WatchUserRewardUpdated(opts *bind.WatchOpts, sink chan<- *GovStakingUserRewardUpdated, staker []common.Address, user []common.Address) (event.Subscription, error) {
+
+	var stakerRule []interface{}
+	for _, stakerItem := range staker {
+		stakerRule = append(stakerRule, stakerItem)
+	}
+	var userRule []interface{}
+	for _, userItem := range user {
+		userRule = append(userRule, userItem)
+	}
+
+	logs, sub, err := _GovStaking.contract.WatchLogs(opts, "UserRewardUpdated", stakerRule, userRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(GovStakingUserRewardUpdated)
+				if err := _GovStaking.contract.UnpackLog(event, "UserRewardUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseUserRewardUpdated is a log parse operation binding the contract event 0x45d3fba448686746b042ea2d8f14bd34ab4f7c9c7e2ce7a1f1d777b17204952e.
+//
+// Solidity: event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking)
+func (_GovStaking *GovStakingFilterer) ParseUserRewardUpdated(log types.Log) (*GovStakingUserRewardUpdated, error) {
+	event := new(GovStakingUserRewardUpdated)
+	if err := _GovStaking.contract.UnpackLog(event, "UserRewardUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
