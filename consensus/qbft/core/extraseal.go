@@ -36,7 +36,7 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 			return errInvalidMessage
 		}
 		// verify msg seal is matched with msg digest and seal type
-		if err := verifySeal(block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), sealType,
+		if err := c.verifySeal(block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), sealType,
 			prepareMsg.PrepareSeal, prepareMsg.Source()); err != nil {
 			return errInvalidSeal
 		}
@@ -58,7 +58,7 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 			return errInvalidMessage
 		}
 		// verify msg seal is matched with msg digest and seal type
-		if err := verifySeal(block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), sealType,
+		if err := c.verifySeal(block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), sealType,
 			commitMsg.CommitSeal, commitMsg.Source()); err != nil {
 			return errInvalidSeal
 		}

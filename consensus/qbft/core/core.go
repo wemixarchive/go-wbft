@@ -355,18 +355,6 @@ func PrepareSeal(header *types.Header, round uint32, sealType SealType) []byte {
 	return crypto.Keccak256Hash(append(roundHeader, byte(sealType))).Bytes()
 }
 
-func verifySeal(header *types.Header, round uint32, sealType SealType, seal []byte, sealer common.Address) error {
-	calcSealData := PrepareSeal(header, round, sealType)
-	calcSealer, err := qbft.GetSignatureAddressNoHashing(calcSealData, seal)
-	if err != nil {
-		return err
-	}
-	if calcSealer.Cmp(sealer) != 0 {
-		return errInvalidSigner
-	}
-	return nil
-}
-
 func (c *Core) verifySeal(header *types.Header, round uint32, sealType SealType, seal []byte, sealer common.Address) error {
 	_, validator := c.valSet.GetByAddress(sealer)
 
