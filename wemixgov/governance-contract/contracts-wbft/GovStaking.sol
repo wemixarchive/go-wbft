@@ -78,12 +78,10 @@ contract GovStaking {
     uint256 public credentialCount; // 0x6
     mapping(uint256 => WithdrawalCredential) public credentials; // 0x7
 
-    GovRewardeeImp public rewarderImp; // 0x8
-
     // pending request
-    mapping(address => ChangeFeeRequest) public pendingRequest; // 0x9
+    mapping(address => ChangeFeeRequest) public pendingRequest; // 0x8
     // User Reward Info
-    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xA
+    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0x9
 
     modifier checkAmount(uint256 _amount) {
         require(msg.value == _amount, "amount and msg.value mismatch");
