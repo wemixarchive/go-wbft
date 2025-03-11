@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -262,7 +261,6 @@ func TestGovWithoutNCP(t *testing.T) {
 			{ // unstake
 				receipt, err := g.ExpectedOk(g.Unstake(t, v2.Operator, minStaking))
 				require.NoError(t, err)
-				fmt.Printf("staking2: %v\n", govwbft.UserInfo(stateDB, v2.Staker.Address, v2.Operator.Address).StakingAmount)
 
 				totalStaking = totalStaking.Sub(totalStaking, minStaking)
 				stakers = removeElement(stakers, v2.Staker.Address)
@@ -931,6 +929,11 @@ func TestSetCode(t *testing.T) {
 		gasCost := calcTxGasCost(receipt)
 		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking2, gasCost))
 		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp2.Operator.Address, nil))
+
+		// restore GovConst
+		g.backend.CommitWithState(params.StateTransition{
+			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: govwbft.GovConstContract}},
+		})
 	})
 }
 
