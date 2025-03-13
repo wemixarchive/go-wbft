@@ -276,6 +276,7 @@ contract GovStaking {
         _userInfo.pendingFee = 0;
 
         if (_restake) {
+            require(isStaker(_staker), "unregistered staker");
             GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward);
 
             _addStaking(_staker, msg.sender, _reward);

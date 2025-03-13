@@ -1423,6 +1423,11 @@ func TestClaimForUnstakedStaker(t *testing.T) {
 
 	t.Run("delegator1 can claim", func(t *testing.T) {
 		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
+
+		// cannot re-stake to unregistered staker
+		ExpectedRevert(t,
+			g.ExpectedFail(g.Claim(t, delegator1, v1.Staker.Address, true)), "unregistered staker")
+
 		// claim and execute changing fee
 		claimAndCheck(t, delegator1, towei(45), towei(5))
 	})
