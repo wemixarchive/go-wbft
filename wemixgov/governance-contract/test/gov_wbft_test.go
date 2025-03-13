@@ -1183,7 +1183,10 @@ func TestGovChangeFeeRate(t *testing.T) {
 
 	t.Run("cannot execute if there is no request", func(t *testing.T) {
 		ExpectedRevert(t,
-			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator)), "no request exists")
+			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator, delegator1.Address)), "invalid staker")
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator, v1.Staker.Address)), "no request exists")
 	})
 
 	t.Run("change fee rate when there is a delegator", func(t *testing.T) {
@@ -1199,13 +1202,11 @@ func TestGovChangeFeeRate(t *testing.T) {
 
 	t.Run("after CHANGE_FEE_DELAY", func(t *testing.T) {
 		ExpectedRevert(t,
-			g.ExpectedFail(g.ExecuteChangeFee(t, delegator1)), "unregistered staker")
-		ExpectedRevert(t,
-			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator)), "the request cannot be executed before delay time")
+			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator, v1.Staker.Address)), "the request cannot be executed before delay time")
 
 		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
 
-		_, err := g.ExpectedOk(g.ExecuteChangeFee(t, v1.Operator))
+		_, err := g.ExpectedOk(g.ExecuteChangeFee(t, delegator1, v1.Staker.Address)) // anyone can ExecuteChangeFee
 		require.NoError(t, err)
 
 		// check list

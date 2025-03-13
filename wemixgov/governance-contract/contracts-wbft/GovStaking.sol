@@ -176,13 +176,14 @@ contract GovStaking {
         emit FeeRateChangeRequested(_staker, oldFeeRate, _feeRate);
     }
 
-    function executeChangeFee() external checkStaker(stakerByOperator[msg.sender]) {
-        address _staker = stakerByOperator[msg.sender];
+    function executeChangeFee(address _staker) external {
+        require(isStaker(_staker), "invalid staker");
         require(pendingRequest[_staker].requestTime > 0, "no request exists");
         require(block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY(),
             "the request cannot be executed before delay time");
 
-        _updateRewardInfo(_staker, msg.sender);
+        // don't update user info passing zero address
+        _updateRewardInfo(_staker, address(0));
     }
 
     function stake(uint256 _amount) external payable checkAmount(_amount) checkStaker(stakerByOperator[msg.sender]) {
@@ -324,13 +325,15 @@ contract GovStaking {
                 _stakerInfo.accFeePerStaking
             );
 
-            UserInfo storage _userInfo = userRewardInfo[_staker][_user];
-            _userInfo.pendingReward += _userInfo.stakingAmount * (_stakerInfo.accRewardPerStaking - _userInfo.rewardPerStaking) / GOV_CONST.REWARD_PRECISION();
-            _userInfo.pendingFee += _userInfo.stakingAmount * (_stakerInfo.accFeePerStaking - _userInfo.feePerStaking) / GOV_CONST.REWARD_PRECISION();
-            _userInfo.rewardPerStaking = _stakerInfo.accRewardPerStaking;
-            _userInfo.feePerStaking = _stakerInfo.accFeePerStaking;
+            if (_user != address(0)) {
+                UserInfo storage _userInfo = userRewardInfo[_staker][_user];
+                _userInfo.pendingReward += _userInfo.stakingAmount * (_stakerInfo.accRewardPerStaking - _userInfo.rewardPerStaking) / GOV_CONST.REWARD_PRECISION();
+                _userInfo.pendingFee += _userInfo.stakingAmount * (_stakerInfo.accFeePerStaking - _userInfo.feePerStaking) / GOV_CONST.REWARD_PRECISION();
+                _userInfo.rewardPerStaking = _stakerInfo.accRewardPerStaking;
+                _userInfo.feePerStaking = _stakerInfo.accFeePerStaking;
 
-            emit UserRewardUpdated(_staker, _user, _userInfo.stakingAmount, _userInfo.pendingReward, _userInfo.rewardPerStaking, _userInfo.feePerStaking);
+                emit UserRewardUpdated(_staker, _user, _userInfo.stakingAmount, _userInfo.pendingReward, _userInfo.rewardPerStaking, _userInfo.feePerStaking);
+            }
 
             // if any expired request exists, then execute it
             if (pendingRequest[_staker].requestTime > 0 && block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY()) {
