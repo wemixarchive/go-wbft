@@ -206,7 +206,6 @@ contract GovStaking {
         // update stake info
         _updateRewardInfo(_staker, msg.sender);
 
-        Staker storage _stakerInfo = stakerInfo[_staker];
         _subStaking(_staker, msg.sender, _amount);
 
         if (_userInfo.stakingAmount < GOV_CONST.MINIMUM_STAKING()) {
@@ -214,7 +213,7 @@ contract GovStaking {
 
             __stakerSet.remove(_staker);
             delete stakerByOperator[msg.sender];
-            delete stakerByRewardee[_stakerInfo.rewardee];
+            delete stakerByRewardee[stakerInfo[_staker].rewardee];
 
             emit StakerRemoved(_staker);
         }
