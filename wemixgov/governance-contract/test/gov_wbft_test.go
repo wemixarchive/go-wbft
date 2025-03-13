@@ -349,7 +349,7 @@ func TestGovWithoutNCP(t *testing.T) {
 			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
 			beforeInfo_v1 := govwbft.StakerInfo(stateDB, v1.Staker.Address)
 
-			receipt, err := g.ExpectedOk(g.Unelegate(t, delegator, v1.Staker.Address, undelegateAmount))
+			receipt, err := g.ExpectedOk(g.Undelegate(t, delegator, v1.Staker.Address, undelegateAmount))
 			require.NoError(t, err)
 
 			totalStaking = totalStaking.Sub(totalStaking, undelegateAmount)
@@ -374,12 +374,12 @@ func TestGovWithoutNCP(t *testing.T) {
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unelegate(t, delegator, v1.Staker.Address, new(big.Int).Add(undelegateAmount, common.Big1))),
+				g.ExpectedFail(g.Undelegate(t, delegator, v1.Staker.Address, new(big.Int).Add(undelegateAmount, common.Big1))),
 				"insufficient balance",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unelegate(t, delegator, v2.Staker.Address, undelegateAmount)),
+				g.ExpectedFail(g.Undelegate(t, delegator, v2.Staker.Address, undelegateAmount)),
 				"insufficient balance",
 			)
 
@@ -431,7 +431,7 @@ func TestGovWithoutNCP(t *testing.T) {
 			}
 			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
 
-			receipt, err := g.ExpectedOk(g.Unelegate(t, delegator, v1.Staker.Address, undelegateAmount))
+			receipt, err := g.ExpectedOk(g.Undelegate(t, delegator, v1.Staker.Address, undelegateAmount))
 			require.NoError(t, err)
 
 			totalStaking = totalStaking.Sub(totalStaking, undelegateAmount)
@@ -1050,7 +1050,7 @@ func TestGovReward(t *testing.T) {
 		newRewardAmount := new(big.Int).Mul(rewardAmount, new(big.Int).SetUint64(3))
 		distributeReward(t, g, stateDB, newRewardAmount, v1.Staker.Address, v2.Staker.Address)
 
-		receipt, err := g.ExpectedOk(g.Unelegate(t, delegator1, v1.Staker.Address, minStaking))
+		receipt, err := g.ExpectedOk(g.Undelegate(t, delegator1, v1.Staker.Address, minStaking))
 		require.NoError(t, err)
 		undelegateEvent := findEvent("NewCredential", receipt.Logs)
 		require.NotNil(t, undelegateEvent)
@@ -1183,7 +1183,7 @@ func TestGovChangeFeeRate(t *testing.T) {
 
 	t.Run("cannot execute if there is no request", func(t *testing.T) {
 		ExpectedRevert(t,
-			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator, delegator1.Address)), "invalid staker")
+			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator, delegator1.Address)), "no request exists")
 
 		ExpectedRevert(t,
 			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator, v1.Staker.Address)), "no request exists")
@@ -1336,6 +1336,116 @@ func TestGovFeeRateConsistency(t *testing.T) {
 		expectedFee = expectedFee.Add(expectedFee, towei(20))
 		expectedFee = expectedFee.Add(expectedFee, towei(25))
 		claimAndCheck(t, delegator1, expectedClaimed, expectedFee)
+	})
+}
+
+func TestClaimForUnstakedStaker(t *testing.T) {
+	var (
+		ctx        = context.TODO()
+		feeRate1   = new(big.Int).SetUint64(1000)
+		feeRate2   = new(big.Int).SetUint64(2000)
+		minStaking = towei(500000)
+
+		v1         = NewTestStaker()
+		delegator1 = NewEOA()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+	})
+	require.NoError(t, err)
+	defer g.backend.Close()
+
+	stateDB := &TestStateDB{
+		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
+			value, _ := g.backend.Client().StorageAt(ctx, addr, hash, nil)
+			return common.BytesToHash(value)
+		},
+	}
+
+	getConst := func(t *testing.T, method string) *big.Int {
+		var out []interface{}
+		err := g.govConst.Call(nil, &out, method)
+		require.NoError(t, err)
+		return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	}
+
+	claimAndCheck := func(t *testing.T, who *EOA, expectedClaimed *big.Int, expectedFee *big.Int) {
+		beforeBalance := g.balanceAt(t, ctx, who.Address, nil)
+		beforeFeeBalance := g.balanceAt(t, ctx, govwbft.StakerInfo(stateDB, v1.Staker.Address).FeeRecipient, nil)
+
+		receipt, err := g.ExpectedOk(g.Claim(t, who, v1.Staker.Address, false))
+		require.NoError(t, err)
+
+		gasCost := calcTxGasCost(receipt)
+		afterBalance := g.balanceAt(t, ctx, who.Address, nil)
+		afterFeeBalance := g.balanceAt(t, ctx, govwbft.StakerInfo(stateDB, v1.Staker.Address).FeeRecipient, nil)
+
+		if expectedClaimed.Sign() == 0 {
+			require.Equal(t, 0, afterBalance.Sub(afterBalance, new(big.Int).Sub(beforeBalance, gasCost)).Sign())
+		} else {
+			require.Equal(t, expectedClaimed, afterBalance.Sub(afterBalance, new(big.Int).Sub(beforeBalance, gasCost)))
+		}
+
+		if expectedFee.Sign() == 0 {
+			require.Equal(t, 0, afterFeeBalance.Sub(afterFeeBalance, beforeFeeBalance).Sign())
+		} else {
+			require.Equal(t, expectedFee, afterFeeBalance.Sub(afterFeeBalance, beforeFeeBalance))
+		}
+	}
+
+	t.Run("preparation", func(t *testing.T) {
+		// preparation:
+		//  - register staker
+		//  - delegation
+		//  - request changing fee
+		//  - distribute reward
+		//  - unstake
+		_, err := g.ExpectedOk(g.RegisterStaker(t, v1, minStaking, feeRate1))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Delegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.RequestChangeFee(t, v1.Operator, feeRate2))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		_, err = g.ExpectedOk(g.Unstake(t, v1.Operator, minStaking))
+		require.NoError(t, err)
+	})
+
+	t.Run("v1 can claim", func(t *testing.T) {
+		claimAndCheck(t, v1.Operator, towei(50), common.Big0)
+	})
+
+	t.Run("delegator1 can claim", func(t *testing.T) {
+		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
+		// claim and execute changing fee
+		claimAndCheck(t, delegator1, towei(45), towei(5))
+	})
+
+	t.Run("cannot operate any more", func(t *testing.T) {
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator, v1.Staker.Address)), "no request exists")
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.Stake(t, v1.Operator, minStaking)), "unregistered staker")
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.Delegate(t, delegator1, v1.Staker.Address, minStaking)), "unregistered staker")
+	})
+
+	t.Run("delegator1 can undelegate and claim with changed fee", func(t *testing.T) {
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		_, err = g.ExpectedOk(g.Undelegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address) // will not be applied
+		claimAndCheck(t, delegator1, towei(80), towei(20))             // fee2 should be applied
 	})
 }
 

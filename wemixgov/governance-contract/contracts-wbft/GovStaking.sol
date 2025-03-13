@@ -177,7 +177,6 @@ contract GovStaking {
     }
 
     function executeChangeFee(address _staker) external {
-        require(isStaker(_staker), "invalid staker");
         require(pendingRequest[_staker].requestTime > 0, "no request exists");
         require(block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY(),
             "the request cannot be executed before delay time");
