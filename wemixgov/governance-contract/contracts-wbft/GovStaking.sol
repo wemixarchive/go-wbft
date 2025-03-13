@@ -23,13 +23,16 @@ contract GovStaking {
         // mutable
         uint256 totalStaked; // updated when stake/unstake/delegate/undelegate
         uint256 accRewardPerStaking; // updated when stake/unstake/delegate/undelegate/claim
+        uint256 accFeePerStaking; // updated when stake/unstake/delegate/undelegate/claim
         uint256 lastRewardBalance; // updated when stake/unstake/delegate/undelegate/claim
     }
 
     struct UserInfo {
         uint256 stakingAmount;
         uint256 pendingReward;
+        uint256 pendingFee;
         uint256 rewardPerStaking;
+        uint256 feePerStaking;
     }
 
     struct WithdrawalCredential {
@@ -58,8 +61,8 @@ contract GovStaking {
     event Undelegated(address indexed delegator, address indexed staker, uint256 amount);
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
     event Withdrawn(uint256 indexed credentialID, address requester, uint256 amount);
-    event RewardInfoUpdated(address indexed staker, uint256 staking, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking);
-    event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking);
+    event RewardInfoUpdated(address indexed staker, uint256 staking, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking, uint256 accFeePerStaking);
+    event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking, uint256 accFeePerStaking);
     event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake);
     event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient);
     event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
@@ -159,6 +162,7 @@ contract GovStaking {
     function requestChangeFee(uint256 _feeRate) external checkStaker(stakerByOperator[msg.sender]) {
         require(_feeRate <= GOV_CONST.FEE_PRECISION(), "fee rate exceeds precision");
         address _staker = stakerByOperator[msg.sender];
+        require(pendingRequest[_staker].requestTime == 0, "request already is on going");
 
         uint256 oldFeeRate = stakerInfo[_staker].feeRate;
         if (getDelegatedAmount(_staker) > 0) {
@@ -172,11 +176,13 @@ contract GovStaking {
         emit FeeRateChangeRequested(_staker, oldFeeRate, _feeRate);
     }
 
-    function getFeeRate(address _staker) public view returns (uint256) {
-        if (pendingRequest[_staker].requestTime > 0 && block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY()) {
-            return pendingRequest[_staker].newFeeRate;
-        }
-        return stakerInfo[_staker].feeRate;
+    function executeChangeFee() external checkStaker(stakerByOperator[msg.sender]) {
+        address _staker = stakerByOperator[msg.sender];
+        require(pendingRequest[_staker].requestTime > 0, "no request exists");
+        require(block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY(),
+            "the request cannot be executed before delay time");
+
+        _updateRewardInfo(_staker, msg.sender);
     }
 
     function stake(uint256 _amount) external payable checkAmount(_amount) checkStaker(stakerByOperator[msg.sender]) {
@@ -255,17 +261,21 @@ contract GovStaking {
                 userRewardInfo[_staker][msg.sender].pendingReward > 0, "no reward to claim");
         require(_staker != address(0), "unregistered staker");
         Staker storage _stakerInfo = stakerInfo[_staker];
+        UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
 
         // update stake info
         _updateRewardInfo(_staker, msg.sender);
 
-        uint256 _reward = userRewardInfo[_staker][msg.sender].pendingReward;
+        uint256 _reward = _userInfo.pendingReward;
         uint256 _fee = 0;
         if (msg.sender != _stakerInfo.operator) {
-            _fee = _reward * getFeeRate(_staker) / GOV_CONST.FEE_PRECISION();
+            // staker himself(operator) does not pay fee
+            _fee = _userInfo.pendingFee;
             _reward = _reward - _fee;
         }
-        userRewardInfo[_staker][msg.sender].pendingReward = 0;
+        _userInfo.pendingReward = 0;
+        _userInfo.pendingFee = 0;
+
         if (_restake) {
             GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward);
 
@@ -300,7 +310,9 @@ contract GovStaking {
         Staker storage _stakerInfo = stakerInfo[_staker];
         if (_stakerInfo.totalStaked > 0) {
             uint256 _accBalance = _stakerInfo.rewardee.balance - _stakerInfo.lastRewardBalance;
-            _stakerInfo.accRewardPerStaking += _accBalance * GOV_CONST.REWARD_PRECISION() / _stakerInfo.totalStaked;
+            uint256 _rewardPerStaking = _accBalance * GOV_CONST.REWARD_PRECISION() / _stakerInfo.totalStaked;
+            _stakerInfo.accRewardPerStaking += _rewardPerStaking;
+            _stakerInfo.accFeePerStaking += _rewardPerStaking * _stakerInfo.feeRate / GOV_CONST.FEE_PRECISION();
             _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;
 
             emit RewardInfoUpdated(
@@ -308,20 +320,20 @@ contract GovStaking {
                 _stakerInfo.totalStaked,
                 _stakerInfo.rewardee.balance,
                 _accBalance,
-                _stakerInfo.accRewardPerStaking
+                _stakerInfo.accRewardPerStaking,
+                _stakerInfo.accFeePerStaking
             );
 
             UserInfo storage _userInfo = userRewardInfo[_staker][_user];
-            _userInfo.pendingReward += _userInfo.stakingAmount * (stakerInfo[_staker].accRewardPerStaking - _userInfo.rewardPerStaking) / GOV_CONST.REWARD_PRECISION();
-            _userInfo.rewardPerStaking = stakerInfo[_staker].accRewardPerStaking;
+            _userInfo.pendingReward += _userInfo.stakingAmount * (_stakerInfo.accRewardPerStaking - _userInfo.rewardPerStaking) / GOV_CONST.REWARD_PRECISION();
+            _userInfo.pendingFee += _userInfo.stakingAmount * (_stakerInfo.accFeePerStaking - _userInfo.feePerStaking) / GOV_CONST.REWARD_PRECISION();
+            _userInfo.rewardPerStaking = _stakerInfo.accRewardPerStaking;
+            _userInfo.feePerStaking = _stakerInfo.accFeePerStaking;
 
-            emit UserRewardUpdated(_staker, _user, _userInfo.stakingAmount, _userInfo.pendingReward, _userInfo.rewardPerStaking);
-        }
-    }
+            emit UserRewardUpdated(_staker, _user, _userInfo.stakingAmount, _userInfo.pendingReward, _userInfo.rewardPerStaking, _userInfo.feePerStaking);
 
-    function _updateFeeRate(address _staker) internal {
-        if (pendingRequest[_staker].requestTime > 0) {
-            if (block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY()) {
+            // if any expired request exists, then execute it
+            if (pendingRequest[_staker].requestTime > 0 && block.timestamp - pendingRequest[_staker].requestTime >= GOV_CONST.CHANGE_FEE_DELAY()) {
                 stakerInfo[_staker].feeRate = pendingRequest[_staker].newFeeRate;
                 delete pendingRequest[_staker];
             }

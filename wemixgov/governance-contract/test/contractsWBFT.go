@@ -29,18 +29,21 @@ func init() {
 }
 
 type compiledContractWBFT struct {
-	GovStaking, GovNCP, GovRewardeeImp *bindContract
+	GovConst, GovStaking, GovNCP, GovRewardeeImp *bindContract
 }
 
 func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 	if contracts, err := compile.Compile(openzeppelinPath,
+		filepath.Join(root, "GovConst.sol"),
 		filepath.Join(root, "GovStaking.sol"),
 		filepath.Join(root, "GovNCP.sol"),
 		filepath.Join(root, "GovRewardeeImp.sol"),
 	); err != nil {
 		panic(err)
 	} else {
-		if c.GovStaking, err = newBindContract(contracts["GovStaking"]); err != nil {
+		if c.GovConst, err = newBindContract(contracts["GovConst"]); err != nil {
+			panic(err)
+		} else if c.GovStaking, err = newBindContract(contracts["GovStaking"]); err != nil {
 			panic(err)
 		} else if c.GovNCP, err = newBindContract(contracts["GovNCP"]); err != nil {
 			panic(err)
@@ -53,6 +56,7 @@ func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 type GovWBFT struct {
 	backend         *simulated.WbftBackend
 	owner           *bind.TransactOpts
+	govConst        *bind.BoundContract
 	stakingContract *bind.BoundContract
 	ncpContract     *bind.BoundContract
 }
@@ -83,6 +87,7 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		})
 	}
 
+	g.govConst = compiledWBFT.GovConst.New(g.backend.Client(), govwbft.GovConstAddress)
 	g.stakingContract = compiledWBFT.GovStaking.New(g.backend.Client(), govwbft.GovStakingAddress)
 	g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), govwbft.GovNCPAddress)
 	return g, nil
@@ -132,6 +137,14 @@ func (g *GovWBFT) Claim(t *testing.T, user *EOA, staker common.Address, restake 
 
 func (g *GovWBFT) Withdraw(t *testing.T, sender *EOA, credentialID *big.Int) (*types.Transaction, error) {
 	return g.stakingContractTx(t, "withdraw", sender, nil, credentialID)
+}
+
+func (g *GovWBFT) RequestChangeFee(t *testing.T, sender *EOA, newFeeRate *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "requestChangeFee", sender, nil, newFeeRate)
+}
+
+func (g *GovWBFT) ExecuteChangeFee(t *testing.T, sender *EOA) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "executeChangeFee", sender, nil)
 }
 
 func (g *GovWBFT) stakingContractTx(t *testing.T, method string, sender *EOA, value *big.Int, params ...interface{}) (*types.Transaction, error) {

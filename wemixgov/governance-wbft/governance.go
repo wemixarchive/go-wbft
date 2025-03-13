@@ -7,6 +7,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+const (
+	GovConstSlotChangeFeeDelay = "0x6"
+)
+
 var (
 	GovConstAddress       = common.HexToAddress(params.GOV_CONST_ADDRESS)
 	GovStakingAddress     = common.HexToAddress(params.GOV_STAKING_ADDRESS)
@@ -91,4 +95,8 @@ func NCPStakerInfoMap(state StateReader) map[common.Address]Staker {
 		stakerInfos[v] = StakerInfo(state, v)
 	}
 	return stakerInfos
+}
+
+func GovConstChangeFeeDelay(state StateReader) *big.Int {
+	return state.GetState(GovConstAddress, common.HexToHash(GovConstSlotChangeFeeDelay)).Big()
 }

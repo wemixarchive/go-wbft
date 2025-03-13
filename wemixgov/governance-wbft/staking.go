@@ -22,13 +22,16 @@ type Staker struct {
 	Delegated           *big.Int
 	FeeRate             *big.Int
 	AccRewardPerStaking *big.Int
+	AccFeePerStaking    *big.Int
 	LastRewardBalance   *big.Int
 }
 
 type UserRewardInfo struct {
 	StakingAmount    *big.Int
 	PendingReward    *big.Int
+	PendingFee       *big.Int
 	RewardPerStaking *big.Int
+	FeePerStaking    *big.Int
 }
 
 func TotalStaking(state StateReader) *big.Int {
@@ -70,7 +73,8 @@ func StakerInfo(state StateReader, staker common.Address) Staker {
 		FeeRate:             state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(3))).Big(),
 		Staking:             state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(4))).Big(),
 		AccRewardPerStaking: state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(5))).Big(),
-		LastRewardBalance:   state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(6))).Big(),
+		AccFeePerStaking:    state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(6))).Big(),
+		LastRewardBalance:   state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(7))).Big(),
 	}
 	userInfo := UserInfo(state, staker, stakerInfo.Operator)
 	x := new(big.Int).Set(stakerInfo.Staking)
@@ -84,7 +88,9 @@ func UserInfo(state StateReader, staker common.Address, user common.Address) Use
 	return UserRewardInfo{
 		StakingAmount:    state.GetState(GovStakingAddress, baseSlot).Big(),
 		PendingReward:    state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(1))).Big(),
-		RewardPerStaking: state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(2))).Big(),
+		PendingFee:       state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(2))).Big(),
+		RewardPerStaking: state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(3))).Big(),
+		FeePerStaking:    state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(4))).Big(),
 	}
 }
 

@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"math/big"
 	"testing"
 	"time"
@@ -822,121 +823,6 @@ func TestGovWithNCP(t *testing.T) {
 	})
 }
 
-func TestSetCode(t *testing.T) {
-	/*
-			contract TestGovConst{
-			        uint256 public constant MINIMUM_STAKING = 100000e18;
-					uint256 public constant MAXIMUM_STAKING = type(uint128).max;
-		    		uint256 public constant UNBONDING_PERIOD_STAKER = 3 hours;
-		    		uint256 public constant UNBONDING_PERIOD_DELEGATOR = 72 hours;
-		    		uint256 public constant FEE_PRECISION = 100;
-		    		uint256 public constant REWARD_PRECISION = 1e18;
-		    		uint256 public constant CHANGE_FEE_DELAY = 1 hours;
-			}
-	*/
-	var testGovConst = "0x6080604052348015600f57600080fd5b506004361060735760003560e01c8063af2a57bb116054578063af2a57bb1460b7578063ba631d3f1460bf578063e63a391f1460cf578063fde7f3711460d657600080fd5b8063129060ab1460785780633d6aa5e11460a0578063840c17711460ae575b600080fd5b608e6fffffffffffffffffffffffffffffffff81565b60405190815260200160405180910390f35b608e670de0b6b3a764000081565b608e6203f48081565b608e610e1081565b608e69152d02c7e14af680000081565b608e606481565b608e612a308156fea26469706673582212205a46d0ec404db8e956d55b3a46096ec212420c1aabdad4ed8961986556c0684664736f6c634300080e0033"
-	var (
-		ctx          = context.TODO()
-		minStaking1  = towei(500000)
-		minStaking2  = towei(100000)
-		feeRate1     = new(big.Int).SetUint64(15)
-		feeRate2     = new(big.Int).SetUint64(1500)
-		totalStaking = new(big.Int)
-		stakers      = make([]common.Address, 0)
-
-		ncp1 = NewTestStaker()
-		ncp2 = NewTestStaker()
-		ncp3 = NewTestStaker()
-	)
-
-	// for duplicate test
-	ncpInput := []common.Address{ncp3.Operator.Address, ncp3.Operator.Address}
-
-	g, err := NewGovWBFT(t, ncpInput, types.GenesisAlloc{
-		ncp1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
-		ncp2.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
-	})
-	require.NoError(t, err)
-	defer g.backend.Close()
-
-	stateDB := &TestStateDB{
-		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
-			value, _ := g.backend.Client().StorageAt(ctx, addr, hash, nil)
-			return common.BytesToHash(value)
-		},
-	}
-
-	t.Run("duplicated ncp", func(t *testing.T) {
-		ncps := []common.Address{ncp3.Operator.Address}
-		require.Equal(t, ncps, govwbft.NCPList(stateDB))
-	})
-
-	t.Run("add staker", func(t *testing.T) {
-		require.True(t, govwbft.TotalStaking(stateDB).Sign() == 0)
-		require.True(t, len(govwbft.Stakers(stateDB)) == 0)
-		beforeBalance := g.balanceAt(t, ctx, ncp1.Operator.Address, nil)
-
-		receipt, err := g.ExpectedOk(g.RegisterStaker(t, ncp1, minStaking1, feeRate1))
-		require.NoError(t, err)
-		stakers = append(stakers, ncp1.Staker.Address)
-		totalStaking = totalStaking.Add(totalStaking, minStaking1)
-
-		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-		require.Equal(t, stakers, govwbft.Stakers(stateDB))
-
-		gasCost := calcTxGasCost(receipt)
-		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking1, gasCost))
-		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp1.Operator.Address, nil))
-
-		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterStaker(t, ncp2, minStaking2, feeRate1)),
-			"out of bounds",
-		)
-	})
-
-	t.Run("upgrade contract", func(t *testing.T) {
-		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterStaker(t, ncp2, new(big.Int).Sub(minStaking1, common.Big1), feeRate1)),
-			"out of bounds",
-		)
-
-		// upgrade contract
-		g.backend.CommitWithState(params.StateTransition{
-			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: testGovConst}},
-		})
-	})
-
-	t.Run("retry add staker", func(t *testing.T) {
-		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterStaker(t, ncp2, new(big.Int).Sub(minStaking2, common.Big1), feeRate1)),
-			"out of bounds",
-		)
-		ExpectedRevert(t,
-			g.ExpectedFail(g.RegisterStaker(t, ncp2, minStaking2, feeRate2)),
-			"fee rate exceeds precision",
-		)
-
-		beforeBalance := g.balanceAt(t, ctx, ncp2.Operator.Address, nil)
-
-		receipt, err := g.ExpectedOk(g.RegisterStaker(t, ncp2, minStaking2, feeRate1))
-		require.NoError(t, err)
-		stakers = append(stakers, ncp2.Staker.Address)
-		totalStaking = totalStaking.Add(totalStaking, minStaking2)
-
-		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
-		require.Equal(t, stakers, govwbft.Stakers(stateDB))
-
-		gasCost := calcTxGasCost(receipt)
-		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking2, gasCost))
-		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp2.Operator.Address, nil))
-
-		// restore GovConst
-		g.backend.CommitWithState(params.StateTransition{
-			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: govwbft.GovConstContract}},
-		})
-	})
-}
-
 func removeElement(slice []common.Address, value common.Address) []common.Address {
 	for i, v := range slice {
 		if v == value {
@@ -988,6 +874,9 @@ func TestGovReward(t *testing.T) {
 	}
 
 	checkGovBalanceFn := func() {
+		if totalStaking.Cmp(g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil)) != 0 {
+			t.Logf("total = %v, balance = %v", totalStaking, g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil))
+		}
 		require.True(t, totalStaking.Cmp(g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil)) == 0)
 	}
 
@@ -1235,5 +1124,331 @@ func TestGovReward(t *testing.T) {
 		afterBalance := g.balanceAt(t, ctx, delegator1.Address, nil)
 		require.Equal(t, afterBalance, beforeBalance.Sub(beforeBalance, gasCost))
 		require.Equal(t, fee, g.balanceAt(t, ctx, govwbft.StakerInfo(stateDB, v1.Staker.Address).FeeRecipient, nil))
+	})
+}
+
+func TestGovChangeFeeRate(t *testing.T) {
+	var (
+		ctx        = context.TODO()
+		feeRate1   = new(big.Int).SetUint64(1000)
+		feeRate2   = new(big.Int).SetUint64(500)
+		minStaking = towei(500000)
+
+		v1         = NewTestStaker()
+		delegator1 = NewEOA()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+	})
+	require.NoError(t, err)
+	defer g.backend.Close()
+
+	stateDB := &TestStateDB{
+		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
+			value, _ := g.backend.Client().StorageAt(ctx, addr, hash, nil)
+			return common.BytesToHash(value)
+		},
+	}
+
+	checkFee := func(t *testing.T, staker common.Address, expectedFee *big.Int) {
+		require.Equal(t, expectedFee, govwbft.StakerInfo(stateDB, staker).FeeRate)
+	}
+
+	getConst := func(t *testing.T, method string) *big.Int {
+		var out []interface{}
+		err := g.govConst.Call(nil, &out, method)
+		require.NoError(t, err)
+		return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	}
+
+	t.Run("first staking", func(t *testing.T) {
+		// v1.stake = 500000
+		// v1.operator = 500000
+		_, err := g.ExpectedOk(g.RegisterStaker(t, v1, minStaking, feeRate1))
+		require.NoError(t, err)
+
+		// check list
+		checkFee(t, v1.Staker.Address, feeRate1)
+	})
+
+	t.Run("change fee rate when there is no delegator", func(t *testing.T) {
+		_, err := g.ExpectedOk(g.RequestChangeFee(t, v1.Operator, feeRate2))
+		require.NoError(t, err)
+
+		// check list
+		checkFee(t, v1.Staker.Address, feeRate2)
+	})
+
+	t.Run("cannot execute if there is no request", func(t *testing.T) {
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator)), "no request exists")
+	})
+
+	t.Run("change fee rate when there is a delegator", func(t *testing.T) {
+		_, err = g.ExpectedOk(g.Delegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		_, err := g.ExpectedOk(g.RequestChangeFee(t, v1.Operator, feeRate1))
+		require.NoError(t, err)
+
+		// check list
+		checkFee(t, v1.Staker.Address, feeRate2) // changing not applied yet
+	})
+
+	t.Run("after CHANGE_FEE_DELAY", func(t *testing.T) {
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ExecuteChangeFee(t, delegator1)), "unregistered staker")
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ExecuteChangeFee(t, v1.Operator)), "the request cannot be executed before delay time")
+
+		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
+
+		_, err := g.ExpectedOk(g.ExecuteChangeFee(t, v1.Operator))
+		require.NoError(t, err)
+
+		// check list
+		checkFee(t, v1.Staker.Address, feeRate1)
+	})
+}
+
+func TestGovFeeRateConsistency(t *testing.T) {
+	var (
+		ctx        = context.TODO()
+		feeRate1   = new(big.Int).SetUint64(1000)
+		feeRate2   = new(big.Int).SetUint64(2000)
+		feeRate3   = new(big.Int).SetUint64(3000)
+		feeRate4   = new(big.Int).SetUint64(4000)
+		feeRate5   = new(big.Int).SetUint64(5000)
+		minStaking = towei(500000)
+
+		v1         = NewTestStaker()
+		delegator1 = NewEOA()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+	})
+	require.NoError(t, err)
+	defer g.backend.Close()
+
+	stateDB := &TestStateDB{
+		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
+			value, _ := g.backend.Client().StorageAt(ctx, addr, hash, nil)
+			return common.BytesToHash(value)
+		},
+	}
+
+	getConst := func(t *testing.T, method string) *big.Int {
+		var out []interface{}
+		err := g.govConst.Call(nil, &out, method)
+		require.NoError(t, err)
+		return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	}
+
+	claimAndCheck := func(t *testing.T, who *EOA, expectedClaimed *big.Int, expectedFee *big.Int) {
+		beforeBalance := g.balanceAt(t, ctx, who.Address, nil)
+		beforeFeeBalance := g.balanceAt(t, ctx, govwbft.StakerInfo(stateDB, v1.Staker.Address).FeeRecipient, nil)
+
+		receipt, err := g.ExpectedOk(g.Claim(t, who, v1.Staker.Address, false))
+		require.NoError(t, err)
+
+		gasCost := calcTxGasCost(receipt)
+		afterBalance := g.balanceAt(t, ctx, who.Address, nil)
+		afterFeeBalance := g.balanceAt(t, ctx, govwbft.StakerInfo(stateDB, v1.Staker.Address).FeeRecipient, nil)
+
+		if expectedClaimed.Sign() == 0 {
+			require.Equal(t, 0, afterBalance.Sub(afterBalance, new(big.Int).Sub(beforeBalance, gasCost)).Sign())
+		} else {
+			require.Equal(t, expectedClaimed, afterBalance.Sub(afterBalance, new(big.Int).Sub(beforeBalance, gasCost)))
+		}
+
+		if expectedFee.Sign() == 0 {
+			require.Equal(t, 0, afterFeeBalance.Sub(afterFeeBalance, beforeFeeBalance).Sign())
+		} else {
+			require.Equal(t, expectedFee, afterFeeBalance.Sub(afterFeeBalance, beforeFeeBalance))
+		}
+	}
+
+	t.Run("first staking and delegation", func(t *testing.T) {
+		// v1.stake = 1000000
+		// v1.operator = 500000
+		// delegator = 500000
+		_, err := g.ExpectedOk(g.RegisterStaker(t, v1, minStaking, feeRate1))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Delegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+	})
+
+	t.Run("check fee at first claiming", func(t *testing.T) {
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		// v1.Operator claims
+		claimAndCheck(t, v1.Operator, towei(50), common.Big0)
+
+		// delegator1 claims
+		claimAndCheck(t, delegator1, towei(45), towei(5))
+	})
+
+	t.Run("fee of claiming after changing fee", func(t *testing.T) {
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+		_, err := g.ExpectedOk(g.RequestChangeFee(t, v1.Operator, feeRate2))
+		require.NoError(t, err)
+		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
+		claimAndCheck(t, delegator1, towei(45), towei(5)) // feeRate1 should be applied
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+		claimAndCheck(t, delegator1, towei(40), towei(10)) // feeRate2 should be applied
+	})
+
+	t.Run("fee changes several", func(t *testing.T) {
+		// fee2 should be applied
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+		_, err := g.ExpectedOk(g.RequestChangeFee(t, v1.Operator, feeRate3))
+		require.NoError(t, err)
+		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
+		claimAndCheck(t, v1.Operator, towei(150), common.Big0)
+
+		// fee3 should be applied
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+		_, err = g.ExpectedOk(g.RequestChangeFee(t, v1.Operator, feeRate4))
+		require.NoError(t, err)
+		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
+		claimAndCheck(t, v1.Operator, towei(50), common.Big0)
+
+		// fee4 should be applied
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+		_, err = g.ExpectedOk(g.RequestChangeFee(t, v1.Operator, feeRate5))
+		require.NoError(t, err)
+		g.adjustTime(time.Duration(int64(getConst(t, "CHANGE_FEE_DELAY").Uint64())) * time.Second)
+		claimAndCheck(t, v1.Operator, towei(50), common.Big0)
+
+		// fee5 should be applied
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+		expectedClaimed := new(big.Int).Add(towei(40), towei(35))
+		expectedClaimed = expectedClaimed.Add(expectedClaimed, towei(30))
+		expectedClaimed = expectedClaimed.Add(expectedClaimed, towei(25))
+		expectedFee := new(big.Int).Add(towei(10), towei(15))
+		expectedFee = expectedFee.Add(expectedFee, towei(20))
+		expectedFee = expectedFee.Add(expectedFee, towei(25))
+		claimAndCheck(t, delegator1, expectedClaimed, expectedFee)
+	})
+}
+
+func TestSetCode(t *testing.T) {
+	/*
+			contract TestGovConst{
+			        uint256 public constant MINIMUM_STAKING = 100000e18;
+					uint256 public constant MAXIMUM_STAKING = type(uint128).max;
+		    		uint256 public constant UNBONDING_PERIOD_STAKER = 3 hours;
+		    		uint256 public constant UNBONDING_PERIOD_DELEGATOR = 72 hours;
+		    		uint256 public constant FEE_PRECISION = 100;
+		    		uint256 public constant REWARD_PRECISION = 1e18;
+		    		uint256 public constant CHANGE_FEE_DELAY = 1 hours;
+			}
+	*/
+	var testGovConst = "0x6080604052348015600f57600080fd5b506004361060735760003560e01c8063af2a57bb116054578063af2a57bb1460b7578063ba631d3f1460bf578063e63a391f1460cf578063fde7f3711460d657600080fd5b8063129060ab1460785780633d6aa5e11460a0578063840c17711460ae575b600080fd5b608e6fffffffffffffffffffffffffffffffff81565b60405190815260200160405180910390f35b608e670de0b6b3a764000081565b608e6203f48081565b608e610e1081565b608e69152d02c7e14af680000081565b608e606481565b608e612a308156fea26469706673582212205a46d0ec404db8e956d55b3a46096ec212420c1aabdad4ed8961986556c0684664736f6c634300080e0033"
+	var (
+		ctx          = context.TODO()
+		minStaking1  = towei(500000)
+		minStaking2  = towei(100000)
+		feeRate1     = new(big.Int).SetUint64(15)
+		feeRate2     = new(big.Int).SetUint64(1500)
+		totalStaking = new(big.Int)
+		stakers      = make([]common.Address, 0)
+
+		ncp1 = NewTestStaker()
+		ncp2 = NewTestStaker()
+		ncp3 = NewTestStaker()
+	)
+
+	// for duplicate test
+	ncpInput := []common.Address{ncp3.Operator.Address, ncp3.Operator.Address}
+
+	g, err := NewGovWBFT(t, ncpInput, types.GenesisAlloc{
+		ncp1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		ncp2.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+	})
+	require.NoError(t, err)
+	defer g.backend.Close()
+
+	stateDB := &TestStateDB{
+		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
+			value, _ := g.backend.Client().StorageAt(ctx, addr, hash, nil)
+			return common.BytesToHash(value)
+		},
+	}
+
+	t.Run("duplicated ncp", func(t *testing.T) {
+		ncps := []common.Address{ncp3.Operator.Address}
+		require.Equal(t, ncps, govwbft.NCPList(stateDB))
+	})
+
+	t.Run("add staker", func(t *testing.T) {
+		require.True(t, govwbft.TotalStaking(stateDB).Sign() == 0)
+		require.True(t, len(govwbft.Stakers(stateDB)) == 0)
+		beforeBalance := g.balanceAt(t, ctx, ncp1.Operator.Address, nil)
+
+		receipt, err := g.ExpectedOk(g.RegisterStaker(t, ncp1, minStaking1, feeRate1))
+		require.NoError(t, err)
+		stakers = append(stakers, ncp1.Staker.Address)
+		totalStaking = totalStaking.Add(totalStaking, minStaking1)
+
+		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
+		require.Equal(t, stakers, govwbft.Stakers(stateDB))
+
+		gasCost := calcTxGasCost(receipt)
+		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking1, gasCost))
+		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp1.Operator.Address, nil))
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.RegisterStaker(t, ncp2, minStaking2, feeRate1)),
+			"out of bounds",
+		)
+	})
+
+	t.Run("upgrade contract", func(t *testing.T) {
+		ExpectedRevert(t,
+			g.ExpectedFail(g.RegisterStaker(t, ncp2, new(big.Int).Sub(minStaking1, common.Big1), feeRate1)),
+			"out of bounds",
+		)
+
+		// upgrade contract
+		g.backend.CommitWithState(params.StateTransition{
+			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: testGovConst}},
+		})
+	})
+
+	t.Run("retry add staker", func(t *testing.T) {
+		ExpectedRevert(t,
+			g.ExpectedFail(g.RegisterStaker(t, ncp2, new(big.Int).Sub(minStaking2, common.Big1), feeRate1)),
+			"out of bounds",
+		)
+		ExpectedRevert(t,
+			g.ExpectedFail(g.RegisterStaker(t, ncp2, minStaking2, feeRate2)),
+			"fee rate exceeds precision",
+		)
+
+		beforeBalance := g.balanceAt(t, ctx, ncp2.Operator.Address, nil)
+
+		receipt, err := g.ExpectedOk(g.RegisterStaker(t, ncp2, minStaking2, feeRate1))
+		require.NoError(t, err)
+		stakers = append(stakers, ncp2.Staker.Address)
+		totalStaking = totalStaking.Add(totalStaking, minStaking2)
+
+		require.Equal(t, totalStaking, govwbft.TotalStaking(stateDB))
+		require.Equal(t, stakers, govwbft.Stakers(stateDB))
+
+		gasCost := calcTxGasCost(receipt)
+		expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(minStaking2, gasCost))
+		require.Equal(t, expectedBalance, g.balanceAt(t, ctx, ncp2.Operator.Address, nil))
+
+		// restore GovConst
+		g.backend.CommitWithState(params.StateTransition{
+			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: govwbft.GovConstContract}},
+		})
 	})
 }
