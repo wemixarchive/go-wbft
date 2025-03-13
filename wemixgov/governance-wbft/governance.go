@@ -96,7 +96,3 @@ func NCPStakerInfoMap(state StateReader) map[common.Address]Staker {
 	}
 	return stakerInfos
 }
-
-func GovConstChangeFeeDelay(state StateReader) *big.Int {
-	return state.GetState(GovConstAddress, common.HexToHash(GovConstSlotChangeFeeDelay)).Big()
-}
