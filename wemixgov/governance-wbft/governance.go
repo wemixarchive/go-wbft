@@ -7,10 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-const (
-	GovConstSlotChangeFeeDelay = "0x6"
-)
-
 var (
 	GovConstAddress       = common.HexToAddress(params.GOV_CONST_ADDRESS)
 	GovStakingAddress     = common.HexToAddress(params.GOV_STAKING_ADDRESS)
