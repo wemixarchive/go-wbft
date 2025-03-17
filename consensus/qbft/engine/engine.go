@@ -116,7 +116,7 @@ func aggregateSeal(valIdxMap map[common.Address]uint32, sealDatas []qbft.SealDat
 	sealers := make([]uint32, 0)
 	for _, seal := range sealDatas {
 		if len(seal.Seal) != types.IstanbulExtraSeal {
-			return nil, errors.New("invalid seal")
+			return nil, qbftcommon.ErrInvalidSeal
 		}
 		sealers = append(sealers, valIdxMap[seal.Sealer])
 		seals = append(seals, seal.Seal)
@@ -310,7 +310,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	// prev seals validation for monblanc block or first block after genesis is skipped because it's empty
 	if firstWbftBlockNum.Cmp(header.Number) != 0 && number != 1 {
 		prevEpochInfo := latestEpochInfo
-		if latestEpoch.Cmp(parent.Number) == 0 && firstWbftBlockNum.Cmp(parent.Number) != 0 {
+		if latestEpoch.Cmp(parent.Number) == 0 {
 			var prevParents []*types.Header
 			if len(parents) > 0 {
 				prevParents = parents[:len(parents)-1]
@@ -636,13 +636,14 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	epochLength := 0
 
 	var lastProposer common.Address
-	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
-	latestEpoch, latestEpochInfo, err := e.GetEpochInfo(chain, parent, nil)
+	latestEpoch, latestEpochInfo, err := e.GetEpochInfo(chain, header, nil)
 	if err != nil {
 		log.Crit("failed to get latest epoch info", "err", err)
 	}
+
 	// Traverse blocks until reaching the epoch block.
-	for it := header; ; {
+	// Stop counting if the block reaches to the epoch block.
+	for it := header; latestEpoch.Cmp(it.Number) != 0; {
 		extra, err := types.ExtractQBFTExtra(it)
 		if err != nil {
 			log.Crit("failed to extract qbft extra data", "err", err)
@@ -654,10 +655,24 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		}
 		proposers = append(proposers, proposer)
 
+		parent := chain.GetHeader(it.ParentHash, it.Number.Uint64()-1)
+		epochInfo := latestEpochInfo
+		if latestEpoch.Cmp(parent.Number) == 0 {
+			_, info, err := e.GetEpochInfo(chain, parent, nil)
+			if err != nil {
+				log.Crit("failed to get prev epoch info", "number(parent)", parent.Number, "err", err)
+			}
+			lastProposer, _ = e.Author(parent)
+			epochInfo = info
+		}
+
 		// Accumulate PrevPreparedSeal counts.
-		prepareSigners, err := getSignerAddress(latestEpochInfo, extra.PrevPreparedSeal)
+		prepareSigners, err := getSignerAddress(epochInfo, extra.PrevPreparedSeal)
 		if err != nil {
-			log.Crit("failed to get prev prepare signers", "err", err)
+			// If the parent block is the genesis block, PrevPreparedSeal can be nil
+			if err != qbftcommon.ErrEmptySeals || parent.Number.Sign() != 0 {
+				log.Crit("failed to get prev prepare signers", "err", err)
+			}
 		}
 		proposedSealsInEpoch[proposer] += len(prepareSigners)
 		for _, addr := range prepareSigners {
@@ -665,9 +680,12 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		}
 
 		// Accumulate PrevCommittedSeal counts.
-		commitSigners, err := getSignerAddress(latestEpochInfo, extra.PrevCommittedSeal)
+		commitSigners, err := getSignerAddress(epochInfo, extra.PrevCommittedSeal)
 		if err != nil {
-			log.Crit("failed to get prev commit signers", "err", err)
+			// If the parent block is the genesis block, PrevCommittedSeal can be nil
+			if err != qbftcommon.ErrEmptySeals || parent.Number.Sign() != 0 {
+				log.Crit("failed to get prev commit signers", "err", err)
+			}
 		}
 		proposedSealsInEpoch[proposer] += len(commitSigners)
 		for _, addr := range commitSigners {
@@ -679,15 +697,6 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		// Update current header.
 		it = parent
 		epochLength++
-
-		// Stop counting if the block reaches to the epoch block.
-		if isEpoch, _, err := e.IsEpochBlockNumber(config, it.Number); err != nil {
-			log.Crit("IsEpochBlockNumber failed", "number (it)", it.Number, "err", err)
-		} else if isEpoch {
-			lastProposer, _ = e.Author(it)
-			break
-		}
-		parent = chain.GetHeader(it.ParentHash, it.Number.Uint64()-1)
 	}
 
 	stakerMap := make(map[common.Address]*stakerInfo)
@@ -1004,11 +1013,11 @@ func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 		return &types.QBFTExtra{
 			VanityData:        vanity,
 			PrevRound:         0,
-			PrevPreparedSeal:  &types.QBFTAggregatedSeal{},
-			PrevCommittedSeal: &types.QBFTAggregatedSeal{},
+			PrevPreparedSeal:  nil,
+			PrevCommittedSeal: nil,
 			Round:             0,
-			PreparedSeal:      &types.QBFTAggregatedSeal{},
-			CommittedSeal:     &types.QBFTAggregatedSeal{},
+			PreparedSeal:      nil,
+			CommittedSeal:     nil,
 			EpochInfo:         nil,
 		}, nil
 	}
@@ -1210,6 +1219,9 @@ func (e *Engine) GetBLSPublicKeyByAddress(state govwbft.StateReader, address com
 }
 
 func getSignerAddress(epochInfo *types.EpochInfo, signedSeal *types.QBFTAggregatedSeal) ([]common.Address, error) {
+	if signedSeal == nil {
+		return nil, qbftcommon.ErrEmptySeals
+	}
 	signers := make([]common.Address, len(signedSeal.Sealers))
 	for i, idx := range signedSeal.Sealers {
 		v := epochInfo.GetValidator(idx)
@@ -1251,7 +1263,7 @@ func verifyAggregatedSeal(epochInfo *types.EpochInfo, valSet qbft.ValidatorSet, 
 	}
 
 	if !signature.Verify(aggregatedPubKey, sealData) {
-		return errors.New("invalid seal")
+		return qbftcommon.ErrInvalidSeal
 	}
 
 	return nil
@@ -1288,32 +1300,55 @@ func mergeSeals(epochInfo *types.EpochInfo, seal *types.QBFTAggregatedSeal, extr
 }
 
 func (e *Engine) GetEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) (*big.Int, *types.EpochInfo, error) {
-	_, latestEpoch, err := e.IsEpochBlockNumber(chain.Config(), new(big.Int).Sub(header.Number, common.Big1))
-	if err != nil {
-		return nil, nil, err
+	var firstWbftBlockNum *big.Int
+	if chain.Config().MontBlancBlock == nil {
+		// wbft engine started from genesis
+		firstWbftBlockNum = common.Big0
+	} else {
+		// wbft engine started with montblanc hardfork
+		firstWbftBlockNum = chain.Config().MontBlancBlock
 	}
 
-	if epochInfo, ok := e.epochCache.Get(latestEpoch.Uint64()); ok {
-		return latestEpoch, epochInfo, nil
-	}
-
-	epochHeader := chain.GetHeaderByNumber(latestEpoch.Uint64())
-	if epochHeader == nil {
-		// if epoch block is not a canonical block
-		block := header
-		for block.Number.Cmp(latestEpoch) > 0 {
-			if len(parents) > 0 {
-				block = parents[len(parents)-1]
-				parents = parents[:len(parents)-1]
-			} else {
-				block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
-			}
-			if block == nil {
-				return nil, nil, consensus.ErrUnknownAncestor
-			}
+	var (
+		latestEpoch *big.Int
+		epochHeader *types.Header
+	)
+	if firstWbftBlockNum.Cmp(header.Number) == 0 {
+		if epochInfo, ok := e.epochCache.Get(header.Number.Uint64()); ok {
+			return header.Number, epochInfo, nil
 		}
-		epochHeader = block
+		latestEpoch = header.Number
+		epochHeader = header
+	} else {
+		_, epochNum, err := e.IsEpochBlockNumber(chain.Config(), new(big.Int).Sub(header.Number, common.Big1))
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if epochInfo, ok := e.epochCache.Get(epochNum.Uint64()); ok {
+			return epochNum, epochInfo, nil
+		}
+
+		epochHeader = chain.GetHeaderByNumber(epochNum.Uint64())
+		if epochHeader == nil {
+			// if epoch block is not a canonical block
+			block := header
+			for block.Number.Cmp(epochNum) > 0 {
+				if len(parents) > 0 {
+					block = parents[len(parents)-1]
+					parents = parents[:len(parents)-1]
+				} else {
+					block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
+				}
+				if block == nil {
+					return nil, nil, consensus.ErrUnknownAncestor
+				}
+			}
+			epochHeader = block
+		}
+		latestEpoch = epochNum
 	}
+
 	epochExtra, err := types.ExtractQBFTExtra(epochHeader)
 	if err != nil {
 		return nil, nil, err

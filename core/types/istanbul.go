@@ -262,8 +262,8 @@ func QBFTFilteredHeaderWithRound(h *Header, round uint32) *Header {
 		return nil
 	}
 
-	qbftExtra.PreparedSeal = &QBFTAggregatedSeal{}
-	qbftExtra.CommittedSeal = &QBFTAggregatedSeal{}
+	qbftExtra.PreparedSeal = nil
+	qbftExtra.CommittedSeal = nil
 	qbftExtra.Round = round
 
 	payload, err := rlp.EncodeToBytes(&qbftExtra)

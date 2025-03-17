@@ -347,11 +347,15 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		extra, err := types.ExtractQBFTExtra(parent)
 		if err != nil {
 			return err
-		} else if extra.PreparedSeal == nil {
-			return qbftcommon.ErrEmptyPreparedSeals
-		} else if extra.CommittedSeal == nil {
-			// TODO : what if there is not committedSeal that node collected?
-			return qbftcommon.ErrEmptyCommittedSeals
+		}
+
+		if parent.Number.Sign() > 0 {
+			if extra.PreparedSeal == nil {
+				return qbftcommon.ErrEmptyPreparedSeals
+			} else if extra.CommittedSeal == nil {
+				// TODO : what if there is not committedSeal that node collected?
+				return qbftcommon.ErrEmptyCommittedSeals
+			}
 		}
 
 		prevPreparedSeal := extra.PreparedSeal

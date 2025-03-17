@@ -200,11 +200,11 @@ func (g *genesisGenerator) wbftChainConfig() {
 	ist := &types.QBFTExtra{
 		VanityData:        vanity,
 		PrevRound:         0,
-		PrevPreparedSeal:  &types.QBFTAggregatedSeal{},
-		PrevCommittedSeal: &types.QBFTAggregatedSeal{},
+		PrevPreparedSeal:  nil,
+		PrevCommittedSeal: nil,
 		Round:             0,
-		PreparedSeal:      &types.QBFTAggregatedSeal{},
-		CommittedSeal:     &types.QBFTAggregatedSeal{},
+		PreparedSeal:      nil,
+		CommittedSeal:     nil,
 		EpochInfo:         epochInfo,
 	}
 
