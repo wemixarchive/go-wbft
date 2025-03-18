@@ -127,7 +127,6 @@ func TestEth2AssembleBlock(t *testing.T) {
 // number of transactions in it, or it has retried three times.
 func assembleWithTransactions(api *ConsensusAPI, parentHash common.Hash, params *engine.PayloadAttributes, want int) (execData *engine.ExecutableData, err error) {
 	for retries := 3; retries > 0; retries-- {
-
 		execData, err = assembleBlock(api, parentHash, params)
 
 		if err != nil {
@@ -139,7 +138,7 @@ func assembleWithTransactions(api *ConsensusAPI, parentHash common.Hash, params 
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		
+
 		return execData, nil
 	}
 	return nil, err
