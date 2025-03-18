@@ -69,7 +69,7 @@ func New(backend Backend, config *qbft.Config) *Core {
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
-		priorState:         priorState{new(sync.RWMutex), common.Big0, nil},
+		priorState:         priorState{new(sync.RWMutex), common.Big0, nil, nil},
 	}
 
 	c.validateFn = c.checkValidatorSignature
@@ -126,6 +126,10 @@ func (c *Core) currentView() *qbft.View {
 
 func (c *Core) PriorRound() *big.Int {
 	return c.priorState.Round()
+}
+
+func (c *Core) PriorValidators() qbft.ValidatorSet {
+	return c.priorState.Validators()
 }
 
 func (c *Core) IsProposer() bool {
@@ -209,6 +213,7 @@ func (c *Core) startNewRound(round *big.Int) {
 
 	// Create next view
 	var newView *qbft.View
+	currentValSet := c.valSet
 	if roundChange {
 		newView = &qbft.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
@@ -223,7 +228,7 @@ func (c *Core) startNewRound(round *big.Int) {
 	}
 
 	// New snapshot for new round
-	c.updateRoundState(newView, c.valSet, roundChange)
+	c.updateRoundState(newView, currentValSet, roundChange)
 
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
@@ -249,13 +254,13 @@ func (c *Core) startNewRound(round *big.Int) {
 // updateRoundState updates round state by checking if locking block is necessary
 func (c *Core) updateRoundState(view *qbft.View, validatorSet qbft.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
-		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
+		c.current = newRoundState(view, c.valSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {
 		if c.current != nil {
 			// priorState is only set for finalCommitted block
-			c.updatePriorState(c.current.Round(), c.current.Proposal())
+			c.updatePriorState(c.current.Round(), c.current.Proposal(), validatorSet)
 		}
-		c.current = newRoundState(view, validatorSet, nil, nil, nil, nil, c.backend.HasBadProposal)
+		c.current = newRoundState(view, c.valSet, nil, nil, nil, nil, c.backend.HasBadProposal)
 	}
 }
 
@@ -355,8 +360,8 @@ func PrepareSeal(header *types.Header, round uint32, sealType SealType) []byte {
 	return crypto.Keccak256Hash(append(roundHeader, byte(sealType))).Bytes()
 }
 
-func (c *Core) verifySeal(header *types.Header, round uint32, sealType SealType, seal []byte, sealer common.Address) error {
-	_, validator := c.valSet.GetByAddress(sealer)
+func verifySeal(valSet qbft.ValidatorSet, header *types.Header, round uint32, sealType SealType, seal []byte, sealer common.Address) error {
+	_, validator := valSet.GetByAddress(sealer)
 
 	pubkey, err := bls.PublicKeyFromBytes(validator.BLSPublicKey())
 	if err != nil {

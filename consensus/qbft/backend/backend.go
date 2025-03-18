@@ -210,7 +210,7 @@ func (sb *Backend) Commit(proposal qbft.Proposal, preparedSeals, committedSeals 
 
 	// Commit header
 	h := block.Header()
-	err = sb.Engine().CommitHeader(sb.chain, h, preparedSeals, committedSeals, round)
+	err = sb.Engine().CommitHeader(h, preparedSeals, committedSeals, round)
 	if err != nil {
 		return
 	}

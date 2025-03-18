@@ -267,6 +267,6 @@ type FinalCommittedEvent struct {
 }
 
 type SealData struct {
-	Sealer common.Address
+	Sealer uint32
 	Seal   []byte
 }

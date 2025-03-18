@@ -103,7 +103,7 @@ func (c *Core) handleCommitMsg(commit *qbftmessage.Commit) error {
 		return errInvalidMessage
 	}
 
-	if c.verifySeal(block.Header(), uint32(commit.CommonPayload.Round.Uint64()), SealTypeCommit,
+	if verifySeal(c.valSet, block.Header(), uint32(commit.CommonPayload.Round.Uint64()), SealTypeCommit,
 		commit.CommitSeal, commit.Source()) != nil {
 		return errInvalidMessage
 	}
@@ -139,8 +139,12 @@ func (c *Core) commitQBFT() {
 		// Compute prepared seals
 		preparedSeals := make([]qbft.SealData, c.current.QBFTPrepares.Size())
 		for i, msg := range c.current.QBFTPrepares.Values() {
+			idx, _ := c.valSet.GetByAddress(msg.Source())
+			if idx < 0 {
+				continue
+			}
 			preparedSeals[i] = qbft.SealData{
-				Sealer: msg.Source(),
+				Sealer: uint32(idx),
 				Seal:   make([]byte, types.IstanbulExtraSeal),
 			}
 			prepareMsg := msg.(*qbftmessage.Prepare)
@@ -150,8 +154,12 @@ func (c *Core) commitQBFT() {
 		// Compute committed seals
 		committedSeals := make([]qbft.SealData, c.current.QBFTCommits.Size())
 		for i, msg := range c.current.QBFTCommits.Values() {
+			idx, _ := c.valSet.GetByAddress(msg.Source())
+			if idx < 0 {
+				continue
+			}
 			committedSeals[i] = qbft.SealData{
-				Sealer: msg.Source(),
+				Sealer: uint32(idx),
 				Seal:   make([]byte, types.IstanbulExtraSeal),
 			}
 			commitMsg := msg.(*qbftmessage.Commit)

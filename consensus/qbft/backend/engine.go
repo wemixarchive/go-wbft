@@ -233,8 +233,7 @@ func (sb *Backend) processExtraSeals() ([]qbft.SealData, []qbft.SealData) {
 		sb.logger.Warn("WBFT: fail to process extra seals due to nil core")
 		return nil, nil
 	} else {
-		lastProposal := sb.currentBlock()
-		return sb.core.ProcessExtraSeal(lastProposal, sb.core.PriorRound())
+		return sb.core.ProcessExtraSeal(sb.currentBlock(), sb.core.PriorRound(), sb.core.PriorValidators())
 	}
 }
 
