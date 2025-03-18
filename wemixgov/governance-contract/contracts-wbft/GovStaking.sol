@@ -3,7 +3,6 @@
 pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 
 import "./GovConst.sol";
 import {GovRewardeeImp} from "./GovRewardeeImp.sol";
@@ -199,14 +198,13 @@ contract GovStaking {
         require(_amount > 0, "amount is zero");
 
         address _staker = stakerByOperator[msg.sender];
-        UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
-        require(_userInfo.stakingAmount >= _amount, "insufficient balance");
 
         // update stake info
         _updateRewardInfo(_staker, msg.sender);
 
         _subStaking(_staker, msg.sender, _amount);
 
+        UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
         if (_userInfo.stakingAmount < GOV_CONST.MINIMUM_STAKING()) {
             require(_userInfo.stakingAmount == 0, "amount must equal balance to remove staker");
 
@@ -373,7 +371,7 @@ contract GovStaking {
         emit NewCredential(credentialCount, msg.sender, _amount, block.timestamp, _unbondingPeriod);
     }
 
-    function getStakerAmount(address _staker) public view returns (uint256) {
+    function getStakerAmount(address _staker) external view returns (uint256) {
         return userRewardInfo[_staker][stakerInfo[_staker].operator].stakingAmount;
     }
 
