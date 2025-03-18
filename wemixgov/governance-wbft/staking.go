@@ -18,7 +18,7 @@ type Staker struct {
 	Operator            common.Address
 	Rewardee            common.Address
 	FeeRecipient        common.Address
-	Staking             *big.Int
+	TotalStaked         *big.Int
 	Delegated           *big.Int
 	FeeRate             *big.Int
 	AccRewardPerStaking *big.Int
@@ -71,13 +71,13 @@ func StakerInfo(state StateReader, staker common.Address) Staker {
 		Rewardee:            HashToAddress(state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(1)))),
 		FeeRecipient:        HashToAddress(state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(2)))),
 		FeeRate:             state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(3))).Big(),
-		Staking:             state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(4))).Big(),
+		TotalStaked:         state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(4))).Big(),
 		AccRewardPerStaking: state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(5))).Big(),
 		AccFeePerStaking:    state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(6))).Big(),
 		LastRewardBalance:   state.GetState(GovStakingAddress, IncrementHash(baseSlot, big.NewInt(7))).Big(),
 	}
 	userInfo := UserInfo(state, staker, stakerInfo.Operator)
-	x := new(big.Int).Set(stakerInfo.Staking)
+	x := new(big.Int).Set(stakerInfo.TotalStaked)
 	stakerInfo.Delegated = x.Sub(x, userInfo.StakingAmount)
 	return stakerInfo
 }

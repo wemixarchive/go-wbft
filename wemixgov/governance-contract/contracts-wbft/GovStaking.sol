@@ -11,7 +11,6 @@ import {GovRewardee} from "./GovRewardee.sol";
 
 contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Address for address payable;
 
     struct Staker {
         // configuration
@@ -61,7 +60,7 @@ contract GovStaking {
     event Undelegated(address indexed delegator, address indexed staker, uint256 amount);
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
     event Withdrawn(uint256 indexed credentialID, address requester, uint256 amount);
-    event RewardInfoUpdated(address indexed staker, uint256 staking, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking, uint256 accFeePerStaking);
+    event RewardInfoUpdated(address indexed staker, uint256 totalStaked, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking, uint256 accFeePerStaking);
     event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking, uint256 accFeePerStaking);
     event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake);
     event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient);
@@ -356,7 +355,6 @@ contract GovStaking {
         Staker storage _stakerInfo = stakerInfo[_staker];
         UserInfo storage _userInfo = userRewardInfo[_staker][_user];
         require(_userInfo.stakingAmount >= _amount, "insufficient balance");
-        require(_stakerInfo.totalStaked >= _amount, "insufficient balance");
 
         _stakerInfo.totalStaked -= _amount;
         _userInfo.stakingAmount -= _amount;

@@ -1004,7 +1004,7 @@ func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.St
 	validatorReward := new(big.Int).Set(blockReward)
 	return func(staker *govwbft.Staker, tot *big.Int) {
 		r := new(big.Int).Set(validatorReward)
-		r.Mul(r, staker.Staking)
+		r.Mul(r, staker.TotalStaked)
 		r.Div(r, tot)
 		if r.Sign() > 0 {
 			state.AddBalance(staker.Rewardee, uint256.MustFromBig(r))
@@ -1054,10 +1054,10 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		if !govwbft.IsStaker(state, addr) {
 			log.Trace("QBFT: fallback staker info", "staker", addr)
 			return &govwbft.Staker{
-				Operator:  addr,
-				Rewardee:  addr,
-				Staking:   big.NewInt(0),
-				Delegated: big.NewInt(0),
+				Operator:    addr,
+				Rewardee:    addr,
+				TotalStaked: big.NewInt(0),
+				Delegated:   big.NewInt(0),
 			}
 		}
 
@@ -1102,7 +1102,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 	for i, val := range validators {
 		staker := getStakerInfo(val)
 		stakers[i] = staker
-		totStakingAmount.Add(totStakingAmount, staker.Staking)
+		totStakingAmount.Add(totStakingAmount, staker.TotalStaked)
 	}
 
 	log.Debug("Calculating block reward", "currentBlock", header.Number, "totStakingAmount", totStakingAmount, "validator", validators)
