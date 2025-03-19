@@ -62,10 +62,11 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	ethConf.Genesis.Config.QBFT.EpochLength = 1000
 	ethConf.Genesis.Config.QBFT.MinStakers = 999
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
-	blsPubKey, _ := bls.DeriveFromECDSA(nodeConf.P2P.PrivateKey)
+	blsKey, _ := bls.DeriveFromECDSA(nodeConf.P2P.PrivateKey)
+	blsPubKey := blsKey.PublicKey().Marshal()
 	ethConf.Genesis.Config.QBFT.Validators = []common.Address{validator}
-	ethConf.Genesis.Config.QBFT.BLSPublicKeys = []string{hexutil.Encode(blsPubKey.PublicKey().Marshal())}
-	ethConf.Genesis.ExtraData = genExtraData(validator) // simulated chain block
+	ethConf.Genesis.Config.QBFT.BLSPublicKeys = []string{hexutil.Encode(blsPubKey)}
+	ethConf.Genesis.ExtraData = genExtraData(validator, blsPubKey) // simulated chain block
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
 	ethConf.Miner.SimulatedEnabled = true
@@ -90,14 +91,15 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	return sim
 }
 
-func genExtraData(validator common.Address) []byte {
+func genExtraData(validator common.Address, blsPubKey []byte) []byte {
 	sampleExtra := &types.QBFTExtra{
 		VanityData: []byte("WEMIX MontBlanc chain block"),
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: validator, Diligence: types.DefaultDiligence},
 			},
-			Validators: []uint32{0},
+			Validators:    []uint32{0},
+			BLSPublicKeys: [][]byte{blsPubKey},
 		},
 		Round: 0,
 	}
