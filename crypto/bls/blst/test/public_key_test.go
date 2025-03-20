@@ -197,5 +197,4 @@ func BenchmarkPublicKeyFromBytes(b *testing.B) {
 			require.NoError(b, err)
 		}
 	})
-
 }

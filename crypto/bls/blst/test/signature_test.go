@@ -39,7 +39,7 @@ func TestAggregateVerify(t *testing.T) {
 		msgs = append(msgs, msg)
 	}
 	aggSig := blst.AggregateSignatures(sigs)
-	// skipcq: GO-W1009
+	// nolint:staticcheck
 	require.True(t, aggSig.AggregateVerify(pubkeys, msgs), "Signature did not verify")
 }
 
@@ -60,7 +60,7 @@ func TestAggregateVerify_CompressedSignatures(t *testing.T) {
 		msgs = append(msgs, msg)
 	}
 	aggSig := blst.AggregateSignatures(sigs)
-	// skipcq: GO-W1009
+	// nolint:staticcheck
 	require.True(t, aggSig.AggregateVerify(pubkeys, msgs), "Signature did not verify")
 
 	aggSig2, err := blst.AggregateCompressedSignatures(sigBytes)
@@ -82,7 +82,6 @@ func TestFastAggregateVerify(t *testing.T) {
 	}
 	aggSig := blst.AggregateSignatures(sigs)
 	require.True(t, aggSig.FastAggregateVerify(pubkeys, msg), "Signature did not verify")
-
 }
 
 func TestVerifyCompressed(t *testing.T) {
@@ -159,7 +158,6 @@ func TestEth2FastAggregateVerify(t *testing.T) {
 	}
 	aggSig := blst.AggregateSignatures(sigs)
 	require.True(t, aggSig.Eth2FastAggregateVerify(pubkeys, msg), "Signature did not verify")
-
 }
 
 func TestEth2FastAggregateVerify_ReturnsFalseOnEmptyPubKeyList(t *testing.T) {

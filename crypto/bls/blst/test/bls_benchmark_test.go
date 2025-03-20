@@ -45,6 +45,7 @@ func BenchmarkSignature_AggregateVerify(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
+		// nolint:staticcheck
 		if !aggregated.AggregateVerify(pks, msgs) {
 			b.Fatal("could not verify aggregate sig")
 		}
