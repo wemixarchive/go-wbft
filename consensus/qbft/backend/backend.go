@@ -260,7 +260,7 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 	}
 
 	header := block.Header()
-	valSet, prevValSet, err := sb.GetValidatorsForVerifying(sb.chain, header.Number, header.ParentHash, nil)
+	valSet, prevValSet, err := sb.GetValidatorsForVerifying(sb.chain, header, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -307,7 +307,11 @@ func (sb *Backend) GetProposer(number uint64) common.Address {
 }
 
 func (sb *Backend) Validators(proposal qbft.Proposal) qbft.ValidatorSet {
-	valSet, err := sb.Engine().GetValidators(sb.chain, new(big.Int).Add(proposal.Number(), common.Big1), proposal.Hash(), nil)
+	header := &types.Header{
+		Number:     new(big.Int).Add(proposal.Number(), common.Big1),
+		ParentHash: proposal.Hash(),
+	}
+	valSet, err := sb.Engine().GetValidators(sb.chain, header, nil)
 	if err != nil {
 		return validator.NewSet(nil, nil, sb.config.ProposerPolicy)
 	}

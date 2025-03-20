@@ -43,22 +43,17 @@ var (
 type SignerFn func(data []byte) ([]byte, error)
 
 type Engine struct {
-	cfg         *qbft.Config
-	valSetCache *lru.Cache[uint64, qbft.ValidatorSet]
-
-	signer common.Address // Ethereum address of the signing key
-	sign   SignerFn       // Signer function to authorize hashes with
-
+	cfg        *qbft.Config
+	signer     common.Address // Ethereum address of the signing key
+	sign       SignerFn       // Signer function to authorize hashes with
 	epochCache *lru.Cache[uint64, *types.EpochInfo]
 }
 
 func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn) *Engine {
 	return &Engine{
-		cfg:         cfg,
-		valSetCache: lru.NewCache[uint64, qbft.ValidatorSet](inmemoryCache),
-		signer:      signer,
-		sign:        sign,
-
+		cfg:        cfg,
+		signer:     signer,
+		sign:       sign,
 		epochCache: lru.NewCache[uint64, *types.EpochInfo](inmemoryCache),
 	}
 }
@@ -860,69 +855,30 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 // `parents` is a hint for backward traverse.
 // exceptional case: blockNumber is genesis block number or montblanc hard fork block number, then
 // it returns the validators from chain config.
-func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
-	if vs, ok := e.valSetCache.Get(blockNumber.Uint64()); ok {
-		return vs.Copy(), nil
-	}
-
+func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) (qbft.ValidatorSet, error) {
 	// 1. Check if the block is not a WBFT block
-	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
+	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(header.Number) {
 		return nil, qbftcommon.ErrIsNotWBFTBlock
 	}
 
-	if (chain.Config().MontBlancBlock == nil && blockNumber.Cmp(common.Big0) == 0) ||
-		(chain.Config().MontBlancBlock != nil && chain.Config().MontBlancBlock.Cmp(blockNumber) == 0) {
+	if (chain.Config().MontBlancBlock == nil && header.Number.Sign() == 0) ||
+		(chain.Config().MontBlancBlock != nil && chain.Config().MontBlancBlock.Cmp(header.Number) == 0) {
 		// genesis validators or montblanc hard fork validators from wbft config
 		blsPubKeys := make([][]byte, len(e.cfg.BLSPublicKeys))
 		for i, pk := range e.cfg.BLSPublicKeys {
 			blsPubKeys[i] = hexutil.MustDecode(pk)
 		}
 		vs := validator.NewSet(e.cfg.Validators, blsPubKeys, e.cfg.ProposerPolicy)
-		e.valSetCache.Add(blockNumber.Uint64(), vs)
 		return vs, nil
 	}
 
-	// traverse back to the last epoch block
-	parentNumber := new(big.Int).Sub(blockNumber, common.Big1)
-	isEpoch, latestEpoch, err := e.IsEpochBlockNumber(chain.Config(), parentNumber)
+	_, epochInfo, err := e.GetEpochInfo(chain, header, parents)
 	if err != nil {
+		log.Error("BFT: failed to get epochInfo", "err", err)
 		return nil, err
-	}
-	var block *types.Header
-	if len(parents) > 0 {
-		block = parents[len(parents)-1]
-		parents = parents[:len(parents)-1]
-	} else {
-		block = chain.GetHeader(parentHash, parentNumber.Uint64())
-	}
-	if block == nil {
-		return nil, consensus.ErrUnknownAncestor
-	}
-	for !isEpoch && block.Number.Cmp(latestEpoch) > 0 {
-		if vs, ok := e.valSetCache.Get(block.Number.Uint64()); ok {
-			// this block is not epoch and this block's epoch is same with requested block
-			// so if cache hit, it must be same validator set with requested one
-			return vs.Copy(), nil
-		}
-		if len(parents) > 0 {
-			block = parents[len(parents)-1]
-			parents = parents[:len(parents)-1]
-		} else {
-			block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
-		}
-		if block == nil {
-			return nil, consensus.ErrUnknownAncestor
-		}
 	}
 
-	// block must be an epoch block
-	qbftExtra, err := types.ExtractQBFTExtra(block)
-	if err != nil {
-		log.Error("BFT: invalid epoch header", "err", err)
-		return nil, err
-	}
-	vs := validator.NewSet(qbftExtra.EpochInfo.GetValidators(), qbftExtra.EpochInfo.BLSPublicKeys, e.cfg.ProposerPolicy)
-	e.valSetCache.Add(blockNumber.Uint64(), vs)
+	vs := validator.NewSet(epochInfo.GetValidators(), epochInfo.BLSPublicKeys, e.cfg.ProposerPolicy)
 	return vs, nil
 }
 
@@ -1088,7 +1044,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 // Currently, seals are not considered for rewards because which we cannot determine malicious validators.
 // Instead, we use diligence score to give faithful validator opportunity to propose more blocks.
 func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, rewardFn func(*govwbft.Staker, *big.Int), getStakerInfo func(common.Address) *govwbft.Staker) error {
-	valSet, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
+	valSet, err := e.GetValidators(chain, header, nil)
 	if err != nil {
 		return err
 	}
