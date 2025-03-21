@@ -43,22 +43,17 @@ var (
 type SignerFn func(data []byte) ([]byte, error)
 
 type Engine struct {
-	cfg         *qbft.Config
-	valSetCache *lru.Cache[uint64, qbft.ValidatorSet]
-
-	signer common.Address // Ethereum address of the signing key
-	sign   SignerFn       // Signer function to authorize hashes with
-
+	cfg        *qbft.Config
+	signer     common.Address // Ethereum address of the signing key
+	sign       SignerFn       // Signer function to authorize hashes with
 	epochCache *lru.Cache[uint64, *types.EpochInfo]
 }
 
 func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn) *Engine {
 	return &Engine{
-		cfg:         cfg,
-		valSetCache: lru.NewCache[uint64, qbft.ValidatorSet](inmemoryCache),
-		signer:      signer,
-		sign:        sign,
-
+		cfg:        cfg,
+		signer:     signer,
+		sign:       sign,
 		epochCache: lru.NewCache[uint64, *types.EpochInfo](inmemoryCache),
 	}
 }
@@ -861,10 +856,6 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 // exceptional case: blockNumber is genesis block number or montblanc hard fork block number, then
 // it returns the validators from chain config.
 func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
-	if vs, ok := e.valSetCache.Get(blockNumber.Uint64()); ok {
-		return vs.Copy(), nil
-	}
-
 	// 1. Check if the block is not a WBFT block
 	if chain.Config().MontBlancBlock != nil && !chain.Config().IsMontBlanc(blockNumber) {
 		return nil, qbftcommon.ErrIsNotWBFTBlock
@@ -878,51 +869,16 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 			blsPubKeys[i] = hexutil.MustDecode(pk)
 		}
 		vs := validator.NewSet(e.cfg.Validators, blsPubKeys, e.cfg.ProposerPolicy)
-		e.valSetCache.Add(blockNumber.Uint64(), vs)
 		return vs, nil
 	}
 
-	// traverse back to the last epoch block
-	parentNumber := new(big.Int).Sub(blockNumber, common.Big1)
-	isEpoch, latestEpoch, err := e.IsEpochBlockNumber(chain.Config(), parentNumber)
+	_, epochInfo, err := e.getEpochInfo(chain, blockNumber, parentHash, parents)
 	if err != nil {
+		log.Error("BFT: failed to get epochInfo", "err", err)
 		return nil, err
-	}
-	var block *types.Header
-	if len(parents) > 0 {
-		block = parents[len(parents)-1]
-		parents = parents[:len(parents)-1]
-	} else {
-		block = chain.GetHeader(parentHash, parentNumber.Uint64())
-	}
-	if block == nil {
-		return nil, consensus.ErrUnknownAncestor
-	}
-	for !isEpoch && block.Number.Cmp(latestEpoch) > 0 {
-		if vs, ok := e.valSetCache.Get(block.Number.Uint64()); ok {
-			// this block is not epoch and this block's epoch is same with requested block
-			// so if cache hit, it must be same validator set with requested one
-			return vs.Copy(), nil
-		}
-		if len(parents) > 0 {
-			block = parents[len(parents)-1]
-			parents = parents[:len(parents)-1]
-		} else {
-			block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
-		}
-		if block == nil {
-			return nil, consensus.ErrUnknownAncestor
-		}
 	}
 
-	// block must be an epoch block
-	qbftExtra, err := types.ExtractQBFTExtra(block)
-	if err != nil {
-		log.Error("BFT: invalid epoch header", "err", err)
-		return nil, err
-	}
-	vs := validator.NewSet(qbftExtra.EpochInfo.GetValidators(), qbftExtra.EpochInfo.BLSPublicKeys, e.cfg.ProposerPolicy)
-	e.valSetCache.Add(blockNumber.Uint64(), vs)
+	vs := validator.NewSet(epochInfo.GetValidators(), epochInfo.BLSPublicKeys, e.cfg.ProposerPolicy)
 	return vs, nil
 }
 
@@ -1269,51 +1225,57 @@ func (e *Engine) GetEpochInfo(chain consensus.ChainHeaderReader, header *types.H
 		firstWbftBlockNum = chain.Config().MontBlancBlock
 	}
 
-	var (
-		latestEpoch *big.Int
-		epochHeader *types.Header
-	)
 	if firstWbftBlockNum.Cmp(header.Number) == 0 {
 		if epochInfo, ok := e.epochCache.Get(header.Number.Uint64()); ok {
 			return header.Number, epochInfo, nil
 		}
-		latestEpoch = header.Number
-		epochHeader = header
-	} else {
-		_, epochNum, err := e.IsEpochBlockNumber(chain.Config(), new(big.Int).Sub(header.Number, common.Big1))
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if epochInfo, ok := e.epochCache.Get(epochNum.Uint64()); ok {
-			return epochNum, epochInfo, nil
-		}
-
-		epochHeader = chain.GetHeaderByNumber(epochNum.Uint64())
-		if epochHeader == nil {
-			// if epoch block is not a canonical block
-			block := header
-			for block.Number.Cmp(epochNum) > 0 {
-				if len(parents) > 0 {
-					block = parents[len(parents)-1]
-					parents = parents[:len(parents)-1]
-				} else {
-					block = chain.GetHeader(block.ParentHash, block.Number.Uint64()-1)
-				}
-				if block == nil {
-					return nil, nil, consensus.ErrUnknownAncestor
-				}
-			}
-			epochHeader = block
-		}
-		latestEpoch = epochNum
+		return e.extractEpochInfo(header)
 	}
 
+	return e.getEpochInfo(chain, header.Number, header.ParentHash, parents)
+}
+
+func (e *Engine) getEpochInfo(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (*big.Int, *types.EpochInfo, error) {
+	parentNumber := blockNumber.Uint64() - 1
+	_, epochNum, err := e.IsEpochBlockNumber(chain.Config(), new(big.Int).SetUint64(parentNumber))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if epochInfo, ok := e.epochCache.Get(epochNum.Uint64()); ok {
+		return epochNum, epochInfo, nil
+	}
+
+	if epochHeader := chain.GetHeaderByNumber(epochNum.Uint64()); epochHeader != nil {
+		return e.extractEpochInfo(epochHeader)
+	}
+
+	// epoch block is not a canonical block
+	var block *types.Header
+	for {
+		if len(parents) > 0 {
+			block = parents[len(parents)-1]
+			parents = parents[:len(parents)-1]
+		} else {
+			block = chain.GetHeader(parentHash, parentNumber)
+		}
+		if block == nil {
+			return nil, nil, consensus.ErrUnknownAncestor
+		}
+		if epochNum.Cmp(block.Number) == 0 {
+			break
+		}
+		parentHash, parentNumber = block.ParentHash, block.Number.Uint64()-1
+	}
+	return e.extractEpochInfo(block)
+}
+
+func (e *Engine) extractEpochInfo(epochHeader *types.Header) (*big.Int, *types.EpochInfo, error) {
 	epochExtra, err := types.ExtractQBFTExtra(epochHeader)
 	if err != nil {
 		return nil, nil, err
 	}
-	e.epochCache.Add(latestEpoch.Uint64(), epochExtra.EpochInfo)
+	e.epochCache.Add(epochHeader.Number.Uint64(), epochExtra.EpochInfo)
 
-	return latestEpoch, epochExtra.EpochInfo, nil
+	return epochHeader.Number, epochExtra.EpochInfo, nil
 }
