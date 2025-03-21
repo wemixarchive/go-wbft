@@ -114,7 +114,7 @@ func (api *API) GetValidators(number *rpc.BlockNumber) ([]common.Address, error)
 	if header == nil {
 		return nil, qbftcommon.ErrUnknownBlock
 	}
-	valSet, err := api.backend.Engine().GetValidators(api.chain, header, nil)
+	valSet, err := api.backend.Engine().GetValidators(api.chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (api *API) GetValidatorsAtHash(hash common.Hash) ([]common.Address, error) 
 	if header == nil {
 		return nil, qbftcommon.ErrUnknownBlock
 	}
-	valSet, err := api.backend.Engine().GetValidators(api.chain, header, nil)
+	valSet, err := api.backend.Engine().GetValidators(api.chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return nil, err
 	}

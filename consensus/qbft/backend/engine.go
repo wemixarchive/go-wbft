@@ -75,7 +75,7 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 }
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
-	valSet, prevValSet, err := sb.GetValidatorsForVerifying(chain, header, parents)
+	valSet, prevValSet, err := sb.GetValidatorsForVerifying(chain, header.Number, header.ParentHash, parents)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (sb *Backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 	}
 
 	// Assemble the voting snapshot
-	valSet, err := sb.Engine().GetValidators(chain, header, nil)
+	valSet, err := sb.Engine().GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (sb *Backend) timeForNextWork() uint64 {
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Assemble the voting snapshot
-	valSet, err := sb.Engine().GetValidators(chain, header, nil)
+	valSet, err := sb.Engine().GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -385,20 +385,20 @@ func (sb *Backend) SealHash(header *types.Header) common.Hash {
 	return sb.Engine().SealHash(header)
 }
 
-func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) (qbft.ValidatorSet, qbft.ValidatorSet, error) {
+func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, qbft.ValidatorSet, error) {
 	var valSet, prevValSet qbft.ValidatorSet
 	var err error
 
 	// Retrieve the ValidatorSet for the block height
-	if valSet, err = sb.Engine().GetValidators(chain, header, parents); err != nil {
+	if valSet, err = sb.Engine().GetValidators(chain, blockNumber, parentHash, parents); err != nil {
 		return nil, nil, consensus.ErrUnknownAncestor
 	}
 
-	if (chain.Config().MontBlancBlock == nil && header.Number.Uint64() >= 2) ||
-		(chain.Config().MontBlancBlock != nil && header.Number.Uint64() >= chain.Config().MontBlancBlock.Uint64()+2) {
+	if (chain.Config().MontBlancBlock == nil && blockNumber.Uint64() >= 2) ||
+		(chain.Config().MontBlancBlock != nil && blockNumber.Uint64() >= chain.Config().MontBlancBlock.Uint64()+2) {
 		var parent *types.Header
 		if len(parents) == 0 {
-			parent = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+			parent = chain.GetHeader(parentHash, blockNumber.Uint64()-1)
 			parents = nil
 		} else {
 			parent = parents[len(parents)-1]
@@ -408,7 +408,7 @@ func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, 
 			return nil, nil, consensus.ErrUnknownAncestor
 		}
 		// Retrieve the ValidatorSet of the previous block
-		if prevValSet, err = sb.Engine().GetValidators(chain, parent, parents); err != nil {
+		if prevValSet, err = sb.Engine().GetValidators(chain, parent.Number, parent.ParentHash, parents); err != nil {
 			return nil, nil, err
 		}
 	} else {
