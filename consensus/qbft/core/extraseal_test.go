@@ -44,6 +44,7 @@ func init() {
 func makeCoreForTest(priorRound, currentRound, currentSequence *big.Int, lastProposal *types.Block) *Core {
 	// set core with empty backend.
 	// current state is StateAcceptRequest.
+	valSet := validator.NewSet(validators, blsPubKeys, qbft.NewRoundRobinProposerPolicy())
 	core := &Core{
 		config:             nil,
 		address:            crypto.PubkeyToAddress(signers[0].PublicKey),
@@ -59,10 +60,9 @@ func makeCoreForTest(priorRound, currentRound, currentSequence *big.Int, lastPro
 		pendingRequests:    prque.New[int64, *Request](nil),
 		pendingRequestsMu:  new(sync.Mutex),
 		consensusTimestamp: time.Time{},
-		priorState:         priorState{new(sync.RWMutex), common.Big0, nil, nil},
+		priorState:         priorState{new(sync.RWMutex), priorRound, lastProposal, valSet},
 	}
 	core.validateFn = core.checkValidatorSignature
-	valSet := validator.NewSet(validators, blsPubKeys, qbft.NewRoundRobinProposerPolicy())
 	core.valSet = valSet
 	// Set core current view and proposal
 	core.current = newRoundState(
@@ -71,7 +71,6 @@ func makeCoreForTest(priorRound, currentRound, currentSequence *big.Int, lastPro
 			Sequence: currentSequence,
 		}, valSet,
 		nil, nil, nil, nil, func(hash common.Hash) bool { return false })
-	core.updatePriorState(priorRound, lastProposal, core.valSet)
 	return core
 }
 
