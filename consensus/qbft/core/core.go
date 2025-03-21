@@ -253,16 +253,17 @@ func (c *Core) startNewRound(round *big.Int) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *Core) updateRoundState(valSet qbft.ValidatorSet, view *qbft.View, roundChange bool) {
+func (c *Core) updateRoundState(nextValSet qbft.ValidatorSet, view *qbft.View, roundChange bool) {
 	if roundChange && c.current != nil {
-		c.current = newRoundState(view, valSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
+		c.current = newRoundState(view, nextValSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {
 		if c.current != nil {
 			// priorState is only set for finalCommitted block
 			c.updatePriorState()
 		}
-		c.current = newRoundState(view, valSet, nil, nil, nil, nil, c.backend.HasBadProposal)
+		c.current = newRoundState(view, nextValSet, nil, nil, nil, nil, c.backend.HasBadProposal)
 	}
+	c.valSet = nextValSet
 }
 
 func (c *Core) setState(state State) {
