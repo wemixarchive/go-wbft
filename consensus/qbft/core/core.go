@@ -213,7 +213,6 @@ func (c *Core) startNewRound(round *big.Int) {
 
 	// Create next view
 	var newView *qbft.View
-	currentValSet := c.valSet
 	if roundChange {
 		newView = &qbft.View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
@@ -224,11 +223,15 @@ func (c *Core) startNewRound(round *big.Int) {
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
+		if c.current != nil {
+			// priorState is only set for finalCommitted block
+			c.updatePriorState()
+		}
 		c.valSet = c.backend.Validators(lastProposal)
 	}
 
 	// New snapshot for new round
-	c.updateRoundState(newView, currentValSet, roundChange)
+	c.updateRoundState(newView, roundChange)
 
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
@@ -252,14 +255,10 @@ func (c *Core) startNewRound(round *big.Int) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *Core) updateRoundState(view *qbft.View, validatorSet qbft.ValidatorSet, roundChange bool) {
+func (c *Core) updateRoundState(view *qbft.View, roundChange bool) {
 	if roundChange && c.current != nil {
 		c.current = newRoundState(view, c.valSet, c.current.Preprepare, c.current.preparedRound, c.current.preparedBlock, c.current.pendingRequest, c.backend.HasBadProposal)
 	} else {
-		if c.current != nil {
-			// priorState is only set for finalCommitted block
-			c.updatePriorState(c.current.Round(), c.current.Proposal(), validatorSet)
-		}
 		c.current = newRoundState(view, c.valSet, nil, nil, nil, nil, c.backend.HasBadProposal)
 	}
 }

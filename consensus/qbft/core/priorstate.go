@@ -16,17 +16,18 @@ type priorState struct {
 	validatorSet qbft.ValidatorSet
 }
 
-func (c *Core) updatePriorState(priorRound *big.Int, priorProposal qbft.Proposal, priorValSet qbft.ValidatorSet) {
+func (c *Core) updatePriorState() {
 	c.priorState.mu.Lock()
 	defer c.priorState.mu.Unlock()
-	c.priorState.round = priorRound
-	if priorProposal != nil {
-		c.priorState.proposal = priorProposal
+	c.priorState.round = c.current.Round()
+	if c.current.Proposal() != nil {
+		c.priorState.proposal = c.current.Proposal()
 	}
-	if priorValSet != nil {
-		c.priorState.validatorSet = priorValSet
+	if c.valSet != nil {
+		c.priorState.validatorSet = c.valSet
 	}
 }
+
 func (p *priorState) Round() *big.Int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
