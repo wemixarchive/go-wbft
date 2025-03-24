@@ -350,11 +350,7 @@ func ReadHeaderRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValu
 			header := new(types.Header)
 			if err := rlp.Decode(bytes.NewReader(data), header); err != nil {
 				log.Error("Invalid block header RLP", "err", err)
-				data, _ = db.Get(headerKey(number, hash))
-				return nil
-			}
-
-			if header.Hash() == hash {
+			} else if header.Hash() == hash {
 				return nil
 			}
 		}
