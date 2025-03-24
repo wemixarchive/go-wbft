@@ -751,16 +751,16 @@ func TestPrevSeals(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	if len(nextBlockExtra.PrevPreparedSeal.Sealers) != 1 {
-		t.Errorf("prev prepared seals mismatch: have %v, want 1", len(nextBlockExtra.PrevPreparedSeal.Sealers))
+	if len(nextBlockExtra.PrevPreparedSeal.Sealers.GetSealers()) != 1 {
+		t.Errorf("prev prepared seals mismatch: have %v, want 1", len(nextBlockExtra.PrevPreparedSeal.Sealers.GetSealers()))
 	}
 
 	if !bytes.Equal(blockExtra.PreparedSeal.Signature, nextBlockExtra.PrevPreparedSeal.Signature) {
 		t.Errorf("prev prepared seals mismatch: have %v, want %v", nextBlockExtra.PrevPreparedSeal.Signature, blockExtra.PreparedSeal.Signature)
 	}
 
-	if len(nextBlockExtra.PrevCommittedSeal.Sealers) != 1 {
-		t.Errorf("committed seals mismatch: have %v, want 1", len(nextBlockExtra.PrevCommittedSeal.Sealers))
+	if len(nextBlockExtra.PrevCommittedSeal.Sealers.GetSealers()) != 1 {
+		t.Errorf("committed seals mismatch: have %v, want 1", len(nextBlockExtra.PrevCommittedSeal.Sealers.GetSealers()))
 	}
 
 	if !bytes.Equal(blockExtra.CommittedSeal.Signature, nextBlockExtra.PrevCommittedSeal.Signature) {
@@ -1073,7 +1073,7 @@ func TestLackingSealsFromPropagatedBlock(t *testing.T) {
 	header := validBlock.Header()
 	qbftExtra, _ := types.ExtractQBFTExtra(header)
 
-	qbftExtra.PreparedSeal.Sealers = qbftExtra.PreparedSeal.Sealers[2:]
+	qbftExtra.PreparedSeal.Sealers.ClearSealer(0)
 	payload, err := rlp.EncodeToBytes(qbftExtra)
 	if err != nil {
 		t.Errorf("failed to encode qbftExtra. err %v", err)

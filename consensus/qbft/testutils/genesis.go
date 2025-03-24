@@ -138,15 +138,15 @@ func setQBFTExtra(genesis *core.Genesis, validators []common.Address, blsPublicK
 	ist := &types.QBFTExtra{
 		VanityData:    vanity,
 		Round:         0,
-		PreparedSeal:  &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}},
-		CommittedSeal: &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}},
+		PreparedSeal:  &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
+		CommittedSeal: &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
 		EpochInfo:     epochInfo,
 	}
 
 	if withPrev {
 		ist.PrevRound = 0
-		ist.PrevPreparedSeal = &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}}
-		ist.PrevCommittedSeal = &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}}
+		ist.PrevPreparedSeal = &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}}
+		ist.PrevCommittedSeal = &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}}
 	}
 
 	istPayload, err := rlp.EncodeToBytes(&ist)

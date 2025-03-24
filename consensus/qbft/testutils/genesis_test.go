@@ -15,11 +15,11 @@ func TestGeneratingGenesisExtra(t *testing.T) {
 	QBFTExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
 		PrevRound:         0,
-		PreparedSeal:      &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}},
-		PrevPreparedSeal:  &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}},
+		PreparedSeal:      &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
+		PrevPreparedSeal:  &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
 		Round:             0,
-		CommittedSeal:     &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}},
-		PrevCommittedSeal: &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: []uint32{}},
+		CommittedSeal:     &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
+		PrevCommittedSeal: &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: common.BytesToAddress(hexutil.MustDecode("0xa62987A40E094CbE020313f19F71aeeB3E48B86f")), Diligence: types.DefaultDiligence},

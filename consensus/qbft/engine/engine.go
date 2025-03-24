@@ -103,12 +103,12 @@ func writeCommittedSeals(committedSeals []qbft.SealData) ApplyQBFTExtra {
 
 func aggregateSeal(sealDatas []qbft.SealData) (*types.QBFTAggregatedSeal, error) {
 	seals := make([][]byte, 0)
-	sealers := make([]uint32, 0)
+	sealers := types.SealerSet{}
 	for _, seal := range sealDatas {
 		if len(seal.Seal) != types.IstanbulExtraSeal {
 			return nil, qbftcommon.ErrInvalidSeal
 		}
-		sealers = append(sealers, seal.Sealer)
+		sealers.SetSealer(seal.Sealer)
 		seals = append(seals, seal.Seal)
 	}
 
@@ -283,17 +283,8 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		}
 	}
 
-	var firstWbftBlockNum *big.Int
-	if chain.Config().MontBlancBlock == nil {
-		// wbft engine started from genesis
-		firstWbftBlockNum = common.Big0
-	} else {
-		// wbft engine started with montblanc hardfork
-		firstWbftBlockNum = chain.Config().MontBlancBlock
-	}
-
 	// prev seals validation for monblanc block or first block after genesis is skipped because it's empty
-	if firstWbftBlockNum.Cmp(header.Number) != 0 && number != 1 {
+	if qbft.GetFirstWbftBlockNumber(chain.Config()).Cmp(header.Number) != 0 {
 		// Verify prevPreparedSeals and prevCommittedSeals
 		if err := e.verifyPrevSeals(header, parent, prevValidators); err != nil {
 			return err
@@ -326,9 +317,7 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 
 // verifyPrevSeals checks whether every prevPreparedSeals and prevCommittedSeals are signed by one of the parent's validators
 func (e *Engine) verifyPrevSeals(header *types.Header, parent *types.Header, prevValidators qbft.ValidatorSet) error {
-	number := header.Number.Uint64()
-
-	if number == 0 {
+	if parent.Number.Sign() == 0 {
 		// We don't need to verify prepared seals in the genesis block
 		return nil
 	}
@@ -377,7 +366,7 @@ func (e *Engine) verifySeals(header *types.Header, validators qbft.ValidatorSet)
 
 	preparedSeal := extra.PreparedSeal
 	// The length of Prepared seals should be larger than 0
-	if preparedSeal == nil || len(preparedSeal.Sealers) == 0 {
+	if preparedSeal == nil || len(preparedSeal.Signature) == 0 {
 		return qbftcommon.ErrEmptyPreparedSeals
 	}
 
@@ -388,7 +377,7 @@ func (e *Engine) verifySeals(header *types.Header, validators qbft.ValidatorSet)
 
 	committedSeal := extra.CommittedSeal
 	// The length of Committed seals should be larger than 0
-	if committedSeal == nil || len(committedSeal.Sealers) == 0 {
+	if committedSeal == nil || len(committedSeal.Signature) == 0 {
 		return qbftcommon.ErrEmptyCommittedSeals
 	}
 
@@ -455,16 +444,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	var firstWbftBlockNum *big.Int
-	if chain.Config().MontBlancBlock == nil {
-		// wbft engine started from genesis
-		firstWbftBlockNum = common.Big0
-	} else {
-		// wbft engine started with montblanc hardfork
-		firstWbftBlockNum = chain.Config().MontBlancBlock
-	}
-
-	if firstWbftBlockNum.Cmp(header.Number) == 0 {
+	if qbft.GetFirstWbftBlockNumber(chain.Config()).Cmp(header.Number) == 0 {
 		// monblac hardFork block has empty prev seal
 		// validators will be written at FinalizeAndAssemble
 		return ApplyHeaderQBFTExtra(header)
@@ -861,8 +841,7 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 		return nil, qbftcommon.ErrIsNotWBFTBlock
 	}
 
-	if (chain.Config().MontBlancBlock == nil && blockNumber.Cmp(common.Big0) == 0) ||
-		(chain.Config().MontBlancBlock != nil && chain.Config().MontBlancBlock.Cmp(blockNumber) == 0) {
+	if qbft.GetFirstWbftBlockNumber(chain.Config()).Cmp(blockNumber) == 0 {
 		// genesis validators or montblanc hard fork validators from wbft config
 		blsPubKeys := make([][]byte, len(e.cfg.BLSPublicKeys))
 		for i, pk := range e.cfg.BLSPublicKeys {
@@ -1141,8 +1120,9 @@ func getSignerAddress(epochInfo *types.EpochInfo, signedSeal *types.QBFTAggregat
 	if signedSeal == nil {
 		return nil, qbftcommon.ErrEmptySeals
 	}
-	signers := make([]common.Address, len(signedSeal.Sealers))
-	for i, idx := range signedSeal.Sealers {
+	sealers := signedSeal.Sealers.GetSealers()
+	signers := make([]common.Address, len(sealers))
+	for i, idx := range sealers {
 		v := epochInfo.GetValidator(epochInfo.Validators[idx])
 		if v == (common.Address{}) {
 			return nil, errors.New("validator address is zero")
@@ -1153,13 +1133,14 @@ func getSignerAddress(epochInfo *types.EpochInfo, signedSeal *types.QBFTAggregat
 }
 
 func verifyAggregatedSeal(valSet qbft.ValidatorSet, header *types.Header, round uint32, signedSeal *types.QBFTAggregatedSeal, sealType core.SealType) error {
+	sealers := signedSeal.Sealers.GetSealers()
 	// verify sealers
-	if len(signedSeal.Sealers) < valSet.QuorumSize() {
+	if len(sealers) < valSet.QuorumSize() {
 		return errors.New("lack of seal count")
 	}
 
 	blsPubKeys := make([][]byte, 0)
-	for _, sealer := range signedSeal.Sealers {
+	for _, sealer := range sealers {
 		val := valSet.GetByIndex(uint64(sealer))
 		if val == nil {
 			return errors.New("sealer is not validator")
@@ -1188,19 +1169,16 @@ func mergeSeals(seal *types.QBFTAggregatedSeal, extraSeals []qbft.SealData) *typ
 	if len(extraSeals) == 0 {
 		return seal
 	}
-	seals := [][]byte{seal.Signature}
-	sealers := append([]uint32{}, seal.Sealers...)
-	existMap := make(map[uint32]struct{})
 
-	for _, sealer := range sealers {
-		existMap[sealer] = struct{}{}
-	}
+	seals := [][]byte{seal.Signature}
+	sealers := make(types.SealerSet, len(seal.Sealers))
+	copy(sealers[:], seal.Sealers[:])
 
 	for _, extraSeal := range extraSeals {
-		if _, exists := existMap[extraSeal.Sealer]; exists {
+		if sealers.IsSealer(extraSeal.Sealer) {
 			continue
 		}
-		sealers = append(sealers, extraSeal.Sealer)
+		sealers.SetSealer(extraSeal.Sealer)
 		seals = append(seals, extraSeal.Seal)
 	}
 
@@ -1216,16 +1194,7 @@ func mergeSeals(seal *types.QBFTAggregatedSeal, extraSeals []qbft.SealData) *typ
 }
 
 func (e *Engine) GetEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) (*big.Int, *types.EpochInfo, error) {
-	var firstWbftBlockNum *big.Int
-	if chain.Config().MontBlancBlock == nil {
-		// wbft engine started from genesis
-		firstWbftBlockNum = common.Big0
-	} else {
-		// wbft engine started with montblanc hardfork
-		firstWbftBlockNum = chain.Config().MontBlancBlock
-	}
-
-	if firstWbftBlockNum.Cmp(header.Number) == 0 {
+	if qbft.GetFirstWbftBlockNumber(chain.Config()).Cmp(header.Number) == 0 {
 		if epochInfo, ok := e.epochCache.Get(header.Number.Uint64()); ok {
 			return header.Number, epochInfo, nil
 		}

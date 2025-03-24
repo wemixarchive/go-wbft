@@ -26,8 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
-	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/naoina/toml"
 )
 
@@ -189,6 +189,16 @@ func (c *Config) getTransitionValue(num *big.Int, callback func(transition param
 // String implements the stringer interface, returning the consensus engine details.
 func (c *Config) String() string {
 	return "qbft"
+}
+
+func GetFirstWbftBlockNumber(config *params.ChainConfig) *big.Int {
+	if config.MontBlancBlock == nil {
+		// wbft engine started from genesis
+		return common.Big0
+	} else {
+		// wbft engine started with montblanc hardfork
+		return config.MontBlancBlock
+	}
 }
 
 func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params.StateTransition {

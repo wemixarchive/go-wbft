@@ -51,7 +51,7 @@ var (
 )
 
 type QBFTAggregatedSeal struct {
-	Sealers   []uint32
+	Sealers   SealerSet
 	Signature []byte
 }
 
@@ -64,7 +64,7 @@ func (as *QBFTAggregatedSeal) EncodeRLP(w io.Writer) error {
 
 func (as *QBFTAggregatedSeal) DecodeRLP(s *rlp.Stream) error {
 	var aggregatedSeal struct {
-		Sealers   []uint32
+		Sealers   SealerSet
 		Signature []byte
 	}
 	if err := s.Decode(&aggregatedSeal); err != nil {
@@ -274,6 +274,43 @@ func QBFTFilteredHeaderWithRound(h *Header, round uint32) *Header {
 	newHeader.Extra = payload
 
 	return newHeader
+}
+
+type SealerSet []byte
+
+func (s *SealerSet) SetSealer(index uint32) {
+	byteIndex := int(index / 8)
+	if len(*s) <= byteIndex {
+		*s = append(*s, make([]byte, byteIndex+1-len(*s))...)
+	}
+	(*s)[byteIndex] |= 1 << (index % 8)
+}
+
+func (s *SealerSet) ClearSealer(index uint32) {
+	byteIndex := int(index / 8)
+	if byteIndex < len(*s) {
+		(*s)[byteIndex] &^= 1 << (index % 8)
+	}
+}
+
+func (s SealerSet) IsSealer(index uint32) bool {
+	byteIndex := int(index / 8)
+	if byteIndex >= len(s) {
+		return false
+	}
+	return ((s)[byteIndex] & (1 << (index % 8))) != 0
+}
+
+func (s SealerSet) GetSealers() []uint32 {
+	sealers := make([]uint32, 0)
+	for byteIndex := 0; byteIndex < len(s); byteIndex++ {
+		for bitOffset := 0; bitOffset < 8; bitOffset++ {
+			if s[byteIndex]&(1<<bitOffset) != 0 {
+				sealers = append(sealers, uint32(byteIndex*8+bitOffset))
+			}
+		}
+	}
+	return sealers
 }
 
 // ## Quorum QBFT END
