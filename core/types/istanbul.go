@@ -286,10 +286,10 @@ func (s *SealerSet) SetSealer(index uint32) {
 	(*s)[byteIndex] |= 1 << (index % 8)
 }
 
-func (s *SealerSet) ClearSealer(index uint32) {
+func (s SealerSet) ClearSealer(index uint32) {
 	byteIndex := int(index / 8)
-	if byteIndex < len(*s) {
-		(*s)[byteIndex] &^= 1 << (index % 8)
+	if byteIndex < len(s) {
+		s[byteIndex] &^= 1 << (index % 8)
 	}
 }
 
