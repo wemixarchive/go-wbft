@@ -1500,6 +1500,16 @@ func TestClaimForUnstakedStaker(t *testing.T) {
 			g.ExpectedFail(g.Delegate(t, delegator1, v1.Staker.Address, minStaking)), "unregistered staker")
 	})
 
+	t.Run("staker can restake", func(t *testing.T) {
+		_, err := g.ExpectedOk(g.Stake(t, v1.Operator, minStaking))
+		require.NoError(t, err)
+
+		// check list
+		newStakers := govwbft.Stakers(stateDB)
+		require.Equal(t, 1, len(newStakers))
+		require.Equal(t, v1.Staker.Address, newStakers[0])
+	})
+
 	t.Run("delegator1 can undelegate and claim with changed fee", func(t *testing.T) {
 		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
 
@@ -1507,7 +1517,16 @@ func TestClaimForUnstakedStaker(t *testing.T) {
 		require.NoError(t, err)
 
 		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address) // will not be applied
-		claimAndCheck(t, delegator1, towei(80), towei(20))             // fee2 should be applied
+		claimAndCheck(t, delegator1, towei(40), towei(10))             // fee2 should be applied
+	})
+
+	t.Run("delegator1 can delegate again", func(t *testing.T) {
+		_, err = g.ExpectedOk(g.Delegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		claimAndCheck(t, delegator1, towei(40), towei(10))
 	})
 }
 

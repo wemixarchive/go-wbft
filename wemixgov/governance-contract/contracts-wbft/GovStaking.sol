@@ -170,16 +170,6 @@ contract GovStaking {
         );
     }
 
-    function changeOperator(address _newOperator) external checkStaker(stakerByOperator[msg.sender]) {
-        require(_newOperator != address(0), "zero address");
-
-        address _staker = stakerByOperator[msg.sender];
-        address oldOperator = stakerInfo[_staker].operator;
-        stakerInfo[_staker].operator = _newOperator;
-        stakerByOperator[_newOperator] = _staker;
-        delete stakerByOperator[oldOperator];
-    }
-
     function changeFeeRecipient(address _newRecipient) external checkStaker(stakerByOperator[msg.sender]) {
         require(_newRecipient != address(0), "zero address");
         address _staker = stakerByOperator[msg.sender];
