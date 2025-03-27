@@ -17,6 +17,7 @@ contract GovStaking {
         address rewardee;
         address feeRecipient;
         uint256 feeRate;
+        bytes blsPubKey;
 
         // mutable
         uint256 totalStaked; // updated when stake/unstake/delegate/undelegate
@@ -51,7 +52,8 @@ contract GovStaking {
         Requested,
         Withdrawn
     }
-    event StakerRegistered(address indexed staker, address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 staking);
+
+    event StakerRegistered(address indexed staker, address operator, address rewardee, address feeRecipient, uint256 feeRate, uint256 staking, bytes blsPK);
     event Staked(address indexed staker, uint256 amount);
     event Unstaked(address indexed staker, uint256 amount);
     event StakerRemoved(address indexed staker);
@@ -67,9 +69,14 @@ contract GovStaking {
 
     GovConst public constant GOV_CONST = GovConst(address(0x1000));
 
+    // this includes danglingDelegated
     uint256 public totalStaking; // 0x0
 
     // Staker
+    // Staker state definition
+    //  0. unregistered: stakerInfo[staker].operator = 0, __stakerSet.contains(staker) = false
+    //  1. active: stakerInfo[staker].operator != 0, __stakerSet.contains(staker) = true
+    //  2. inactive: stakerInfo[staker].operator != 0, __stakerSet.contains(staker) = false
     EnumerableSet.AddressSet private __stakerSet; // 0x1, 0x2
     mapping(address => Staker) public stakerInfo; // 0x3
     mapping(address => address) public stakerByOperator; // 0x4
@@ -81,8 +88,14 @@ contract GovStaking {
 
     // pending request
     mapping(address => ChangeFeeRequest) public pendingRequest; // 0x8
+
     // User Reward Info
     mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0x9
+
+    // danglingDelegated is the delegated balance for the inactive stakers
+    // contract's balance = totalStaked + danglingDelegated + unbonding
+    uint256 public danglingDelegated; // 0xa
+    bool public afterStabilization; // 0xb
 
     modifier checkAmount(uint256 _amount) {
         require(msg.value == _amount, "amount and msg.value mismatch");
@@ -95,7 +108,10 @@ contract GovStaking {
         _;
     }
 
-    receive() external payable {}
+    // Rewardee sends coin to this contract, so receive() is required
+    receive() external payable {
+        require(isStaker(stakerByRewardee[msg.sender]), "only an active rewardee can send coin");
+    }
 
     function isStaker(address _staker) public view returns (bool) {
         return __stakerSet.contains(_staker);
@@ -113,7 +129,7 @@ contract GovStaking {
         return __stakerSet.values();
     }
 
-    function registerStaker(uint256 _amount, address _staker, address _feeRecipient, uint256 _feeRate) external payable checkAmount(_amount) {
+    function registerStaker(uint256 _amount, address _staker, address _feeRecipient, uint256 _feeRate, bytes calldata _blsPK) external payable checkAmount(_amount) {
         require(_amount >= GOV_CONST.MINIMUM_STAKING() && _amount <= GOV_CONST.MAXIMUM_STAKING(), "out of bounds");
         require(msg.sender != _staker, "operator cannot be staker");
         require(_staker != address(0), "zero address");
@@ -121,12 +137,14 @@ contract GovStaking {
         require(!isStaker(_staker), "staker is already registered");
         require(_feeRecipient != address(0), "fee recipient is zero address");
         require(_feeRate <= GOV_CONST.FEE_PRECISION(), "fee rate exceeds precision");
+        require(_blsPK.length == GOV_CONST.BLS_PUBLIC_KEY_LENGTH(), "invalid bls public key");
 
         GovRewardee _rewardee = new GovRewardee();
         stakerInfo[_staker].operator = msg.sender;
         stakerInfo[_staker].rewardee = address(_rewardee);
         stakerInfo[_staker].feeRecipient = _feeRecipient;
         stakerInfo[_staker].feeRate = _feeRate;
+        stakerInfo[_staker].blsPubKey = _blsPK;
 
         stakerByOperator[msg.sender] = _staker;
         stakerByRewardee[address(_rewardee)] = _staker;
@@ -137,20 +155,34 @@ contract GovStaking {
 
         _addStaking(_staker, msg.sender, _amount);
 
+        if (__stakerSet.length() >= GOV_CONST.MIN_STAKERS()) {
+            afterStabilization = true;
+        }
+
         emit StakerRegistered(
             _staker,
             msg.sender,
             address(_rewardee),
             _feeRecipient,
             _feeRate,
-            _amount
+            _amount,
+            _blsPK
         );
+    }
+
+    function changeOperator(address _newOperator) external checkStaker(stakerByOperator[msg.sender]) {
+        require(_newOperator != address(0), "zero address");
+
+        address _staker = stakerByOperator[msg.sender];
+        address oldOperator = stakerInfo[_staker].operator;
+        stakerInfo[_staker].operator = _newOperator;
+        stakerByOperator[_newOperator] = _staker;
+        delete stakerByOperator[oldOperator];
     }
 
     function changeFeeRecipient(address _newRecipient) external checkStaker(stakerByOperator[msg.sender]) {
         require(_newRecipient != address(0), "zero address");
         address _staker = stakerByOperator[msg.sender];
-
         address oldRecipient = stakerInfo[_staker].feeRecipient;
         stakerInfo[_staker].feeRecipient = _newRecipient;
 
@@ -183,11 +215,21 @@ contract GovStaking {
         _updateRewardInfo(_staker, address(0));
     }
 
-    function stake(uint256 _amount) external payable checkAmount(_amount) checkStaker(stakerByOperator[msg.sender]) {
+    function stake(uint256 _amount) external payable checkAmount(_amount) {
         address _staker = stakerByOperator[msg.sender];
+        require(_staker != address(0), "unregistered staker");
 
         // update stake info
         _updateRewardInfo(_staker, msg.sender);
+
+        if (!isStaker(_staker)) {
+            // reactivation case: if the staker is not active, then reactivate it
+
+            require(_amount >= GOV_CONST.MINIMUM_STAKING(), "amount is less than minimum staking");
+
+            __stakerSet.add(_staker);
+            danglingDelegated -= stakerInfo[_staker].totalStaked;
+        }
 
         _addStaking(_staker, msg.sender, _amount);
 
@@ -206,11 +248,11 @@ contract GovStaking {
 
         UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
         if (_userInfo.stakingAmount < GOV_CONST.MINIMUM_STAKING()) {
-            require(_userInfo.stakingAmount == 0, "amount must equal balance to remove staker");
+            require(_userInfo.stakingAmount == 0, "amount must equal balance to deactivate staker");
 
             __stakerSet.remove(_staker);
-            delete stakerByOperator[msg.sender];
-            delete stakerByRewardee[stakerInfo[_staker].rewardee];
+
+            danglingDelegated += stakerInfo[_staker].totalStaked;
 
             emit StakerRemoved(_staker);
         }
@@ -245,6 +287,8 @@ contract GovStaking {
         if (isStaker(_staker)) {
             _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_DELEGATOR());
         } else {
+            danglingDelegated -= _amount;
+
             (bool success, ) = payable(msg.sender).call{value: _amount}("");
             require(success, "failed to send undelegating amount");
         }
@@ -354,9 +398,9 @@ contract GovStaking {
         UserInfo storage _userInfo = userRewardInfo[_staker][_user];
         require(_userInfo.stakingAmount >= _amount, "insufficient balance");
 
+        totalStaking -= _amount;
         _stakerInfo.totalStaked -= _amount;
         _userInfo.stakingAmount -= _amount;
-        totalStaking -= _amount;
     }
 
     function _newCredential(uint256 _amount, uint256 _unbondingPeriod) private {
