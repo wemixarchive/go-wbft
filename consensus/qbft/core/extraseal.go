@@ -11,6 +11,58 @@ import (
 // addToExtraSeal adds the message to extraSeals which is read when making block
 func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 	logger := c.currentLogger(true, msg)
+
+	// validate seal
+	if prepareMsg, ok := msg.(*qbftmessage.Prepare); ok {
+		// store seal
+		c.extraSealsMu.Lock()
+		defer c.extraSealsMu.Unlock()
+		if c.prepareExtraSeals[msg.Source()] != nil {
+			if existingView, incomingView := c.prepareExtraSeals[msg.Source()].View(), prepareMsg.View(); existingView.Cmp(&incomingView) >= 0 {
+				return nil
+			}
+		}
+		c.prepareExtraSeals[msg.Source()] = prepareMsg
+		logger.Debug("QBFT: new extra prepare seal message")
+	} else if commitMsg, ok := msg.(*qbftmessage.Commit); ok {
+		// store seal
+		c.extraSealsMu.Lock()
+		defer c.extraSealsMu.Unlock()
+		if c.commitExtraSeals[msg.Source()] != nil {
+			if existingView, incomingView := c.commitExtraSeals[msg.Source()].View(), commitMsg.View(); existingView.Cmp(&incomingView) >= 0 {
+				return nil
+			}
+		}
+		c.commitExtraSeals[msg.Source()] = commitMsg
+		logger.Debug("QBFT: new extra commit seal message")
+	} else {
+		return errInvalidExtraSealMessage
+	}
+
+	return nil
+}
+
+// addEffectiveSealToExtraSeal adds a consensus-effective seal to extraSeals used during block creation.
+func (c *Core) addEffectiveSealToExtraSeal() error {
+	// c.current may be nil on the first function call after system boot.
+	if c.current != nil {
+		for _, m := range c.current.QBFTPrepares.Values() {
+			if err := c.addToExtraSeal(m); err != nil {
+				return err
+			}
+		}
+		for _, m := range c.current.QBFTCommits.Values() {
+			if err := c.addToExtraSeal(m); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// addUnincludedSealToExtraSeal adds a seal received after consensus to extraSeals.
+func (c *Core) addUnincludedSealToExtraSeal(msg qbftmessage.QBFTMessage) error {
+	logger := c.currentLogger(true, msg)
 	var (
 		block    *types.Block
 		ok       bool
@@ -41,18 +93,12 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 		// verify msg seal is matched with msg digest and seal type
 		if err := verifySeal(valSet, block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), sealType,
 			prepareMsg.PrepareSeal, prepareMsg.Source()); err != nil {
-			return errInvalidSeal
+			return err
 		}
-		// store seal
-		c.extraSealsMu.Lock()
-		defer c.extraSealsMu.Unlock()
-		if c.prepareExtraSeals[msg.Source()] != nil {
-			if existingView, incomingView := c.prepareExtraSeals[msg.Source()].View(), prepareMsg.View(); existingView.Cmp(&incomingView) >= 0 {
-				return nil
-			}
+
+		if err := c.addToExtraSeal(msg); err != nil {
+			return err
 		}
-		c.prepareExtraSeals[msg.Source()] = prepareMsg
-		logger.Debug("QBFT: new extra prepare seal message")
 	} else if commitMsg, ok := msg.(*qbftmessage.Commit); ok {
 		sealType = SealTypeCommit
 		// Check digest
@@ -63,22 +109,15 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 		// verify msg seal is matched with msg digest and seal type
 		if err := verifySeal(valSet, block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), sealType,
 			commitMsg.CommitSeal, commitMsg.Source()); err != nil {
-			return errInvalidSeal
+			return err
 		}
-		// store seal
-		c.extraSealsMu.Lock()
-		defer c.extraSealsMu.Unlock()
-		if c.commitExtraSeals[msg.Source()] != nil {
-			if existingView, incomingView := c.commitExtraSeals[msg.Source()].View(), commitMsg.View(); existingView.Cmp(&incomingView) >= 0 {
-				return nil
-			}
+
+		if err := c.addToExtraSeal(msg); err != nil {
+			return err
 		}
-		c.commitExtraSeals[msg.Source()] = commitMsg
-		logger.Debug("QBFT: new extra commit seal message")
 	} else {
 		return errInvalidExtraSealMessage
 	}
-
 	return nil
 }
 
