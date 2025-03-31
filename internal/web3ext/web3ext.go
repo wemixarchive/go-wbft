@@ -637,6 +637,7 @@ web3._extend({
 			call: 'eth_signRawFeeDelegateTransaction',
 			params: 2,
 		}),
+		
 	],
 	properties: [
 		new web3._extend.Property({

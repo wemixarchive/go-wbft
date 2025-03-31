@@ -21,7 +21,10 @@
 package backend
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -216,4 +219,96 @@ func (api *API) IsValidator(blockNum *rpc.BlockNumber) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func sealForJSON(seal *types.QBFTAggregatedSeal, valSet []common.Address) map[string]interface{} {
+	if seal == nil {
+		return nil
+	}
+
+	sealerIndxs := seal.Sealers.GetSealers()
+	sealers := make([]string, 0, len(sealerIndxs))
+
+	for _, idx := range sealerIndxs {
+		if int(idx) < len(valSet) {
+			sealers = append(sealers, valSet[idx].Hex())
+		}
+	}
+
+	return map[string]interface{}{
+		"sealers":   sealers,
+		"signature": hex.EncodeToString(seal.Signature),
+	}
+
+}
+
+func epochForJSON(epoch *types.EpochInfo, valSet []common.Address) map[string]interface{} {
+	if epoch == nil {
+		return nil
+	}
+	// Stakers
+	stakers := make([]map[string]interface{}, 0, len(epoch.Stakers))
+
+	for _, s := range epoch.Stakers {
+		stakers = append(stakers, map[string]interface{}{
+			"addr":      s.Addr.Hex(),
+			"diligence": fmt.Sprintf("0x%x", s.Diligence),
+		})
+	}
+
+	// Validators
+	validators := make([]map[string]interface{}, 0, len(epoch.Validators))
+	for _, idx := range epoch.Validators {
+		if int(idx) >= len(valSet) || int(idx) >= len(epoch.BLSPublicKeys) {
+			continue
+		}
+
+		validators = append(validators, map[string]interface{}{
+			"index": fmt.Sprintf("0x%x", idx),
+			"addr":  valSet[idx].Hex(),
+			"bls":   "0x" + hex.EncodeToString(epoch.BLSPublicKeys[idx]),
+		})
+	}
+
+	return map[string]interface{}{
+		"stakers":    stakers,
+		"validators": validators,
+	}
+
+}
+
+func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}, error) {
+	bNumber := big.NewInt(int64(number))
+
+	if (api.chain.Config().MontBlancBlock == nil) || api.chain.Config().MontBlancBlock.Cmp(bNumber) > 0 {
+		return nil, errors.New("not a WBFT block")
+	}
+
+	header := api.chain.GetHeaderByNumber(uint64(number))
+
+	if header == nil {
+		return nil, errors.New("not a WBFT block")
+	}
+
+	extra, err := types.ExtractQBFTExtra(header)
+
+	if err != nil {
+		return nil, err
+	}
+
+	validators, err := api.GetValidators(&number)
+
+	result := map[string]interface{}{
+		"vanityData":        "decoded string message",
+		"prevRound":         fmt.Sprintf("0x%x", extra.PrevRound),
+		"prevPreparedSeal":  sealForJSON(extra.PrevPreparedSeal, validators),
+		"prevCommittedSeal": sealForJSON(extra.PrevCommittedSeal, validators),
+		"round":             fmt.Sprintf("0x%x", extra.Round),
+		"preparedSeal":      sealForJSON(extra.PreparedSeal, validators),
+		"committedSeal":     sealForJSON(extra.CommittedSeal, validators),
+		"epochInfo":         epochForJSON(extra.EpochInfo, validators),
+	}
+
+	return result, nil
+
 }
