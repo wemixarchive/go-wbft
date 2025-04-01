@@ -534,7 +534,7 @@ type stakerInfo struct {
 	staker      *types.Staker
 }
 
-func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
+func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *types.Header, state govwbft.StateReader) (*types.EpochInfo, error) {
 	var newEpoch types.EpochInfo
 
 	// Init diligence score of every staker to DefaultDiligence.
@@ -557,19 +557,19 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 		log.Trace(fmt.Sprintf("  - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
 	}
 
-	return &newEpoch
+	return &newEpoch, nil
 }
 
 // verifyHeader() must catch inconsistent seals before calling this.
-func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) *types.EpochInfo {
+func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) (*types.EpochInfo, error) {
 	var newEpoch types.EpochInfo
 
 	config := chain.Config()
 	if isEpoch, _, err := e.IsEpochBlockNumber(config, header.Number); err != nil {
 		log.Error("IsEpochBlockNumber failed", "number", header.Number, "err", err)
-		return nil
+		return nil, err
 	} else if !isEpoch {
-		return nil
+		return nil, nil
 	}
 
 	// Generate initial epoch block if a transition occurs.
@@ -586,7 +586,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	var lastProposer common.Address
 	latestEpoch, latestEpochInfo, err := e.GetEpochInfo(chain, header, nil)
 	if err != nil {
-		log.Crit("failed to get latest epoch info", "err", err)
+		log.Error("failed to get latest epoch info", "err", err)
+		return nil, err
 	}
 
 	// Traverse blocks until reaching the epoch block.
@@ -594,12 +595,14 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	for it := header; latestEpoch.Cmp(it.Number) != 0; {
 		extra, err := types.ExtractQBFTExtra(it)
 		if err != nil {
-			log.Crit("failed to extract qbft extra data", "err", err)
+			log.Error("failed to extract qbft extra data", "err", err)
+			return nil, err
 		}
 
 		proposer, err := e.Author(it)
 		if err != nil {
-			log.Crit("failed to get proposer", "err", err)
+			log.Error("failed to get proposer", "err", err)
+			return nil, err
 		}
 		proposers = append(proposers, proposer)
 
@@ -608,7 +611,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		if latestEpoch.Cmp(parent.Number) == 0 {
 			_, info, err := e.GetEpochInfo(chain, parent, nil)
 			if err != nil {
-				log.Crit("failed to get prev epoch info", "number(parent)", parent.Number, "err", err)
+				log.Error("failed to get prev epoch info", "number(parent)", parent.Number, "err", err)
+				return nil, err
 			}
 			lastProposer, _ = e.Author(parent)
 			epochInfo = info
@@ -619,7 +623,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		if err != nil {
 			// If the parent block is the genesis block, PrevPreparedSeal can be nil
 			if err != qbftcommon.ErrEmptySeals || parent.Number.Sign() != 0 {
-				log.Crit("failed to get prev prepare signers", "err", err)
+				log.Error("failed to get prev prepare signers", "err", err)
+				return nil, err
 			}
 		}
 		proposedSealsInEpoch[proposer] += len(prepareSigners)
@@ -632,7 +637,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		if err != nil {
 			// If the parent block is the genesis block, PrevCommittedSeal can be nil
 			if err != qbftcommon.ErrEmptySeals || parent.Number.Sign() != 0 {
-				log.Crit("failed to get prev commit signers", "err", err)
+				log.Error("failed to get prev commit signers", "err", err)
+				return nil, err
 			}
 		}
 		proposedSealsInEpoch[proposer] += len(commitSigners)
@@ -667,7 +673,9 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			// If round change occurs for every validators more than once,
 			// latest round change cycle window will be used for counting.
 			if round >= len(validators) {
-				log.Crit("Invalid round")
+				err := errors.New("failed to find valid proposer")
+				log.Error("Invalid round", "err", err)
+				return nil, err
 			}
 
 			valSet.CalcProposer(lastProposer, uint64(round))
@@ -736,7 +744,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	}
 
 	e.epochCache.Add(header.Number.Uint64(), &newEpoch)
-	return &newEpoch
+	return &newEpoch, nil
 }
 
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
@@ -853,7 +861,7 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 
 	_, epochInfo, err := e.getEpochInfo(chain, blockNumber, parentHash, parents)
 	if err != nil {
-		log.Error("BFT: failed to get epochInfo", "err", err)
+		log.Error("failed to get epochInfo", "err", err)
 		return nil, err
 	}
 
@@ -1050,7 +1058,10 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 }
 
 func writeEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
-	newEpoch := e.buildEpochInfo(chain, header, state)
+	newEpoch, err := e.buildEpochInfo(chain, header, state)
+	if err != nil {
+		return err
+	}
 
 	return ApplyHeaderQBFTExtra(header, WriteEpochInfo(newEpoch))
 }
@@ -1060,7 +1071,10 @@ func writeEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Head
 // It validates the validity of the ValidatorList associated with the EpochBlock.
 func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
 	bHeader := types.CopyHeader(header)
-	epoch := e.buildEpochInfo(chain, bHeader, state)
+	epoch, err := e.buildEpochInfo(chain, bHeader, state)
+	if err != nil {
+		return err
+	}
 
 	extra, err := types.ExtractQBFTExtra(header)
 	if err != nil {

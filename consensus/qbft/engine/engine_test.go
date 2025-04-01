@@ -474,7 +474,7 @@ func TestEpochInfo(t *testing.T) {
 				)
 
 				// Build epoch info
-				newEpoch := engine.buildEpochInfo(c, h, nil)
+				newEpoch, _ := engine.buildEpochInfo(c, h, nil)
 				ApplyHeaderQBFTExtra(h, WriteEpochInfo(newEpoch))
 				isEpoch, _, _ := engine.IsEpochBlockNumber(c.chainConfig, h.Number)
 				if newEpoch != nil && !isEpoch {
@@ -568,7 +568,7 @@ func TestEpochInfoTransition(t *testing.T) {
 				parent = h
 
 				// Build epoch info
-				newEpoch := engine.buildEpochInfo(c, h, nil)
+				newEpoch, _ := engine.buildEpochInfo(c, h, nil)
 				ApplyHeaderQBFTExtra(h, WriteEpochInfo(newEpoch))
 				isEpoch, _, _ := engine.IsEpochBlockNumber(c.chainConfig, h.Number)
 				if newEpoch != nil && !isEpoch {
