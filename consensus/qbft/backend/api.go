@@ -21,16 +21,18 @@
 package backend
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	qbftcommon "github.com/ethereum/go-ethereum/consensus/qbft/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
+	"unicode/utf8"
 )
 
 // API is a user facing RPC API to dump Istanbul state
@@ -277,6 +279,34 @@ func epochForJSON(epoch *types.EpochInfo, valSet []common.Address) map[string]in
 
 }
 
+// DecodeVanityData decodes a 32-byte vanityData field.
+// It detects if the input is UTF-8 or RLP encoded, and decodes accordingly.
+func DecodeVanityData(vanity []byte) string {
+
+	clean := bytes.TrimRight(vanity, "\x00")
+
+	if utf8.Valid(clean) {
+		return string(clean)
+	}
+
+	var val []interface{}
+
+	err := rlp.DecodeBytes(clean, &val)
+	versionBytes := val[0].([]uint8)
+	version := uint32(versionBytes[0])<<16 | uint32(versionBytes[1])<<8 | uint32(versionBytes[2])
+	if err == nil && version > 0 {
+		major := version >> 16
+		minor := (version >> 8) & 0xff
+		patch := version & 0xff
+		clientBytes := val[1].([]byte)
+		goVerBytes := val[2].([]byte)
+		goOSBytes := val[3].([]byte)
+		return fmt.Sprintf("[version: v%d.%d.%d, client: %s, go: %s, os: %s]", major, minor, patch, string(clientBytes), string(goVerBytes), string(goOSBytes))
+	}
+
+	return fmt.Sprintf("Unknown vanityData format, hex: 0x%s", hex.EncodeToString(clean))
+}
+
 func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}, error) {
 	bNumber := big.NewInt(int64(number))
 
@@ -298,8 +328,9 @@ func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}
 
 	validators, err := api.GetValidators(&number)
 
+	//"vanityData":        strings.TrimRight(string(extra.VanityData), "\x00"),
 	result := map[string]interface{}{
-		"vanityData":        "decoded string message",
+		"vanityData":        DecodeVanityData(extra.VanityData),
 		"prevRound":         fmt.Sprintf("0x%x", extra.PrevRound),
 		"prevPreparedSeal":  sealForJSON(extra.PrevPreparedSeal, validators),
 		"prevCommittedSeal": sealForJSON(extra.PrevCommittedSeal, validators),
