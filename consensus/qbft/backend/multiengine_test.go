@@ -127,7 +127,7 @@ func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) int
 		})
 		addrs = append(addrs, addr)
 	}
-	// 이 시점부터 reflect.Select는 값이 들어올 때까지 "대기"합니다.
+
 	chosen, recv, ok := reflect.Select(cases)
 
 	if !ok {
