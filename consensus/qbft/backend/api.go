@@ -325,6 +325,9 @@ func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}
 	}
 
 	validators, err := api.GetValidators(&number)
+	if err != nil {
+		return nil, err
+	}
 
 	result := map[string]interface{}{
 		"vanityData":        DecodeVanityData(extra.VanityData),
