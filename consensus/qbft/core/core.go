@@ -248,9 +248,8 @@ func (c *Core) startNewRound(round *big.Int) {
 	}
 	c.roundChangeSet.NewRound(round)
 
-	if c.IsProposer() {
-		c.backend.NotifyNewRound(round)
-	}
+	c.backend.NotifyNewRound(c.IsProposer(), round)
+
 	// the order of NotifyNewRound() and newRoundChangeTimer() does not matter on actual consensus, but
 	// it matters on multi-engine test, so we keep the order as it is
 	c.newRoundChangeTimer()

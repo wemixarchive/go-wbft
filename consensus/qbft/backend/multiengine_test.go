@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	"reflect"
 	"testing"
 	"time"
 
@@ -112,38 +111,19 @@ type scenario struct {
 }
 
 // all engines are waiting for this to be called
-func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) int {
+func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) {
 	// wait for new round
 
 	actualRound := make([]uint64, len(env.addrs))
-	var cases []reflect.SelectCase
-	var addrs []common.Address
-
-	for _, addr := range env.addrs {
-		ch := env.newRoundReady[addr]
-		cases = append(cases, reflect.SelectCase{
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(ch),
-		})
-		addrs = append(addrs, addr)
+	i := 0
+	for addr, newRoundReady := range env.newRoundReady {
+		round := <-newRoundReady
+		if len(rounds) > 0 && rounds[env.index[addr]] != round {
+			t.Errorf("rounds are mismatch: have %d, want %d", round, rounds[env.index[addr]])
+		}
+		actualRound[i] = round
+		i++
 	}
-
-	chosen, recv, ok := reflect.Select(cases)
-
-	if !ok {
-		t.Errorf("selected channel is closed : chosen : %d", chosen)
-		return -1
-	}
-
-	addr := addrs[chosen]
-	round := recv.Interface().(uint64)
-
-	index := env.index[addr]
-
-	if len(rounds) > 0 && rounds[env.index[addr]] != round {
-		t.Errorf("rounds are mismatch: have %d, want %d", round, rounds[env.index[addr]])
-	}
-	actualRound[index] = round
 
 	// define scenario if any exists
 	if sc != nil {
@@ -157,24 +137,25 @@ func (env *testEnv) GoNewRound(t *testing.T, sc *scenario, rounds ...uint64) int
 	}
 
 	// round go ahead
-	env.roundStartChan[addr] <- struct{}{}
+	for _, roundStartChan := range env.roundStartChan {
+		roundStartChan <- struct{}{}
+	}
 
 	// commit new work
-	env.commitNewWork(addr)
-
-	return env.index[addr]
+	env.commitNewWork()
 }
 
-func (env *testEnv) commitNewWork(addr common.Address) {
+func (env *testEnv) commitNewWork() {
 	env.stopSealingCh = make(chan struct{})
-	engine := env.engines[addr]
+	for _, engine := range env.engines {
+		chain := env.chains[engine.address]
+		block := makeBlockNoNewChainHead(chain, engine, chain.CurrentFullBlock())
+		currState, _ := chain.State()
+		block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
 
-	chain := env.chains[engine.address]
-	block := makeBlockNoNewChainHead(chain, engine, chain.CurrentFullBlock())
-	currState, _ := chain.State()
-	block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
-
-	engine.Seal(chain, block, env.results[engine.address], env.stopSealingCh)
+		// all engines try to seal
+		engine.Seal(chain, block, env.results[engine.address], env.stopSealingCh)
+	}
 }
 
 func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedProposer int, expectedRound uint32) *types.Block {
@@ -185,15 +166,16 @@ func (env *testEnv) MustSucceed(t *testing.T, allowRoundChange bool, expectedPro
 		close(timeoutCh)
 	})
 
-	addr := env.addrs[expectedProposer]
-	go func(addr common.Address) {
-		block := <-env.results[addr]
-		if block != nil {
-			result = block
-			proposer = addr
-			close(env.stopSealingCh) // stop other `Seal`
-		}
-	}(addr)
+	for _, addr := range env.addrs {
+		go func(addr common.Address) {
+			block := <-env.results[addr]
+			if block != nil {
+				result = block
+				proposer = addr
+				close(env.stopSealingCh) // stop other `Seal`
+			}
+		}(addr)
+	}
 
 	select {
 	case <-env.stopSealingCh:
@@ -330,8 +312,8 @@ func (env *testEnv) makeScenarioRandomDown(index ...int) *scenario {
 	}
 }
 
-func makeNotifyNewRound(notifyChan chan uint64, startChan chan struct{}) func(waitTime time.Duration, round *big.Int) {
-	return func(waitTime time.Duration, round *big.Int) {
+func makeNotifyNewRound(notifyChan chan uint64, startChan chan struct{}) func(isProposer bool, waitTime time.Duration, round *big.Int) {
+	return func(isProposer bool, waitTime time.Duration, round *big.Int) {
 		notifyChan <- round.Uint64()
 		<-startChan
 	}
@@ -449,19 +431,9 @@ func TestWBFTTwoEngineDown(t *testing.T) {
 	env.GoNewRound(t, nil, 2, 2, 2, 2)
 	t.Log("round changed to 2")
 
-	// env.GoNewRound(t, env.makeScenarioEngineUp(2), 3, 3, 3, 3)
-	// t.Log("round changed to 3")
-	// env.MustSucceed(t, false, 0, 3) // proposer is engine 0 again after circulation
-
-	for i := 0; i < 10; i++ {
-		expectedRound := uint64(i + 3)
-		env.GoNewRound(t, env.makeScenarioEngineUp(2), expectedRound, expectedRound, expectedRound, expectedRound)
-		t.Logf("round changed to %d", expectedRound)
-		result := env.MustSucceed(t, true, i%4, uint32(expectedRound))
-		if result != nil {
-			break
-		}
-	}
+	env.GoNewRound(t, env.makeScenarioEngineUp(2), 3, 3, 3, 3)
+	t.Log("round changed to 3")
+	env.MustSucceed(t, false, 0, 3) // proposer is engine 0 again after circulation
 }
 
 func TestWBFTPreparedAndRoundChange(t *testing.T) {
@@ -486,11 +458,11 @@ func TestWBFTRandomEngineDown(t *testing.T) {
 	env := MakeMultiEngineTestEnv(4)
 
 	for i := 0; i < 10; i++ {
-		idx := env.GoNewRound(t, env.makeScenarioRandomDown(0, 1, 2, 3))
-		result := env.MustSucceed(t, true, idx, ANY_ROUND)
+		env.GoNewRound(t, env.makeScenarioRandomDown(0, 1, 2, 3))
+		result := env.MustSucceed(t, true, ANY_PROPOSER, ANY_ROUND)
 		for result == nil {
-			idx := env.GoNewRound(t, nil)
-			result = env.MustSucceed(t, true, idx, ANY_ROUND)
+			env.GoNewRound(t, nil)
+			result = env.MustSucceed(t, true, ANY_PROPOSER, ANY_ROUND)
 		}
 	}
 }
