@@ -1,11 +1,11 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // addToExtraSeal adds a seal received after consensus to extraSeals.
