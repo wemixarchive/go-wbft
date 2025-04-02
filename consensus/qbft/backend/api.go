@@ -312,13 +312,13 @@ func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}
 	bNumber := big.NewInt(int64(number))
 
 	if qbft.GetFirstWbftBlockNumber(api.chain.Config()).Cmp(bNumber) > 0 {
-		return nil, errors.New("not a WBFT block")
+		return nil, qbftcommon.ErrIsNotWBFTBlock
 	}
 
 	header := api.chain.GetHeaderByNumber(uint64(number))
 
 	if header == nil {
-		return nil, errors.New("not a WBFT block")
+		return nil, fmt.Errorf("block %d not found", bNumber)
 	}
 
 	extra, err := types.ExtractQBFTExtra(header)
