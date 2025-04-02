@@ -245,7 +245,7 @@ func sealForJSON(seal *types.QBFTAggregatedSeal, valSet []common.Address) map[st
 
 }
 
-func epochForJSON(epoch *types.EpochInfo, valSet []common.Address) map[string]interface{} {
+func epochForJSON(epoch *types.EpochInfo) map[string]interface{} {
 	if epoch == nil {
 		return nil
 	}
@@ -261,15 +261,12 @@ func epochForJSON(epoch *types.EpochInfo, valSet []common.Address) map[string]in
 
 	// Validators
 	validators := make([]map[string]interface{}, 0, len(epoch.Validators))
-	for _, idx := range epoch.Validators {
-		if int(idx) >= len(valSet) || int(idx) >= len(epoch.BLSPublicKeys) {
-			continue
-		}
+	for i, idx := range epoch.Validators {
 
 		validators = append(validators, map[string]interface{}{
 			"index": fmt.Sprintf("0x%x", idx),
-			"addr":  valSet[idx].Hex(),
-			"bls":   "0x" + hex.EncodeToString(epoch.BLSPublicKeys[idx]),
+			"addr":  epoch.GetValidator(idx).Hex(),
+			"bls":   "0x" + hex.EncodeToString(epoch.BLSPublicKeys[i]),
 		})
 	}
 
@@ -338,7 +335,7 @@ func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}
 		"round":             fmt.Sprintf("0x%x", extra.Round),
 		"preparedSeal":      sealForJSON(extra.PreparedSeal, validators),
 		"committedSeal":     sealForJSON(extra.CommittedSeal, validators),
-		"epochInfo":         epochForJSON(extra.EpochInfo, validators),
+		"epochInfo":         epochForJSON(extra.EpochInfo),
 	}
 
 	return result, nil
