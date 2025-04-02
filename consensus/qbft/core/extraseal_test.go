@@ -175,10 +175,8 @@ func TestProcessExtraSeal(t *testing.T) {
 	}
 
 	for _, tm := range testExtraSealMessages {
-		if prepareMsg, ok := tm.(*messages.Prepare); ok {
-			core.addToPrepareExtraSeal(prepareMsg)
-		} else if commitMsg, ok := tm.(*messages.Commit); ok {
-			core.addToCommitExtraSeal(commitMsg)
+		if err := core.addToExtraSeal(tm); err != nil {
+			t.Errorf("error adding to core.extraSeals : %v", err)
 		}
 	}
 
