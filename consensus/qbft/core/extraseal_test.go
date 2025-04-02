@@ -133,7 +133,7 @@ func TestAddToExtraSeal(t *testing.T) {
 	}
 
 	for _, tm := range testExtraSealMessages {
-		err := core.addUnincludedSealToExtraSeal(tm.message)
+		err := core.addToExtraSeal(tm.message)
 		if !errors.Is(err, tm.expectedError) {
 			t.Errorf("unexpected error adding to extraSeal. want %v, have %v", tm.expectedError, err)
 		}
@@ -175,8 +175,10 @@ func TestProcessExtraSeal(t *testing.T) {
 	}
 
 	for _, tm := range testExtraSealMessages {
-		if err := core.addToExtraSeal(tm); err != nil {
-			t.Errorf("error adding to core.extraSeals : %v", err)
+		if prepareMsg, ok := tm.(*messages.Prepare); ok {
+			core.addToPrepareExtraSeal(prepareMsg)
+		} else if commitMsg, ok := tm.(*messages.Commit); ok {
+			core.addToCommitExtraSeal(commitMsg)
 		}
 	}
 
