@@ -25,6 +25,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"unicode/utf8"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	qbft "github.com/ethereum/go-ethereum/consensus/qbft"
@@ -32,8 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"math/big"
-	"unicode/utf8"
 )
 
 // API is a user facing RPC API to dump Istanbul state
@@ -242,7 +243,6 @@ func sealForJSON(seal *types.QBFTAggregatedSeal, valSet []common.Address) map[st
 		"sealers":   sealers,
 		"signature": hex.EncodeToString(seal.Signature),
 	}
-
 }
 
 func epochForJSON(epoch *types.EpochInfo) map[string]interface{} {
@@ -262,7 +262,6 @@ func epochForJSON(epoch *types.EpochInfo) map[string]interface{} {
 	// Validators
 	validators := make([]map[string]interface{}, 0, len(epoch.Validators))
 	for i, idx := range epoch.Validators {
-
 		validators = append(validators, map[string]interface{}{
 			"index": fmt.Sprintf("0x%x", idx),
 			"addr":  epoch.GetValidator(idx).Hex(),
@@ -274,13 +273,11 @@ func epochForJSON(epoch *types.EpochInfo) map[string]interface{} {
 		"stakers":    stakers,
 		"validators": validators,
 	}
-
 }
 
 // DecodeVanityData decodes a 32-byte vanityData field.
 // It detects if the input is UTF-8 or RLP encoded, and decodes accordingly.
 func DecodeVanityData(vanity []byte) string {
-
 	clean := bytes.TrimRight(vanity, "\x00")
 
 	if utf8.Valid(clean) {
@@ -341,5 +338,4 @@ func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}
 	}
 
 	return result, nil
-
 }
