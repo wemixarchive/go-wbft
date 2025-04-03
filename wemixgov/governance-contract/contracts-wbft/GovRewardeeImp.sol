@@ -19,7 +19,8 @@ contract GovRewardeeImp {
         require(amount > 0, "GovRewardee: amount is zero");
         require(amount <= address(this).balance, "GovRewardee: insufficient balance");
 
-        recipient.call{value: amount}(""); // don't use transfer to call receive logic of recipient
+        (bool success, ) = recipient.call{value: amount}(""); // don't use transfer to call receive logic of recipient
+        require(success, "failed to transfer");
 
         emit RewardPaid(recipient, amount);
     }
