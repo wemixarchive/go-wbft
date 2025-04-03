@@ -241,7 +241,7 @@ func sealForJSON(seal *types.QBFTAggregatedSeal, valSet []common.Address) map[st
 
 	return map[string]interface{}{
 		"sealers":   sealers,
-		"signature": hex.EncodeToString(seal.Signature),
+		"signature": "0x" + hex.EncodeToString(seal.Signature),
 	}
 }
 
@@ -290,9 +290,7 @@ func DecodeVanityData(vanity []byte) string {
 	versionBytes := val[0].([]uint8)
 	version := uint32(versionBytes[0])<<16 | uint32(versionBytes[1])<<8 | uint32(versionBytes[2])
 	if err == nil && version > 0 {
-		major := version >> 16
-		minor := (version >> 8) & 0xff
-		patch := version & 0xff
+		major, minor, patch := versionBytes[0], versionBytes[1], versionBytes[2]
 		clientBytes := val[1].([]byte)
 		goVerBytes := val[2].([]byte)
 		goOSBytes := val[3].([]byte)
