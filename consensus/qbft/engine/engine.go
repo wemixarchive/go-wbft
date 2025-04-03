@@ -771,8 +771,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 //
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	e.processFinalize(chain, header, state, txs, uncles, verifyEpoch)
+func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) error {
+	return e.processFinalize(chain, header, state, txs, uncles, verifyEpoch)
 }
 
 // processFinalize is the internal implementation of Finalize.
@@ -783,7 +783,9 @@ func (e *Engine) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 //     and is the last block of the (N-1)th Epoch for the (N)th Epoch.
 func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, epochHandler func(*Engine, consensus.ChainHeaderReader, *types.Header, govwbft.StateReader) error) error {
 	// Accumulate any block and uncle rewards and commit the final state root
-	e.accumulateRewards(chain, state, header)
+	if err := e.accumulateRewards(chain, state, header); err != nil {
+		return err
+	}
 
 	if transitions := qbft.GetStateTransitions(chain.Config(), header.Number); len(transitions) > 0 {
 		for _, st := range transitions {
@@ -986,7 +988,7 @@ func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.St
 }
 
 // AccumulateRewards credits the beneficiary of the given block with a reward.
-func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) {
+func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) error {
 	var blockReward *big.Int
 
 	if chain.Config().IsBrioche(header.Number) {
@@ -1013,7 +1015,8 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 
 		if blockReward.Cmp(bReward) < 0 {
 			// Unreachable if genesis block is set correctly.
-			log.Crit("block reward underflow", "blockReward", blockReward, "bReward", bReward)
+			log.Error("block reward underflow", "blockReward", blockReward, "bReward", bReward)
+			return errors.New("block reward underflow")
 		}
 		blockReward.Sub(blockReward, bReward)
 	}
@@ -1042,7 +1045,8 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 			makeRewardFunc(state, blockReward),
 			getStakerInfo,
 		); err != nil {
-			log.Crit("Error while calculating rewards", "err", err)
+			log.Error("Error while calculating rewards", "err", err)
+			return err
 		}
 	}
 
@@ -1053,6 +1057,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		state.AddBalance(staker.Rewardee, uint256.MustFromBig(blockReward))
 		log.Trace("Block reward left rewards to", "rewardee", staker.Rewardee, "amount", blockReward)
 	}
+	return nil
 }
 
 // calculateRewards calculates the reward for the given block.
