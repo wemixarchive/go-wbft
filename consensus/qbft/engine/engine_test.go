@@ -76,8 +76,6 @@ func toTestAccount(prvKey string) account {
 	blsKey, _ := bls.DeriveFromECDSA(key)
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 
-	//fmt.Println("account addr: , bls : , key: ", addr, hexutil.Encode(blsKey.PublicKey().Marshal()), key)
-
 	return account{key: key, blsKey: blsKey, addr: addr}
 }
 
