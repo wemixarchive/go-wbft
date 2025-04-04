@@ -1567,6 +1567,168 @@ func TestClaimForUnstakedStaker(t *testing.T) {
 	})
 }
 
+func TestZeroTotalStaking(t *testing.T) {
+	var (
+		ctx        = context.TODO()
+		feeRate    = new(big.Int).SetUint64(1000)
+		minStaking = towei(500000)
+
+		v1         = NewTestStaker()
+		delegator1 = NewEOA()
+		delegator2 = NewEOA()
+		delegator3 = NewEOA()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+		delegator2.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+		delegator3.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+	})
+	require.NoError(t, err)
+	defer g.backend.Close()
+
+	stateDB := &TestStateDB{
+		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
+			value, _ := g.backend.Client().StorageAt(ctx, addr, hash, nil)
+			return common.BytesToHash(value)
+		},
+	}
+
+	claimAndCheck := func(t *testing.T, who *EOA, expectedClaimed *big.Int, expectedFee *big.Int) {
+		beforeBalance := g.balanceAt(t, ctx, who.Address, nil)
+		beforeFeeBalance := g.balanceAt(t, ctx, govwbft.StakerInfo(stateDB, v1.Staker.Address).FeeRecipient, nil)
+
+		receipt, err := g.ExpectedOk(g.Claim(t, who, v1.Staker.Address, false))
+		require.NoError(t, err)
+
+		gasCost := calcTxGasCost(receipt)
+		afterBalance := g.balanceAt(t, ctx, who.Address, nil)
+		afterFeeBalance := g.balanceAt(t, ctx, govwbft.StakerInfo(stateDB, v1.Staker.Address).FeeRecipient, nil)
+
+		if expectedClaimed.Sign() == 0 {
+			require.Equal(t, 0, afterBalance.Sub(afterBalance, new(big.Int).Sub(beforeBalance, gasCost)).Sign())
+		} else {
+			require.Equal(t, expectedClaimed, afterBalance.Sub(afterBalance, new(big.Int).Sub(beforeBalance, gasCost)))
+		}
+
+		if expectedFee.Sign() == 0 {
+			require.Equal(t, 0, afterFeeBalance.Sub(afterFeeBalance, beforeFeeBalance).Sign())
+		} else {
+			require.Equal(t, expectedFee, afterFeeBalance.Sub(afterFeeBalance, beforeFeeBalance))
+		}
+	}
+
+	t.Run("preparation", func(t *testing.T) {
+		// preparation:
+		//  - register staker
+		//  - delegation
+		//  - request changing fee
+		//  - distribute reward
+		//  - unstake
+		_, err := g.ExpectedOk(g.RegisterStaker(t, v1, minStaking, feeRate))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Delegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		_, err = g.ExpectedOk(g.Undelegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		// make total staking zero
+		receipt, err := g.ExpectedOk(g.Unstake(t, v1.Operator, minStaking))
+		require.NoError(t, err)
+
+		unstakeEvent := findEvent("NewCredential", receipt.Logs)
+		require.NotNil(t, unstakeEvent)
+
+		unbonding := unstakeEvent["unbonding"].(*big.Int)
+		g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
+
+		// withdraw all
+		_, err = g.ExpectedOk(g.Withdraw(t, v1.Operator, v1.Staker.Address, common.Big0))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Withdraw(t, delegator1, v1.Staker.Address, common.Big0))
+		require.NoError(t, err)
+
+		stakingBalance := g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil)
+		require.Equal(t, stakingBalance.Sign(), 0)
+	})
+
+	t.Run("delegator1 can claim", func(t *testing.T) {
+		// miss distribution for no staking; no one can take this reward
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		// this should not include miss distribution
+		claimAndCheck(t, delegator1, towei(45), towei(5))
+	})
+
+	t.Run("v1 restake", func(t *testing.T) {
+		_, err := g.ExpectedOk(g.Stake(t, v1.Operator, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address)
+
+		_, err = g.ExpectedOk(g.Delegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Delegate(t, delegator2, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Delegate(t, delegator3, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+	})
+
+	t.Run("v1, delegator1 claim", func(t *testing.T) {
+		distributeReward(t, g, stateDB, towei(200), v1.Staker.Address)
+
+		claimAndCheck(t, v1.Operator, towei(300), common.Big0)
+		claimAndCheck(t, delegator1, towei(45), towei(5))
+	})
+
+	t.Run("all unstake", func(t *testing.T) {
+		_, err := g.ExpectedOk(g.Unstake(t, v1.Operator, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(300), v1.Staker.Address) // reward for delegator1, 2, 3
+
+		_, err = g.ExpectedOk(g.Undelegate(t, delegator1, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(200), v1.Staker.Address) // reward for delegator2, 3
+
+		_, err = g.ExpectedOk(g.Undelegate(t, delegator2, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address) // reward for delegator3
+
+		_, err = g.ExpectedOk(g.Undelegate(t, delegator3, v1.Staker.Address, minStaking))
+		require.NoError(t, err)
+	})
+
+	t.Run("v1 restake", func(t *testing.T) {
+		_, err := g.ExpectedOk(g.Stake(t, v1.Operator, minStaking))
+		require.NoError(t, err)
+
+		distributeReward(t, g, stateDB, towei(100), v1.Staker.Address) // reward for v1
+	})
+
+	t.Run("all claim", func(t *testing.T) {
+		claimAndCheck(t, delegator1, towei(90), towei(10))
+		claimAndCheck(t, delegator2, towei(225), towei(25))
+
+		_, err := g.ExpectedOk(g.Unstake(t, v1.Operator, minStaking))
+		require.NoError(t, err)
+
+		claimAndCheck(t, delegator3, towei(315), towei(35))
+	})
+}
+
 func TestSetCode(t *testing.T) {
 	var testSource string = `
 		pragma solidity ^0.8.0;
