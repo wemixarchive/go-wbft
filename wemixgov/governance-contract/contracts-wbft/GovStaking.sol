@@ -62,6 +62,7 @@ contract GovStaking {
     event ChangingFeeRateRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
     event ChangingFeeRateExecuted(address indexed staker, uint256 newFeeRate);
     event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient);
+    event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
 
     GovConst public constant GOV_CONST = GovConst(address(0x1000));
 
