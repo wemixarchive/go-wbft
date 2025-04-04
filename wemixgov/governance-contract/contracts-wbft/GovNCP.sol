@@ -54,6 +54,7 @@ contract GovNCP {
 
     event NCPAdded(address indexed ncp);
     event NCPRemoved(address indexed ncp);
+    event NCPChanged(address indexed oldNCP, address indexed newNCP);
 
     modifier onlyNCP() {
         require(__ncpList.contains(msg.sender), "msg.sender is not ncp");
@@ -76,6 +77,20 @@ contract GovNCP {
     function newProposalToRemoveNCP(address _ncp) external onlyNCP {
         require(__ncpList.contains(_ncp), "invalid ncp");
         _newProposal(_ncp, ProposalType.NCPRemoval);
+
+        if (msg.sender == _ncp) {
+            Proposal storage _proposal = _getVotingProposal(currentProposalID);
+            _finalizeProposal(_proposal, true);
+        }
+    }
+
+    function changeNCP(address _ncp) external onlyNCP {
+        require(!__ncpList.contains(_ncp), "ncp already exists");
+
+        __ncpList.remove(msg.sender);
+        __ncpList.add(_ncp);
+
+        emit NCPChanged(msg.sender, _ncp);
     }
 
     function vote(uint256 _proposalID, bool _accept) external onlyNCP {
