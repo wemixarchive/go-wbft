@@ -354,16 +354,15 @@ contract GovStaking {
 
     function withdraw(address _staker, uint256 _withdrawalCount) external isRegistered(_staker) {
         UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
-        require(_userInfo.credentialIndex - _userInfo.withdrawalIndex > 0, "no credential to withdraw");
+        require(_userInfo.credentialIndex > _userInfo.withdrawalIndex , "no credential to withdraw");
 
-        bool _countCheck = true;
-        if (_withdrawalCount == 0) {
-            _withdrawalCount = _userInfo.credentialIndex - _userInfo.withdrawalIndex;
-            _countCheck = false;
-        }
-        for (uint256 i = _userInfo.withdrawalIndex; i < _userInfo.credentialIndex && _withdrawalCount > 0; i++) {
+        uint256 remainingCount = _withdrawalCount == 0
+            ? _userInfo.credentialIndex - _userInfo.withdrawalIndex
+            : _withdrawalCount;
+        for (uint256 i = _userInfo.withdrawalIndex; i < _userInfo.credentialIndex && remainingCount > 0; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
             if (block.timestamp < _credential.withdrawableTime) {
+                require(_withdrawalCount == 0, "withdrawal time not reached");
                 break;
             }
             _userInfo.withdrawalIndex++;
@@ -375,11 +374,7 @@ contract GovStaking {
 
             delete credentials[msg.sender][i];
 
-            _withdrawalCount--;
-        }
-
-        if (_countCheck) {
-            require(_withdrawalCount == 0, "withdrawal time not reached");
+            remainingCount--;
         }
     }
 
