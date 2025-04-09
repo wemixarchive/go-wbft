@@ -519,8 +519,9 @@ func (e *Engine) GetStakers(config *params.ChainConfig, latestEpochInfo *types.E
 }
 
 type stakerInfo struct {
-	isValidator bool
-	staker      *types.Staker
+	isValidator  bool // in current epoch
+	wasValidator bool // in previous epoch
+	staker       *types.Staker
 }
 
 func checkMontBlancConfig(config *params.ChainConfig) error {
@@ -598,7 +599,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 	// Traverse blocks until reaching the epoch block.
 	// Stop counting if the block reaches to the epoch block.
-	for it := header; latestEpoch.Cmp(it.Number) != 0; {
+	it := header
+	for latestEpoch.Cmp(it.Number) != 0 {
 		extra, err := types.ExtractQBFTExtra(it)
 		if err != nil {
 			log.Error("failed to extract qbft extra data", "err", err)
@@ -664,10 +666,27 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	for _, staker := range latestEpochInfo.Stakers {
 		stakerMap[staker.Addr] = &stakerInfo{staker: staker}
 	}
-	for _, validator := range latestEpochInfo.Validators {
-		addr := latestEpochInfo.GetValidator(validator)
+	for _, val := range latestEpochInfo.Validators {
+		addr := latestEpochInfo.GetValidator(val)
 		stakerMap[addr].isValidator = true
 		validators = append(validators, addr)
+	}
+
+	// set prior validator
+	firstEpochNum := qbft.GetFirstWbftBlockNumber(config)
+	if it.Number.Cmp(firstEpochNum) > 0 {
+		parent := chain.GetHeader(it.ParentHash, it.Number.Uint64()-1)
+		_, priorEpochInfo, err2 := e.GetEpochInfo(chain, parent, nil)
+		if err2 != nil {
+			log.Error("failed to get prior epoch info", "err", err2)
+			return nil, err2
+		}
+		for _, val := range priorEpochInfo.Validators {
+			addr := priorEpochInfo.GetValidator(val)
+			if stakerMap[addr] != nil { // if stakerMap[addr] == nil -> this is not current staker
+				stakerMap[addr].wasValidator = true
+			}
+		}
 	}
 
 	// Accumulate proposer counts being selected within epoch.
@@ -711,15 +730,26 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		if stakerInfo == nil {
 			// Assign default diligence for new staker.
 			d = types.DefaultDiligence
-		} else if !stakerInfo.isValidator {
-			// Keep current cumulative diligence if staker is not validator for current epoch.
-			d = stakerInfo.staker.Diligence
 		} else {
 			// Calculate validator's diligence for current epoch.
 			//
 			// If validator proposed any blocks, d(h) = p / (2*v*w) + s / (2*e),
 			// Otherwise, d(h) = 1 + s / (2*e)
-			d += uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2*epochLength)
+
+			// applyingRate:
+			// - prior_not && current_validator: e-1
+			// - prior_validator && current_not: 1
+			// - prior_validator && current_validator: e
+			currentApplyingRate := epochLength
+			d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2*epochLength)
+			if !stakerInfo.isValidator {
+				currentApplyingRate = 1
+				d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2)
+			} else if !stakerInfo.wasValidator {
+				currentApplyingRate = epochLength - 1
+				d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2*(epochLength-1))
+			}
+
 			if proposedCountsInEpoch[staker] > 0 {
 				d += uint64(proposedSealsInEpoch[staker]) * types.DiligenceDenominator /
 					uint64(2*len(latestEpochInfo.Validators)*proposedCountsInEpoch[staker])
