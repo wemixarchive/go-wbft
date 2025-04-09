@@ -250,18 +250,18 @@ func TestGovWithoutNCP(t *testing.T) {
 
 		t.Run("withdraw failure case", func(t *testing.T) {
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Withdraw(t, s2.Operator, s1.Staker.Address, common.Big0)),
+				g.ExpectedFail(g.Withdraw(t, s2.Operator, common.Big0)),
 				"no credential to withdraw",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Withdraw(t, s1.Operator, s1.Staker.Address, common.Big1)),
+				g.ExpectedFail(g.Withdraw(t, s1.Operator, common.Big1)),
 				"withdrawal time not reached",
 			)
 
 			// no error, no withdrawal
 			beforeBalance := g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil)
-			_, err := g.ExpectedOk(g.Withdraw(t, s1.Operator, s1.Staker.Address, common.Big0))
+			_, err := g.ExpectedOk(g.Withdraw(t, s1.Operator, common.Big0))
 			require.NoError(t, err)
 			afterBalance := g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil)
 			require.Equal(t, beforeBalance, afterBalance)
@@ -272,7 +272,7 @@ func TestGovWithoutNCP(t *testing.T) {
 
 			unbonding := unstakeEvent["unbonding"].(*big.Int)
 			g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-			receipt, err := g.ExpectedOk(g.Withdraw(t, s1.Operator, s1.Staker.Address, common.Big0))
+			receipt, err := g.ExpectedOk(g.Withdraw(t, s1.Operator, common.Big0))
 			require.NoError(t, err)
 
 			gasCost := calcTxGasCost(receipt)
@@ -301,7 +301,7 @@ func TestGovWithoutNCP(t *testing.T) {
 
 				unbonding := unstakeEvent["unbonding"].(*big.Int)
 				g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-				receipt, err := g.ExpectedOk(g.Withdraw(t, s2.Operator, s2.Staker.Address, common.Big0))
+				receipt, err := g.ExpectedOk(g.Withdraw(t, s2.Operator, common.Big0))
 				require.NoError(t, err)
 
 				gasCost := calcTxGasCost(receipt)
@@ -379,7 +379,7 @@ func TestGovWithoutNCP(t *testing.T) {
 		unbonding := unstakeEvent["unbonding"].(*big.Int)
 		g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
 
-		_, err = g.ExpectedOk(g.Withdraw(t, s1.Operator, s1.Staker.Address, common.Big0))
+		_, err = g.ExpectedOk(g.Withdraw(t, s1.Operator, common.Big0))
 		require.NoError(t, err)
 
 		t.Run("Failed to reactivate", func(t *testing.T) {
@@ -428,7 +428,7 @@ func TestGovWithoutNCP(t *testing.T) {
 
 		t.Run("failure case", func(t *testing.T) {
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Withdraw(t, delegator, s1.Staker.Address, common.Big1)),
+				g.ExpectedFail(g.Withdraw(t, delegator, common.Big1)),
 				"withdrawal time not reached",
 			)
 
@@ -454,7 +454,7 @@ func TestGovWithoutNCP(t *testing.T) {
 
 			unbonding := undelegateEvent["unbonding"].(*big.Int)
 			g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-			receipt, err := g.ExpectedOk(g.Withdraw(t, delegator, s1.Staker.Address, common.Big0))
+			receipt, err := g.ExpectedOk(g.Withdraw(t, delegator, common.Big0))
 			require.NoError(t, err)
 
 			gasCost := calcTxGasCost(receipt)
@@ -484,7 +484,7 @@ func TestGovWithoutNCP(t *testing.T) {
 
 				unbonding := unstakeEvent["unbonding"].(*big.Int)
 				g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-				withdrawReceipt, err := g.ExpectedOk(g.Withdraw(t, s1.Operator, s1.Staker.Address, common.Big1))
+				withdrawReceipt, err := g.ExpectedOk(g.Withdraw(t, s1.Operator, common.Big1))
 				require.NoError(t, err)
 
 				gasCost := calcTxGasCost(withdrawReceipt)
@@ -1173,7 +1173,7 @@ func TestGovReward(t *testing.T) {
 
 		unbonding := undelegateEvent["unbonding"].(*big.Int)
 		g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-		receipt, err = g.ExpectedOk(g.Withdraw(t, delegator1, v1.Staker.Address, common.Big0))
+		receipt, err = g.ExpectedOk(g.Withdraw(t, delegator1, common.Big0))
 		require.NoError(t, err)
 
 		gasCost := calcTxGasCost(receipt)
@@ -1650,10 +1650,10 @@ func TestZeroTotalStaking(t *testing.T) {
 		g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
 
 		// withdraw all
-		_, err = g.ExpectedOk(g.Withdraw(t, v1.Operator, v1.Staker.Address, common.Big0))
+		_, err = g.ExpectedOk(g.Withdraw(t, v1.Operator, common.Big0))
 		require.NoError(t, err)
 
-		_, err = g.ExpectedOk(g.Withdraw(t, delegator1, v1.Staker.Address, common.Big0))
+		_, err = g.ExpectedOk(g.Withdraw(t, delegator1, common.Big0))
 		require.NoError(t, err)
 
 		stakingBalance := g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil)
@@ -1901,7 +1901,7 @@ func TestGovGetBls(t *testing.T) {
 
 		unbonding := unstakeEvent["unbonding"].(*big.Int)
 		g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
-		_, err = g.ExpectedOk(g.Withdraw(t, s1.Operator, s1.Staker.Address, common.Big0))
+		_, err = g.ExpectedOk(g.Withdraw(t, s1.Operator, common.Big0))
 		require.NoError(t, err)
 
 		expected, err := s1.GetBLSPublicKey()

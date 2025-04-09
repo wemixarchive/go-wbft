@@ -140,8 +140,8 @@ func (g *GovWBFT) Claim(t *testing.T, user *EOA, staker common.Address, restake 
 	return g.stakingContractTx(t, "claim", user, nil, staker, restake)
 }
 
-func (g *GovWBFT) Withdraw(t *testing.T, sender *EOA, staker common.Address, count *big.Int) (*types.Transaction, error) {
-	return g.stakingContractTx(t, "withdraw", sender, nil, staker, count)
+func (g *GovWBFT) Withdraw(t *testing.T, sender *EOA, count *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "withdraw", sender, nil, count)
 }
 
 func (g *GovWBFT) RequestChangingFee(t *testing.T, sender *EOA, newFeeRate *big.Int) (*types.Transaction, error) {

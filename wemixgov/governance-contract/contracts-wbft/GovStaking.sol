@@ -32,6 +32,9 @@ contract GovStaking {
         uint256 pendingFee;
         uint256 rewardPerStaking;
         uint256 feePerStaking;
+    }
+
+    struct UserCredentialInfo {
         uint256 credentialIndex;
         uint256 withdrawalIndex;
         // credentialCount = credentialIndex - withdrawalIndex
@@ -55,7 +58,7 @@ contract GovStaking {
     event Delegated(address indexed delegator, address indexed staker, uint256 amount);
     event Undelegated(address indexed delegator, address indexed staker, uint256 amount);
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
-    event Withdrawn(address indexed requester, address indexed staker, uint256 withdrawalIndex, uint256 amount);
+    event Withdrawn(address indexed requester, uint256 withdrawalIndex, uint256 amount);
     event RewardInfoUpdated(address indexed staker, uint256 totalStaked, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking, uint256 accFeePerStaking);
     event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking, uint256 accFeePerStaking);
     event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake);
@@ -81,17 +84,18 @@ contract GovStaking {
 
     // Withdrawal Credential: credentials[user][credentialIndex]
     mapping(address => mapping(uint256 => WithdrawalCredential)) public credentials; // 0x6
+    mapping(address => UserCredentialInfo) public userCredential; // 0x7
 
     // pending request
-    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0x7
+    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0x8
 
     // User Reward Info
-    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0x8
+    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0x9
 
     // danglingDelegated is the delegated balance for the inactive stakers
     // contract's balance = totalStaked + danglingDelegated + unbonding
-    uint256 public danglingDelegated; // 0x9
-    bool public afterStabilization; // 0xa
+    uint256 public danglingDelegated; // 0xa
+    bool public afterStabilization; // 0xb
 
     // state definition
     // - UNREGISTERED: stakerInfo[staker].operator = 0
@@ -278,7 +282,7 @@ contract GovStaking {
             emit StakerRemoved(_staker);
         }
 
-        _newCredential(_userInfo, _amount, GOV_CONST.UNBONDING_PERIOD_STAKER());
+        _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_STAKER());
 
         emit Unstaked(_staker, _amount);
     }
@@ -304,7 +308,7 @@ contract GovStaking {
         _subStaking(_staker, msg.sender, _amount);
 
         if (isStaker(_staker)) {
-            _newCredential(userRewardInfo[_staker][msg.sender], _amount, GOV_CONST.UNBONDING_PERIOD_DELEGATOR());
+            _newCredential(_amount, GOV_CONST.UNBONDING_PERIOD_DELEGATOR());
         } else {
             danglingDelegated -= _amount;
 
@@ -352,25 +356,25 @@ contract GovStaking {
         emit Claimed(_staker, msg.sender, _reward, _restake);
     }
 
-    function withdraw(address _staker, uint256 _withdrawalCount) external isRegistered(_staker) {
-        UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
-        require(_userInfo.credentialIndex > _userInfo.withdrawalIndex , "no credential to withdraw");
+    function withdraw(uint256 _withdrawalCount) external {
+        UserCredentialInfo storage _userCredential = userCredential[msg.sender];
+        require(_userCredential.credentialIndex > _userCredential.withdrawalIndex , "no credential to withdraw");
 
         uint256 _remainingCount = _withdrawalCount == 0
-            ? _userInfo.credentialIndex - _userInfo.withdrawalIndex
+            ? _userCredential.credentialIndex - _userCredential.withdrawalIndex
             : _withdrawalCount;
-        for (uint256 i = _userInfo.withdrawalIndex; i < _userInfo.credentialIndex && _remainingCount > 0; i++) {
+        for (uint256 i = _userCredential.withdrawalIndex; i < _userCredential.credentialIndex && _remainingCount > 0; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
             if (block.timestamp < _credential.withdrawableTime) {
                 require(_withdrawalCount == 0, "withdrawal time not reached");
                 break;
             }
-            _userInfo.withdrawalIndex++;
+            _userCredential.withdrawalIndex++;
 
             (bool success, ) = payable(msg.sender).call{value: _credential.amount}("");
             require(success, "failed to send withdrawal amount");
 
-            emit Withdrawn(msg.sender, _staker, _userInfo.withdrawalIndex, _credential.amount);
+            emit Withdrawn(msg.sender, _userCredential.withdrawalIndex, _credential.amount);
 
             delete credentials[msg.sender][i];
 
@@ -437,15 +441,16 @@ contract GovStaking {
         _userInfo.stakingAmount -= _amount;
     }
 
-    function _newCredential(UserInfo storage _userInfo, uint256 _amount, uint256 _unbondingPeriod) private {
-        credentials[msg.sender][_userInfo.credentialIndex] = WithdrawalCredential({
+    function _newCredential(uint256 _amount, uint256 _unbondingPeriod) private {
+        UserCredentialInfo storage _userCredential = userCredential[msg.sender];
+        credentials[msg.sender][_userCredential.credentialIndex] = WithdrawalCredential({
             amount: _amount,
             requestTime: block.timestamp,
             withdrawableTime: block.timestamp + _unbondingPeriod
         });
 
-        _userInfo.credentialIndex++;
-        emit NewCredential(_userInfo.credentialIndex, msg.sender, _amount, block.timestamp, _unbondingPeriod);
+        _userCredential.credentialIndex++;
+        emit NewCredential(_userCredential.credentialIndex, msg.sender, _amount, block.timestamp, _unbondingPeriod);
     }
 
     function getStakerAmount(address _staker) external view returns (uint256) {
