@@ -109,8 +109,8 @@ contract GovStaking {
     }
 
     // Rewardee sends coin to this contract, so receive() is required
-    receive() external payable {
-        require(isStaker(stakerByRewardee[msg.sender]), "only an active rewardee can send coin");
+     fallback() external payable {
+        require(isStaker(stakerByRewardee[msg.sender]), "Invalid call");
     }
 
     function isStaker(address _staker) public view returns (bool) {
@@ -308,15 +308,15 @@ contract GovStaking {
 
         if (_restake) {
             require(isStaker(_staker), "unregistered staker");
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward, GovConst.SEND_REWARD_SELECTOR());
 
             _addStaking(_staker, msg.sender, _reward);
         } else {
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward, GovConst.SEND_REWARD_SELECTOR());
         }
 
         if (_fee > 0) {
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(_stakerInfo.feeRecipient), _fee);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(_stakerInfo.feeRecipient), _fee, GovConst.SEND_FEE_SELECTOR());
         }
 
         _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;

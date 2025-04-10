@@ -51,7 +51,7 @@ contract MultiSigWallet is IMultiSigWallet {
         }
     }
 
-    receive() external payable {
+    receive() external payable virtual {
         emit Deposit(msg.sender, msg.value, address(this).balance);
     }
 
@@ -64,10 +64,10 @@ contract MultiSigWallet is IMultiSigWallet {
      * @param _value Ether value.
      * @param _data Transaction data.
      */
-    function submitTransaction(address _to, uint256 _value, bytes memory _data) public onlyOwner {
+    function submitTransaction(address _to, uint256 _value, bytes memory _data) public virtual onlyOwner {
         // transaction id starts with 1
         uint256 transactionId = transactions.length + 1;
-        bytes32 proposalHash = getProposalHash(msg.sender, block.number);
+        bytes32 proposalHash = keccak256(abi.encodePacked( msg.sender, block.number));
         require(proposalHashToTxId[proposalHash] == 0, "Duplicate proposal in same block");
         
         proposalHashToTxId[proposalHash] = transactionId;
@@ -139,7 +139,7 @@ contract MultiSigWallet is IMultiSigWallet {
      * @param blockNumber Block number that transaction is submitted.
      * @return int64 transaction id 
      */
-    function getTransactionId(address proposer, uint256 blockNumber) public pure returns (uint256) {
+    function getTransactionId(address proposer, uint256 blockNumber) public view returns (uint256) {
         return proposalHashToTxId[keccak256(abi.encodePacked(proposer, blockNumber))];
     }    
 

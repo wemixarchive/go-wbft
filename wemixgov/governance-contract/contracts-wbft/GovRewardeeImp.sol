@@ -14,12 +14,11 @@ contract GovRewardeeImp {
         _;
     }
 
-    function sendRewardTo(address payable recipient, uint256 amount) onlyGovStaking external {
+    function sendRewardTo(address payable recipient, uint256 amount, bytes4 selector) onlyGovStaking external {
         require(recipient != address(0), "GovRewardee: recipient is the zero address");
         require(amount > 0, "GovRewardee: amount is zero");
         require(amount <= address(this).balance, "GovRewardee: insufficient balance");
-
-        (bool success, ) = recipient.call{value: amount}(""); // don't use transfer to call receive logic of recipient
+        (bool success, ) = recipient.call{value: amount}(selector); // don't use transfer to call receive logic of recipient
         require(success, "failed to transfer");
 
         emit RewardPaid(recipient, amount);
