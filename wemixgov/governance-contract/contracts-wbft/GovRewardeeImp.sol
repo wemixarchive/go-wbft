@@ -18,7 +18,7 @@ contract GovRewardeeImp {
         require(recipient != address(0), "GovRewardee: recipient is the zero address");
         require(amount > 0, "GovRewardee: amount is zero");
         require(amount <= address(this).balance, "GovRewardee: insufficient balance");
-        (bool success, ) = recipient.call{value: amount}(selector); // don't use transfer to call receive logic of recipient
+        (bool success, ) = recipient.call{value: amount}(abi.encodePacked(selector)); // don't use transfer to call receive logic of recipient
         require(success, "failed to transfer");
 
         emit RewardPaid(recipient, amount);
