@@ -46,6 +46,7 @@ contract GovNCP {
 
     uint256 public currentProposalID;
     mapping(uint256 => Proposal) private __proposals;
+    mapping(address => bool) private __lockedNCPs;
 
     event NewProposal(uint256 indexed id, uint256 proposalType, address ncp, address proposer, uint256 time, uint256 endtime);
     event Vote(uint256 indexed proposalID, address voter, bool accept);
@@ -86,6 +87,7 @@ contract GovNCP {
 
     function changeNCP(address _ncp) external onlyNCP {
         require(!__ncpList.contains(_ncp), "ncp already exists");
+        require(!__lockedNCPs[msg.sender], "belong in an on-going proposal");
 
         __ncpList.remove(msg.sender);
         __ncpList.add(_ncp);
@@ -142,6 +144,9 @@ contract GovNCP {
         _proposal.proposalType = _proposalType;
         _proposal.state = ProposalState.Voting;
 
+        __lockedNCPs[msg.sender] = true;
+        __lockedNCPs[_targetNCP] = true;
+
         emit NewProposal(currentProposalID, uint(_proposalType), _targetNCP, msg.sender, block.timestamp, _proposal.endTime);
     }
 
@@ -164,6 +169,10 @@ contract GovNCP {
         } else {
             _proposal.state = ProposalState.Rejected;
         }
+
+        __lockedNCPs[_proposal.proposer] = false;
+        __lockedNCPs[_proposal.targetNCP] = false;
+
         emit ProposalFinalized(currentProposalID, _accepted);
 
         currentProposalID++;

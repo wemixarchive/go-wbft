@@ -917,6 +917,24 @@ func TestGovWithNCP(t *testing.T) {
 		ncps = removeElement(ncps, ncp2.Operator.Address)
 		ncps = append(ncps, ncp4.Operator.Address)
 	})
+
+	t.Run("Cannot change NCP for being locked", func(t *testing.T) {
+		defer checkNCPStaker()
+
+		_, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Operator, ncp4.Operator.Address))
+		require.NoError(t, err)
+		// ncp1, ncp4 locked
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ChangeNCP(t, ncp1.Operator, ncp2.Operator.Address)),
+			"belong in an on-going proposal",
+		)
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ChangeNCP(t, ncp4.Operator, ncp2.Operator.Address)),
+			"belong in an on-going proposal",
+		)
+	})
 }
 
 func removeElement(slice []common.Address, value common.Address) []common.Address {
