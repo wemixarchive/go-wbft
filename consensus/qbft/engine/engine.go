@@ -588,7 +588,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	submittedSealsInEpoch := make(map[common.Address]int)
 	proposedCountsInEpoch := make(map[common.Address]int)
 	proposers := []common.Address{}
-	epochLength := 0
+	epochLength := uint64(0)
 
 	var lastProposer common.Address
 	latestEpoch, latestEpochInfo, err := e.GetEpochInfo(chain, header, nil)
@@ -627,34 +627,35 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		}
 
 		// Accumulate PrevPreparedSeal counts.
-		prepareSigners, err := getSignerAddress(epochInfo, extra.PrevPreparedSeal)
-		if err != nil {
-			// If the parent block is the genesis block, PrevPreparedSeal can be nil
-			if err != qbftcommon.ErrEmptySeals || parent.Number.Sign() != 0 {
+		if parent.Number.Sign() == 0 {
+			// If the parent block is the genesis block, PrevPreparedSeal is empty.
+			// So we don't count proposed seal for the first block.
+			proposedCountsInEpoch[proposer]-- // it will be -1
+		} else {
+			prepareSigners, err := getSignerAddress(epochInfo, extra.PrevPreparedSeal)
+			if err != nil {
 				log.Error("failed to get prev prepare signers", "err", err)
 				return nil, err
 			}
-		}
-		proposedSealsInEpoch[proposer] += len(prepareSigners)
-		for _, addr := range prepareSigners {
-			submittedSealsInEpoch[addr]++
-		}
 
-		// Accumulate PrevCommittedSeal counts.
-		commitSigners, err := getSignerAddress(epochInfo, extra.PrevCommittedSeal)
-		if err != nil {
-			// If the parent block is the genesis block, PrevCommittedSeal can be nil
-			if err != qbftcommon.ErrEmptySeals || parent.Number.Sign() != 0 {
+			proposedSealsInEpoch[proposer] += len(prepareSigners)
+			for _, addr := range prepareSigners {
+				submittedSealsInEpoch[addr]++
+			}
+
+			// Accumulate PrevCommittedSeal counts.
+			commitSigners, err := getSignerAddress(epochInfo, extra.PrevCommittedSeal)
+			if err != nil {
 				log.Error("failed to get prev commit signers", "err", err)
 				return nil, err
 			}
-		}
-		proposedSealsInEpoch[proposer] += len(commitSigners)
-		for _, addr := range commitSigners {
-			submittedSealsInEpoch[addr]++
-		}
+			proposedSealsInEpoch[proposer] += len(commitSigners)
+			for _, addr := range commitSigners {
+				submittedSealsInEpoch[addr]++
+			}
 
-		log.Trace("Seals count", "current block number", it.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
+			log.Trace("Seals count", "current block number", it.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
+		}
 
 		// Update current header.
 		it = parent
@@ -740,14 +741,17 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			// - prior_not && current_validator: e-1
 			// - prior_validator && current_not: 1
 			// - prior_validator && current_validator: e
-			currentApplyingRate := epochLength
-			d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2*epochLength)
+			applyingRate := epochLength
+			d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / (2 * epochLength)
 			if !stakerInfo.isValidator {
-				currentApplyingRate = 1
-				d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2)
+				applyingRate = 1
+				d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / 2
 			} else if !stakerInfo.wasValidator {
-				currentApplyingRate = epochLength - 1
-				d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(2*(epochLength-1))
+				applyingRate = epochLength - 1
+				if uint64(submittedSealsInEpoch[staker]) > 2*(epochLength-1) {
+					return nil, errors.New("seal count exceed the range for non validator in prior epoch")
+				}
+				d = uint64(submittedSealsInEpoch[staker]) * types.DiligenceDenominator / (2 * (epochLength - 1))
 			}
 
 			if proposedCountsInEpoch[staker] > 0 {
@@ -759,8 +763,10 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 			// Calculate validator's cumulative diligence for next epoch.
 			//
-			// D(h) = D(h-1) * 0.9 + d(h) * 0.1
-			d = (stakerInfo.staker.Diligence*9 + d) / 10
+			// (n-1)validator-(n)validator:     D(h) = D(h-1) * 9/10 +          d(h) * 1/10
+			// (n-1)non-validator-(n)validator: D(h) = D(h-1) * (9e + 1)/10e +  d(h) * (e-1)/10e
+			// (n-1)validator-(n)non-validator: D(h) = D(h-1) * (10e - 1)/10e + d(h) * 1/10e
+			d = (stakerInfo.staker.Diligence*(10*epochLength-applyingRate) + d*applyingRate) / 10 / epochLength
 		}
 
 		newEpoch.Stakers[i] = &types.Staker{
