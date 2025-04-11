@@ -141,8 +141,12 @@ contract OperatorSample is MultiSigWallet, IFeeRecipient {
             _staker,
             _restake
         );
+        _receivingRewardStat = true;
         (bool success, ) = GOV_STAKING.call(data);
-        require(success, "claim tx failed");
+        if (!success) {
+            _receivingRewardStat = false;
+            revert("claim tx failed");
+        }
     }
 
 
