@@ -3,55 +3,31 @@
 pragma solidity 0.8.14;
 
 import {MultiSigWallet} from "./MultiSigWallet.sol";
+import {IFeeRecipient, IERC165} from "./IFeeRecipient.sol";
 
 
-contract OperatorSample is MultiSigWallet {
+contract OperatorSample is MultiSigWallet, IFeeRecipient {
     address public constant GOV_STAKING = address(0x1001);
-    bytes4 private constant SEND_FEE_SELECTOR = bytes4(keccak256("sendFee()"));
-    bytes4 private constant SEND_REWARD_SELECTOR = bytes4(keccak256("sendReward()"));
-    bytes4 private constant WITHDRAW_FEE_AMOUNT_SELECTOR = bytes4(keccak256("withdrawFeeAmount(address)"));
-    bytes4 private constant WITHDRAW_REWARD_AMOUNT_SELECTOR = bytes4(keccak256("withdrawRewardAmount(address)"));
-    bytes4 private constant WITHDRAW_UNSTAKED_AMOUNT_SELECTOR = bytes4(keccak256("withdrawUnstakedAmount(address)"));
+    bytes4 private constant _WITHDRAW_FEE_AMOUNT_SELECTOR = bytes4(keccak256("withdrawFeeAmount(address)"));
+    bytes4 private constant _WITHDRAW_REWARD_AMOUNT_SELECTOR = bytes4(keccak256("withdrawRewardAmount(address)"));
+    bytes4 private constant _WITHDRAW_UNSTAKED_AMOUNT_SELECTOR = bytes4(keccak256("withdrawUnstakedAmount(address)"));
 
     mapping(address => bool) private __claimers;
-    uint256 public feeAmount;
     uint256 public unstakedAmount;
     uint256 public rewardAmount;
+    uint256 public feeAmount;
 
     uint8 private constant _NOT_ENTERED = 1;
     uint8 private constant _ENTERED = 2;
     uint8 private _status;
 
+    bool private _receivingRewardStat;
 
     event ReceivedUnstaked(address indexed from, uint256 amount);
-    event ReceivedFee(address indexed from, uint256 amount);
     event ReceivedReward(address indexed from, uint256 amount);
     event SentUnstakedAmount(address indexed to, uint256 amount);
-    event SentFeeAmount(address indexed to, uint256 amount);
     event SentRewardAmount(address indexed to, uint256 amount);
 
-
-    // receive unstaked value by receive() function.
-    // this includes value that eoa sends to operator contract for staking
-    // and value from GovStaking contract that is unstaked.
-    receive() external payable override {
-        unstakedAmount += msg.value;
-        emit ReceivedUnstaked(msg.sender, msg.value);
-    }
-
-    // receive fee or reward value by fallback() function
-    fallback() external payable {
-        require(msg.data.length >= 4, "Invalid call");
-        if (bytes4(msg.data) == SEND_FEE_SELECTOR){
-            feeAmount += msg.value;
-            emit ReceivedFee(msg.sender, msg.value);
-        } else if (bytes4(msg.data) == SEND_REWARD_SELECTOR) {
-            rewardAmount += msg.value;
-            emit ReceivedReward(msg.sender, msg.value);
-        } else {
-            revert("Invalid call");
-        }
-    }
 
     modifier onlyClaimerOrOwner(address _addr) {
         require(__claimers[_addr] || isOwner(_addr), "only claimer or owner can execute");
@@ -69,29 +45,34 @@ contract OperatorSample is MultiSigWallet {
         _status = _NOT_ENTERED;
     }
 
-    function submitTransaction(address _to, uint256 _value, bytes memory _data) public override onlyOwner {
-        if (_to == address(this)) {
-            bytes4 selector = bytes4(_data);
-            bool isTransferFunction = isEtherTransferFunction(selector);
-
-            if (isTransferFunction) {
-                require(
-                    selector == WITHDRAW_FEE_AMOUNT_SELECTOR ||
-                    selector ==  WITHDRAW_REWARD_AMOUNT_SELECTOR ||
-                    selector == WITHDRAW_UNSTAKED_AMOUNT_SELECTOR,
-                    "Use proper withdraw functions to transfer value from contract"
-                );
-            }
+    // receive() function is to receive reward, unstaked, or ether that eoa sent to the contract
+    // when _receivingRewardStat is true, means the received ether is reward
+    // else, increase the unstakedAmount
+    receive() external payable override {
+        if (_receivingRewardStat) {
+            rewardAmount += msg.value;
+            emit ReceivedReward(msg.sender, msg.value);
+            _receivingRewardStat = false;
+        }else {
+            unstakedAmount += msg.value;
+            emit ReceivedUnstaked(msg.sender, msg.value);
         }
-        super.submitTransaction(_to, _value, _data);
     }
 
-    function isEtherTransferFunction(bytes4 _selector) internal pure returns (bool) {
-        return (
-            _selector == bytes4(keccak256("transfer(address,uint256)")) ||
-            _selector == bytes4(keccak256("send(address,uint256)")) ||
-            _selector == bytes4(keccak256("call(bytes)"))
-        );
+    /* ========== EXTERNAL FUNCTION ========== */
+
+    // implements IERC165
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+        return
+            interfaceId == type(IFeeRecipient).interfaceId ||
+            interfaceId == type(IERC165).interfaceId;
+    }
+
+    // implement IFeeRecipient
+    function receiveFee(uint256 amount) external payable {
+        require(amount == msg.value, "FeeRecipeint : FeeAmount and value sent mismatched");
+        feeAmount += amount;
+        emit ReceivedFee(msg.sender, amount);
     }
 
     function withdrawUnstakedAmount(address _to) external onlyWallet notNull(_to) nonReentrant {
@@ -110,6 +91,7 @@ contract OperatorSample is MultiSigWallet {
         emit SentRewardAmount(_to, amount);
     }
 
+    // implement IFeeRecipient
     function withdrawFeeAmount(address _to) external onlyWallet notNull(_to) nonReentrant {
         uint256 amount = feeAmount;
         feeAmount = 0;
@@ -135,8 +117,8 @@ contract OperatorSample is MultiSigWallet {
     // call stake without multiSig confirmation
     function stake(uint256 _amount) external onlyOwner isSingleOwner nonReentrant {
         bytes memory data = abi.encodeWithSignature(
-        "stake(uint256)",
-        _amount
+            "stake(uint256)",
+            _amount
         );
         (bool success, ) = GOV_STAKING.call{value: _amount}(data);
         require(success, "stake tx failed");
@@ -163,7 +145,81 @@ contract OperatorSample is MultiSigWallet {
         require(success, "claim tx failed");
     }
 
-    // TODO : managing fee, distributing unstaked amount
+
+    /* ========== PUBLIC FUNCTION ========== */
+
+    function submitTransaction(address _to, uint256 _value, bytes memory _data) public override onlyOwner {
+        if (_to == address(this)) {
+            bytes4 selector = bytes4(_data);
+            bool isTransferFunction = _isEtherTransferFunction(selector);
+
+            if (isTransferFunction) {
+                require(
+                    selector == _WITHDRAW_FEE_AMOUNT_SELECTOR ||
+                    selector ==  _WITHDRAW_REWARD_AMOUNT_SELECTOR ||
+                    selector == _WITHDRAW_UNSTAKED_AMOUNT_SELECTOR,
+                    "Use proper withdraw functions to transfer value from contract"
+                );
+            }
+        }
+        super.submitTransaction(_to, _value, _data);
+    }
+
+
+    function executeTransaction(uint256 _transactionId) public payable override onlyOwner isTransactionExist(_transactionId) notExecuted(_transactionId) {
+        Transaction storage transaction = transactions[_transactionId];
+        require(transaction.currentNumberOfConfirmations >= quorum, "MultiSig: Current Number Of Confirmations must be greater than or equal to quorum.");
+
+        if (transaction.to == address(GOV_STAKING)) {
+            (bool isClaimCall, address staker, bool restake) = _getClaimParameters(transaction);
+            if (isClaimCall && !restake) {
+                _receivingRewardStat = true;
+                transaction.executed = true;
+            }
+        }
+        transaction.executed = true;
+        (bool success, ) = transaction.to.call{value: transaction.value}(transaction.data);
+        if (!success && _receivingRewardStat) {
+            _receivingRewardStat = false;
+        }
+        require(success, "MultiSig: Transaction failed.");
+
+        emit ExecuteTransaction(msg.sender, _transactionId);
+    }
+
+
+    /* ========== INTERNAL FUNCTION ========== */
+
+    function _isEtherTransferFunction(bytes4 _selector) internal pure returns (bool) {
+        return (
+            _selector == bytes4(keccak256("transfer(address,uint256)")) ||
+            _selector == bytes4(keccak256("send(address,uint256)")) ||
+            _selector == bytes4(keccak256("call(bytes)"))
+        );
+    }
+
+    function _getClaimParameters(Transaction storage transaction) internal  view returns (bool isClaimCall, address staker, bool restake) {
+        if (transaction.data.length < 68) return (false, address(0), false);
+
+        bytes memory txData = transaction.data;
+
+        bytes4 signature;
+        assembly {
+            signature := mload(add(txData, 32))
+        }
+
+        bytes4 claimSelector = bytes4(keccak256("claim(address,bool)"));
+        if (signature != claimSelector) return (false, address(0), false);
+
+        assembly {
+            staker := mload(add(txData, 64))
+            restake := mload(add(txData, 96))
+        }
+
+        return (true, staker, restake);
+    }
+
+    /* ========== PRIVATE FUNCTION ========== */
 
     function _addClaimer(address _newClaimer) private {
         require(!__claimers[_newClaimer], "already registered claimer");

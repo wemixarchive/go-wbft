@@ -109,7 +109,7 @@ contract GovStaking {
     }
 
     // Rewardee sends coin to this contract, so receive() is required
-     fallback() external payable {
+     receive() external payable {
         require(isStaker(stakerByRewardee[msg.sender]), "Invalid call");
     }
 
@@ -308,15 +308,15 @@ contract GovStaking {
 
         if (_restake) {
             require(isStaker(_staker), "unregistered staker");
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward, GOV_CONST.SEND_REWARD_SELECTOR());
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward, false);
 
             _addStaking(_staker, msg.sender, _reward);
         } else {
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward, GOV_CONST.SEND_REWARD_SELECTOR());
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward, false);
         }
 
         if (_fee > 0) {
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(_stakerInfo.feeRecipient), _fee, GOV_CONST.SEND_FEE_SELECTOR());
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(_stakerInfo.feeRecipient), _fee, true);
         }
 
         _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;

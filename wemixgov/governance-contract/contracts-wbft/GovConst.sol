@@ -12,7 +12,4 @@ contract GovConst {
     uint256 public constant CHANGE_FEE_DELAY = 7 days;
     uint256 public constant BLS_PUBLIC_KEY_LENGTH = 48;
     uint256 public constant MIN_STAKERS = 5;
-
-    bytes4 public constant SEND_FEE_SELECTOR = bytes4(keccak256("sendFee()"));
-    bytes4 public constant SEND_REWARD_SELECTOR = bytes4(keccak256("sendReward()"));
 }

@@ -104,7 +104,7 @@ contract MultiSigWallet is IMultiSigWallet {
      * Only owner can access.
      * @param _transactionId Transaction Id.
      */
-    function executeTransaction(uint256 _transactionId) public payable onlyOwner isTransactionExist(_transactionId) notExecuted(_transactionId) {
+    function executeTransaction(uint256 _transactionId) public payable virtual onlyOwner isTransactionExist(_transactionId) notExecuted(_transactionId) {
         Transaction storage transaction = transactions[_transactionId];
 
         require(transaction.currentNumberOfConfirmations >= quorum, "MultiSig: Current Number Of Confirmations must be greater than or equal to quorum.");
