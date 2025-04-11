@@ -111,7 +111,7 @@ Cumulative diligence `D(n) = D(n-1) * 0.9 + d(n) * 0.1`.
 - `D(n-1)` is the cumulative diligence until the (n-1)th epoch. If it becomes a staker at first, its `D(n-1) = 1.9` (default. 95% of the maximum value of diligence).
   - If the default value is too low, the probability of being selected as a validator when first becoming a staker will be low. Conversely, if it is too high, it may be advantageous to become a new staker again after even minor mistakes. Therefore, an appropriate value is necessary.
 
-Exceptional rules:
+Exception rules:
 - `w` is not counted for the first block(this cannot have the previous seals).
 - In the case where it was not a validator in the previous epoch but is a validator in the current epoch:
   - `d = p / (2*v*w) + s / (2*(e-1))`
