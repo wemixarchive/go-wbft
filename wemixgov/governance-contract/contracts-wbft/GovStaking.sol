@@ -360,13 +360,15 @@ contract GovStaking {
         UserCredentialInfo storage _userCredential = userCredential[msg.sender];
         require(_userCredential.credentialIndex > _userCredential.withdrawalIndex , "no credential to withdraw");
 
-        uint256 _remainingCount = _withdrawalCount == 0
-            ? _userCredential.credentialIndex - _userCredential.withdrawalIndex
-            : _withdrawalCount;
-        for (uint256 i = _userCredential.withdrawalIndex; i < _userCredential.credentialIndex && _remainingCount > 0; i++) {
+        uint256 _lastIndex = _userCredential.credentialIndex;
+        if (_withdrawalCount > 0) {
+            _lastIndex = _userCredential.withdrawalIndex + _withdrawalCount;
+            require(_lastIndex <= _userCredential.credentialIndex, "out of max user credential index");
+            require(credentials[msg.sender][_userCredential.withdrawalIndex+_withdrawalCount-1].withdrawableTime <= block.timestamp, "withdrawal time not reached");
+        }
+        for (uint256 i = _userCredential.withdrawalIndex; i < _lastIndex; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
-            if (block.timestamp < _credential.withdrawableTime) {
-                require(_withdrawalCount == 0, "withdrawal time not reached");
+            if (_withdrawalCount == 0 && block.timestamp < _credential.withdrawableTime) {
                 break;
             }
             _userCredential.withdrawalIndex++;
@@ -377,8 +379,6 @@ contract GovStaking {
             emit Withdrawn(msg.sender, _userCredential.withdrawalIndex, _credential.amount);
 
             delete credentials[msg.sender][i];
-
-            _remainingCount--;
         }
     }
 
