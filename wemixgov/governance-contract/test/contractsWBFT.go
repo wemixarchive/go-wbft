@@ -183,7 +183,13 @@ func (g *GovWBFT) ncpContractTx(t *testing.T, method string, sender *EOA, value 
 
 // OperatorSample Contract
 func (g *GovWBFT) DeployOperatorSample(t *testing.T, owners []*EOA, quorum *big.Int) common.Address {
-	operatorAddr, operatorContract, err := g.Deploy(compiledWBFT.OperatorSample.Deploy(g.backend.Client(), g.owner, owners, quorum))
+	// Convert []*EOA to []common.Address for deploy
+	addresses := make([]common.Address, len(owners))
+	for i, owner := range owners {
+		addresses[i] = owner.Address
+	}
+
+	operatorAddr, operatorContract, err := g.Deploy(compiledWBFT.OperatorSample.Deploy(g.backend.Client(), g.owner, addresses, quorum))
 	require.NoError(t, err)
 	g.operatorContract = operatorContract
 	return operatorAddr

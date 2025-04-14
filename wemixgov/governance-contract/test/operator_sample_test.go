@@ -28,8 +28,9 @@ func TestOperatorSampleDeploy(t *testing.T) {
 	})
 	require.NoError(t, err)
 	defer g.backend.Close()
+
+	// Use an array of *EOA objects
 	owners := []*EOA{operatorContractSingleOwner}
 	operatorSampleAddr := g.DeployOperatorSample(t, owners, new(big.Int))
 	t.Log(operatorSampleAddr)
-
 }
