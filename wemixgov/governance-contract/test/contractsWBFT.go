@@ -30,7 +30,7 @@ func init() {
 }
 
 type compiledContractWBFT struct {
-	GovConst, GovStaking, GovNCP, GovRewardeeImp *bindContract
+	GovConst, GovStaking, GovNCP, GovRewardeeImp, OperatorSample *bindContract
 }
 
 func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
@@ -39,6 +39,7 @@ func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 		filepath.Join(root, "GovStaking.sol"),
 		filepath.Join(root, "GovNCP.sol"),
 		filepath.Join(root, "GovRewardeeImp.sol"),
+		filepath.Join(root, "OperatorSample.sol"),
 	); err != nil {
 		panic(err)
 	} else {
@@ -50,16 +51,19 @@ func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 			panic(err)
 		} else if c.GovRewardeeImp, err = newBindContract(contracts["GovRewardeeImp"]); err != nil {
 			panic(err)
+		} else if c.OperatorSample, err = newBindContract(contracts["OperatorSample"]); err != nil {
+			panic(err)
 		}
 	}
 }
 
 type GovWBFT struct {
-	backend         *simulated.WbftBackend
-	owner           *bind.TransactOpts
-	govConst        *bind.BoundContract
-	stakingContract *bind.BoundContract
-	ncpContract     *bind.BoundContract
+	backend          *simulated.WbftBackend
+	owner            *bind.TransactOpts
+	govConst         *bind.BoundContract
+	stakingContract  *bind.BoundContract
+	ncpContract      *bind.BoundContract
+	operatorContract *bind.BoundContract
 }
 
 var defaultBlockPeriod time.Duration
@@ -176,6 +180,20 @@ func (g *GovWBFT) CancelProposal(t *testing.T, sender *EOA, proposalID *big.Int)
 func (g *GovWBFT) ncpContractTx(t *testing.T, method string, sender *EOA, value *big.Int, params ...interface{}) (*types.Transaction, error) {
 	return g.ncpContract.Transact(NewTxOptsWithValue(t, sender, value), method, params...)
 }
+
+// OperatorSample Contract
+func (g *GovWBFT) DeployOperatorSample(t *testing.T, owners []*EOA, quorum *big.Int) common.Address {
+	operatorAddr, operatorContract, err := g.Deploy(compiledWBFT.OperatorSample.Deploy(g.backend.Client(), g.owner, owners, quorum))
+	require.NoError(t, err)
+	g.operatorContract = operatorContract
+	return operatorAddr
+}
+
+func (g *GovWBFT) operatorContractTx(t *testing.T, method string, sender *EOA, value *big.Int, params ...interface{}) (*types.Transaction, error) {
+	return g.operatorContract.Transact(NewTxOptsWithValue(t, sender, value), method, params...)
+}
+
+// General Functions
 
 func (g *GovWBFT) balanceAt(t *testing.T, ctx context.Context, addr common.Address, num *big.Int) *big.Int {
 	balance, err := g.backend.Client().BalanceAt(ctx, addr, num)
