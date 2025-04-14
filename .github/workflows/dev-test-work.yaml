@@ -20,10 +20,10 @@ jobs:
       - name: Check if Commit is a Merge
         id: check_merge
         run: |
-          if git log -1 --pretty=%B | grep -q "Merge pull request"; then
+          if git log -1 --pretty=%B | grep -Eq '\(#\d+\)'; then
             echo "This is a merge commit."
           else
-            echo "Not a merge commit. Exiting..."
+            echo "Not a squash-merged PR. Exiting..."
             exit 1
           fi
 
