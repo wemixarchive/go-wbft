@@ -9,7 +9,7 @@ interface IFeeRecipient is IERC165 {
     
     /* ========== FUNCTION ========== */
     function receiveFee(uint256 _amount) external payable;
-    function withdrawFeeAmount(address _to) external;
+    function withdrawFeeAmount(address _to, uint256 _amount) external;
 
     /* ========== EVENTS ========== */
     event ReceivedFee(address indexed from, uint256 amount);
