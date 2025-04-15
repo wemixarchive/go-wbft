@@ -292,7 +292,6 @@ contract GovStaking {
         require(_staker != address(0), "unregistered staker");
         Staker storage _stakerInfo = stakerInfo[_staker];
         UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
-
         // update stake info
         _updateRewardInfo(_staker, msg.sender);
 
@@ -320,7 +319,6 @@ contract GovStaking {
         }
 
         _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;
-
         emit Claimed(_staker, msg.sender, _reward, _restake);
     }
 

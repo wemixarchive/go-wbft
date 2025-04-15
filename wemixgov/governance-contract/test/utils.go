@@ -214,6 +214,10 @@ type EOA struct {
 	Address    common.Address
 }
 
+type CA struct {
+	Address common.Address
+}
+
 func NewEOA() (eoa *EOA) {
 	pk, _ := crypto.GenerateKey()
 	return &EOA{

@@ -212,8 +212,12 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             _feeRate,
             _blsPK
         );
-        (bool success, ) = GOV_STAKING.call{value: _amount}(data);
-        require(success, "registerStaker tx failed");
+        (bool success, bytes memory returnData) = GOV_STAKING.call{value: _amount}(data);
+        if (!success) {
+            // Restore the unstaked amount since the transaction failed
+            _unstakedAmount += _amount;
+            revert(_getRevertMsg(returnData, "registerStaker tx failed"));
+        }
         emit SentUnstakedAmount(GOV_STAKING, _amount);
     }
 
@@ -227,8 +231,12 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             "stake(uint256)",
             _amount
         );
-        (bool success, ) = GOV_STAKING.call{value: _amount}(data);
-        require(success, "stake tx failed");
+        (bool success, bytes memory returnData) = GOV_STAKING.call{value: _amount}(data);
+        if (!success) {
+            // Restore the unstaked amount since the transaction failed
+            _unstakedAmount += _amount;
+            revert(_getRevertMsg(returnData, "stake tx failed"));
+        }
         emit SentUnstakedAmount(GOV_STAKING, _amount);
     }
 
@@ -240,23 +248,31 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             "unstake(uint256)",
             _amount
         );
-        (bool success, ) = GOV_STAKING.call(data);
-        require(success, "unstake tx failed");
+        (bool success, bytes memory returnData) = GOV_STAKING.call(data);
+        if (!success) {
+            revert(_getRevertMsg(returnData, "unstake tx failed"));
+        }
     }
 
     // @notice Function calls the claim method of the GovStaking contract
-    // Owner or claime rcan directly call this method without multiSig signing.
+    // Owner or claimer can directly call this method without multiSig signing.
     function claim(address _staker, bool _restake) external onlyClaimerOrOwner(msg.sender) {
         bytes memory data = abi.encodeWithSignature(
-            "claim(address, bool)",
+            "claim(address,bool)",
             _staker,
             _restake
         );
-        _receivingRewardStat = true;
-        (bool success, ) = GOV_STAKING.call(data);
+        if (!_restake) {
+            _receivingRewardStat = true;
+        }
+        
+        (bool success, bytes memory returnData) = GOV_STAKING.call(data);
         if (!success) {
-            _receivingRewardStat = false;
-            revert("claim tx failed");
+            if (_receivingRewardStat) {
+                _receivingRewardStat = false;
+            }
+            
+            revert(_getRevertMsg(returnData, "claim tx failed"));
         }
     }
 
@@ -374,11 +390,38 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             }
         }
         transaction.executed = true;
-        (bool success, ) = transaction.to.call{value: transaction.value}(transaction.data);
-        if (!success && _receivingRewardStat) {
-            _receivingRewardStat = false;
+        (bool success, bytes memory returnData) = transaction.to.call{value: transaction.value}(transaction.data);
+        if (!success) {
+            if (_receivingRewardStat) {
+                _receivingRewardStat = false;
+            }
+            // Mark as not executed since it failed
+            transaction.executed = false;
+            
+            // Get the function signature from the transaction data
+            string memory functionName = "unknown function";
+            if (transaction.data.length >= 4) {
+                bytes4 selector;
+                bytes memory txData = transaction.data;
+                assembly {
+                    selector := mload(add(txData, 32))
+                }
+                
+                if (selector == _WITHDRAW_FEE_AMOUNT_SELECTOR) {
+                    functionName = "withdrawFeeAmount";
+                } else if (selector == _WITHDRAW_REWARD_AMOUNT_SELECTOR) {
+                    functionName = "withdrawRewardAmount";
+                } else if (selector == _WITHDRAW_UNSTAKED_AMOUNT_SELECTOR) {
+                    functionName = "withdrawUnstakedAmount";
+                } else if (selector == _REGISTER_STAKER_SELECTOR) {
+                    functionName = "registerStaker";
+                } else if (selector == _STAKE_SELECTOR) {
+                    functionName = "stake";
+                }
+            }
+            
+            revert(_getRevertMsg(returnData, string(abi.encodePacked("MultiSig: ", functionName, " transaction failed"))));
         }
-        require(success, "MultiSig: Transaction failed.");
 
         emit ExecuteTransaction(msg.sender, _transactionId);
     }
@@ -436,6 +479,32 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     }
 
     /* ========== PRIVATE FUNCTION ========== */
+
+    // Helper function to extract revert reason from call returnData
+    function _getRevertMsg(bytes memory _returnData, string memory _defaultMsg) private pure returns (string memory) {
+        // If return data is at least 4 bytes (error selector) + some data
+        if (_returnData.length > 4) {
+            // Try to decode the standard error message
+            bytes4 errorSelector;
+            assembly {
+                errorSelector := mload(add(_returnData, 0x20))
+            }
+            
+            // Check if this is a standard error (Error(string))
+            if (errorSelector == 0x08c379a0) {
+                // Standard revert/require reason - decode manually to avoid slice error
+                bytes memory slicedData = new bytes(_returnData.length - 4);
+                for (uint i = 4; i < _returnData.length; i++) {
+                    slicedData[i - 4] = _returnData[i];
+                }
+                string memory reason = abi.decode(slicedData, (string));
+                return string(abi.encodePacked(_defaultMsg, ": ", reason));
+            }
+        }
+        
+        // Default message if no specific reason found
+        return _defaultMsg;
+    }
 
     function _addClaimer(address _newClaimer) private {
         require(!__claimers[_newClaimer], "already registered claimer");
