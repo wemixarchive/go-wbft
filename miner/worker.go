@@ -1264,6 +1264,7 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 		coinbase:  coinbase,
 	})
 	if err != nil {
+		log.Error("Fail to prepare work", "err", err)
 		return
 	}
 	// Fill pending transactions from the txpool into the block.
@@ -1296,8 +1297,11 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 		return
 	}
 	// Submit the generated block for consensus sealing.
-	w.commit(work.copy(), w.fullTaskHook, true, start)
-
+	err = w.commit(work.copy(), w.fullTaskHook, true, start)
+	if err != nil {
+		log.Error("Fail to commit work", "err", err)
+		return
+	}
 	// Swap out the old work with the new one, terminating any leftover
 	// prefetcher processes in the mean time and starting a new one.
 	if w.current != nil {
