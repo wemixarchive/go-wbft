@@ -436,7 +436,6 @@ func TestEpochInfo(t *testing.T) {
 			engine := NewEngine(&qbft.Config{
 				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
 				Epoch:          3,
-				MinStakers:     999,
 			}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
@@ -549,7 +548,6 @@ func TestEpochInfoTransition(t *testing.T) {
 			engine := NewEngine(&qbft.Config{
 				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
 				Epoch:          tc.epoch,
-				MinStakers:     999,
 			}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)

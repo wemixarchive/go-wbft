@@ -35,14 +35,14 @@ type compiledContractWBFT struct {
 
 func (c *compiledContractWBFT) Compile(root, openzeppelinPath string) {
 	if contracts, err := compile.Compile(openzeppelinPath,
-		filepath.Join(root, "GovConst.sol"),
+		filepath.Join(root, "GovConfig.sol"),
 		filepath.Join(root, "GovStaking.sol"),
 		filepath.Join(root, "GovNCP.sol"),
 		filepath.Join(root, "GovRewardeeImp.sol"),
 	); err != nil {
 		panic(err)
 	} else {
-		if c.GovConst, err = newBindContract(contracts["GovConst"]); err != nil {
+		if c.GovConst, err = newBindContract(contracts["GovConfig"]); err != nil {
 			panic(err)
 		} else if c.GovStaking, err = newBindContract(contracts["GovStaking"]); err != nil {
 			panic(err)
@@ -71,7 +71,7 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		alloc = make(types.GenesisAlloc)
 	}
 	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
-	alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract)}
+	alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract)}
 	alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract)}
 	alloc[govwbft.GovRewardeeImpAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovRewardeeImpContract)}
 

@@ -543,6 +543,7 @@ type ChainConfig struct {
 	Transitions      []Transition      `json:"transitions,omitempty"`      // Quorum - transition config based on the block number
 	StateTransitions []StateTransition `json:"stateTransitions,omitempty"` // wbft - state transition config based on the block number
 	// ## Quorum QBFT END
+
 }
 
 // Brioche halving configuration
@@ -713,7 +714,6 @@ func (c *ChainConfig) Description() string {
 				banner += fmt.Sprintf("   - BlockRewardBeneficiary[%v]: %v\n", i, b)
 			}
 		}
-		banner += fmt.Sprintf("   - MinStakers:                %v\n", c.QBFT.MinStakers)
 		banner += fmt.Sprintf("   - TargetValidators:          %v\n", c.QBFT.TargetValidators)
 		if c.QBFT.MaxRequestTimeoutSeconds == nil {
 			banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", 0)

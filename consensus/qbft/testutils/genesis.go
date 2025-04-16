@@ -49,7 +49,7 @@ func Genesis(validators []common.Address, blsPublicKeys [][]byte) *core.Genesis 
 	genesis.Nonce = qbftcommon.EmptyBlockNonce.Uint64()
 
 	// deploy governance contracts
-	genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract), Balance: common.Big0}
+	genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract), Balance: common.Big0}
 	genesis.Alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}
 
 	appendValidators(genesis, validators, blsPublicKeys)
