@@ -714,6 +714,8 @@ func (c *ChainConfig) Description() string {
 				banner += fmt.Sprintf("   - BlockRewardBeneficiary[%v]: %v\n", i, b)
 			}
 		}
+		banner += fmt.Sprintf("   - Validators:                %v\n", c.QBFT.Validators)
+		banner += fmt.Sprintf("   - BLSPublicKeys:             %v\n", c.QBFT.BLSPublicKeys)
 		banner += fmt.Sprintf("   - TargetValidators:          %v\n", c.QBFT.TargetValidators)
 		if c.QBFT.MaxRequestTimeoutSeconds == nil {
 			banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", 0)
