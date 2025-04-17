@@ -54,6 +54,7 @@ type chainSyncer struct {
 	force       *time.Timer
 	forced      bool // true when force timer fired
 	warned      time.Time
+	lastTD      uint64
 	peerEventCh chan struct{}
 	doneCh      chan error // non-nil when sync is running
 }
@@ -171,6 +172,15 @@ func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 		return nil
 	}
 	mode, ourTD := cs.modeAndLocalHead()
+
+	tdAdjustment := int64(1)
+	// if the cs.force.C event is triggered but there's no change in the TD
+	if cs.forced && ourTD.Cmp(new(big.Int).SetUint64(cs.lastTD)) == 0 {
+		tdAdjustment = 0
+	} else {
+		cs.lastTD = ourTD.Uint64()
+	}
+
 	op := peerToSyncOp(mode, peer)
 	if cs.handler.chain.Config().QBFT == nil && op.td.Cmp(ourTD) <= 0 {
 		// We seem to be in sync according to the legacy rules. In the merge
@@ -181,8 +191,8 @@ func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 			cs.warned = time.Now()
 		}
 		return nil // We're in sync
-	} else if cs.handler.chain.Config().QBFT != nil && op.td.Cmp(new(big.Int).Add(ourTD, big.NewInt(1))) <= 0 {
-		// in QBFT, we're in sync if the peer's TD is within 1 of our own
+	} else if cs.handler.chain.Config().QBFT != nil && op.td.Cmp(new(big.Int).Add(ourTD, big.NewInt(tdAdjustment))) <= 0 {
+		// in QBFT, we're in sync if the peer's TD is within tdAdjustment of our own
 		return nil
 	}
 	return op
