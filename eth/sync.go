@@ -31,6 +31,7 @@ import (
 
 const (
 	forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
+	tdCheckInterval     = 30 * time.Second // Time interval to verify TD changes and detect sync stalling
 	defaultMinSyncPeers = 5                // Amount of peers desired to start syncing
 )
 
@@ -50,13 +51,15 @@ func (h *handler) syncTransactions(p *eth.Peer) {
 
 // chainSyncer coordinates blockchain sync components.
 type chainSyncer struct {
-	handler     *handler
-	force       *time.Timer
-	forced      bool // true when force timer fired
-	warned      time.Time
-	lastTD      uint64
-	peerEventCh chan struct{}
-	doneCh      chan error // non-nil when sync is running
+	handler       *handler
+	force         *time.Timer
+	forced        bool // true when force timer fired
+	warned        time.Time
+	tdCheckTimer  *time.Timer
+	forceAdjustTD bool
+	previousTD    *big.Int
+	peerEventCh   chan struct{}
+	doneCh        chan error // non-nil when sync is running
 }
 
 // chainSyncOp is a scheduled sync operation.
@@ -102,6 +105,16 @@ func (cs *chainSyncer) loop() {
 	cs.force = time.NewTimer(forceSyncCycle)
 	defer cs.force.Stop()
 
+	cs.tdCheckTimer = time.NewTimer(tdCheckInterval)
+	defer cs.tdCheckTimer.Stop()
+
+	_, headTD := cs.modeAndLocalHead()
+	if headTD != nil {
+		cs.previousTD = new(big.Int).Set(headTD)
+	} else {
+		cs.previousTD = big.NewInt(0)
+	}
+
 	for {
 		if op := cs.nextSyncOp(); op != nil {
 			cs.startSync(op)
@@ -123,6 +136,15 @@ func (cs *chainSyncer) loop() {
 			}
 		case <-cs.force.C:
 			cs.forced = true
+
+		case <-cs.tdCheckTimer.C:
+			if _, headTD := cs.modeAndLocalHead(); headTD != nil {
+				if cs.previousTD.Cmp(headTD) == 0 {
+					cs.forceAdjustTD = true
+				}
+				cs.previousTD = new(big.Int).Set(headTD)
+			}
+			cs.tdCheckTimer.Reset(tdCheckInterval)
 
 		case <-cs.handler.quitSync:
 			// Disable all insertion on the blockchain. This needs to happen before
@@ -173,12 +195,12 @@ func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 	}
 	mode, ourTD := cs.modeAndLocalHead()
 
+	// Normally, sync starts when the TD gap is 2 or greater.
+	// If forceAdjustTD is active, sync starts even when the gap is just 1.
 	tdAdjustment := int64(1)
-	// if the cs.force.C event is triggered but there's no change in the TD
-	if cs.forced && ourTD.Cmp(new(big.Int).SetUint64(cs.lastTD)) == 0 {
+	if cs.forceAdjustTD {
 		tdAdjustment = 0
-	} else {
-		cs.lastTD = ourTD.Uint64()
+		cs.forceAdjustTD = false
 	}
 
 	op := peerToSyncOp(mode, peer)
