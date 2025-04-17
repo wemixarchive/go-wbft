@@ -79,7 +79,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     }
 
     modifier isTransactionExist(uint256 _transactionId) {
-        require(_transactionId < transactions.length, "MultiSig: Transaction does not exist.");
+        require(_transactionId <= transactions.length, "MultiSig: Transaction does not exist.");
         _;
     }
 
@@ -137,6 +137,14 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             owners.push(owner);
         }
         _status = _NOT_ENTERED;
+        // fill index 0 with empty Transaction
+        transactions.push(Transaction({
+            to: address(0),
+            value: 0,
+            data: new bytes(0),
+            executed: false,
+            currentNumberOfConfirmations: 0
+        }));
     }
 
     // @notice Function is to receive reward, unstaked, or ether that eoa sent to the contract.
@@ -240,13 +248,27 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         emit SentUnstakedAmount(GOV_STAKING, _amount);
     }
 
-    // @notice Function calls the unstake method of the GovStaking contract with Ether value
-    // You cannot directly submit a transaction to GovStaking's unstake method since it's blocked for tracking amounts.
-    // Instead, you must submit a transaction that calls this wrapper function, or just call this function directly if there's only one owner.
+    // @notice Function calls the unstake method of the GovStaking
+    // You may submit a transaction calling GovStaking's unstake method,
+    // Or if it's single user, just call this function right away.
     function unstake(uint256 _amount) external onlyWalletOrSingleOwner nonReentrant {
         bytes memory data = abi.encodeWithSignature(
             "unstake(uint256)",
             _amount
+        );
+        (bool success, bytes memory returnData) = GOV_STAKING.call(data);
+        if (!success) {
+            revert(_getRevertMsg(returnData, "unstake tx failed"));
+        }
+    }
+
+    // @notice Function calls the withdraw method of the GovStaking
+    // You may submit a transaction calling GovStaking's withdraw method,
+    // Or if it's single user, just call this function right away.
+    function withdraw(uint256 _withdrawalCount) external onlyWalletOrSingleOwner nonReentrant {
+        bytes memory data = abi.encodeWithSignature(
+            "withdraw(uint256)",
+            _withdrawalCount
         );
         (bool success, bytes memory returnData) = GOV_STAKING.call(data);
         if (!success) {
@@ -349,7 +371,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         require(proposalHashToTxId[proposalHash] == 0, "MultiSig: Duplicate proposal in same block");
 
         // transaction id starts with 1
-        uint256 transactionId = transactions.length + 1;
+        uint256 transactionId = transactions.length;
         proposalHashToTxId[proposalHash] = transactionId;
 
         if (_value > 0 ) {
@@ -454,6 +476,53 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         return proposalHashToTxId[keccak256(abi.encodePacked(_proposer, _blockNumber))];
     }
 
+    function isOwner(address _owner) public view returns (bool) {
+        return _isOwner[_owner];
+    }
+
+
+    // @notice Get Owners.
+    function getOwners() public view returns (address[] memory) {
+        return owners;
+    }
+
+    // @notice Get Owners Count.
+    function getOwnerCount() public view returns (uint256) {
+        return owners.length;
+    }
+
+     // @notice Get Transaction.
+    function getTransaction(uint256 _transactionId) public view returns (address to, uint256 value, bytes memory data, bool executed, uint256 currentNumberOfConfirmations) {
+        Transaction storage transaction = transactions[_transactionId];
+
+        return (
+            transaction.to,
+            transaction.value,
+            transaction.data,
+            transaction.executed,
+            transaction.currentNumberOfConfirmations
+        );
+    }
+
+    // @notice Get Transaction Count.
+    function getTransactionCount() public view returns (uint256) {
+        return transactions.length;
+    }
+
+    // @notice Get unstaked amount.
+    function unstakedAmount() public view returns ( uint256) {
+        return _unstakedAmount;
+    }
+
+    // @notice Get reward amount.
+    function rewardAmount() public view returns ( uint256) {
+        return _rewardAmount;
+    }
+
+    // @notice Get fee amount.
+    function feeAmount() public view returns (uint256) {
+        return _feeAmount;
+    }
 
     /* ========== INTERNAL FUNCTION ========== */
 
@@ -515,51 +584,5 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         require(__claimers[_claimerToRemove], "claimer is not registered");
         __claimers[_claimerToRemove] = false;
     }
-
-    function isOwner(address _owner) public view returns (bool) {
-        return _isOwner[_owner];
-    }
-
-    /**
-     * @notice Get Owners.
-     */
-    function getOwners() public view returns (address[] memory) {
-        return owners;
-    }
-
-    /**
-     * @notice Get Owners Count.
-     */
-    function getOwnerCount() public view returns (uint256) {
-        return owners.length;
-    }
-
-    /**
-     * @notice Get Transaction.
-     * @return to Target address.
-     * @return value Ether value.
-     * @return data Transaction data.
-     * @return executed Execute or Not.
-     * @return currentNumberOfConfirmations Number of Confirmations.
-     */
-    function getTransaction(uint256 _transactionId) public view returns (address to, uint256 value, bytes memory data, bool executed, uint256 currentNumberOfConfirmations) {
-        Transaction storage transaction = transactions[_transactionId];
-
-        return (
-            transaction.to,
-            transaction.value,
-            transaction.data,
-            transaction.executed,
-            transaction.currentNumberOfConfirmations
-        );
-    }
-
-    /**
-     * @notice Get Transaction Count.
-     */
-    function getTransactionCount() public view returns (uint256) {
-        return transactions.length;
-    }
-
 
 }

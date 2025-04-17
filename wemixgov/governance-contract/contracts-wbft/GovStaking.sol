@@ -60,7 +60,7 @@ contract GovStaking {
     event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
     event Withdrawn(address indexed requester, uint256 withdrawalIndex, uint256 amount);
     event RewardInfoUpdated(address indexed staker, uint256 totalStaked, uint256 balance, uint256 accBalance, uint256 accRewardPerStaking, uint256 accFeePerStaking);
-    event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 accRewardPerStaking, uint256 accFeePerStaking);
+    event UserRewardUpdated(address indexed staker, address indexed user, uint256 stakingAmount, uint256 pendingReward, uint256 pendingFee, uint256 accRewardPerStaking, uint256 accFeePerStaking);
     event Claimed(address indexed staker, address indexed rewardee, uint256 amount, bool restake);
     event ChangingFeeRateRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
     event ChangingFeeRateExecuted(address indexed staker, uint256 newFeeRate);
@@ -339,7 +339,7 @@ contract GovStaking {
 
         if (_restake) {
             require(isStaker(_staker), "staker is inactive");
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward, false);
 
             _addStaking(_staker, msg.sender, _reward);
         } else {
@@ -406,7 +406,7 @@ contract GovStaking {
                 _userInfo.rewardPerStaking = _stakerInfo.accRewardPerStaking;
                 _userInfo.feePerStaking = _stakerInfo.accFeePerStaking;
 
-                emit UserRewardUpdated(_staker, _user, _userInfo.stakingAmount, _userInfo.pendingReward, _userInfo.rewardPerStaking, _userInfo.feePerStaking);
+                emit UserRewardUpdated(_staker, _user, _userInfo.stakingAmount, _userInfo.pendingReward, _userInfo.pendingFee, _userInfo.rewardPerStaking, _userInfo.feePerStaking);
             }
         }
 

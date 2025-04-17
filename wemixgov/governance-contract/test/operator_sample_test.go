@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
 )
@@ -23,21 +27,6 @@ import (
 // 6. addOwner, removeOwner, change Owner 테스트
 // 7. multiple operator - multisig 동작 확인. ( 1~ 5) MultiSig 버전으로 확인
 
-func TestOperatorSampleDeploy(t *testing.T) {
-	var (
-		operatorContractSingleOwner = getTxOpt(t, "operatorContractOwner")
-	)
-	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
-		operatorContractSingleOwner.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
-	})
-	require.NoError(t, err)
-	defer g.backend.Close()
-
-	owners := []common.Address{operatorContractSingleOwner.From}
-	operatorSampleAddr := g.DeployOperatorSample(t, owners, new(big.Int))
-	t.Log(operatorSampleAddr)
-}
-
 func TestOperatorContractSingleOwner(t *testing.T) {
 	var (
 		operatorContractSingleOwner = getTxOpt(t, "operatorContractOwner")
@@ -45,10 +34,12 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 		feeRate                     = new(big.Int).SetUint64(1500)
 		ctx                         = context.Background()
 		rewardAmount                = towei(10)
+		delegator1                  = NewEOA()
 	)
 	// initiate gov
 	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
 		operatorContractSingleOwner.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+		delegator1.Address:               {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 	require.NoError(t, err)
 	defer g.backend.Close()
@@ -80,48 +71,142 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 	})
 
 	t.Run("Claim for Reward, restake", func(t *testing.T) {
-		// disribute reward manually
+		// disribute reward manually - 10 ether
 		distributeReward(t, g, stateDB, rewardAmount, s1.Staker.Address)
+		// restake the reward
 		_, err := g.ExpectedOk(g.ClaimViaOperatorContract(operatorContractSingleOwner, s1, true))
 		require.NoError(t, err)
 		require.Equal(t, g.balanceAt(t, ctx, govwbft.GovStakingAddress, nil), new(big.Int).Add(minStaking, rewardAmount))
-		fmt.Println(govwbft.StakerInfo(stateDB, s1.Staker.Address).AccRewardPerStaking)
-		fmt.Println(govwbft.StakerInfo(stateDB, s1.Staker.Address).LastRewardBalance)
 	})
+
+	var claimedReward *big.Int
 
 	t.Run("Claim for Reward, not restake", func(t *testing.T) {
 		// disribute reward manually
-		fmt.Println(govwbft.StakerInfo(stateDB, s1.Staker.Address).AccRewardPerStaking)
 		distributeReward(t, g, stateDB, rewardAmount, s1.Staker.Address)
-		_, err := g.ExpectedOk(g.ClaimViaOperatorContract(operatorContractSingleOwner, s1, false))
+		// transfer reward from rewardee to operator contract
+		receipt, err := g.ExpectedOk(g.ClaimViaOperatorContract(operatorContractSingleOwner, s1, false))
 		require.NoError(t, err)
-		require.Equal(t, g.balanceAt(t, ctx, operatorSampleAddr, nil), rewardAmount)
-
+		userRewardEvent := findEvents("UserRewardUpdated", receipt.Logs)
+		claimedReward = userRewardEvent[0]["pendingReward"].(*big.Int)
+		require.Equal(t, userRewardEvent[0]["pendingReward"], g.balanceAt(t, ctx, operatorSampleAddr, nil))
 	})
 
 	t.Run("Withdraw reward", func(t *testing.T) {
-
+		beforeBalance := g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil)
+		receipt, err := g.ExpectedOk(g.WithdrawRewardAmount(operatorContractSingleOwner, operatorContractSingleOwner.From, claimedReward))
+		require.NoError(t, err)
+		gasUsed := calcTxGasCost(receipt)
+		require.Equal(t, g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil), beforeBalance.Add(beforeBalance, new(big.Int).Sub(claimedReward, gasUsed)))
 	})
 
-	t.Run("Delegators add stake", func(t *testing.T) {
+	var claimedFee *big.Int
 
-	})
+	t.Run("Get fee from undelegation", func(t *testing.T) {
+		// 1. delegator1 delegates, distribute reward
+		_, err := g.ExpectedOk(g.Delegate(t, delegator1, s1.Staker.Address, minStaking))
+		require.NoError(t, err)
 
-	t.Run("Change Fee Recipient", func(t *testing.T) {
-		// change fee recipeint to this contract
+		distributeReward(t, g, stateDB, rewardAmount, s1.Staker.Address)
 
-	})
+		// 2. submit tx to set operatorContract as feeRecipient
+		functionSignature := []byte("changeFeeRecipient(address)")
+		methodID := crypto.Keccak256(functionSignature)[:4]
+		args := abi.Arguments{
+			{Type: mustParseType("address")},
+		}
+		packedArgs, err := args.Pack(operatorSampleAddr)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to pack arguments: %v", err))
+		}
+		callData := append(methodID, packedArgs...)
 
-	t.Run("Delegator undelegates", func(t *testing.T) {
+		receipt, err := g.ExpectedOk(g.SubmitTransaction(operatorContractSingleOwner, govwbft.GovStakingAddress, new(big.Int), callData))
+		require.NoError(t, err)
+		txId := findEvents("SubmitTransaction", receipt.Logs)[0]["txIndex"].(*big.Int)
 
+		// 3.confirm the submitted tx
+		_, err = g.ExpectedOk(g.ConfirmTransaction(operatorContractSingleOwner, txId))
+		require.NoError(t, err)
+
+		// 4. execute the tx
+		_, err = g.ExpectedOk(g.ExecuteTransaction(operatorContractSingleOwner, txId))
+		require.NoError(t, err)
+
+		// 5. Check if FeeRecipient has changed
+		require.Equal(t, operatorSampleAddr, govwbft.StakerInfo(stateDB, s1.Staker.Address).FeeRecipient)
+
+		beforeBalance := g.balanceAt(t, ctx, operatorSampleAddr, nil)
+		// 6. Delegator claims reward, fee will be sent to operatorContract
+		receipt, err = g.ExpectedOk(g.Claim(t, delegator1, s1.Staker.Address, false))
+		pendingFee := findEvents("UserRewardUpdated", receipt.Logs)[0]["pendingFee"].(*big.Int)
+		afterBalance := g.balanceAt(t, ctx, operatorSampleAddr, nil)
+		require.Equal(t, afterBalance, beforeBalance.Add(beforeBalance, pendingFee))
+
+		// 7. Check if feeAmount tracking works
+		callOpts := new(bind.CallOpts)
+		require.NoError(t, g.operatorContract.Call(callOpts, &[]interface{}{&claimedFee}, "feeAmount"))
+		require.Equal(t, pendingFee, claimedFee)
 	})
 
 	t.Run("Withdraw fee", func(t *testing.T) {
+		beforeBalance := g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil)
+		// owner withdraw fee
+		receipt, err := g.ExpectedOk(g.WithdrawFeeAmount(operatorContractSingleOwner, operatorContractSingleOwner.From, claimedFee))
+		require.NoError(t, err)
+		gasUsed := calcTxGasCost(receipt)
+		afterBalance := g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil)
+		// check if balance change is valid
+		require.Equal(t, afterBalance, beforeBalance.Add(beforeBalance, new(big.Int).Sub(claimedFee, gasUsed)))
 
+		// remaining fee amount in operator contract should be 0
+		callOpts := new(bind.CallOpts)
+		var feeAmount *big.Int
+		require.NoError(t, g.operatorContract.Call(callOpts, &[]interface{}{&feeAmount}, "feeAmount"))
+		require.True(t, feeAmount.Cmp(new(big.Int)) == 0)
 	})
 
-	t.Run("Untake and withdraw undstaked amount", func(t *testing.T) {
+	t.Run("Unstake and withdraw undstaked amount", func(t *testing.T) {
+		// unstake the staked amount
+		stakedAmt := govwbft.UserInfo(stateDB, s1.Staker.Address, operatorSampleAddr).StakingAmount
+		receipt, err := g.ExpectedOk(g.SingleOwnerUnstake(operatorContractSingleOwner, stakedAmt))
+		require.NoError(t, err)
+		unbondingPeriod := findEvents("NewCredential", receipt.Logs)[0]["unbonding"].(*big.Int)
+		g.adjustTime(time.Duration(unbondingPeriod.Int64()) * time.Second)
 
+		_, err = g.ExpectedOk(g.WithdrawViaOperatorContract(operatorContractSingleOwner, new(big.Int)))
+		require.NoError(t, err)
+
+		callOpts := new(bind.CallOpts)
+		var unstakedAmount *big.Int
+		require.NoError(t, g.operatorContract.Call(callOpts, &[]interface{}{&unstakedAmount}, "unstakedAmount"))
+		require.Equal(t, unstakedAmount, stakedAmt)
+
+		// withdraw it
+		beforeBalance := g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil)
+		receipt, err = g.ExpectedOk(g.WithdrawUnstakedAmount(operatorContractSingleOwner, operatorContractSingleOwner.From, unstakedAmount))
+		require.NoError(t, err)
+		gasUsed := calcTxGasCost(receipt)
+		require.Equal(t, g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil), beforeBalance.Add(beforeBalance, new(big.Int).Sub(unstakedAmount, gasUsed)))
+	})
+
+	t.Run("Withdraw remaining reward", func(t *testing.T) {
+		distributeReward(t, g, stateDB, rewardAmount, s1.Staker.Address)
+		receipt, err := g.ExpectedOk(g.ClaimViaOperatorContract(operatorContractSingleOwner, s1, false))
+		require.NoError(t, err)
+		claimedReward := findEvents("UserRewardUpdated", receipt.Logs)[0]["pendingReward"].(*big.Int)
+
+		callOpts := new(bind.CallOpts)
+		var tracedReward *big.Int
+		require.NoError(t, g.operatorContract.Call(callOpts, &[]interface{}{&tracedReward}, "rewardAmount"))
+		require.Equal(t, tracedReward, claimedReward)
+
+		// withdraw it
+		beforeBalance := g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil)
+		receipt, err = g.ExpectedOk(g.WithdrawRewardAmount(operatorContractSingleOwner, operatorContractSingleOwner.From, claimedReward))
+		require.NoError(t, err)
+		gasUsed := calcTxGasCost(receipt)
+		require.Equal(t, g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil), beforeBalance.Add(beforeBalance, new(big.Int).Sub(claimedReward, gasUsed)))
 	})
 
 }

@@ -217,6 +217,38 @@ func (g *GovWBFT) ClaimViaOperatorContract(sender *bind.TransactOpts, v *TestSta
 	return g.operatorContractTx("claim", sender, v.Staker.Address, restake)
 }
 
+func (g *GovWBFT) WithdrawRewardAmount(sender *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "withdrawRewardAmount", to, amount)
+}
+
+func (g *GovWBFT) SubmitTransaction(sender *bind.TransactOpts, to common.Address, value *big.Int, data []byte) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "submitTransaction", to, value, data)
+}
+
+func (g *GovWBFT) ConfirmTransaction(sender *bind.TransactOpts, transactionId *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "confirmTransaction", transactionId)
+}
+
+func (g *GovWBFT) ExecuteTransaction(sender *bind.TransactOpts, transactionId *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "executeTransaction", transactionId)
+}
+
+func (g *GovWBFT) WithdrawFeeAmount(sender *bind.TransactOpts, to common.Address, withdrawAmount *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "withdrawFeeAmount", to, withdrawAmount)
+}
+
+func (g *GovWBFT) SingleOwnerUnstake(sender *bind.TransactOpts, unstakeAmount *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "unstake", unstakeAmount)
+}
+
+func (g *GovWBFT) WithdrawViaOperatorContract(sender *bind.TransactOpts, withdrawalCount *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "withdraw", withdrawalCount)
+}
+
+func (g *GovWBFT) WithdrawUnstakedAmount(sender *bind.TransactOpts, to common.Address, unstakedAmount *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "withdrawUnstakedAmount", to, unstakedAmount)
+}
+
 func (g *GovWBFT) operatorContractTx(method string, sender *bind.TransactOpts, params ...interface{}) (*types.Transaction, error) {
 	return g.operatorContract.Transact(sender, method, params...)
 }
