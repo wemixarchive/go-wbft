@@ -211,10 +211,10 @@ type WBFTExtra struct {
 
 ### Fee Policy
 While the fee policy is not strictly part of the WBFT protocol itself, this section explains the changes compared to the existing WEMIX 3.0 fee structure.
-The previous WEMIX 3.0 fee policy (https://docs.wemix.com/en/design/eip1559) followed EIP-1559 but included the following unique WEMIX-specific rules:
+The previous [WEMIX 3.0 fee policy](https://docs.wemix.com/en/design/eip1559) followed [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) but included the following unique WEMIX-specific rules:
 - Modified behavior of the eth_maxPriorityFeePerGas API: It returned a fixed value of 100 Gwei.
 - Custom baseFee calculation method: (Refer to the document linked above).
-- Mandatory fixed priorityFee for dynamic fee transactions: When using dynamic fees in transactions (tx), the priorityFee had to be explicitly set to 100 Gwei. Otherwise, the transaction would be immediately rejected by the mempool with an error.
+- Mandatory fixed priorityFee for dynamic fee transactions: When using dynamic fees in transactions, the priorityFee had to be explicitly set to >= 100 Gwei. Otherwise, the transaction would be immediately rejected by the mempool with an error.
 
 In contrast, WEMIX 3.5 and WBFT chains adhere strictly to the original EIP-1559 standard, which is designed to foster a competitive fee market among validators, suitable for a public chain environment.
 
