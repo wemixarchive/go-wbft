@@ -209,7 +209,7 @@ type WBFTExtra struct {
 }
 ```
 
-### Fee Policy
+### Gas Fee Policy
 While the fee policy is not strictly part of the WBFT protocol itself, this section explains the changes compared to the existing WEMIX 3.0 fee structure.
 The previous [WEMIX 3.0 fee policy](https://docs.wemix.com/en/design/eip1559) followed [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) but included the following unique WEMIX-specific rules:
 - Modified behavior of the eth_maxPriorityFeePerGas API: It returned a fixed value of 100 Gwei.
