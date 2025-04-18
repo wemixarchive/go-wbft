@@ -343,27 +343,6 @@ func TestOperatorContractMultiSig(t *testing.T) {
 				require.NoError(t, err)
 				unbonding = findEvents("NewCredential", receipt.Logs)[0]["unbonding"].(*big.Int)
 			})
-
-			//receipt, err := g.ExpectedOk(g.SingleOwnerUnstake(operatorContractSingleOwner, stakedAmt))
-			//require.NoError(t, err)
-			//unbondingPeriod := findEvents("NewCredential", receipt.Logs)[0]["unbonding"].(*big.Int)
-			//g.adjustTime(time.Duration(unbondingPeriod.Int64()) * time.Second)
-			//
-			//_, err = g.ExpectedOk(g.WithdrawViaOperatorContract(operatorContractSingleOwner, new(big.Int)))
-			//require.NoError(t, err)
-			//
-			//callOpts := new(bind.CallOpts)
-			//var unstakedAmount *big.Int
-			//require.NoError(t, g.operatorContract.Call(callOpts, &[]interface{}{&unstakedAmount}, "unstakedAmount"))
-			//require.Equal(t, unstakedAmount, stakedAmt)
-			//
-			//// withdraw it
-			//beforeBalance := g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil)
-			//receipt, err = g.ExpectedOk(g.WithdrawUnstakedAmount(operatorContractSingleOwner, operatorContractSingleOwner.From, unstakedAmount))
-			//require.NoError(t, err)
-			//gasUsed := calcTxGasCost(receipt)
-			//require.Equal(t, g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil), beforeBalance.Add(beforeBalance, new(big.Int).Sub(unstakedAmount, gasUsed)))
-			//
 		})
 
 		t.Run("Withdraw unstaked amount from govContract", func(t *testing.T) {
@@ -643,4 +622,125 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 		require.Equal(t, g.balanceAt(t, ctx, operatorContractSingleOwner.From, nil), beforeBalance.Add(beforeBalance, new(big.Int).Sub(claimedReward, gasUsed)))
 	})
 
+	t.Run("Activate staker by staking again", func(t *testing.T) {
+		_, err = g.ExpectedOk(TransferCoin(g.backend.Client(), operatorContractSingleOwner, minStaking, &operatorSampleAddr))
+		require.NoError(t, err)
+		_, err := g.ExpectedOk(g.SingleOwnerStake(operatorContractSingleOwner, minStaking))
+		require.NoError(t, err)
+
+		var isStaker bool
+		require.NoError(t, g.stakingContract.Call(new(bind.CallOpts), &[]interface{}{&isStaker}, "isStaker", s1.Staker.Address))
+		require.True(t, isStaker)
+	})
+}
+
+func TestMultiSig(t *testing.T) {
+	var (
+		owner1      = getTxOpt(t, "operatorContractOwner1")
+		owner2      = getTxOpt(t, "operatorContractOwner2")
+		owner3      = getTxOpt(t, "operatorContractOwner3")
+		notOwner    = getTxOpt(t, "notOwner")
+		operatorAbi abi.ABI
+		err         error
+		receipt     *types.Receipt
+	)
+	// initiate gov
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		owner1.From:   {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+		owner2.From:   {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+		owner3.From:   {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+		notOwner.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+	})
+	require.NoError(t, err)
+	defer g.backend.Close()
+
+	operatorAbi, err = abi.JSON(strings.NewReader(gov.OperatorSampleMetaData.ABI))
+	require.NoError(t, err)
+
+	// deploy operatorSample with single owner
+	owners := []common.Address{owner1.From}
+	operatorSampleAddr := g.DeployOperatorSample(t, owners, common.Big2)
+
+	t.Run("Changing owners", func(t *testing.T) {
+		// cannot remove single owner
+		ExpectedRevert(t, g.ExpectedFail(g.RemoveOwner(owner1, owner1.From)), "MultiSig: Cannot remove single owner.")
+		// add owner -> not single owner anymore
+		_, err := g.ExpectedOk(g.AddOwner(owner1, owner2.From))
+		require.NoError(t, err)
+
+		t.Run("Failure cases", func(t *testing.T) {
+			ExpectedRevert(t, g.ExpectedFail(g.AddOwner(owner1, owner3.From)), "MultiSig: Only Wallet can access.")
+			ExpectedRevert(t, g.ExpectedFail(g.RemoveOwner(owner1, owner1.From)), "MultiSig: Only Wallet can access.")
+			ExpectedRevert(t, g.ExpectedFail(g.ReplaceOwner(owner1, owner1.From, owner2.From)), "MultiSig: Only Wallet can access.")
+			ExpectedRevert(t, g.ExpectedFail(g.ChangeQuorum(owner1, common.Big2)), "MultiSig: Only Wallet can access.")
+		})
+
+		// remove owner by submitting tx
+		callData, _ := operatorAbi.Pack("RemoveOwner", owner2.From)
+		receipt, err = g.ExpectedOk(g.SubmitTransaction(owner1, operatorSampleAddr, common.Big0, callData))
+		require.NoError(t, err)
+		txId := findEvents("SubmitTransaction", receipt.Logs)[0]["txIndex"].(*big.Int)
+
+		receipt, err = multiSigConfirmTxAndExecute(g, []*bind.TransactOpts{owner1}, owner1, 1, txId)
+		require.NoError(t, err)
+
+		// test onlyOwner modifier
+		ExpectedRevert(t, g.ExpectedFail(g.SubmitTransaction(notOwner, operatorSampleAddr, common.Big0, []byte{})), "MultiSig: Only Owner can access.")
+	})
+}
+
+func TestCallingNCPContract(t *testing.T) {
+	var (
+		// owner1,2,3 is the owner of operatorContarct, and operatorContract will be ncp1
+		owner1 = getTxOpt(t, "operatorContractOwner1")
+		owner2 = getTxOpt(t, "operatorContractOwner2")
+		owner3 = getTxOpt(t, "operatorContractOwner3")
+		ncp2   = new(EOA)
+		ncp3   = new(EOA)
+		ncp4   = new(EOA)
+		err    error
+		ncpAbi abi.ABI
+	)
+	ncpList := []common.Address{owner1.From, ncp2.Address, ncp3.Address, ncp4.Address}
+	// initiate gov
+	g, err := NewGovWBFT(t, ncpList, types.GenesisAlloc{
+		owner1.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+		owner2.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+		owner3.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
+	})
+	require.NoError(t, err)
+	defer g.backend.Close()
+
+	//operatorAbi, err = abi.JSON(strings.NewReader(gov.OperatorSampleMetaData.ABI))
+	//require.NoError(t, err)
+	//
+	ncpAbi, err = abi.JSON(strings.NewReader(gov.GovNCPMetaData.ABI))
+	require.NoError(t, err)
+
+	// deploy operatorSample with single owner
+	owners := []common.Address{owner1.From, owner2.From, owner3.From}
+	operatorSampleAddr := g.DeployOperatorSample(t, owners, common.Big2)
+
+	t.Run("Set operator contract as ncp", func(t *testing.T) {
+		_, err = g.ExpectedOk(g.ncpContract.Transact(owner1, "changeNCP", operatorSampleAddr))
+		require.NoError(t, err)
+		var isNCP bool
+		require.NoError(t, g.ncpContract.Call(new(bind.CallOpts), &[]interface{}{&isNCP}, "isNCP", operatorSampleAddr))
+		require.True(t, isNCP)
+	})
+
+	t.Run("operator contract call ncpContract methods", func(t *testing.T) {
+		// call change ncp method - change ncp to owner1 address again
+		callData, _ := ncpAbi.Pack("changeNCP", owner1.From)
+		receipt, err := g.ExpectedOk(g.SubmitTransaction(owner1, govwbft.GovNCPAddress, common.Big0, callData))
+		require.NoError(t, err)
+		txId := findEvents("SubmitTransaction", receipt.Logs)[0]["txIndex"].(*big.Int)
+
+		_, err = multiSigConfirmTxAndExecute(g, []*bind.TransactOpts{owner2, owner3}, owner3, 2, txId)
+		require.NoError(t, err)
+
+		var isNCP bool
+		require.NoError(t, g.ncpContract.Call(new(bind.CallOpts), &[]interface{}{&isNCP}, "isNCP", owner1.From))
+		require.True(t, isNCP)
+	})
 }

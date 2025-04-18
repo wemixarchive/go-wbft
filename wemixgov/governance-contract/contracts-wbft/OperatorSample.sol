@@ -311,6 +311,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     // @notice Function to add remove owner
     // Removed owner will be automatically removed from claimer
     function removeOwner(address _owner) external onlyWalletOrSingleOwner isOneOfOwner(_owner){
+        require(owners.length > 1, "MultiSig: Cannot remove single owner.");
         _isOwner[_owner] = false;
 
         for (uint256 i=0; i<owners.length;) {

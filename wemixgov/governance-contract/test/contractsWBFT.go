@@ -249,6 +249,22 @@ func (g *GovWBFT) WithdrawUnstakedAmount(sender *bind.TransactOpts, to common.Ad
 	return g.operatorContract.Transact(sender, "withdrawUnstakedAmount", to, unstakedAmount)
 }
 
+func (g *GovWBFT) AddOwner(sender *bind.TransactOpts, addr common.Address) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "addOwner", addr)
+}
+
+func (g *GovWBFT) RemoveOwner(sender *bind.TransactOpts, addr common.Address) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "removeOwner", addr)
+}
+
+func (g *GovWBFT) ReplaceOwner(sender *bind.TransactOpts, existing, new common.Address) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "replaceOwner", existing, new)
+}
+
+func (g *GovWBFT) ChangeQuorum(sender *bind.TransactOpts, quorum *big.Int) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "changeQuorum", quorum)
+}
+
 func (g *GovWBFT) operatorContractTx(method string, sender *bind.TransactOpts, params ...interface{}) (*types.Transaction, error) {
 	return g.operatorContract.Transact(sender, method, params...)
 }
