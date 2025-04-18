@@ -147,7 +147,6 @@ func TestOperatorContractMultiSig(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, govwbft.StakerInfo(stateDB, s1.Staker.Address).TotalStaked, new(big.Int).Mul(minStaking, common.Big2))
 		})
-
 	})
 
 	t.Run("Claim for Reward, restake", func(t *testing.T) {
@@ -277,6 +276,7 @@ func TestOperatorContractMultiSig(t *testing.T) {
 			// 2. Delegator claims reward, fee will be sent to operatorContract
 			beforeBalance := g.balanceAt(t, ctx, operatorSampleAddr, nil)
 			receipt, err = g.ExpectedOk(g.Claim(t, delegator1, s1.Staker.Address, false))
+			require.NoError(t, err)
 			pendingFee := findEvents("UserRewardUpdated", receipt.Logs)[0]["pendingFee"].(*big.Int)
 			afterBalance := g.balanceAt(t, ctx, operatorSampleAddr, nil)
 			require.Equal(t, afterBalance, beforeBalance.Add(beforeBalance, pendingFee))
@@ -379,7 +379,6 @@ func TestOperatorContractMultiSig(t *testing.T) {
 
 				require.NoError(t, g.operatorContract.Call(callOpts, &[]interface{}{&tracedUnstaked}, "unstakedAmount"))
 				require.Equal(t, tracedUnstaked, stakedAmt)
-
 			})
 		})
 
@@ -420,11 +419,9 @@ func TestOperatorContractMultiSig(t *testing.T) {
 				require.NoError(t, g.operatorContract.Call(callOpts, &[]interface{}{&tracedUnstaked}, "unstakedAmount"))
 				require.Equal(t, g.balanceAt(t, ctx, owner4.From, nil), beforeBalance.Add(beforeBalance, stakedAmt))
 				require.True(t, tracedUnstaked.Cmp(common.Big0) == 0)
-
 			})
 		})
 	})
-
 }
 
 func multiSigConfirmTxAndExecute(g *GovWBFT, owners []*bind.TransactOpts, executer *bind.TransactOpts, quorum int, txId *big.Int) (*types.Receipt, error) {
@@ -552,6 +549,7 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 		beforeBalance := g.balanceAt(t, ctx, operatorSampleAddr, nil)
 		// 6. Delegator claims reward, fee will be sent to operatorContract
 		receipt, err = g.ExpectedOk(g.Claim(t, delegator1, s1.Staker.Address, false))
+		require.NoError(t, err)
 		pendingFee := findEvents("UserRewardUpdated", receipt.Logs)[0]["pendingFee"].(*big.Int)
 		afterBalance := g.balanceAt(t, ctx, operatorSampleAddr, nil)
 		require.Equal(t, afterBalance, beforeBalance.Add(beforeBalance, pendingFee))
