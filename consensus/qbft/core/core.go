@@ -242,6 +242,7 @@ func (c *Core) startNewRound(round *big.Int) {
 	if round.Uint64() == 0 {
 		c.QBFTPreparedPrepares = nil
 		c.roundChangeSet = newRoundChangeSet(c.valSet)
+		c.ClearExtraSeals(lastProposal.Number())
 	} else {
 		// Clear earlier round messages
 		c.roundChangeSet.ClearLowerThan(round)
