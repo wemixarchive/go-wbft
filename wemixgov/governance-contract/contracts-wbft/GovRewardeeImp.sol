@@ -17,17 +17,17 @@ contract GovRewardeeImp {
         _;
     }
 
-    function sendRewardTo(address payable recipient, uint256 amount, bool ifSendingFee) onlyGovStaking external {
+    function sendRewardTo(address payable recipient, uint256 amount, bool ifSendingFee) external onlyGovStaking {
         require(recipient != address(0), "GovRewardee: recipient is the zero address");
         require(amount > 0, "GovRewardee: amount is zero");
         require(amount <= address(this).balance, "GovRewardee: insufficient balance");
 
-        (bool success,) = recipient.call{value: amount}(""); // don't use transfer to call receive logic of recipient
+        (bool success, ) = recipient.call{ value: amount }(""); // don't use transfer to call receive logic of recipient
         require(success, "GovRewardee: reward transfer failed");
         emit RewardPaid(recipient, amount);
     }
 
-    function sendFeeTo(address payable recipient, uint256 amount) onlyGovStaking external {
+    function sendFeeTo(address payable recipient, uint256 amount) external onlyGovStaking {
         require(recipient != address(0), "GovRewardee: recipient is the zero address");
         require(amount > 0, "GovRewardee: amount is zero");
         require(amount <= address(this).balance, "GovRewardee: insufficient balance");
@@ -41,24 +41,24 @@ contract GovRewardeeImp {
             try IERC165(recipient).supportsInterface(type(IFeeRecipient).interfaceId) returns (bool supported) {
                 if (supported) {
                     // IFeeRecipient is implemented
-                    try IFeeRecipient(recipient).receiveFee{value: amount}(amount) {
+                    try IFeeRecipient(recipient).receiveFee{ value: amount }(amount) {
                         emit RewardPaid(recipient, amount);
                         return;
                     } catch {
                         revert("GovRewardee: fee recipient contract reverted");
                     }
                 } else {
-                    (bool success,) = recipient.call{value: amount}("");
+                    (bool success, ) = recipient.call{ value: amount }("");
                     require(success, "GovRewardee: fee transfer failed");
                 }
             } catch {
                 // if receiveFee is not implemented, transfer ether directly
-                (bool success,) = recipient.call{value: amount}("");
+                (bool success, ) = recipient.call{ value: amount }("");
                 require(success, "GovRewardee: fee transfer failed");
             }
         } else {
             // if it is for sending reward or recipient is EOA, transfer ether directly
-            (bool success,) = recipient.call{value: amount}("");
+            (bool success, ) = recipient.call{ value: amount }("");
             require(success, "GovRewardee: fee transfer failed");
         }
         emit FeePaid(recipient, amount);

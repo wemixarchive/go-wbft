@@ -27,7 +27,9 @@ interface IMultiSigWallet {
 
     function getOwners() external view returns (address[] memory);
     function getOwnerCount() external view returns (uint256);
-    function getTransaction(uint256 _txIndex) external view returns (address to, uint256 value, bytes memory data, bool executed, uint256 numConfirmations);
+    function getTransaction(
+        uint256 _txIndex
+    ) external view returns (address to, uint256 value, bytes memory data, bool executed, uint256 numConfirmations);
     function getTransactionCount() external view returns (uint256);
 
     /* ========== EVENTS ========== */
@@ -41,5 +43,4 @@ interface IMultiSigWallet {
     event AddOwner(address indexed newOwner);
     event RemoveOwner(address indexed owner);
     event ChangeQuorum(uint256 indexed quorum);
-
 }

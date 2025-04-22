@@ -6,7 +6,6 @@ interface IERC165 {
 }
 
 interface IFeeRecipient is IERC165 {
-    
     /* ========== FUNCTION ========== */
     function receiveFee(uint256 _amount) external payable;
     function withdrawFeeAmount(address _to, uint256 _amount) external;
