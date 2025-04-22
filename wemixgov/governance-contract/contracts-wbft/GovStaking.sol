@@ -339,15 +339,15 @@ contract GovStaking {
 
         if (_restake) {
             require(isStaker(_staker), "staker is inactive");
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward, false);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward);
 
             _addStaking(_staker, msg.sender, _reward);
         } else {
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward, false);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward);
         }
 
         if (_fee > 0) {
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(_stakerInfo.feeRecipient), _fee, true);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendFeeTo()(payable(_stakerInfo.feeRecipient), _fee);
         }
 
         _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;
@@ -356,13 +356,13 @@ contract GovStaking {
 
     function withdraw(uint256 _withdrawalCount) external {
         UserCredentialInfo storage _userCredential = userCredential[msg.sender];
-        require(_userCredential.credentialIndex > _userCredential.withdrawalIndex , "no credential to withdraw");
+        require(_userCredential.credentialIndex > _userCredential.withdrawalIndex, "no credential to withdraw");
 
         uint256 _lastIndex = _userCredential.credentialIndex;
         if (_withdrawalCount > 0) {
             _lastIndex = _userCredential.withdrawalIndex + _withdrawalCount;
             require(_lastIndex <= _userCredential.credentialIndex, "out of max user credential index");
-            require(credentials[msg.sender][_userCredential.withdrawalIndex+_withdrawalCount-1].withdrawableTime <= block.timestamp, "withdrawal time not reached");
+            require(credentials[msg.sender][_userCredential.withdrawalIndex + _withdrawalCount - 1].withdrawableTime <= block.timestamp, "withdrawal time not reached");
         }
         for (uint256 i = _userCredential.withdrawalIndex; i < _lastIndex; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
