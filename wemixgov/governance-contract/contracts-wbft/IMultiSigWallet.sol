@@ -19,7 +19,7 @@ interface IMultiSigWallet {
     function revokeConfirmation(uint256 _txIndex) external;
 
     function addOwner(address _newOwner) external;
-    function removeOwner(address _owner) external;
+    function removeOwner(address _owner, bool _reduceQuorum) external;
     function replaceOwner(address _owner, address _newOwner) external;
     function changeQuorum(uint256 _quorum) external;
 
