@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 
@@ -17,7 +19,10 @@ func promptInput(p string) string {
 	for {
 		text, err := prompt.Stdin.PromptInput(p)
 		if err != nil {
-			if err != liner.ErrPromptAborted {
+			if errors.Is(err, liner.ErrPromptAborted) {
+				log.Info("Interrupted by user, shutting down...")
+				os.Exit(0)
+			} else {
 				log.Crit("Failed to read user input", "err", err)
 			}
 		} else {
