@@ -362,7 +362,7 @@ contract GovStaking {
         }
 
         if (_fee > 0) {
-            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendFeeTo()(payable(_stakerInfo.feeRecipient), _fee);
+            GovRewardeeImp(payable(_stakerInfo.rewardee)).sendFeeTo(payable(_stakerInfo.feeRecipient), _fee);
         }
 
         _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;

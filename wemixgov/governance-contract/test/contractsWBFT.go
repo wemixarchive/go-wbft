@@ -194,8 +194,8 @@ func (g *GovWBFT) ncpContractTx(t *testing.T, method string, sender *EOA, value 
 }
 
 // OperatorSample Contract
-func (g *GovWBFT) DeployOperatorSample(t *testing.T, owners []common.Address, quorum *big.Int) common.Address {
-	operatorAddr, operatorContract, err := g.Deploy(compiledWBFT.OperatorSample.Deploy(g.backend.Client(), g.owner, owners, quorum))
+func (g *GovWBFT) DeployOperatorSample(t *testing.T, owners []common.Address, fundManagers []common.Address, quorum *big.Int) common.Address {
+	operatorAddr, operatorContract, err := g.Deploy(compiledWBFT.OperatorSample.Deploy(g.backend.Client(), g.owner, owners, fundManagers, quorum))
 	require.NoError(t, err)
 	g.operatorContract = operatorContract
 	return operatorAddr
@@ -213,12 +213,16 @@ func (g *GovWBFT) SingleOwnerStake(sender *bind.TransactOpts, amount *big.Int) (
 	return g.operatorContractTx("stake", sender, amount)
 }
 
-func (g *GovWBFT) ClaimViaOperatorContract(sender *bind.TransactOpts, v *TestStaker[*CA], restake bool) (*types.Transaction, error) {
-	return g.operatorContractTx("claim", sender, v.Staker.Address, restake)
+func (g *GovWBFT) ClaimWithRestake(sender *bind.TransactOpts, v *TestStaker[*CA]) (*types.Transaction, error) {
+	return g.operatorContractTx("claimWithRestake", sender, v.Staker.Address)
+}
+
+func (g *GovWBFT) ClaimWithoutRestake(sender *bind.TransactOpts, v *TestStaker[*CA]) (*types.Transaction, error) {
+	return g.operatorContractTx("claimWithoutRestake", sender, v.Staker.Address)
 }
 
 func (g *GovWBFT) WithdrawRewardAmount(sender *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	return g.operatorContract.Transact(sender, "withdrawRewardAmount", to, amount)
+	return g.operatorContract.Transact(sender, "withdrawReward", to, amount)
 }
 
 func (g *GovWBFT) SubmitTransaction(sender *bind.TransactOpts, to common.Address, value *big.Int, data []byte) (*types.Transaction, error) {
@@ -234,7 +238,7 @@ func (g *GovWBFT) ExecuteTransaction(sender *bind.TransactOpts, transactionId *b
 }
 
 func (g *GovWBFT) WithdrawFeeAmount(sender *bind.TransactOpts, to common.Address, withdrawAmount *big.Int) (*types.Transaction, error) {
-	return g.operatorContract.Transact(sender, "withdrawFeeAmount", to, withdrawAmount)
+	return g.operatorContract.Transact(sender, "withdrawFee", to, withdrawAmount)
 }
 
 func (g *GovWBFT) SingleOwnerUnstake(sender *bind.TransactOpts, unstakeAmount *big.Int) (*types.Transaction, error) {
@@ -246,15 +250,15 @@ func (g *GovWBFT) WithdrawViaOperatorContract(sender *bind.TransactOpts, withdra
 }
 
 func (g *GovWBFT) WithdrawUnstakedAmount(sender *bind.TransactOpts, to common.Address, unstakedAmount *big.Int) (*types.Transaction, error) {
-	return g.operatorContract.Transact(sender, "withdrawUnstakedAmount", to, unstakedAmount)
+	return g.operatorContract.Transact(sender, "withdrawUnstaked", to, unstakedAmount)
 }
 
-func (g *GovWBFT) AddOwner(sender *bind.TransactOpts, addr common.Address) (*types.Transaction, error) {
-	return g.operatorContract.Transact(sender, "addOwner", addr)
+func (g *GovWBFT) AddOwner(sender *bind.TransactOpts, addr common.Address, increaseQuorum bool) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "addOwner", addr, increaseQuorum)
 }
 
-func (g *GovWBFT) RemoveOwner(sender *bind.TransactOpts, addr common.Address) (*types.Transaction, error) {
-	return g.operatorContract.Transact(sender, "removeOwner", addr)
+func (g *GovWBFT) RemoveOwner(sender *bind.TransactOpts, addr common.Address, reduceQuorum bool) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "removeOwner", addr, reduceQuorum)
 }
 
 func (g *GovWBFT) ReplaceOwner(sender *bind.TransactOpts, existing, new common.Address) (*types.Transaction, error) {
@@ -263,6 +267,14 @@ func (g *GovWBFT) ReplaceOwner(sender *bind.TransactOpts, existing, new common.A
 
 func (g *GovWBFT) ChangeQuorum(sender *bind.TransactOpts, quorum *big.Int) (*types.Transaction, error) {
 	return g.operatorContract.Transact(sender, "changeQuorum", quorum)
+}
+
+func (g *GovWBFT) AddFundManager(sender *bind.TransactOpts, addr common.Address) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "addFundManager", addr)
+}
+
+func (g *GovWBFT) RemoveFundManager(sender *bind.TransactOpts, addr common.Address) (*types.Transaction, error) {
+	return g.operatorContract.Transact(sender, "removeFundManager", addr)
 }
 
 func (g *GovWBFT) operatorContractTx(method string, sender *bind.TransactOpts, params ...interface{}) (*types.Transaction, error) {

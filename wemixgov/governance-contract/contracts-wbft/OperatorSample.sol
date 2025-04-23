@@ -11,30 +11,31 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     // Constants
     uint256 public constant MAX_OWNER_COUNT = 50; // number of max owner
     address public constant GOV_STAKING = address(0x1001);
-    uint8 private constant _NOT_ENTERED = 1;
-    uint8 private constant _ENTERED = 2;
-    bytes4 public constant _WITHDRAW_FEE_AMOUNT_SELECTOR = bytes4(keccak256("withdrawFee(address,uint256)"));
-    bytes4 public constant _WITHDRAW_REWARD_AMOUNT_SELECTOR = bytes4(keccak256("withdrawReward(address,uint256)"));
-    bytes4 public constant _WITHDRAW_UNSTAKED_AMOUNT_SELECTOR = bytes4(keccak256("withdrawUnstaked(address,uint256)"));
-    bytes4 public constant _REGISTER_STAKER_SELECTOR = bytes4(keccak256("registerStaker(uint256,address,address,uint256,bytes)"));
-    bytes4 public constant _STAKE_SELECTOR = bytes4(keccak256("stake(uint256)"));
+    uint8 private constant NOT_ENTERED = 1;
+    uint8 private constant ENTERED = 2;
+    bytes4 public constant GOV_CLAIM_SELECTOR = bytes4(keccak256("claim(address,bool)"));
+    bytes4 public constant CLAIM_WITHOUT_RESTAKE_SELECTOR = bytes4(keccak256("claimWithoutRestake(address)"));
+    bytes4 public constant WITHDRAW_SELECTOR = bytes4(keccak256("withdraw(uint256)"));
+    bytes4 public constant REGISTER_STAKER_SELECTOR = bytes4(keccak256("registerStaker(uint256,address,address,uint256,bytes)"));
+    bytes4 public constant STAKE_SELECTOR = bytes4(keccak256("stake(uint256)"));
 
-    uint8 private _status;
-    bool private _receivingRewardStat;
+    uint8 private __status;
+    bool private __receivingRewardStat;
 
     address[] public owners; // owners address set
+    address[] public fundManagers;
     Transaction[] public transactions; // transaction struct set
 
     uint256 public quorum; // minimum required confirmation number
-    uint256 public _unstakedAmount;
-    uint256 public _rewardAmount;
-    uint256 public _feeAmount;
+    uint256 public unstakedAmount;
+    uint256 public rewardAmount;
+    uint256 public feeAmount;
 
     // Mappings (each takes a full slot)
     mapping(bytes32 => uint256) public proposalHashToTxId; // mapping from hash(proposer,blockNumber) =>  transaction id
-    mapping(address => bool) public _isOwner; // mapping from owner => bool
+    mapping(address => bool) public isOwner; // mapping from owner => bool
     mapping(uint256 => mapping(address => bool)) public isConfirmed; // mapping from transaction id => owner => bool
-    mapping(address => bool) public _claimers; // mapping from claimer => bool
+    mapping(address => bool) public isFundManager;
 
     /* =========== EVENTS  ===========*/
 
@@ -43,20 +44,23 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     event SentUnstakedAmount(address indexed to, uint256 amount);
     event SentRewardAmount(address indexed to, uint256 amount);
 
+    event AddFundManager(address indexed newFundManager);
+    event RemoveFundManager(address indexed fundManager);
+
     /* =========== MODIFIERS  ===========*/
 
     modifier onlyOwner() {
-        require(_isOwner[msg.sender], "Operator: only owner can access");
+        require(isOwner[msg.sender], "Operator: only owner can access");
         _;
     }
 
     modifier isOneOfOwner(address _owner) {
-        require(_isOwner[_owner], "Operator: only owner can access");
+        require(isOwner[_owner], "Operator: only owner can access");
         _;
     }
 
     modifier isNotOneOfOwner(address _owner) {
-        require(!_isOwner[_owner], "Operator: owner can not access");
+        require(!isOwner[_owner], "Operator: owner can not access");
         _;
     }
 
@@ -91,31 +95,31 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         _;
     }
 
-    modifier validRequirement(uint256 _ownerCount, uint256 _quorum) {
-        require(_ownerCount <= MAX_OWNER_COUNT && _quorum <= _ownerCount && _quorum != 0 && _ownerCount != 0, "Operator: invalid quorum requirement");
+    modifier validQuorumRequirement(uint256 _ownerCount, uint256 _quorum) {
+        require(_quorum <= _ownerCount && _quorum != 0, "Operator: invalid quorum requirement");
         _;
     }
 
-    modifier onlyWalletOrClaimerOrOwner(address _addr) {
-        require(_claimers[_addr] || isOwner(_addr) || _addr == address(this), "Operator: only claimer or owner can execute");
+    modifier onlyFundManager() {
+        require(isFundManager[msg.sender], "Operator: only fundManager can access");
         _;
     }
 
     modifier nonReentrant() {
-        require(_status != _ENTERED, "Operator: reentrant call");
-        _status = _ENTERED;
+        require(__status != ENTERED, "Operator: reentrant call");
+        __status = ENTERED;
         _;
-        _status = _NOT_ENTERED;
+        __status = NOT_ENTERED;
     }
 
-    constructor(address[] memory _owners, uint256 _quorum) {
+    constructor(address[] memory _owners, address[] memory _fundManagers, uint256 _quorum) {
         require(_owners.length > 0, "Operator: owners length must be at least 1");
 
-        if (_owners.length > 2) {
+        if (_owners.length > 1) {
             require(_quorum > 1 && _quorum <= _owners.length, "Operator: number of confirmations does not satisfy quorum");
             quorum = _quorum;
         } else {
-            // if owners.length is less than 3, set quorum as 1
+            // if owners.length is 1, set quorum as 1
             quorum = 1;
         }
 
@@ -123,12 +127,23 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             address owner = _owners[i];
 
             require(owner != address(0), "Operator: owner cannot be zero address");
-            require(!_isOwner[owner], "Operator: owner address is duplicated");
+            require(!isOwner[owner], "Operator: owner address is duplicated");
 
-            _isOwner[owner] = true;
+            isOwner[owner] = true;
             owners.push(owner);
         }
-        _status = _NOT_ENTERED;
+
+        for (uint256 i = 0; i < _fundManagers.length; i++) {
+            address fm = _fundManagers[i];
+
+            require(fm != address(0), "Operator: fundManager cannot be zero address");
+            require(!isFundManager[fm], "Operator: fundManager address is duplicated");
+
+            isFundManager[fm] = true;
+            fundManagers.push(fm);
+        }
+
+        __status = NOT_ENTERED;
         // fill index 0 with empty Transaction
         transactions.push(Transaction({ to: address(0), value: 0, data: new bytes(0), executed: false, currentNumberOfConfirmations: 0 }));
     }
@@ -137,12 +152,11 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     // @dev When _receivingRewardStat is true, means the received ether is reward value so increase the _rewardAmount.
     // Else, increase the _unstakedAmount
     receive() external payable {
-        if (_receivingRewardStat) {
-            _rewardAmount += msg.value;
+        if (__receivingRewardStat) {
+            rewardAmount += msg.value;
             emit ReceivedReward(msg.sender, msg.value);
-            _receivingRewardStat = false;
         } else {
-            _unstakedAmount += msg.value;
+            unstakedAmount += msg.value;
             emit ReceivedUnstaked(msg.sender, msg.value);
         }
         emit Deposit(msg.sender, msg.value, address(this).balance);
@@ -158,36 +172,39 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     // implements IFeeRecipient
     function receiveFee(uint256 _amount) external payable {
         require(_amount == msg.value, "Operator: fee amount and value sent mismatched");
-        _feeAmount += _amount;
+        feeAmount += _amount;
         emit ReceivedFee(msg.sender, _amount);
     }
 
     // implements IFeeRecipient
     // @notice Function is for sending _to a fee amount
-    function withdrawFee(address _to, uint256 _amount) external onlyWalletOrSingleOwner notNull(_to) nonReentrant {
-        require(_amount <= _feeAmount, "Operator: withdraw amount is greater than fee amount");
-        _feeAmount -= _amount;
+    // Only fundManger can access this function.
+    function withdrawFee(address _to, uint256 _amount) external onlyFundManager notNull(_to) nonReentrant {
+        require(_amount <= feeAmount && _amount > 0, "Operator: invalid amount");
+        feeAmount -= _amount;
         (bool success, ) = payable(_to).call{ value: _amount }("");
         require(success, "Operator: failed to send fee amount");
         emit SentFeeAmount(_to, _amount);
     }
 
-    // @notice Function is for sending _to a unstaked amount
-    function withdrawUnstaked(address _to, uint256 _amount) external onlyWalletOrSingleOwner notNull(_to) nonReentrant {
-        require(_amount <= _unstakedAmount, "Operator: withdraw amount is greater than unstaked amount");
-        _unstakedAmount -= _amount;
-        (bool success, ) = payable(_to).call{ value: _amount }("");
-        require(success, "Operator: failed to send unstaked amount");
-        emit SentUnstakedAmount(_to, _amount);
-    }
-
     // @notice Function is for sending _to a reward amount
-    function withdrawReward(address _to, uint256 _amount) external onlyWalletOrSingleOwner notNull(_to) nonReentrant {
-        require(_amount <= _rewardAmount, "Operator: withdraw amount is greater than reward amount");
-        _rewardAmount -= _amount;
+    // Only fundManger can access this function.
+    function withdrawReward(address _to, uint256 _amount) external onlyFundManager notNull(_to) nonReentrant {
+        require(_amount <= rewardAmount && _amount > 0, "Operator: invalid amount");
+        rewardAmount -= _amount;
         (bool success, ) = payable(_to).call{ value: _amount }("");
         require(success, "Operator: failed to send reward amount");
         emit SentRewardAmount(_to, _amount);
+    }
+
+    // @notice Function is for sending _to a unstaked amount
+    // Note that fundManager has no right to manage unstaked amount. It is only managed by owners.
+    function withdrawUnstaked(address _to, uint256 _amount) external onlyWalletOrSingleOwner notNull(_to) nonReentrant {
+        require(_amount <= unstakedAmount, "Operator: withdraw amount is greater than unstaked amount");
+        unstakedAmount -= _amount;
+        (bool success, ) = payable(_to).call{ value: _amount }("");
+        require(success, "Operator: failed to send unstaked amount");
+        emit SentUnstakedAmount(_to, _amount);
     }
 
     // @notice Function calls the registerStaker method of the GovStaking contract with Ether value
@@ -200,8 +217,8 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         uint256 _feeRate,
         bytes calldata _blsPK
     ) external onlyWalletOrSingleOwner nonReentrant {
-        require(_amount <= _unstakedAmount, "Operator : amount is greater than unstaked amount");
-        _unstakedAmount -= _amount;
+        require(_amount <= unstakedAmount, "Operator : amount is greater than unstaked amount");
+        unstakedAmount -= _amount;
         bytes memory data = abi.encodeWithSignature(
             "registerStaker(uint256,address,address,uint256,bytes)",
             _amount,
@@ -221,8 +238,8 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     // You cannot directly submit a transaction to GovStaking's stake method since it's blocked for tracking amounts.
     // Instead, you must submit a transaction that calls this wrapper function, or just call this function directly if there's only one owner.
     function stake(uint256 _amount) external onlyWalletOrSingleOwner nonReentrant {
-        require(_amount <= _unstakedAmount, "Operator: amount is greater than unstaked amount");
-        _unstakedAmount -= _amount;
+        require(_amount <= unstakedAmount, "Operator: amount is greater than unstaked amount");
+        unstakedAmount -= _amount;
         bytes memory data = abi.encodeWithSignature("stake(uint256)", _amount);
         (bool success, bytes memory returnData) = GOV_STAKING.call{ value: _amount }(data);
         if (!success) {
@@ -243,9 +260,8 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     }
 
     // @notice Function calls the withdraw method of the GovStaking
-    // You may submit a transaction calling GovStaking's withdraw method,
-    // Or if it's single user, just call this function right away.
-    function withdraw(uint256 _withdrawalCount) external onlyWalletOrSingleOwner nonReentrant {
+    // Owner can directly call this method without multiSig signing.
+    function withdraw(uint256 _withdrawalCount) external onlyOwner nonReentrant {
         bytes memory data = abi.encodeWithSignature("withdraw(uint256)", _withdrawalCount);
         (bool success, bytes memory returnData) = GOV_STAKING.call(data);
         if (!success) {
@@ -253,31 +269,37 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         }
     }
 
-    // @notice Function calls the claim method of the GovStaking contract
-    // Owner or claimer can directly call this method without multiSig signing.
-    function claim(address _staker, bool _restake) external onlyWalletOrClaimerOrOwner(msg.sender) {
-        bytes memory data = abi.encodeWithSignature("claim(address,bool)", _staker, _restake);
-        if (!_restake) {
-            _receivingRewardStat = true;
+    // @notice Function calls the claim method of the GovStaking contract with restake option as false
+    // Owner can directly call this method without multiSig signing.
+    function claimWithoutRestake(address _staker) external onlyOwner nonReentrant {
+        bytes memory data = abi.encodeWithSignature("claim(address,bool)", _staker, false);
+        __receivingRewardStat = true;
+        (bool success, bytes memory returnData) = GOV_STAKING.call(data);
+        __receivingRewardStat = false;
+        if (!success) {
+            revert(_getRevertMsg(returnData, "Operator: claim tx failed"));
         }
+    }
 
+    function claimWithRestake(address _staker) external onlyWalletOrSingleOwner nonReentrant {
+        bytes memory data = abi.encodeWithSignature("claim(address,bool)", _staker, true);
         (bool success, bytes memory returnData) = GOV_STAKING.call(data);
         if (!success) {
-            if (_receivingRewardStat) {
-                _receivingRewardStat = false;
-            }
-
             revert(_getRevertMsg(returnData, "Operator: claim tx failed"));
         }
     }
 
     // @notice Function to add owner
     // Added owner will be automatically added to claimer
-    function addOwner(
-        address _newOwner
-    ) external onlyWalletOrSingleOwner notNull(_newOwner) isNotOneOfOwner(_newOwner) validRequirement(owners.length + 1, quorum) {
-        _isOwner[_newOwner] = true;
+    function addOwner(address _newOwner, bool _increaseQuorum) external onlyWalletOrSingleOwner notNull(_newOwner) isNotOneOfOwner(_newOwner) {
+        require(owners.length + 1 <= MAX_OWNER_COUNT, "Operator: max owner count exceeded");
+        isOwner[_newOwner] = true;
         owners.push(_newOwner);
+        if (_increaseQuorum) {
+            require(quorum + 1 <= owners.length, "Operator: quorum cannot be more than owner count");
+            quorum += 1;
+            emit ChangeQuorum(quorum);
+        }
         emit AddOwner(_newOwner);
     }
 
@@ -285,7 +307,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     // Removed owner will be automatically removed from claimer
     function removeOwner(address _owner, bool _reduceQuorum) external onlyWalletOrSingleOwner isOneOfOwner(_owner) {
         require(owners.length > 1, "Operator: cannot remove single owner");
-        _isOwner[_owner] = false;
+        isOwner[_owner] = false;
 
         for (uint256 i = 0; i < owners.length; ) {
             if (owners[i] == _owner) {
@@ -322,27 +344,43 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             }
         }
 
-        _isOwner[_owner] = false;
-        _isOwner[_newOwner] = true;
+        isOwner[_owner] = false;
+        isOwner[_newOwner] = true;
 
         emit RemoveOwner(_owner);
         emit AddOwner(_newOwner);
     }
 
     // @notice Function to change quorum
-    function changeQuorum(uint256 _quorum) external onlyWalletOrSingleOwner validRequirement(owners.length, _quorum) {
+    function changeQuorum(uint256 _quorum) external onlyWalletOrSingleOwner validQuorumRequirement(owners.length, _quorum) {
         quorum = _quorum;
         emit ChangeQuorum(_quorum);
     }
 
-    // @notice Function to add claimer
-    function addClaimer(address _newClaimer) external onlyWalletOrSingleOwner {
-        _addClaimer(_newClaimer);
+    // @notice Function to add fundManager
+    function addFundManager(address _newFundManager) external onlyWalletOrSingleOwner {
+        require(!isFundManager[_newFundManager], "Operator: already registered fundManager");
+        isFundManager[_newFundManager] = true;
+        fundManagers.push(_newFundManager);
+        emit AddFundManager(_newFundManager);
     }
 
-    // @notice Function to remove claimer
-    function removeClaimer(address _claimer) external onlyWalletOrSingleOwner {
-        _removeClaimer(_claimer);
+    // @notice Function to remove fundManager
+    function removeFundManager(address _fundManager) external onlyWalletOrSingleOwner {
+        require(isFundManager[_fundManager], "Operator: fundManager is not registered");
+        isFundManager[_fundManager] = false;
+
+        for (uint256 i = 0; i < fundManagers.length; ) {
+            if (fundManagers[i] == _fundManager) {
+                fundManagers[i] = fundManagers[fundManagers.length - 1];
+                fundManagers.pop();
+                break;
+            }
+            unchecked {
+                i++;
+            }
+        }
+        emit RemoveFundManager(_fundManager);
     }
 
     /* ========== PUBLIC FUNCTION ========== */
@@ -359,18 +397,19 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         bytes4 selector = bytes4(_data);
         if (_to == GOV_STAKING) {
             // if the transaction destination is govStaking, registerStaker and stake function is not allowed
-            require(selector != _REGISTER_STAKER_SELECTOR && selector != _STAKE_SELECTOR, "Operator: use proper stake functions");
+            require(selector != REGISTER_STAKER_SELECTOR && selector != STAKE_SELECTOR, "Operator: use proper stake functions");
+            require(selector != GOV_CLAIM_SELECTOR && selector != WITHDRAW_SELECTOR, "Operator: use proper claim/withdraw functions");
+        }
+
+        if (_to == address(this)) {
+            // claimWithoutRestake and withdraw function don't need multiSig. Owner cal call this function directly.
+            // to prevent confusion, we block this function here.
+            require(selector != CLAIM_WITHOUT_RESTAKE_SELECTOR && selector != WITHDRAW_SELECTOR, "Operator: use proper claim/withdraw functions");
         }
 
         if (_value > 0) {
-            // if the transaction is to transfer value from this contract, force to use allowed method
-            require(
-                _to == address(this) &&
-                    (selector == _WITHDRAW_FEE_AMOUNT_SELECTOR ||
-                        selector == _WITHDRAW_REWARD_AMOUNT_SELECTOR ||
-                        selector == _WITHDRAW_UNSTAKED_AMOUNT_SELECTOR),
-                "Operator: use proper withdraw functions to transfer value from contract"
-            );
+            // The only way to withdraw ETH will be through the proper withdrawal functions, which will be executed with zero value in the transaction itself.
+            revert("Operator: use proper withdraw functions to transfer value from the contract");
         }
         transactions.push(Transaction({ to: _to, value: _value, data: _data, executed: false, currentNumberOfConfirmations: 0 }));
         emit SubmitTransaction(msg.sender, transactionId, _to, _value, _data);
@@ -382,41 +421,11 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
             transaction.currentNumberOfConfirmations >= quorum,
             "Operator: current number of confirmations must be greater than or equal to quorum"
         );
-
-        if (transaction.to == address(GOV_STAKING) || transaction.to == address(this)) {
-            (bool isClaimCall, address staker, bool restake) = _getClaimParameters(transaction);
-            if (isClaimCall && !restake) {
-                _receivingRewardStat = true;
-            }
-        }
         transaction.executed = true;
-        (bool success, bytes memory returnData) = transaction.to.call{ value: transaction.value }(transaction.data);
+        (bool success, bytes memory returnData) = transaction.to.call{ value: 0 }(transaction.data);
         if (!success) {
-            // Get the function signature from the transaction data
-            string memory functionName = "unknown function";
-            if (transaction.data.length >= 4) {
-                bytes4 selector;
-                bytes memory txData = transaction.data;
-                assembly {
-                    selector := mload(add(txData, 32))
-                }
-
-                if (selector == _WITHDRAW_FEE_AMOUNT_SELECTOR) {
-                    functionName = "withdrawFee";
-                } else if (selector == _WITHDRAW_REWARD_AMOUNT_SELECTOR) {
-                    functionName = "withdrawReward";
-                } else if (selector == _WITHDRAW_UNSTAKED_AMOUNT_SELECTOR) {
-                    functionName = "withdrawUnstaked";
-                } else if (selector == _REGISTER_STAKER_SELECTOR) {
-                    functionName = "registerStaker";
-                } else if (selector == _STAKE_SELECTOR) {
-                    functionName = "stake";
-                }
-            }
-
-            revert(_getRevertMsg(returnData, string(abi.encodePacked("Operator: ", functionName, " transaction failed"))));
+            revert(_getRevertMsg(returnData, string(abi.encodePacked("Operator: transaction failed"))));
         }
-
         emit ExecuteTransaction(msg.sender, _transactionId);
     }
 
@@ -445,13 +454,19 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         emit RevokeConfirmation(msg.sender, _transactionId);
     }
 
-    function isOwner(address _owner) public view returns (bool) {
-        return _isOwner[_owner];
+    // @notice Get Owners.
+    function getOwners() public view returns (address[] memory) {
+        return owners;
     }
 
     // @notice Get Owners Count.
     function getOwnerCount() public view returns (uint256) {
         return owners.length;
+    }
+
+    // @notice Get FundManagers.
+    function getFundManagers() public view returns (address[] memory) {
+        return fundManagers;
     }
 
     // @notice Get Transaction.
@@ -466,29 +481,6 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     // @notice Get Transaction Count.
     function getTransactionCount() public view returns (uint256) {
         return transactions.length;
-    }
-
-    /* ========== INTERNAL FUNCTION ========== */
-
-    function _getClaimParameters(Transaction storage transaction) internal view returns (bool isClaimCall, address staker, bool restake) {
-        if (transaction.data.length < 68) return (false, address(0), false);
-
-        bytes memory txData = transaction.data;
-
-        bytes4 signature;
-        assembly {
-            signature := mload(add(txData, 32))
-        }
-
-        bytes4 claimSelector = bytes4(keccak256("claim(address,bool)"));
-        if (signature != claimSelector) return (false, address(0), false);
-
-        assembly {
-            staker := mload(add(txData, 64))
-            restake := mload(add(txData, 96))
-        }
-
-        return (true, staker, restake);
     }
 
     /* ========== PRIVATE FUNCTION ========== */
@@ -517,15 +509,5 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
 
         // Default message if no specific reason found
         return _defaultMsg;
-    }
-
-    function _addClaimer(address _newClaimer) private {
-        require(!_claimers[_newClaimer], "Operator: already registered claimer");
-        _claimers[_newClaimer] = true;
-    }
-
-    function _removeClaimer(address _claimerToRemove) private {
-        require(_claimers[_claimerToRemove], "Operator: claimer is not registered");
-        _claimers[_claimerToRemove] = false;
     }
 }

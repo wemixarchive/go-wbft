@@ -17,7 +17,7 @@ contract GovRewardeeImp {
         _;
     }
 
-    function sendRewardTo(address payable recipient, uint256 amount, bool ifSendingFee) external onlyGovStaking {
+    function sendRewardTo(address payable recipient, uint256 amount) external onlyGovStaking {
         require(recipient != address(0), "GovRewardee: recipient is the zero address");
         require(amount > 0, "GovRewardee: amount is zero");
         require(amount <= address(this).balance, "GovRewardee: insufficient balance");

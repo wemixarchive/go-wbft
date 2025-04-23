@@ -18,7 +18,7 @@ interface IMultiSigWallet {
     function executeTransaction(uint256 _txIndex) external payable;
     function revokeConfirmation(uint256 _txIndex) external;
 
-    function addOwner(address _newOwner) external;
+    function addOwner(address _newOwner, bool _increaseQuorum) external;
     function removeOwner(address _owner, bool _reduceQuorum) external;
     function replaceOwner(address _owner, address _newOwner) external;
     function changeQuorum(uint256 _quorum) external;
@@ -42,5 +42,6 @@ interface IMultiSigWallet {
 
     event AddOwner(address indexed newOwner);
     event RemoveOwner(address indexed owner);
+
     event ChangeQuorum(uint256 indexed quorum);
 }
