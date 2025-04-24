@@ -662,9 +662,8 @@ func buildInitialExtraData(genesis *Genesis, config *params.ChainConfig) error {
 		epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, hexutil.MustDecode(blsPublicKeys[i]))
 	}
 
-	//vanity := append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(genesis.ExtraData))...)
 	ist := &types.QBFTExtra{
-		VanityData:        []byte{},
+		VanityData:        append([]byte{}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...),
 		PrevRound:         0,
 		PrevPreparedSeal:  nil,
 		PrevCommittedSeal: nil,
