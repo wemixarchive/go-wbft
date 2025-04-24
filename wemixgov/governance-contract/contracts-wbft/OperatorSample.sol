@@ -358,7 +358,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     }
 
     // @notice Function to add fundManager
-    function addFundManager(address _newFundManager) external onlyWalletOrSingleOwner {
+    function addFundManager(address _newFundManager) external onlyWalletOrSingleOwner notNull(_newFundManager) {
         require(!isFundManager[_newFundManager], "Operator: already registered fundManager");
         isFundManager[_newFundManager] = true;
         fundManagers.push(_newFundManager);
@@ -366,7 +366,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     }
 
     // @notice Function to remove fundManager
-    function removeFundManager(address _fundManager) external onlyWalletOrSingleOwner {
+    function removeFundManager(address _fundManager) external onlyWalletOrSingleOwner notNull(_fundManager) {
         require(isFundManager[_fundManager], "Operator: fundManager is not registered");
         isFundManager[_fundManager] = false;
 
