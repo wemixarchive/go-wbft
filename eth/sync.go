@@ -30,9 +30,7 @@ import (
 )
 
 const (
-	forceSyncCycle      = 10 * time.Second // Time interval to force syncs, even if few peers are available
-	tdCheckInterval     = 30 * time.Second // Time interval to verify TD changes and detect sync stalling
-	defaultMinSyncPeers = 5                // Amount of peers desired to start syncing
+	defaultMinSyncPeers = 5 // Amount of peers desired to start syncing
 )
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
@@ -102,10 +100,10 @@ func (cs *chainSyncer) loop() {
 
 	// The force timer lowers the peer count threshold down to one when it fires.
 	// This ensures we'll always start sync even if there aren't enough peers.
-	cs.force = time.NewTimer(forceSyncCycle)
+	cs.force = time.NewTimer(cs.handler.forceSyncCycle)
 	defer cs.force.Stop()
 
-	cs.tdCheckTimer = time.NewTimer(tdCheckInterval)
+	cs.tdCheckTimer = time.NewTimer(cs.handler.tdSyncInterval)
 	defer cs.tdCheckTimer.Stop()
 
 	_, headTD := cs.modeAndLocalHead()
@@ -124,7 +122,7 @@ func (cs *chainSyncer) loop() {
 			// Peer information changed, recheck.
 		case err := <-cs.doneCh:
 			cs.doneCh = nil
-			cs.force.Reset(forceSyncCycle)
+			cs.force.Reset(cs.handler.forceSyncCycle)
 			cs.forced = false
 
 			// If we've reached the merge transition but no beacon client is available, or
@@ -144,7 +142,7 @@ func (cs *chainSyncer) loop() {
 				}
 				cs.previousTD = new(big.Int).Set(headTD)
 			}
-			cs.tdCheckTimer.Reset(tdCheckInterval)
+			cs.tdCheckTimer.Reset(cs.handler.tdSyncInterval)
 
 		case <-cs.handler.quitSync:
 			// Disable all insertion on the blockchain. This needs to happen before
