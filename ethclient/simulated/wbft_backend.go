@@ -88,6 +88,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	return sim
 }
 
+// kimcy
 func genExtraData(validator common.Address, blsPubKey []byte) []byte {
 	sampleExtra := &types.QBFTExtra{
 		VanityData: []byte("WEMIX MontBlanc chain block"),

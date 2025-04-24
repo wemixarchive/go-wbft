@@ -111,6 +111,7 @@ type Config struct {
 	BLSPublicKeys            []string                `toml:",omitempty"`
 	TargetValidators         uint64                  `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                  `toml:",omitempty"`
+	GovParams                *params.GovParams       `toml:",omitempty"`
 	Transitions              []params.Transition
 }
 
@@ -122,6 +123,7 @@ var DefaultConfig = &Config{
 	AllowedFutureBlockTime: 0,
 }
 
+// todo kimcy : 블록넘버와 상태전환의 관계?
 func (c Config) GetConfig(blockNumber *big.Int) Config {
 	newConfig := c
 
@@ -154,6 +156,10 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.MaxRequestTimeoutSeconds != nil {
 			newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds
 		}
+		//kimcy
+		if transition.GovParams != nil {
+			newConfig.GovParams = transition.GovParams
+		}
 	})
 
 	return newConfig
@@ -174,6 +180,7 @@ func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
 	return []common.Address{}
 }
 
+// kimcy
 func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
@@ -202,11 +209,7 @@ func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params
 		transitions := make([]params.StateTransition, 0)
 
 		if chainConfig.MontBlancBlock != nil && chainConfig.MontBlancBlock.Cmp(num) == 0 {
-			transitions = append(transitions, getMontBlancTransition(chainConfig.MontBlanc), getGovParamsTransition(chainConfig.QBFT.GovParams))
-		}
-
-		if chainConfig.QBFT.GovParams != nil && num.Cmp(big.NewInt(1)) == 0 {
-			transitions = append(transitions, getGovParamsTransition(chainConfig.QBFT.GovParams))
+			transitions = append(transitions, getMontBlancTransition(chainConfig.MontBlanc), GetGovParamsTransition(chainConfig.QBFT.GovParams))
 		}
 
 		if st := chainConfig.GetStateTransitions(num); len(st) > 0 {
@@ -233,7 +236,7 @@ func getMontBlancTransition(config *params.MontBlancConfig) params.StateTransiti
 	return st
 }
 
-func getGovParamsTransition(config *params.GovParams) params.StateTransition {
+func GetGovParamsTransition(config *params.GovParams) params.StateTransition {
 	addr := govwbft.GovConstAddress
 	st := params.StateTransition{
 		Codes: []params.CodeParam{

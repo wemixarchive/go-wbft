@@ -2,6 +2,7 @@ package wemix
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"time"
 
@@ -106,13 +107,17 @@ func (we *WemixConsensus) VerifyUncles(chain consensus.ChainReader, block *types
 	return we.wpoa.VerifyUncles(chain, block)
 }
 
+// kimcy
 func (we *WemixConsensus) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	log.Error("kimcy : consensus/wemix -> Prepare")
 	if chain.Config().IsMontBlanc(header.Number) {
+		log.Error("kimcy : montblanc block")
 		return we.wbft.Prepare(chain, header)
 	}
 	return we.wpoa.Prepare(chain, header)
 }
 
+// kimcy
 func (we *WemixConsensus) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, withdrawals []*types.Withdrawal) error {
 	if chain.Config().IsMontBlanc(header.Number) {

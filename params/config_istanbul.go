@@ -25,7 +25,7 @@ type QBFTConfig struct {
 	BLSPublicKeys            []string              `json:"blsPublicKeys"`                    // BLS PublicKey list of QBFTConfig.Validators
 	TargetValidators         uint64                `json:"targetValidators"`                 // Target number of validators
 	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"`         // The max round time
-	GovParams                *GovParams            `json:"govParams,omitempty"`
+	GovParams                *GovParams            `json:"govParams"`
 }
 
 type BeneficiaryInfo struct {
@@ -53,8 +53,8 @@ func (c *QBFTConfig) String() string {
 	} else {
 		maxRequestTimeoutSeconds = "<nil>"
 	}
-
-	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, Validators: %v, TargetValidators: %v, MaxRequestTimeoutSeconds: %v}",
+	//kimcy
+	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, Validators: %v, BLSPublicKeys: %v, GovParams: %+v, TargetValidators: %v, MaxRequestTimeoutSeconds: %v}",
 		c.EpochLength,
 		c.BlockPeriodSeconds,
 		c.RequestTimeoutSeconds,
@@ -62,18 +62,22 @@ func (c *QBFTConfig) String() string {
 		blockReward,
 		c.BlockRewardBeneficiary,
 		c.Validators,
+		c.BLSPublicKeys,
+		c.GovParams,
 		c.TargetValidators,
 		maxRequestTimeoutSeconds,
 	)
 }
 
+// kimcy
 type Transition struct {
 	Block                    *big.Int              `json:"block"`
-	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds,omitempty"`    // Minimum request timeout for each QBFT round in milliseconds
-	BlockPeriodSeconds       uint64                `json:"blockPeriodSeconds,omitempty"`       // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
-	EpochLength              uint64                `json:"epochLength,omitempty"`              // The duration during which a fixed validator set remains active
-	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`              // Reward from start, works only on QBFT consensus protocol
-	BlockRewardBeneficiary   *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"`   // Reward beneficiaries
+	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds,omitempty"`  // Minimum request timeout for each QBFT round in milliseconds
+	BlockPeriodSeconds       uint64                `json:"blockPeriodSeconds,omitempty"`     // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
+	EpochLength              uint64                `json:"epochLength,omitempty"`            // The duration during which a fixed validator set remains active
+	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
+	BlockRewardBeneficiary   *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
+	GovParams                *GovParams            `json:"govParams,omitempty"`
 	Validators               []common.Address      `json:"validators,omitempty"`               // Validators list when the number of stakers is below the minimum stakers
 	BLSPublicKeys            []string              `json:"blsPublicKeys,omitempty"`            // BLS PublicKey list of QBFTConfig.Validators
 	TargetValidators         *uint64               `json:"targetValidators,omitempty"`         // Target number of validators

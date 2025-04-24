@@ -14,6 +14,7 @@ var (
 	GovRewardeeImpAddress = common.HexToAddress(params.GOV_REWARDEE_IMP_ADDRESS)
 )
 
+// kimcy
 func InitializeNCP(ncps []common.Address) []params.StateParam {
 	param := make([]params.StateParam, 0)
 

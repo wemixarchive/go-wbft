@@ -107,6 +107,7 @@ func (c *Core) addEffectiveSealToExtraSeal() error {
 	return nil
 }
 
+// kimcy
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
 // and pass it to backend preparing new block
 func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int, valSet qbft.ValidatorSet) ([]qbft.SealData, []qbft.SealData) {

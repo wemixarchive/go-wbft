@@ -20,6 +20,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"os"
 	"reflect"
 	"runtime"
@@ -166,7 +168,24 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	return stack, cfg
 }
 
-func checkSanityQBFT(chainConfig *params.ChainConfig) {
+//func checkSanityQBFT(chainConfig *params.ChainConfig) {
+//	if chainConfig.QBFT != nil {
+//		checkSanityBeneficiaries(chainConfig.QBFT.BlockRewardBeneficiary)
+//	}
+//
+//	//qbft.GetGovParamsTransition(chainConfig.QBFT.GovParams)
+//
+//	if chainConfig.Transitions != nil {
+//		for _, t := range chainConfig.Transitions {
+//			checkSanityBeneficiaries(t.BlockRewardBeneficiary)
+//		}
+//	}
+//
+//}
+
+// kimcy : geth init 시 금지된 주소 검사 추가
+func checkSanityQBFT(chainConfig *params.ChainConfig, alloc types.GenesisAlloc) {
+
 	if chainConfig.QBFT != nil {
 		checkSanityBeneficiaries(chainConfig.QBFT.BlockRewardBeneficiary)
 	}
@@ -175,6 +194,23 @@ func checkSanityQBFT(chainConfig *params.ChainConfig) {
 			checkSanityBeneficiaries(t.BlockRewardBeneficiary)
 		}
 	}
+
+	// ── 1. 익명함수로 “금지된 주소” 검사 ──
+	func() {
+		forbidden := []common.Address{
+			govwbft.GovConstAddress,
+			govwbft.GovStakingAddress,
+			govwbft.GovRewardeeImpAddress,
+		}
+		for _, addr := range forbidden {
+			if _, exists := alloc[addr]; exists {
+				log.Crit(
+					"genesis.json must NOT include an allocation for %s; remove it before geth init",
+					addr.Hex(),
+				)
+			}
+		}
+	}() // 즉시 실행
 }
 
 func checkSanityBeneficiaries(l *params.BeneficiaryInfo) {

@@ -842,6 +842,7 @@ func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big
 	return nil
 }
 
+// kimcy
 func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []otherNode, parentBlock *types.Block) (*types.Block, error) {
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
 

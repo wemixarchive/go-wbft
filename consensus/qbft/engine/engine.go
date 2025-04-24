@@ -419,7 +419,9 @@ func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
 	return e.cfg.GetConfig(blockNumber).BlockPeriod
 }
 
+// kimcy
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal []qbft.SealData) error {
+	log.Error("kimcy : consensus/qbft/engine -> Prepare")
 	if _, v := validators.GetByAddress(e.Address()); v == nil {
 		return qbftcommon.ErrUnauthorized
 	}
@@ -477,6 +479,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 }
 
+// kimcy
 func WritePrevSeals(prevRound uint32, prevPreparedSeal, prevCommittedSeal *types.QBFTAggregatedSeal) ApplyQBFTExtra {
 	return func(qbftExtra *types.QBFTExtra) error {
 		qbftExtra.PrevRound = prevRound
@@ -493,6 +496,7 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 	}
 }
 
+// kimcy
 // GetStakers
 // If number of stakers >= minStakers (after stabilization stage), use staker list from gov.
 // If number of stakers < minStakers , use validator list (regarded as staker list) from previous epoch.
@@ -524,6 +528,7 @@ type stakerInfo struct {
 	staker       *types.Staker
 }
 
+// kimcy
 func checkMontBlancConfig(config *params.ChainConfig) error {
 	if config.MontBlanc == nil {
 		return errors.New("montblanc config is nil")
@@ -534,6 +539,7 @@ func checkMontBlancConfig(config *params.ChainConfig) error {
 	return nil
 }
 
+// kimcy
 // The first set of validators for the MontBlanc Hardfork is defined in the MontBlanc Config
 func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *types.Header, state govwbft.StateReader) (*types.EpochInfo, error) {
 	var newEpoch types.EpochInfo
@@ -544,6 +550,8 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 		return nil, err
 	}
 
+	//kimcy : 몽블랑 config의 validator가 초기 staker가 된다.
+	//몽블랑 구조체에 값이 채워져 있어야 한다.
 	stakers, blsPubKeys := config.MontBlanc.Validators, config.MontBlanc.GetBLSPublicKeys()
 	// Init diligence score of every staker to DefaultDiligence.
 	newEpoch.Stakers = make([]*types.Staker, len(stakers))
@@ -567,6 +575,7 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 	return &newEpoch, nil
 }
 
+// kimcy
 // verifyHeader() must catch inconsistent seals before calling this.
 func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) (*types.EpochInfo, error) {
 	var newEpoch types.EpochInfo
@@ -802,6 +811,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	return &newEpoch, nil
 }
 
+// kimcy
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 //
@@ -822,7 +832,7 @@ func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *type
 	if err := e.accumulateRewards(chain, state, header); err != nil {
 		return err
 	}
-
+	//kimcy: wemix 3.5 이면 몽블랑 블록이 정의되어 있고 그값이 header.Number 로 들어가는 케이스가 있다
 	if transitions := qbft.GetStateTransitions(chain.Config(), header.Number); len(transitions) > 0 {
 		for _, st := range transitions {
 			for _, c := range st.Codes {
@@ -847,6 +857,7 @@ func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *type
 	return nil
 }
 
+// kimcy
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
@@ -867,6 +878,7 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	return new(big.Int).Set(types.QBFTDefaultDifficulty)
 }
 
+// kimcy
 // IsEpochBlockNumber returns whether the given block number is an epoch block.
 // it returns whether the given block number is an epoch block and the last epoch block number.
 func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int) (bool, *big.Int, error) {
@@ -895,6 +907,7 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 	return rem.Sign() == 0, new(big.Int).Sub(number, rem), nil
 }
 
+// kimcy
 // GetValidators retrieve the validator list of the epoch to which block of given number belongs.
 // If the given block is an epoch block, it returns the validators of prior epoch.
 // `parents` is a hint for backward traverse.
@@ -1126,6 +1139,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 	return nil
 }
 
+// kimcy
 func writeEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
 	newEpoch, err := e.buildEpochInfo(chain, header, state)
 	if err != nil {
@@ -1135,6 +1149,7 @@ func writeEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Head
 	return ApplyHeaderQBFTExtra(header, WriteEpochInfo(newEpoch))
 }
 
+// kimcy
 // verifyEpoch is a handler that performs default actions when the block is an EpochBlock,
 // and is called during the Finalize process.
 // It validates the validity of the ValidatorList associated with the EpochBlock.

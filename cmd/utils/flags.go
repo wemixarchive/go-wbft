@@ -1744,6 +1744,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		}
 		cfg.Genesis = core.DefaultWemixMainnetGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.WemixMainnetGenesisHash)
+		//kimcy
 	case ctx.Bool(WemixTestnetFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 1112
@@ -2085,12 +2086,14 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	return genesis
 }
 
+// kimcy
 // MakeChain creates a chain manager from set command line flags.
 func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockChain, ethdb.Database) {
 	var (
 		gspec   = MakeGenesis(ctx)
 		chainDb = MakeChainDatabase(ctx, stack, readonly)
 	)
+	//kimcy: default 는  WemixMainnetChainConfig
 	config, err := core.LoadChainConfig(chainDb, gspec)
 	if err != nil {
 		Fatalf("%v", err)

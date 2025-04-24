@@ -46,9 +46,8 @@ func TestGovWithoutNCP(t *testing.T) {
 		delegator.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -542,9 +541,8 @@ func TestGovWithNCP(t *testing.T) {
 		ncp4.Operator.Address: {Balance: MAX_UINT_128},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 
 	stateDB := &TestStateDB{
 		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
@@ -985,9 +983,8 @@ func TestGovReward(t *testing.T) {
 		delegator2.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -1268,9 +1265,8 @@ func TestGovChangeFeeRate(t *testing.T) {
 		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -1361,9 +1357,8 @@ func TestGovFeeRateConsistency(t *testing.T) {
 		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -1486,9 +1481,8 @@ func TestClaimForUnstakedStaker(t *testing.T) {
 		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -1623,9 +1617,8 @@ func TestZeroTotalStaking(t *testing.T) {
 		delegator3.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -1816,9 +1809,8 @@ func TestSetCode(t *testing.T) {
 		ncp2.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -1911,9 +1903,8 @@ func TestGovGetBls(t *testing.T) {
 		s1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 	})
 
-	setWbftGovConfig(g)
-
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -1978,9 +1969,9 @@ func TestGovStabilization(t *testing.T) {
 	}
 
 	g, err := NewGovWBFT(t, nil, genesisAlloc)
-	setWbftGovConfig(g)
-
+	
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
