@@ -137,7 +137,7 @@ func (cs *chainSyncer) loop() {
 
 		case <-cs.tdCheckTimer.C:
 			if _, headTD := cs.modeAndLocalHead(); headTD != nil {
-				if cs.previousTD.Cmp(headTD) == 0 {
+				if cs.previousTD != nil && cs.previousTD.Cmp(headTD) == 0 {
 					cs.forceAdjustTD = true
 				}
 				cs.previousTD = new(big.Int).Set(headTD)
