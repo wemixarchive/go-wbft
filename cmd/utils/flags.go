@@ -779,14 +779,14 @@ var (
 		Category: flags.NetworkingCategory,
 	}
 	ForceSyncCycleFlag = &cli.DurationFlag{
-		Name:     "forcesynccycle",
-		Usage:    "Interval between forced sync cycles with peers",
+		Name:     "sync.forcecycle",
+		Usage:    "Time interval to force syncs, even if few peers are available",
 		Value:    ethconfig.Defaults.ForceSyncCycle,
 		Category: flags.NetworkingCategory,
 	}
 	TdSyncIntervalFlag = &cli.DurationFlag{
-		Name:     "tdsyncinterval",
-		Usage:    "Interval at which total difficulty is checked for sync progress",
+		Name:     "sync.tdinterval",
+		Usage:    "Time interval to verify TD changes and detect sync stalling",
 		Value:    ethconfig.Defaults.TdSyncInterval,
 		Category: flags.NetworkingCategory,
 	}
