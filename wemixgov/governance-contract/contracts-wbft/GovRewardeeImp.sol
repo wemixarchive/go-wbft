@@ -42,7 +42,7 @@ contract GovRewardeeImp {
                 if (supported) {
                     // IFeeRecipient is implemented
                     try IFeeRecipient(recipient).receiveFee{ value: amount }(amount) {
-                        emit RewardPaid(recipient, amount);
+                        emit FeePaid(recipient, amount);
                         return;
                     } catch {
                         revert("GovRewardee: fee recipient contract reverted");
