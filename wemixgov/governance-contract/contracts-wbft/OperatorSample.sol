@@ -60,7 +60,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
     }
 
     modifier isNotOneOfOwner(address _owner) {
-        require(!isOwner[_owner], "Operator: owner can not access");
+        require(!isOwner[_owner], "Operator: the address is already an owner");
         _;
     }
 
@@ -116,7 +116,7 @@ contract OperatorSample is IMultiSigWallet, IFeeRecipient {
         require(_owners.length > 0, "Operator: owners length must be at least 1");
 
         if (_owners.length > 1) {
-            require(_quorum > 1 && _quorum <= _owners.length, "Operator: number of confirmations does not satisfy quorum");
+            require(_quorum >= 1 && _quorum <= _owners.length, "Operator: number of confirmations does not satisfy quorum");
             quorum = _quorum;
         } else {
             // if owners.length is 1, set quorum as 1
