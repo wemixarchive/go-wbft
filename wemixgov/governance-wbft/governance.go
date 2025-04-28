@@ -93,3 +93,26 @@ func NCPStakerInfoMap(state StateReader) map[common.Address]Staker {
 	}
 	return stakerInfos
 }
+
+func GetGovParamsTransition(config *params.GovParams) params.StateTransition {
+	addr := GovConstAddress
+	st := params.StateTransition{
+		Codes: []params.CodeParam{
+			{Address: GovConstAddress, Code: GovConfigContract},
+		},
+	}
+
+	if config != nil {
+		st.States = []params.StateParam{
+			{Address: addr, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.MinimumStaking))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.MaximumStaking))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.UnbondingStaker))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.UnbondingDelegator))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.FeePrecision))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.RewardPrecision))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.ChangeFeeDelay))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.MinStakers))},
+		}
+	}
+	return st
+}

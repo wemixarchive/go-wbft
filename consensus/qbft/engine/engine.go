@@ -528,7 +528,7 @@ type stakerInfo struct {
 	staker       *types.Staker
 }
 
-// kimcy
+// kimcy : runtim 중 처리할려면.. 여기서 ???
 func checkMontBlancConfig(config *params.ChainConfig) error {
 	if config.MontBlanc == nil {
 		return errors.New("montblanc config is nil")
@@ -914,7 +914,7 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 // exceptional case: blockNumber is genesis block number or montblanc hard fork block number, then
 // it returns the validators from chain config.
 func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (qbft.ValidatorSet, error) {
-	chainConfig := chain.Config()
+	chainConfig := chain.Config() //여기에 값이 들어 있다면 상관없음
 	// 1. Check if the block is not a WBFT block
 	if chainConfig.MontBlancBlock != nil && !chainConfig.IsMontBlanc(blockNumber) {
 		return nil, qbftcommon.ErrIsNotWBFTBlock
