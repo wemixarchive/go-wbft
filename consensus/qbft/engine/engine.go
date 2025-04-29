@@ -295,6 +295,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 }
 
 func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header, validators qbft.ValidatorSet) error {
+	log.Info("kimcy:: verifySigner")
 	// Verifying the genesis block is not supported
 	number := header.Number.Uint64()
 	if number == 0 {
@@ -309,6 +310,7 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 
 	// Signer should be in the validator set of previous block's extraData.
 	if _, v := validators.GetByAddress(signer); v == nil {
+		log.Info("kimcy:: qbftcommon.ErrUnauthorized")
 		return qbftcommon.ErrUnauthorized
 	}
 
@@ -423,6 +425,7 @@ func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal []qbft.SealData) error {
 	log.Error("kimcy : consensus/qbft/engine -> Prepare")
 	if _, v := validators.GetByAddress(e.Address()); v == nil {
+		log.Error("kimcy : consensus/qbft/engine -> Prepare", qbftcommon.ErrUnauthorized)
 		return qbftcommon.ErrUnauthorized
 	}
 
@@ -578,6 +581,7 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 // kimcy
 // verifyHeader() must catch inconsistent seals before calling this.
 func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) (*types.EpochInfo, error) {
+	log.Info("kimcy buildEpochInfo", "qbft.config", e.cfg)
 	var newEpoch types.EpochInfo
 
 	config := chain.Config()
@@ -590,6 +594,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 
 	// Generate initial epoch block if a transition occurs.
 	if config.MontBlancBlock != nil && header.Number.Cmp(config.MontBlancBlock) == 0 {
+		log.Info("kimcy createInitialEpochBlock")
 		return e.createInitialEpochBlock(config, header, state)
 	}
 
@@ -1113,6 +1118,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 // Currently, seals are not considered for rewards because which we cannot determine malicious validators.
 // Instead, we use diligence score to give faithful validator opportunity to propose more blocks.
 func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *types.Header, rewardFn func(*govwbft.Staker, *big.Int), getStakerInfo func(common.Address) *govwbft.Staker) error {
+	log.Info("kimcy calculateRewards", "qbft", e.cfg)
 	valSet, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
@@ -1141,6 +1147,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 
 // kimcy
 func writeEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
+	log.Info("kimcy writeEpoch", "qbft", e.cfg)
 	newEpoch, err := e.buildEpochInfo(chain, header, state)
 	if err != nil {
 		return err
@@ -1154,6 +1161,7 @@ func writeEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Head
 // and is called during the Finalize process.
 // It validates the validity of the ValidatorList associated with the EpochBlock.
 func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Header, state govwbft.StateReader) error {
+	log.Info("kimcy verifyEpoch", "qbft", e.cfg)
 	bHeader := types.CopyHeader(header)
 	epoch, err := e.buildEpochInfo(chain, bHeader, state)
 	if err != nil {

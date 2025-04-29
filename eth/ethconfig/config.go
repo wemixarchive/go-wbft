@@ -254,11 +254,12 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 		for _, addr := range config.QBFT.Validators {
 			qbftCfg.Validators = append(validators, addr)
 		}
+		log.Info("kimcy", "Validators", qbftCfg.Validators, "size", len(qbftCfg.Validators))
 
 		for _, key := range config.QBFT.BLSPublicKeys {
 			qbftCfg.BLSPublicKeys = append(blsPublicKeys, key)
 		}
-
+		log.Info("kimcy", "BLSPublicKeys", qbftCfg.BLSPublicKeys, "size", len(qbftCfg.BLSPublicKeys))
 	} else {
 		return fmt.Errorf("qbftCfg.Validators or qbftCfg.BLSPublicKeys are nil")
 	}
@@ -272,6 +273,8 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 	if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {
 		qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
 	}
+
+	log.Info("kimcy => SetConfigFromChainConfig", "qbftCfg", qbftCfg, "config", config)
 
 	return nil
 }

@@ -21,6 +21,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -157,6 +158,7 @@ func (c *Core) addToBacklog(msg qbftmessage.QBFTMessage) {
 
 // It is called on every state change
 func (c *Core) processBacklog() {
+	log.Info("kimcy: process backlog", "state", c.state, "backlogs_size", len(c.backlogs))
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()
 
@@ -167,6 +169,7 @@ func (c *Core) processBacklog() {
 		_, src := c.valSet.GetByAddress(srcAddress)
 		if src == nil {
 			// validator is not available
+			log.Info("validator is not available")
 			delete(c.backlogs, srcAddress)
 			continue
 		}

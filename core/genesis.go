@@ -262,10 +262,13 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		if genesis.Config.QBFT != nil {
 			err := buildInitialExtraData(genesis, genesis.Config)
 			if err != nil {
+				log.Info("kimcy 111 error")
 				return genesis.Config, common.Hash{}, err
 			}
+			log.Info("kimcy 333 no error")
 			err = injectContracts(genesis, genesis.Config)
 			if err != nil {
+				log.Info("kimcy 222 error")
 				return genesis.Config, common.Hash{}, err
 			}
 		}
@@ -365,13 +368,16 @@ func LoadChainConfig(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, 
 	// chain config corresponds to the canonical chain.
 	stored := rawdb.ReadCanonicalHash(db, 0)
 	if stored != (common.Hash{}) {
+		log.Info("kimcy stored != (common.Hash{}")
 		storedcfg := rawdb.ReadChainConfig(db, stored)
 		if storedcfg != nil {
+			log.Info("kimcy storedcfg != nil", "storedcfg", storedcfg)
 			return storedcfg, nil
 		}
 	}
 	// Load the config from the provided genesis specification
 	if genesis != nil {
+		log.Info("kimcy genesis != nil")
 		// Reject invalid genesis spec without valid chain config
 		if genesis.Config == nil {
 			return nil, errGenesisNoConfig
@@ -381,12 +387,15 @@ func LoadChainConfig(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, 
 		// external ancient chain segment), ensure the provided genesis
 		// is matched.
 		if stored != (common.Hash{}) && genesis.ToBlock().Hash() != stored {
+			log.Info("kimcy GenesisMismatchError")
 			return nil, &GenesisMismatchError{stored, genesis.ToBlock().Hash()}
 		}
+		log.Info("kimcy genesis.Config", "config", genesis.Config)
 		return genesis.Config, nil
 	}
 	// There is no stored chain config and no new config provided,
 	// In this case the default chain config(mainnet) will be used
+	log.Info("kimcy WemixMainnetChainConfig", "config", params.WemixMainnetChainConfig)
 	return params.WemixMainnetChainConfig, nil
 }
 
@@ -676,15 +685,15 @@ func buildInitialExtraData(genesis *Genesis, config *params.ChainConfig) error {
 		blsPublicKeys []string
 		epochInfo     = new(types.EpochInfo)
 	)
-
+	log.Info("kimcy ==> 555")
 	for _, addr := range config.QBFT.Validators {
 		validators = append(validators, addr)
 	}
-
+	log.Info("kimcy ==> 444")
 	for _, key := range config.QBFT.BLSPublicKeys {
 		blsPublicKeys = append(blsPublicKeys, key)
 	}
-
+	log.Info("kimcy ==> 333")
 	for i, addr := range validators {
 		epochInfo.Stakers = append(epochInfo.Stakers, &types.Staker{
 			Addr:      addr,
@@ -693,6 +702,7 @@ func buildInitialExtraData(genesis *Genesis, config *params.ChainConfig) error {
 		epochInfo.Validators = append(epochInfo.Validators, uint32(i))
 		epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, hexutil.MustDecode(blsPublicKeys[i]))
 	}
+	log.Info("kimcy ==> 222")
 	ist := &types.QBFTExtra{
 		VanityData:        append([]byte{}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...),
 		PrevRound:         0,
@@ -703,99 +713,20 @@ func buildInitialExtraData(genesis *Genesis, config *params.ChainConfig) error {
 		CommittedSeal:     nil,
 		EpochInfo:         epochInfo,
 	}
+	log.Info("kimcy ==> 111")
 	istPayload, err := rlp.EncodeToBytes(&ist)
 	if err != nil {
 		errors.New("failed to encode qbft extra")
 	}
 	genesis.ExtraData = istPayload
+	log.Info("kimcy ==> 11 buildInitialExtraData", "extraData", hexutil.Encode(genesis.ExtraData))
+
 	return nil
 
-	//var validators []common.Address
-	//var blsPublicKeys []string
-
-	//if config.QBFT.Validators != nil && config.QBFT.BLSPublicKeys != nil {
-	//	if len(validators) == 0 || len(blsPublicKeys) == 0 {
-	//		return errors.New("No validators or BLS public keys found in the genesis configuration")
-	//	}
-	//
-	//	//for _, addr := range config.QBFT.Validators {
-	//	//	validators = append(validators, addr)
-	//	//}
-	//	//
-	//	//for _, key := range config.QBFT.BLSPublicKeys {
-	//	//	blsPublicKeys = append(blsPublicKeys, key)
-	//	//}
-	//	//epochInfo := new(types.EpochInfo)
-	//	//for i, val := range validators {
-	//	//	epochInfo.Stakers = append(epochInfo.Stakers, &types.Staker{
-	//	//		Addr:      val,
-	//	//		Diligence: types.DefaultDiligence,
-	//	//	})
-	//	//	epochInfo.Validators = append(epochInfo.Validators, uint32(i))
-	//	//	epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, hexutil.MustDecode(blsPublicKeys[i]))
-	//	//}
-	//
-	//	ist := &types.QBFTExtra{
-	//		VanityData:        append([]byte{}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...),
-	//		PrevRound:         0,
-	//		PrevPreparedSeal:  nil,
-	//		PrevCommittedSeal: nil,
-	//		Round:             0,
-	//		PreparedSeal:      nil,
-	//		CommittedSeal:     nil,
-	//		EpochInfo:         epochInfo,
-	//	}
-	//	istPayload, err := rlp.EncodeToBytes(&ist)
-	//	if err != nil {
-	//		errors.New("failed to encode qbft extra")
-	//	}
-	//	genesis.ExtraData = istPayload
-	//	return nil
-	//} else {
-	//	return errors.New("No validators or BLS public keys found in the genesis configuration")
-	//}
-	//for _, addr := range config.QBFT.Validators {
-	//	validators = append(validators, addr)
-	//}
-	//
-	//for _, key := range config.QBFT.BLSPublicKeys {
-	//	blsPublicKeys = append(blsPublicKeys, key)
-	//}
-
-	//if len(validators) == 0 || len(blsPublicKeys) == 0 {
-	//	return errors.New("No validators or BLS public keys found in the genesis configuration")
-	//}
-
-	//epochInfo := new(types.EpochInfo)
-	//for i, val := range validators {
-	//	epochInfo.Stakers = append(epochInfo.Stakers, &types.Staker{
-	//		Addr:      val,
-	//		Diligence: types.DefaultDiligence,
-	//	})
-	//	epochInfo.Validators = append(epochInfo.Validators, uint32(i))
-	//	epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, hexutil.MustDecode(blsPublicKeys[i]))
-	//}
-	//
-	//ist := &types.QBFTExtra{
-	//	VanityData:        append([]byte{}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...),
-	//	PrevRound:         0,
-	//	PrevPreparedSeal:  nil,
-	//	PrevCommittedSeal: nil,
-	//	Round:             0,
-	//	PreparedSeal:      nil,
-	//	CommittedSeal:     nil,
-	//	EpochInfo:         epochInfo,
-	//}
-	//istPayload, err := rlp.EncodeToBytes(&ist)
-	//if err != nil {
-	//	errors.New("failed to encode qbft extra")
-	//}
-	//genesis.ExtraData = istPayload
-	//return nil
 }
 
 func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
-	log.Error("kimcy ==> buildInitialExtraData")
+	log.Error("kimcy ==> injectContracts")
 	if config == nil || config.QBFT == nil || config.QBFT.GovParams == nil {
 		return errors.New("Some or all of the QBFT parameters are missing from the genesis configuration.")
 	}

@@ -1969,7 +1969,7 @@ func TestGovStabilization(t *testing.T) {
 	}
 
 	g, err := NewGovWBFT(t, nil, genesisAlloc)
-	
+
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()

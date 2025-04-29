@@ -122,6 +122,7 @@ func (c *Core) handleEvents() {
 					c.storeRequestMsg(r)
 				}
 			case qbft.MessageEvent:
+				log.Info("kimcy qbft.MessageEvent", "valset", c.valSet)
 				// we received a message from another validator
 				if err := c.handleEncodedMsg(ev.Code, ev.Payload); err != nil {
 					continue
@@ -130,6 +131,7 @@ func (c *Core) handleEvents() {
 				// if successfully processed, we gossip message to other validators
 				c.backend.Gossip(c.valSet, ev.Code, ev.Payload)
 			case backlogEvent:
+				log.Info("kimcy backlogEvent", "valset", c.valSet)
 				// we process again a future message that was backlogged
 				// no need to check signature as it was already node when we first received message
 				if err := c.handleDecodedMessage(ev.msg); err != nil {

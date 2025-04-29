@@ -133,6 +133,7 @@ func (c *Core) PriorValidators() qbft.ValidatorSet {
 }
 
 func (c *Core) IsProposer() bool {
+	log.Info("kimcy : IsProposer")
 	v := c.valSet
 	if v == nil {
 		return false
@@ -141,6 +142,7 @@ func (c *Core) IsProposer() bool {
 }
 
 func (c *Core) GetProposer() common.Address {
+	log.Info("kimcy GetProposer", "valSet", c.valSet)
 	if c.valSet != nil {
 		return c.valSet.GetProposer().Address()
 	}
@@ -153,6 +155,7 @@ func (c *Core) IsCurrentProposal(blockHash common.Hash) bool {
 
 // startNewRound starts a new round. if round equals to 0, it means to starts a new sequence
 func (c *Core) startNewRound(round *big.Int) {
+	log.Info("kimcy :: startNewRound", "valset", c.valSet)
 	c.currentMutex.Lock()
 	defer c.currentMutex.Unlock()
 
@@ -220,12 +223,14 @@ func (c *Core) startNewRound(round *big.Int) {
 			Round:    new(big.Int).Set(round),
 		}
 		nextValSet = c.valSet
+		log.Info("roundChange", "nextValSet", nextValSet)
 	} else {
 		newView = &qbft.View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
 		nextValSet = c.backend.Validators(lastProposal)
+		log.Info("!! roundChange", "nextValSet", nextValSet)
 	}
 
 	// Add extra seal that contributed to consensus
@@ -368,7 +373,11 @@ func PrepareSeal(header *types.Header, round uint32, sealType SealType) []byte {
 }
 
 func verifySeal(valSet qbft.ValidatorSet, header *types.Header, round uint32, sealType SealType, seal []byte, sealer common.Address) error {
+	log.Info("kimcy: verifySeal", "round", round, "sealType", sealType, "sealer", sealer.String(), "seal", seal, "valSet", valSet)
 	_, validator := valSet.GetByAddress(sealer)
+	if validator == nil {
+		log.Info("kimcy: verifySeal", "validator is nil")
+	}
 
 	pubkey, err := bls.PublicKeyFromBytes(validator.BLSPublicKey())
 	if err != nil {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync"
 
@@ -17,6 +18,7 @@ type priorState struct {
 }
 
 func (c *Core) updatePriorState() {
+	log.Info("kimcy updatePriorState")
 	c.priorState.mu.Lock()
 	defer c.priorState.mu.Unlock()
 	c.priorState.round = c.current.Round()

@@ -21,6 +21,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -38,6 +39,7 @@ import (
 // - extends PRE-PREPARE message with ROUND-CHANGE and PREPARE justification
 // - broadcast PRE-PREPARE message to other validators
 func (c *Core) sendPreprepareMsg(request *Request) {
+	log.Info("kimcy sendPreprepareMsg", "valset", c.valSet, "config", c.config)
 	// c.current and c.valSet (checked in IsProposer()) is updated asynchronously in startNewRound(),
 	// need to prevent race condition with mutex
 	c.currentMutex.Lock()
@@ -110,6 +112,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 // - validates PRE-PREPARE message justification
 // - validates PRE-PREPARE message block proposal
 func (c *Core) handlePreprepareMsg(preprepare *qbftmessage.Preprepare) error {
+	log.Info("kimcy handlePreprepareMsg", "valset", c.valSet)
 	logger := c.currentLogger(true, preprepare)
 
 	logger = logger.New("proposal.number", preprepare.Proposal.Number().Uint64(), "proposal.hash", preprepare.Proposal.Hash().String())
@@ -140,6 +143,9 @@ func (c *Core) handlePreprepareMsg(preprepare *qbftmessage.Preprepare) error {
 			c.stopFuturePreprepareTimer()
 			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
 				_, validator := c.valSet.GetByAddress(preprepare.Source())
+				if validator == nil {
+					logger.Warn("QBFT: failed to find validator for PRE-PREPARE message", "source", preprepare.Source())
+				}
 				c.sendEvent(backlogEvent{
 					src: validator,
 					msg: preprepare,

@@ -75,7 +75,9 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 }
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
+	log.Info("kimcy verifyHeader", "qbft.config", sb.config)
 	valSet, prevValSet, err := sb.GetValidatorsForVerifying(chain, header, parents)
+	log.Info("kimcy verifyHeader", "valSet", valSet, "prevValSet", prevValSet)
 	if err != nil {
 		return err
 	}
