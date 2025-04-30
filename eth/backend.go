@@ -108,9 +108,11 @@ type Ethereum struct {
 	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
 }
 
+// kimcy
 // New creates a new Ethereum object (including the
 // initialisation of the common Ethereum object)
 func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
+	log.Error("kimcy => New")
 	// Ensure configuration values are compatible and sane
 	if config.SyncMode == downloader.LightSync {
 		return nil, errors.New("can't run eth.Ethereum in light sync mode, light mode has been deprecated")
@@ -148,6 +150,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			log.Error("Failed to recover state", "error", err)
 		}
 	}
+	//kimcy : 제공된 genesis 가 있으면 해당 config를 사용하고, 없으면 WemixMainnetChainConfig 사용
 	// Transfer mining-related config to the ethash config.
 	chainConfig, err := core.LoadChainConfig(chainDb, config.Genesis)
 	if err != nil {

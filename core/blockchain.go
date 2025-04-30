@@ -261,10 +261,12 @@ type BlockChain struct {
 	vmConfig   vm.Config
 }
 
+// kimcy
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Ethereum Validator
 // and Processor.
 func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis, overrides *ChainOverrides, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(header *types.Header) bool, txLookupLimit *uint64) (*BlockChain, error) {
+	log.Error("kimcy => NewBlockChain")
 	if cacheConfig == nil {
 		cacheConfig = defaultCacheConfig
 	}
@@ -1506,6 +1508,7 @@ func (bc *BlockChain) addFutureBlock(block *types.Block) error {
 	return nil
 }
 
+// kimcy
 // InsertChain attempts to insert the given batch of blocks in to the canonical
 // chain or, otherwise, create a fork. If an error is returned it will return
 // the index number of the failing block as well an error describing what went

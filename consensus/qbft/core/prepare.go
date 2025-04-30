@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -33,6 +34,7 @@ import (
 // - creates a PREPARE message
 // - broadcast PREPARE message to other validators
 func (c *Core) broadcastPrepare() {
+	log.Info("kimcy broadcastPrepare", "valSet", c.valSet)
 	logger := c.currentLogger(true, nil)
 
 	// Create PREPARE message from the current proposal

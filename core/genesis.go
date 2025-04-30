@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"math/big"
 	"strings"
 
@@ -231,6 +232,7 @@ func SetupGenesisBlock(db ethdb.Database, triedb *triedb.Database, genesis *Gene
 }
 
 func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, genesis *Genesis, overrides *ChainOverrides) (*params.ChainConfig, common.Hash, error) {
+	log.Error("kimcy => SetupGenesisBlockWithOverride")
 	if genesis != nil && genesis.Config == nil {
 		return params.AllEthashProtocolChanges, common.Hash{}, errGenesisNoConfig
 	}
@@ -243,6 +245,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 				config.VerkleTime = overrides.OverrideVerkle
 			}
 		}
+
 	}
 	// Just commit the new block if there is no stored genesis block.
 	stored := rawdb.ReadCanonicalHash(db, 0)
@@ -254,6 +257,22 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			log.Info("Writing custom genesis block")
 		}
 		applyOverrides(genesis.Config)
+		//kimcy
+
+		if genesis.Config.QBFT != nil &&
+			(genesis.Config.MontBlancBlock == nil || genesis.Config.MontBlancBlock.Sign() == 0) {
+			err := buildInitialExtraData(genesis, genesis.Config)
+			if err != nil {
+				log.Info("kimcy 111 error")
+				return genesis.Config, common.Hash{}, err
+			}
+			log.Info("kimcy 333 no error")
+			err = injectContracts(genesis, genesis.Config)
+			if err != nil {
+				log.Info("kimcy 222 error")
+				return genesis.Config, common.Hash{}, err
+			}
+		}
 
 		block, err := genesis.Commit(db, triedb)
 		if err != nil {
@@ -271,6 +290,20 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			genesis = DefaultWemixMainnetGenesisBlock()
 		}
 		applyOverrides(genesis.Config)
+
+		//kimcy
+		if genesis.Config.QBFT != nil &&
+			(genesis.Config.MontBlancBlock == nil || genesis.Config.MontBlancBlock.Sign() == 0) {
+			err := buildInitialExtraData(genesis, genesis.Config)
+			if err != nil {
+				return genesis.Config, stored, err
+			}
+			err = injectContracts(genesis, genesis.Config)
+			if err != nil {
+				return genesis.Config, stored, err
+			}
+		}
+
 		// Ensure the stored genesis matches with the given one.
 		hash := genesis.ToBlock().Hash()
 		if hash != stored {
@@ -337,13 +370,16 @@ func LoadChainConfig(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, 
 	// chain config corresponds to the canonical chain.
 	stored := rawdb.ReadCanonicalHash(db, 0)
 	if stored != (common.Hash{}) {
+		log.Info("kimcy stored != (common.Hash{}")
 		storedcfg := rawdb.ReadChainConfig(db, stored)
 		if storedcfg != nil {
+			log.Info("kimcy storedcfg != nil", "storedcfg", storedcfg)
 			return storedcfg, nil
 		}
 	}
 	// Load the config from the provided genesis specification
 	if genesis != nil {
+		log.Info("kimcy genesis != nil")
 		// Reject invalid genesis spec without valid chain config
 		if genesis.Config == nil {
 			return nil, errGenesisNoConfig
@@ -353,12 +389,15 @@ func LoadChainConfig(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, 
 		// external ancient chain segment), ensure the provided genesis
 		// is matched.
 		if stored != (common.Hash{}) && genesis.ToBlock().Hash() != stored {
+			log.Info("kimcy GenesisMismatchError")
 			return nil, &GenesisMismatchError{stored, genesis.ToBlock().Hash()}
 		}
+		log.Info("kimcy genesis.Config", "config", genesis.Config)
 		return genesis.Config, nil
 	}
 	// There is no stored chain config and no new config provided,
 	// In this case the default chain config(mainnet) will be used
+	log.Info("kimcy WemixMainnetChainConfig", "config", params.WemixMainnetChainConfig)
 	return params.WemixMainnetChainConfig, nil
 }
 
@@ -501,7 +540,9 @@ func DefaultWemixMainnetGenesisBlock() *Genesis {
 	return genesis
 }
 
+// kimcy
 func DefaultWemixTestnetGenesisBlock() *Genesis {
+	log.Error("kimcy => DefaultWemixTestnetGenesisBlock")
 	genesis := new(Genesis)
 	if err := json.NewDecoder(strings.NewReader(wemixTestnetGenesisJson)).Decode(genesis); err != nil {
 		panic("Cannot parse default wemix testnet genesis.")
@@ -608,6 +649,116 @@ func TestGenesisBlock() *Genesis {
 			common.BytesToAddress([]byte{9}): {Balance: big.NewInt(1)}, // BLAKE2b
 		},
 	}
+}
+
+// kimcy
+// the initial extra data for the genesis block
+func buildInitialExtraData(genesis *Genesis, config *params.ChainConfig) error {
+	log.Error("kimcy ==> buildInitialExtraData")
+	qbft := config.QBFT
+	if qbft == nil {
+		return errors.New("genesis.json: missing `qbft` section")
+	}
+	// 1) validators 존재 여부 확인
+	if qbft.Validators == nil {
+		return errors.New("genesis.json `qbft`: missing `validators` field")
+	}
+	// 2) blsPublicKeys 존재 여부 확인
+	if qbft.BLSPublicKeys == nil {
+		return errors.New("genesis.json `qbft`: missing `blsPublicKeys` field")
+	}
+	// 3) 둘 다 비어 있지는 않은지
+	if len(qbft.Validators) == 0 {
+		return errors.New("genesis.json `qbft.validators` must contain at least one address")
+	}
+	if len(qbft.BLSPublicKeys) == 0 {
+		return errors.New("genesis.json `qbft.blsPublicKeys` must contain at least one key")
+	}
+	// 4) 1:1 매핑이 가능한 길이인지
+	if len(qbft.Validators) != len(qbft.BLSPublicKeys) {
+		return fmt.Errorf(
+			"genesis.json `qbft`: mismatched lengths: %d validators vs %d blsPublicKeys",
+			len(qbft.Validators), len(qbft.BLSPublicKeys),
+		)
+	}
+
+	var (
+		validators    []common.Address
+		blsPublicKeys []string
+		epochInfo     = new(types.EpochInfo)
+	)
+	log.Info("kimcy ==> 555")
+	for _, addr := range config.QBFT.Validators {
+		validators = append(validators, addr)
+	}
+	log.Info("kimcy ==> 444")
+	for _, key := range config.QBFT.BLSPublicKeys {
+		blsPublicKeys = append(blsPublicKeys, key)
+	}
+	log.Info("kimcy ==> 333")
+	for i, addr := range validators {
+		epochInfo.Stakers = append(epochInfo.Stakers, &types.Staker{
+			Addr:      addr,
+			Diligence: types.DefaultDiligence,
+		})
+		epochInfo.Validators = append(epochInfo.Validators, uint32(i))
+		epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, hexutil.MustDecode(blsPublicKeys[i]))
+	}
+	log.Info("kimcy ==> 222")
+	ist := &types.QBFTExtra{
+		VanityData:        append([]byte{}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...),
+		PrevRound:         0,
+		PrevPreparedSeal:  nil,
+		PrevCommittedSeal: nil,
+		Round:             0,
+		PreparedSeal:      nil,
+		CommittedSeal:     nil,
+		EpochInfo:         epochInfo,
+	}
+	log.Info("kimcy ==> 111")
+	istPayload, err := rlp.EncodeToBytes(&ist)
+	if err != nil {
+		errors.New("failed to encode qbft extra")
+	}
+	genesis.ExtraData = istPayload
+	log.Info("kimcy ==> 11 buildInitialExtraData", "extraData", hexutil.Encode(genesis.ExtraData))
+
+	return nil
+
+}
+
+func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
+	log.Error("kimcy ==> injectContracts")
+	if config == nil || config.QBFT == nil || config.QBFT.GovParams == nil {
+		return errors.New("Some or all of the QBFT parameters are missing from the genesis configuration.")
+	}
+	qbftContract := []common.Address{
+		common.HexToAddress(params.GOV_CONST_ADDRESS),
+		common.HexToAddress(params.GOV_STAKING_ADDRESS),
+		common.HexToAddress(params.GOV_REWARDEE_IMP_ADDRESS),
+	}
+	for _, addr := range qbftContract {
+		switch addr {
+		case common.HexToAddress(params.GOV_CONST_ADDRESS):
+			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract), Balance: common.Big0, Storage: make(map[common.Hash]common.Hash)}
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(0))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(1))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(2))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(3))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(4))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(5))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.RewardPrecision))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(6))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(7))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))
+
+		case common.HexToAddress(params.GOV_STAKING_ADDRESS):
+			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}
+
+		case common.HexToAddress(params.GOV_REWARDEE_IMP_ADDRESS):
+			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovRewardeeImpContract), Balance: common.Big0}
+		}
+
+	}
+	return nil
 }
 
 func decodePrealloc(data string) types.GenesisAlloc {

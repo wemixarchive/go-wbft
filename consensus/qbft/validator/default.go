@@ -21,6 +21,7 @@
 package validator
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"math"
 	"reflect"
 	"sync"
@@ -133,7 +134,9 @@ func (valSet *defaultSet) GetProposer() qbft.Validator {
 }
 
 func (valSet *defaultSet) IsProposer(address common.Address) bool {
+	log.Info("kimcy found IsProposer", "address", address, "proposer", valSet.GetProposer().Address(), "validators", valSet.validators)
 	_, val := valSet.GetByAddress(address)
+	log.Info("kimcy , val", val)
 	return reflect.DeepEqual(valSet.GetProposer(), val)
 }
 
@@ -144,6 +147,7 @@ func (valSet *defaultSet) CalcProposer(lastProposer common.Address, round uint64
 }
 
 func calcSeed(valSet qbft.ValidatorSet, proposer common.Address, round uint64) uint64 {
+	log.Info("kimcy ==> calcSeed", "proposer", proposer, "round", round, "valset", valSet)
 	offset := 0
 	if idx, val := valSet.GetByAddress(proposer); val != nil {
 		offset = idx

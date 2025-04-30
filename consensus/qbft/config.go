@@ -111,6 +111,7 @@ type Config struct {
 	BLSPublicKeys            []string                `toml:",omitempty"`
 	TargetValidators         uint64                  `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                  `toml:",omitempty"`
+	GovParams                *params.GovParams       `toml:",omitempty"`
 	Transitions              []params.Transition
 }
 
@@ -122,6 +123,7 @@ var DefaultConfig = &Config{
 	AllowedFutureBlockTime: 0,
 }
 
+// todo kimcy : 블록넘버와 상태전환의 관계?
 func (c Config) GetConfig(blockNumber *big.Int) Config {
 	newConfig := c
 
@@ -154,26 +156,16 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.MaxRequestTimeoutSeconds != nil {
 			newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds
 		}
+		//kimcy
+		if transition.GovParams != nil {
+			newConfig.GovParams = transition.GovParams
+		}
 	})
 
 	return newConfig
 }
 
-func (c Config) GetValidatorsAt(blockNumber *big.Int) []common.Address {
-	if blockNumber.Cmp(big.NewInt(0)) == 0 && len(c.Validators) > 0 {
-		return c.Validators
-	}
-
-	if blockNumber != nil && c.Transitions != nil {
-		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(blockNumber) == 0; i++ {
-			return c.Transitions[i].Validators
-		}
-	}
-
-	//Note! empty means we will get the valset from previous block header which contains votes, validators etc
-	return []common.Address{}
-}
-
+// kimcy
 func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
@@ -202,11 +194,7 @@ func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params
 		transitions := make([]params.StateTransition, 0)
 
 		if chainConfig.MontBlancBlock != nil && chainConfig.MontBlancBlock.Cmp(num) == 0 {
-			transitions = append(transitions, getMontBlancTransition(chainConfig.MontBlanc), getGovParamsTransition(chainConfig.QBFT.GovParams))
-		}
-
-		if chainConfig.QBFT.GovParams != nil && num.Cmp(big.NewInt(1)) == 0 {
-			transitions = append(transitions, getGovParamsTransition(chainConfig.QBFT.GovParams))
+			transitions = append(transitions, getMontBlancTransition(chainConfig))
 		}
 
 		if st := chainConfig.GetStateTransitions(num); len(st) > 0 {
@@ -217,41 +205,28 @@ func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params
 	return nil
 }
 
-func getMontBlancTransition(config *params.MontBlancConfig) params.StateTransition {
+func getMontBlancTransition(config *params.ChainConfig) params.StateTransition {
 	st := params.StateTransition{
 		Codes: []params.CodeParam{
 			{Address: govwbft.GovConstAddress, Code: govwbft.GovConfigContract},
 			{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
 			{Address: govwbft.GovRewardeeImpAddress, Code: govwbft.GovRewardeeImpContract},
 		},
-	}
-
-	if config != nil && len(config.NCPs) > 0 {
-		st.Codes = append(st.Codes, params.CodeParam{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract})
-		st.States = govwbft.InitializeNCP(config.NCPs)
-	}
-	return st
-}
-
-func getGovParamsTransition(config *params.GovParams) params.StateTransition {
-	addr := govwbft.GovConstAddress
-	st := params.StateTransition{
-		Codes: []params.CodeParam{
-			{Address: govwbft.GovConstAddress, Code: govwbft.GovConfigContract},
+		States: []params.StateParam{
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.RewardPrecision))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))},
 		},
 	}
 
-	if config != nil {
-		st.States = []params.StateParam{
-			{Address: addr, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.MinimumStaking))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.MaximumStaking))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.UnbondingStaker))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.UnbondingDelegator))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.FeePrecision))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.RewardPrecision))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.ChangeFeeDelay))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.MinStakers))},
-		}
+	if config.MontBlanc != nil && len(config.MontBlanc.NCPs) > 0 {
+		st.Codes = append(st.Codes, params.CodeParam{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract})
+		st.States = append(st.States, govwbft.InitializeNCP(config.MontBlanc.NCPs)...)
 	}
 	return st
 }

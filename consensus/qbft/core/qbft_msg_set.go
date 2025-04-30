@@ -22,6 +22,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"math/big"
 	"strings"
@@ -35,6 +36,7 @@ import (
 
 // Construct a new message set to accumulate messages for given sequence/view number.
 func newQBFTMsgSet(valSet qbft.ValidatorSet) *qbftMsgSet {
+	log.Info("kimcy newQBFTMsgSet", "valset", valSet)
 	return &qbftMsgSet{
 		view: &qbft.View{
 			Round:    new(big.Int),

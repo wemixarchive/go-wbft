@@ -656,6 +656,7 @@ func (w *worker) mainLoop() {
 
 	for {
 		select {
+		//kimcy: new block 생성시
 		case req := <-w.newWorkCh:
 			if w.config.SimulatedEnabled {
 				w.simSyncer.queueCommitReq(req)
@@ -663,6 +664,7 @@ func (w *worker) mainLoop() {
 			}
 			w.commitWork(req.interrupt, req.timestamp)
 
+		//kimcy: rpc 호출시
 		case req := <-w.getWorkCh:
 			req.result <- w.generateWork(req.params)
 
@@ -1063,6 +1065,7 @@ type generateParams struct {
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
 }
 
+// kimcy
 // prepareWork constructs the sealing task according to the given parameters,
 // either based on the last chain head or specified parent. In this function
 // the pending transactions are not filled yet, only the empty task returned.
@@ -1210,6 +1213,7 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 	return nil
 }
 
+// kimcy
 // generateWork generates a sealing block based on the given parameters.
 func (w *worker) generateWork(params *generateParams) *newPayloadResult {
 	work, err := w.prepareWork(params)
@@ -1241,6 +1245,7 @@ func (w *worker) generateWork(params *generateParams) *newPayloadResult {
 	}
 }
 
+// kimcy
 // commitWork generates several new sealing tasks based on the parent block
 // and submit them to the sealer.
 func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
@@ -1306,6 +1311,7 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 	w.current = work
 }
 
+// kimcy
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
 // Note the assumption is held that the mutation is allowed to the passed env, do

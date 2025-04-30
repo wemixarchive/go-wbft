@@ -57,6 +57,7 @@ func GetSignatureAddressNoHashing(data []byte, sig []byte) (common.Address, erro
 }
 
 func CheckValidatorSignature(valSet ValidatorSet, data []byte, sig []byte) (common.Address, error) {
+	log.Info("kimcy ==> ValidatorSet", "data", data, "sig", sig)
 	// 1. Get signature address
 	signer, err := GetSignatureAddress(data, sig)
 	if err != nil {
@@ -66,6 +67,7 @@ func CheckValidatorSignature(valSet ValidatorSet, data []byte, sig []byte) (comm
 
 	// 2. Check validator
 	if _, val := valSet.GetByAddress(signer); val != nil {
+		log.Info("Validator found", "address", val.Address())
 		return val.Address(), nil
 	}
 

@@ -75,7 +75,9 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 }
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
+	log.Info("kimcy verifyHeader", "qbft.config", sb.config)
 	valSet, prevValSet, err := sb.GetValidatorsForVerifying(chain, header, parents)
+	log.Info("kimcy verifyHeader", "valSet", valSet, "prevValSet", prevValSet)
 	if err != nil {
 		return err
 	}
@@ -151,9 +153,11 @@ func (sb *Backend) timeForNextWork() uint64 {
 	return latestBlock.Time() + sb.Engine().PeriodToNextBlock(next)
 }
 
+// kimcy
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	log.Error("kimcy : backend/engine -> Prepare")
 	valSet, err := sb.Engine().GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
@@ -173,6 +177,7 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	return nil
 }
 
+// kimcy
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 //
@@ -225,6 +230,7 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	return nil
 }
 
+// kimcy
 func (sb *Backend) processExtraSeals() ([]qbft.SealData, []qbft.SealData) {
 	sb.coreMu.RLock()
 	defer sb.coreMu.RUnlock()

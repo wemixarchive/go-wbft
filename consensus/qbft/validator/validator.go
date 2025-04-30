@@ -32,6 +32,13 @@ func New(addr common.Address, blsPublicKey []byte) qbft.Validator {
 	}
 }
 
+//func New(addr common.Address, blsPublicKey []string) qbft.Validator {
+//	return &defaultValidator{
+//		address:      addr,
+//		blsPublicKey: blsPublicKey,
+//	}
+//}
+
 func NewSet(addrs []common.Address, blsPublicKeys [][]byte, policy *qbft.ProposerPolicy) qbft.ValidatorSet {
 	validators := make(qbft.Validators, len(addrs))
 	for i, addr := range addrs {
@@ -39,6 +46,24 @@ func NewSet(addrs []common.Address, blsPublicKeys [][]byte, policy *qbft.Propose
 	}
 	return newDefaultSet(validators, policy)
 }
+
+//func NewSet(addrs []common.Address, blsPublicKeys []string, policy *qbft.ProposerPolicy) qbft.ValidatorSet {
+//	if len(addrs) != len(blsPublicKeys) {
+//		log.Error("mismatched slice lengths: addrs=%d, blsPublicKeys=%d", len(addrs), len(blsPublicKeys))
+//	}
+//	if policy == nil {
+//		log.Error("proposer policy must not be nil")
+//	}
+//
+//	validators := make(qbft.Validators, len(addrs))
+//
+//	for i, addr := range addrs {
+//		pkBytes, _ := hexutil.Decode(blsPublicKeys[i])
+//		validators[i] = New(addr, pkBytes)
+//	}
+//
+//	return newDefaultSet(validators, policy)
+//}
 
 func NewSetByValidators(validators qbft.Validators, policy *qbft.ProposerPolicy) qbft.ValidatorSet {
 	return newDefaultSet(validators, policy)
