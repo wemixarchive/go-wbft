@@ -2005,9 +2005,20 @@ func setWbftGovConfig(g *GovWBFT) {
 		ChangeFeeDelay:     604800,
 		MinStakers:         5,
 	}
-	govTransition := govwbft.GetGovParamsTransition(govParams)
+	addr := govwbft.GovConstAddress
 	g.backend.CommitWithState(params.StateTransition{
-		Codes:  govTransition.Codes,
-		States: govTransition.States,
+		Codes: []params.CodeParam{
+			{Address: addr, Code: govwbft.GovConfigContract},
+		},
+		States: []params.StateParam{
+			{Address: addr, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(govParams.MinimumStaking))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(govParams.MaximumStaking))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.UnbondingStaker))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.UnbondingDelegator))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.FeePrecision))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(govParams.RewardPrecision))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.ChangeFeeDelay))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.MinStakers))},
+		},
 	})
 }

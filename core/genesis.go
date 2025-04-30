@@ -259,7 +259,8 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		applyOverrides(genesis.Config)
 		//kimcy
 
-		if genesis.Config.QBFT != nil {
+		if genesis.Config.QBFT != nil &&
+			(genesis.Config.MontBlancBlock == nil || genesis.Config.MontBlancBlock.Sign() == 0) {
 			err := buildInitialExtraData(genesis, genesis.Config)
 			if err != nil {
 				log.Info("kimcy 111 error")
@@ -291,7 +292,8 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		applyOverrides(genesis.Config)
 
 		//kimcy
-		if genesis.Config.QBFT != nil {
+		if genesis.Config.QBFT != nil &&
+			(genesis.Config.MontBlancBlock == nil || genesis.Config.MontBlancBlock.Sign() == 0) {
 			err := buildInitialExtraData(genesis, genesis.Config)
 			if err != nil {
 				return genesis.Config, stored, err
