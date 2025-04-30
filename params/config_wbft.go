@@ -2,10 +2,10 @@ package params
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
@@ -71,23 +71,31 @@ func (st *StateTransition) String() string {
 }
 
 type MontBlancConfig struct {
-	NCPs          []common.Address `json:"ncps,omitempty"`
-	Validators    []common.Address `json:"validators"`    // Validators list when the number of stakers is below the minimum stakers
-	BLSPublicKeys []string         `json:"blsPublicKeys"` // BLS PublicKey list of Validators
+	NCPs []common.Address `json:"ncps,omitempty"`
+	//Validators    []common.Address `json:"validators"`    // Validators list when the number of stakers is below the minimum stakers
+	//BLSPublicKeys []string         `json:"blsPublicKeys"` // BLS PublicKey list of Validators
 }
 
-func (c *MontBlancConfig) GetBLSPublicKeys() [][]byte {
-	blsPubKeys := make([][]byte, len(c.BLSPublicKeys))
-	for i, pk := range c.BLSPublicKeys {
+//func (c *MontBlancConfig) GetBLSPublicKeys() [][]byte {
+//	blsPubKeys := make([][]byte, len(c.BLSPublicKeys))
+//	for i, pk := range c.BLSPublicKeys {
+//		blsPubKeys[i] = hexutil.MustDecode(pk)
+//	}
+//	return blsPubKeys
+//}
+
+func (c *ChainConfig) GetBLSPublicKeys() [][]byte {
+	blsPubKeys := make([][]byte, len(c.QBFT.BLSPublicKeys))
+	for i, pk := range c.QBFT.BLSPublicKeys {
 		blsPubKeys[i] = hexutil.MustDecode(pk)
 	}
 	return blsPubKeys
 }
 
 func (c *MontBlancConfig) String() string {
-	return fmt.Sprintf("{NCPs: %v, Validators: %v, BLSPublicKeys: %v}",
+	return fmt.Sprintf("{NCPs: %v}",
 		c.NCPs,
-		c.Validators,
-		c.BLSPublicKeys,
+		//c.Validators,
+		//c.BLSPublicKeys,
 	)
 }
