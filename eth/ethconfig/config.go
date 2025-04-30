@@ -24,6 +24,7 @@ package ethconfig
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -96,10 +97,13 @@ type Config struct {
 
 	// Network ID separates blockchains on the peer-to-peer networking level. When left
 	// zero, the chain ID is used as network ID.
-	NetworkId      uint64
-	SyncMode       downloader.SyncMode
-	ForceSyncCycle time.Duration
-	TdSyncInterval time.Duration
+	NetworkId uint64
+	SyncMode  downloader.SyncMode
+
+	ForceSyncCycleStr string        `toml:"ForceSyncCycle"`
+	ForceSyncCycle    time.Duration `toml:"-"`
+	TdSyncIntervalStr string        `toml:"TdSyncInterval"`
+	TdSyncInterval    time.Duration `toml:"-"`
 
 	// This can be set to list of enrtree:// URLs which will be queried for
 	// for nodes to connect to.
@@ -140,7 +144,8 @@ type Config struct {
 
 	TrieCleanCache int
 	TrieDirtyCache int
-	TrieTimeout    time.Duration
+	TrieTimeoutStr string        `toml:"TrieTimeout"`
+	TrieTimeout    time.Duration `toml:"-"`
 	SnapshotCache  int
 	Preimages      bool
 
@@ -170,7 +175,8 @@ type Config struct {
 	RPCGasCap uint64
 
 	// RPCEVMTimeout is the global timeout for eth-call.
-	RPCEVMTimeout time.Duration
+	RPCEVMTimeoutStr string        `toml:"RPCEVMTimeout"`
+	RPCEVMTimeout    time.Duration `toml:"-"`
 
 	// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 	// send-transaction variants. The unit is ether.
@@ -181,6 +187,48 @@ type Config struct {
 
 	// OverrideVerkle (TODO: remove after the fork)
 	OverrideVerkle *uint64 `toml:",omitempty"`
+}
+
+// Parse duration fields from string after TOML decoding
+func (c *Config) ParseDurations() error {
+	var err error
+
+	if c.ForceSyncCycleStr != "" {
+		c.ForceSyncCycle, err = time.ParseDuration(c.ForceSyncCycleStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for ForceSyncCycle (%q): %w", c.ForceSyncCycleStr, err)
+		}
+	}
+
+	if c.TdSyncIntervalStr != "" {
+		c.TdSyncInterval, err = time.ParseDuration(c.TdSyncIntervalStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for TdSyncInterval (%q): %w", c.TdSyncIntervalStr, err)
+		}
+	}
+
+	if c.TrieTimeoutStr != "" {
+		c.TrieTimeout, err = time.ParseDuration(c.TrieTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for TrieTimeout (%q): %w", c.TrieTimeoutStr, err)
+		}
+	}
+
+	if c.RPCEVMTimeoutStr != "" {
+		c.RPCEVMTimeout, err = time.ParseDuration(c.RPCEVMTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for RPCEVMTimeout (%q): %w", c.RPCEVMTimeoutStr, err)
+		}
+	}
+
+	if err := c.Miner.ParseDurations(); err != nil {
+		return err
+	}
+
+	if err := c.TxPool.ParseDurations(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

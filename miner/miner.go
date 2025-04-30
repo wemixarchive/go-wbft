@@ -51,11 +51,34 @@ type Config struct {
 	GasFloor  uint64         // Target gas floor for mined blocks.
 	GasCeil   uint64         // Target gas ceiling for mined blocks.
 	GasPrice  *big.Int       // Minimum gas price for mining a transaction
-	Recommit  time.Duration  // The time interval for miner to re-create mining work.
 
-	NewPayloadTimeout time.Duration // The maximum time allowance for creating a new payload
+	RecommitStr string        `toml:"Recommit"`
+	Recommit    time.Duration `toml:"-"` // The time interval for miner to re-create mining work.
+
+	NewPayloadTimeoutStr string        `toml:"NewPayloadTimeout"`
+	NewPayloadTimeout    time.Duration `toml:"-"` // The maximum time allowance for creating a new payload
 
 	SimulatedEnabled bool `toml:",omitempty"`
+}
+
+// Parse duration fields from string after TOML decoding
+func (c *Config) ParseDurations() error {
+	var err error
+
+	if c.RecommitStr != "" {
+		c.Recommit, err = time.ParseDuration(c.RecommitStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for Recommit (%q): %w", c.RecommitStr, err)
+		}
+	}
+
+	if c.NewPayloadTimeoutStr != "" {
+		c.NewPayloadTimeout, err = time.ParseDuration(c.NewPayloadTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for NewPayloadTimeout (%q): %w", c.NewPayloadTimeoutStr, err)
+		}
+	}
+	return nil
 }
 
 // DefaultConfig contains default settings for miner.

@@ -19,6 +19,7 @@ package legacypool
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -122,10 +123,12 @@ type BlockChain interface {
 
 // Config are the configuration parameters of the transaction pool.
 type Config struct {
-	Locals    []common.Address // Addresses that should be treated by default as local
-	NoLocals  bool             // Whether local transaction handling should be disabled
-	Journal   string           // Journal of local transactions to survive node restarts
-	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
+	Locals   []common.Address // Addresses that should be treated by default as local
+	NoLocals bool             // Whether local transaction handling should be disabled
+	Journal  string           // Journal of local transactions to survive node restarts
+
+	RejournalStr string        `toml:"Rejournal"`
+	Rejournal    time.Duration `toml:"-"` // Time interval to regenerate the local transaction journal
 
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
@@ -135,7 +138,29 @@ type Config struct {
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
-	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
+	LifetimeStr string        `toml:"Lifetime"`
+	Lifetime    time.Duration `toml:"-"` // Maximum amount of time non-executable transaction are queued
+}
+
+// Parse duration fields from string after TOML decoding
+func (c *Config) ParseDurations() error {
+	var err error
+
+	if c.RejournalStr != "" {
+		c.Rejournal, err = time.ParseDuration(c.RejournalStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for Rejournal (%q): %w", c.RejournalStr, err)
+		}
+	}
+
+	if c.LifetimeStr != "" {
+		c.Lifetime, err = time.ParseDuration(c.LifetimeStr)
+		if err != nil {
+			return fmt.Errorf("invalid duration format for Lifetime (%q): %w", c.LifetimeStr, err)
+		}
+	}
+
+	return nil
 }
 
 // DefaultConfig contains the default configurations for the transaction pool.
