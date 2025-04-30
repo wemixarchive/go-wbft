@@ -194,7 +194,7 @@ func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params
 		transitions := make([]params.StateTransition, 0)
 
 		if chainConfig.MontBlancBlock != nil && chainConfig.MontBlancBlock.Cmp(num) == 0 {
-			transitions = append(transitions, getMontBlancTransition(chainConfig.MontBlanc), GetGovParamsTransition(chainConfig.QBFT.GovParams))
+			transitions = append(transitions, getMontBlancTransition(chainConfig))
 		}
 
 		if st := chainConfig.GetStateTransitions(num); len(st) > 0 {
@@ -205,41 +205,28 @@ func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params
 	return nil
 }
 
-func getMontBlancTransition(config *params.MontBlancConfig) params.StateTransition {
+func getMontBlancTransition(config *params.ChainConfig) params.StateTransition {
 	st := params.StateTransition{
 		Codes: []params.CodeParam{
 			{Address: govwbft.GovConstAddress, Code: govwbft.GovConfigContract},
 			{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
 			{Address: govwbft.GovRewardeeImpAddress, Code: govwbft.GovRewardeeImpContract},
 		},
-	}
-
-	if config != nil && len(config.NCPs) > 0 {
-		st.Codes = append(st.Codes, params.CodeParam{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract})
-		st.States = govwbft.InitializeNCP(config.NCPs)
-	}
-	return st
-}
-
-func GetGovParamsTransition(config *params.GovParams) params.StateTransition {
-	addr := govwbft.GovConstAddress
-	st := params.StateTransition{
-		Codes: []params.CodeParam{
-			{Address: govwbft.GovConstAddress, Code: govwbft.GovConfigContract},
+		States: []params.StateParam{
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.RewardPrecision))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))},
+			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))},
 		},
 	}
 
-	if config != nil {
-		st.States = []params.StateParam{
-			{Address: addr, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.MinimumStaking))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.MaximumStaking))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.UnbondingStaker))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.UnbondingDelegator))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.FeePrecision))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.RewardPrecision))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.ChangeFeeDelay))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.MinStakers))},
-		}
+	if config.MontBlanc != nil && len(config.MontBlanc.NCPs) > 0 {
+		st.Codes = append(st.Codes, params.CodeParam{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract})
+		st.States = append(st.States, govwbft.InitializeNCP(config.MontBlanc.NCPs)...)
 	}
 	return st
 }
