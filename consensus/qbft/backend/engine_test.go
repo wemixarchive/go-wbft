@@ -25,7 +25,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
+	
 	"math/big"
 	"reflect"
 	"sync"
@@ -52,6 +52,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var blockEnqueueChannel chan *types.Block
@@ -106,7 +107,6 @@ func (fb *fakeBroadcaster) FindPeers(targets map[common.Address]bool) map[common
 }
 
 func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey, cfg *qbft.Config) (*core.BlockChain, *Backend, []otherNode) {
-	log.Info("kimcy newBlockchainFromConfig ", "genesis", genesis, "qbft.Config", cfg)
 	memDB := rawdb.NewMemoryDatabase()
 
 	// Use the first key as private key
@@ -138,7 +138,6 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	backend.Start(blockchain, blockchain.CurrentFullBlock, rawdb.HasBadBlock, nil)
 	genesisBlock := blockchain.GetHeaderByHash(blockchain.Genesis().Hash())
 	valSet, err := backend.Engine().GetValidators(blockchain, common.Big1, genesisBlock.Hash(), nil)
-	log.Info("kimcy newBlockchainFromConfig ", "valSet", valSet)
 
 	if err != nil {
 		panic(err)
@@ -147,7 +146,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		panic("failed to get validator set")
 	}
 	proposerAddr := valSet.GetProposer().Address()
-	log.Info("kimcy newBlockchainFromConfig ", "proposerAddr", proposerAddr)
+
 	// find proposer key
 	for i, key := range nodeKeys {
 		addr := crypto.PubkeyToAddress(key.PublicKey)
@@ -845,7 +844,6 @@ func nodeSendCommitMsg(qbftEngine *Backend, node otherNode, sequence, round *big
 	return nil
 }
 
-// kimcy
 func makeBlockThroughConsensus(chain *core.BlockChain, engine *Backend, nodes []otherNode, parentBlock *types.Block) (*types.Block, error) {
 	eventSub := engine.EventMux().Subscribe(qbft.RequestEvent{})
 

@@ -22,7 +22,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	
 	"math/big"
 	"sync"
 	"time"
@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // ## Wemix QBFT START
@@ -125,7 +126,7 @@ type Backend struct {
 
 	simApplier SimApplier
 
-	notifyNewRound func(isProposer bool, waitTime time.Duration, round *big.Int)
+	notifyNewRound func(waitTime time.Duration, round *big.Int)
 }
 
 func (sb *Backend) InjectSimApplier(applier SimApplier) {
@@ -152,7 +153,6 @@ func (sb *Backend) Address() common.Address {
 
 // Broadcast implements qbft.Backend.Broadcast
 func (sb *Backend) Broadcast(valSet qbft.ValidatorSet, code uint64, payload []byte) error {
-	log.Info("kimcy Broadcast")
 	_, validator := valSet.GetByAddress(sb.address)
 
 	if validator == nil {
@@ -165,12 +165,6 @@ func (sb *Backend) Broadcast(valSet qbft.ValidatorSet, code uint64, payload []by
 		)
 		return qbft.ErrUnauthorizedAddress
 	}
-
-	log.Info("kimcy validator (String)", "validator", validator.String())
-	log.Info("kimcy validator details",
-		"address", validator.Address().Hex(), // 0x1234...
-		"blsPubKey", hexutil.Encode(validator.BLSPublicKey()), // 0xabcdef...
-	)
 
 	// send to others
 	sb.Gossip(valSet, code, payload)
@@ -185,14 +179,12 @@ func (sb *Backend) Broadcast(valSet qbft.ValidatorSet, code uint64, payload []by
 
 // Gossip implements qbft.Backend.Gossip
 func (sb *Backend) Gossip(valSet qbft.ValidatorSet, code uint64, payload []byte) error {
-	log.Info("kimcy Gossip", "valSet", valSet, "qbft.config", sb.config)
 	hash := qbft.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
 
 	targets := make(map[common.Address]bool)
 	for _, val := range valSet.List() {
 		if val.Address() != sb.Address() {
-			log.Info("kimcy 111")
 			targets[val.Address()] = true
 		}
 	}
@@ -269,7 +261,6 @@ func (sb *Backend) EventMux() *event.TypeMux {
 
 // Verify implements qbft.Backend.Verify
 func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
-	log.Info("kimcy Verify", "qbf.config", sb.config, "address", sb.address)
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
@@ -285,7 +276,6 @@ func (sb *Backend) Verify(proposal qbft.Proposal) (time.Duration, error) {
 
 	header := block.Header()
 	valSet, prevValSet, err := sb.GetValidatorsForVerifying(sb.chain, header, nil)
-	log.Info("kimcy Verify", "valSet", valSet, "prevValSet", prevValSet)
 	if err != nil {
 		return 0, err
 	}

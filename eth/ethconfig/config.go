@@ -25,7 +25,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -63,7 +62,9 @@ var Defaults = Config{
 	// ## Quorum QBFT START
 	//SyncMode: downloader.SnapSync,
 	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
-	SyncMode: downloader.FullSync,
+	SyncMode:       downloader.FullSync,
+	ForceSyncCycle: 10 * time.Second, // Time interval to force syncs, even if few peers are available
+	TdSyncInterval: 10 * time.Second, // Time interval to verify TD changes and detect sync stalling
 	// ## Quorum QBFT END
 
 	NetworkId:          0, // enable auto configuration of networkID == chainID
@@ -96,8 +97,10 @@ type Config struct {
 
 	// Network ID separates blockchains on the peer-to-peer networking level. When left
 	// zero, the chain ID is used as network ID.
-	NetworkId uint64
-	SyncMode  downloader.SyncMode
+	NetworkId      uint64
+	SyncMode       downloader.SyncMode
+	ForceSyncCycle time.Duration
+	TdSyncInterval time.Duration
 
 	// This can be set to list of enrtree:// URLs which will be queried for
 	// for nodes to connect to.
@@ -181,12 +184,10 @@ type Config struct {
 	OverrideVerkle *uint64 `toml:",omitempty"`
 }
 
-// kimcy
 // CreateConsensusEngine creates a consensus engine for the given chain config.
 // Clique is allowed for now to live standalone, but ethash is forbidden and can
 // only exist on already merged networks.
 func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfig, qbftCfg *qbft.Config, privKey *ecdsa.PrivateKey, db ethdb.Database) (consensus.Engine, error) {
-	log.Error("kimcy => CreateConsensusEngine")
 	// If proof-of-authority is requested, set it up
 	if config.Clique != nil {
 		if config.TerminalTotalDifficulty == nil {
@@ -224,14 +225,13 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 	return beacon.New(ethash.NewFaker()), nil
 }
 
-// kimcy
 func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) error {
-	log.Error("kimcy => SetConfigFromChainConfig")
+
 	if len(config.Transitions) > 0 {
 		qbftCfg.Transitions = config.Transitions
 	}
 	if config.QBFT.BlockPeriodSeconds != 0 {
-		qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
+		qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds햣
 	}
 	if config.QBFT.RequestTimeoutSeconds != 0 {
 		qbftCfg.RequestTimeout = config.QBFT.RequestTimeoutSeconds * 1000
@@ -239,7 +239,7 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 	if config.QBFT.EpochLength != 0 {
 		qbftCfg.Epoch = config.QBFT.EpochLength
 	}
-	//kimcy : config.QBFT.Validators: 이런 값들은 genesis.json 등에서 로드되어 statedb에 저장됨
+
 	if config.QBFT.Validators != nil && config.QBFT.BLSPublicKeys != nil {
 		if len(config.QBFT.Validators) != len(config.QBFT.BLSPublicKeys) {
 			return fmt.Errorf(
@@ -254,12 +254,11 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 		for _, addr := range config.QBFT.Validators {
 			qbftCfg.Validators = append(validators, addr)
 		}
-		log.Info("kimcy", "Validators", qbftCfg.Validators, "size", len(qbftCfg.Validators))
 
 		for _, key := range config.QBFT.BLSPublicKeys {
 			qbftCfg.BLSPublicKeys = append(blsPublicKeys, key)
 		}
-		log.Info("kimcy", "BLSPublicKeys", qbftCfg.BLSPublicKeys, "size", len(qbftCfg.BLSPublicKeys))
+
 	} else {
 		return fmt.Errorf("qbftCfg.Validators or qbftCfg.BLSPublicKeys are nil")
 	}
@@ -273,8 +272,6 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 	if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {
 		qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
 	}
-
-	log.Info("kimcy => SetConfigFromChainConfig", "qbftCfg", qbftCfg, "config", config)
 
 	return nil
 }

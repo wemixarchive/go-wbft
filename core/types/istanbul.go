@@ -234,7 +234,6 @@ func (stkr *Staker) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-// kimcy
 // ExtractQBFTExtra extracts all values of the QBFTExtra from the header. It returns an
 // error if the length of the given extra-data is less than 32 bytes or the extra-data can not
 // be decoded.

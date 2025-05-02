@@ -1,7 +1,6 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/consensus/qbft"
@@ -11,7 +10,6 @@ import (
 
 // addToExtraSeal adds a seal received after consensus to extraSeals.
 func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
-	log.Info("kimcy: addToExtraSeal", "msg", msg, "config", c.config, "valSet", c.valSet)
 	logger := c.currentLogger(true, msg)
 	var (
 		block    *types.Block
@@ -23,11 +21,9 @@ func (c *Core) addToExtraSeal(msg qbftmessage.QBFTMessage) error {
 	if c.state == StateAcceptRequest {
 		block, ok = c.priorState.Proposal().(*types.Block)
 		valSet = c.priorState.Validators()
-		log.Info("kimcy: addToExtraSeal, StateAcceptRequest", "block", block, "valSet", valSet)
 	} else {
 		block, ok = c.current.Proposal().(*types.Block)
 		valSet = c.valSet
-		log.Info("kimcy: addToExtraSeal, !!StateAcceptRequest", "block", block, "valSet", valSet)
 	}
 	if !ok {
 		// ignore if block is not found
@@ -111,11 +107,9 @@ func (c *Core) addEffectiveSealToExtraSeal() error {
 	return nil
 }
 
-// kimcy
 // ProcessExtraSeal collects prepare and commit messages that have been stored in extraSeal
 // and pass it to backend preparing new block
 func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int, valSet qbft.ValidatorSet) ([]qbft.SealData, []qbft.SealData) {
-	log.Info("kimcy: ProcessExtraSeal", "round", priorRound, "proposal", lastProposal.Hash().String(), "config", c.config, "valSet", valSet)
 	c.extraSealsMu.Lock()
 	defer c.extraSealsMu.Unlock()
 
@@ -128,46 +122,59 @@ func (c *Core) ProcessExtraSeal(lastProposal qbft.Proposal, priorRound *big.Int,
 	}
 
 	// process prepare seal
-	for addr, msg := range c.prepareExtraSeals {
+	for _, msg := range c.prepareExtraSeals {
 		if msg != nil {
 			view := msg.View()
 			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
 				// this seal(c.prepareExtraSeals[addr]) is valid and re-usable for this sequence
 				idx, _ := valSet.GetByAddress(msg.Source())
 				if idx < 0 {
-					log.Info("kimcy found invalid process prepare seal")
 					continue
 				}
 				preparedSeal = append(preparedSeal, qbft.SealData{
 					Sealer: uint32(idx),
 					Seal:   append([]byte{}, msg.PrepareSeal...),
 				})
-			} else {
-				delete(c.prepareExtraSeals, addr) // erase invalid seal
 			}
 		}
 	}
 
 	// process commit seal
-	for addr, msg := range c.commitExtraSeals {
+	for _, msg := range c.commitExtraSeals {
 		if msg != nil {
 			view := msg.View()
 			if latestView.Cmp(&view) == 0 && msg.Digest == lastProposal.Hash() {
 				// this seal(c.commitExtraSeals[addr]) is valid and re-usable for this sequence
 				idx, _ := valSet.GetByAddress(msg.Source())
 				if idx < 0 {
-					log.Info("kimcy found invalid commit seal")
 					continue
 				}
 				committedSeal = append(committedSeal, qbft.SealData{
 					Sealer: uint32(idx),
 					Seal:   append([]byte{}, msg.CommitSeal...),
 				})
-			} else {
-				delete(c.commitExtraSeals, addr) // erase invalid seal
 			}
 		}
 	}
 
 	return preparedSeal, committedSeal
+}
+
+// Delete all extraSeals prior to the previous proposal
+func (c *Core) ClearExtraSeals(lastNum *big.Int) {
+	c.extraSealsMu.Lock()
+	defer c.extraSealsMu.Unlock()
+	// process prepare seal
+	for addr, msg := range c.prepareExtraSeals {
+		if msg != nil && msg.Sequence.Cmp(lastNum) < 0 {
+			delete(c.prepareExtraSeals, addr) // erase invalid seal
+		}
+	}
+
+	// process commit seal
+	for addr, msg := range c.commitExtraSeals {
+		if msg != nil && msg.Sequence.Cmp(lastNum) < 0 {
+			delete(c.commitExtraSeals, addr) // erase invalid seal
+		}
+	}
 }

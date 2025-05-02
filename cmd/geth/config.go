@@ -168,22 +168,6 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	return stack, cfg
 }
 
-//func checkSanityQBFT(chainConfig *params.ChainConfig) {
-//	if chainConfig.QBFT != nil {
-//		checkSanityBeneficiaries(chainConfig.QBFT.BlockRewardBeneficiary)
-//	}
-//
-//	//qbft.GetGovParamsTransition(chainConfig.QBFT.GovParams)
-//
-//	if chainConfig.Transitions != nil {
-//		for _, t := range chainConfig.Transitions {
-//			checkSanityBeneficiaries(t.BlockRewardBeneficiary)
-//		}
-//	}
-//
-//}
-
-// kimcy : geth init 시 금지된 주소 검사 추가
 func checkSanityQBFT(chainConfig *params.ChainConfig, alloc types.GenesisAlloc) {
 
 	if chainConfig.QBFT != nil {
@@ -195,7 +179,6 @@ func checkSanityQBFT(chainConfig *params.ChainConfig, alloc types.GenesisAlloc) 
 		}
 	}
 
-	// ── 1. 익명함수로 “금지된 주소” 검사 ──
 	func() {
 		forbidden := []common.Address{
 			govwbft.GovConstAddress,
@@ -210,7 +193,7 @@ func checkSanityQBFT(chainConfig *params.ChainConfig, alloc types.GenesisAlloc) 
 				)
 			}
 		}
-	}() // 즉시 실행
+	}() 
 }
 
 func checkSanityBeneficiaries(l *params.BeneficiaryInfo) {

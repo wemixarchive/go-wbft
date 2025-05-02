@@ -778,6 +778,18 @@ var (
 		Value:    30303,
 		Category: flags.NetworkingCategory,
 	}
+	ForceSyncCycleFlag = &cli.DurationFlag{
+		Name:     "sync.forcecycle",
+		Usage:    "Time interval to force syncs, even if few peers are available",
+		Value:    ethconfig.Defaults.ForceSyncCycle,
+		Category: flags.NetworkingCategory,
+	}
+	TdSyncIntervalFlag = &cli.DurationFlag{
+		Name:     "sync.tdinterval",
+		Usage:    "Time interval to verify TD changes and detect sync stalling",
+		Value:    ethconfig.Defaults.TdSyncInterval,
+		Category: flags.NetworkingCategory,
+	}
 
 	// Console
 	JSpathFlag = &flags.DirectoryFlag{
@@ -1632,6 +1644,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	if ctx.IsSet(NetworkIdFlag.Name) {
 		cfg.NetworkId = ctx.Uint64(NetworkIdFlag.Name)
 	}
+	if ctx.IsSet(ForceSyncCycleFlag.Name) {
+		cfg.ForceSyncCycle = ctx.Duration(ForceSyncCycleFlag.Name)
+	}
+	if ctx.IsSet(TdSyncIntervalFlag.Name) {
+		cfg.TdSyncInterval = ctx.Duration(TdSyncIntervalFlag.Name)
+	}
 	if ctx.IsSet(CacheFlag.Name) || ctx.IsSet(CacheDatabaseFlag.Name) {
 		cfg.DatabaseCache = ctx.Int(CacheFlag.Name) * ctx.Int(CacheDatabaseFlag.Name) / 100
 	}
@@ -1744,7 +1762,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		}
 		cfg.Genesis = core.DefaultWemixMainnetGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.WemixMainnetGenesisHash)
-		//kimcy
 	case ctx.Bool(WemixTestnetFlag.Name):
 		if !ctx.IsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 1112
@@ -2086,14 +2103,12 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 	return genesis
 }
 
-// kimcy
 // MakeChain creates a chain manager from set command line flags.
 func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockChain, ethdb.Database) {
 	var (
 		gspec   = MakeGenesis(ctx)
 		chainDb = MakeChainDatabase(ctx, stack, readonly)
 	)
-	//kimcy: default 는  WemixMainnetChainConfig
 	config, err := core.LoadChainConfig(chainDb, gspec)
 	if err != nil {
 		Fatalf("%v", err)

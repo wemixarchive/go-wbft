@@ -22,7 +22,7 @@ package params
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -83,7 +83,7 @@ var (
 		QBFT: &QBFTConfig{ // TODO: this is just for test on mainnet
 			EpochLength:              100,
 			BlockPeriodSeconds:       1,
-			RequestTimeoutSeconds:    2000, //1000
+			RequestTimeoutSeconds:    1000,
 			ProposerPolicy:           0,
 			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
 			MaxRequestTimeoutSeconds: &mrts,
@@ -118,38 +118,14 @@ var (
 			HalvingTimes:      16,
 			HalvingRate:       50,
 		},
-		MontBlancBlock: big.NewInt(100), // TODO: decide montblanc hard fork date; this is just for test on mainnet
-		QBFT: &QBFTConfig{ // TODO: this is just for test on mainnet, kimcy test
+		MontBlancBlock: big.NewInt(100_000_000), // TODO: decide montblanc hard fork date; this is just for test on mainnet
+		QBFT: &QBFTConfig{ // TODO: this is just for test on mainnet
 			EpochLength:              100,
 			BlockPeriodSeconds:       1,
 			RequestTimeoutSeconds:    1000,
 			ProposerPolicy:           0,
 			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
 			MaxRequestTimeoutSeconds: &mrts,
-			// You should assign `Validators` before using
-			Validators: []common.Address{
-				common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248"),
-				common.HexToAddress("0xbdffb1f28f3fa0d87c6a1fc1495e1d4011675578"),
-				common.HexToAddress("0xa5f55916ef6009a859c51fb013cd0b4724e133a6"),
-				common.HexToAddress("0x7610307b1575d620532f8e81b5d2319904f3869d"),
-			},
-			BLSPublicKeys: []string{
-				"0x935344a9e431d256fd4fcb819fd5497fb80ce4cd402b4f93ea0cd585dfb4dc433e962a55a153f8c041a773304ef8833d",
-				"0x96f598505fb77af43e82eee6ab62c58aa888408c43876b345924173206345c9ada63427aa582ba67e55dbd007229fe89",
-				"0x80bd8916c37c461d7c1be223dbfb541c3ee07db04d953389c92f26fe48a867f12985267b422e48e22bafcdc36e1f95c5",
-				"0xa010204073ff694ebb91f2b1be77437ef0c58459d3d2df0a4afa0b0724a62caf66e4457bd4200d57b4a0d03e8fec2a8b",
-			},
-			TargetValidators: 0,
-			GovParams: &GovParams{
-				MinimumStaking:     (*math.HexOrDecimal256)(hexutil.MustDecodeBig("0x69e10de76676d0800000")),
-				MaximumStaking:     (*math.HexOrDecimal256)(hexutil.MustDecodeBig("0xffffffffffffffffffffffffffffffff")), // 100 WEMIX
-				UnbondingStaker:    604800,                                                                               // 7 days
-				UnbondingDelegator: 604800,                                                                               // 7 days
-				FeePrecision:       1000,                                                                                 // 1e18
-				RewardPrecision:    (*math.HexOrDecimal256)(hexutil.MustDecodeBig("0xde0b6b3a7640000")),                  // 1e18
-				ChangeFeeDelay:     604800,                                                                               // 1 day
-				MinStakers:         4,
-			},
 		},
 	}
 
@@ -568,7 +544,6 @@ type ChainConfig struct {
 	Transitions      []Transition      `json:"transitions,omitempty"`      // Quorum - transition config based on the block number
 	StateTransitions []StateTransition `json:"stateTransitions,omitempty"` // wbft - state transition config based on the block number
 	// ## Quorum QBFT END
-
 }
 
 // Brioche halving configuration
@@ -717,8 +692,7 @@ func (c *ChainConfig) Description() string {
 	banner += fmt.Sprintf(" - MontBlanc:                   #%-8v\n", c.MontBlancBlock)
 	if c.MontBlanc != nil {
 		banner += fmt.Sprintf("   - NCPs:                      %v\n", c.MontBlanc.NCPs)
-		//banner += fmt.Sprintf("   - Validators:                %v\n", c.MontBlanc.Validators)
-		//banner += fmt.Sprintf("   - BLSPublicKeys:             %v\n", c.MontBlanc.BLSPublicKeys)
+
 	}
 	banner += " - QBFT\n"
 	if c.QBFT != nil {

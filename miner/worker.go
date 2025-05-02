@@ -87,6 +87,7 @@ var (
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
+	errSkipMiningBeforeMontBlanc  = errors.New("skipping block preparation before MontBlanc hard fork")
 )
 
 var (
@@ -389,16 +390,14 @@ func (w *worker) pendingBlockAndReceipts() (*types.Block, types.Receipts) {
 	return w.snapshotBlock, w.snapshotReceipts
 }
 
-func (w *worker) readyToCommit(isProposer bool, waitTime time.Duration, round *big.Int) {
-	if isProposer {
-		if w.config.SimulatedEnabled {
+func (w *worker) readyToCommit(waitTime time.Duration, round *big.Int) {
+	if w.config.SimulatedEnabled {
+		w.readyToCommitCh <- round
+	} else {
+		go func() {
+			time.Sleep(waitTime)
 			w.readyToCommitCh <- round
-		} else {
-			go func() {
-				time.Sleep(waitTime)
-				w.readyToCommitCh <- round
-			}()
-		}
+		}()
 	}
 }
 
@@ -656,7 +655,6 @@ func (w *worker) mainLoop() {
 
 	for {
 		select {
-		//kimcy: new block 생성시
 		case req := <-w.newWorkCh:
 			if w.config.SimulatedEnabled {
 				w.simSyncer.queueCommitReq(req)
@@ -664,7 +662,6 @@ func (w *worker) mainLoop() {
 			}
 			w.commitWork(req.interrupt, req.timestamp)
 
-		//kimcy: rpc 호출시
 		case req := <-w.getWorkCh:
 			req.result <- w.generateWork(req.params)
 
@@ -1065,7 +1062,6 @@ type generateParams struct {
 	noTxs       bool              // Flag whether an empty block without any transaction is expected
 }
 
-// kimcy
 // prepareWork constructs the sealing task according to the given parameters,
 // either based on the last chain head or specified parent. In this function
 // the pending transactions are not filled yet, only the empty task returned.
@@ -1132,7 +1128,7 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 	if w.chainConfig.MontBlancBlock != nil && !w.chainConfig.IsMontBlanc(header.Number) {
 		// If we are not in the MontBlanc phase, we don't prepare a block
 		log.Info("Skipping block preparation before MontBlanc hard fork", "number", header.Number, "fork", w.chainConfig.MontBlancBlock)
-		return nil, errors.New("skipping block preparation before MontBlanc hard fork")
+		return nil, errSkipMiningBeforeMontBlanc
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
@@ -1213,7 +1209,6 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 	return nil
 }
 
-// kimcy
 // generateWork generates a sealing block based on the given parameters.
 func (w *worker) generateWork(params *generateParams) *newPayloadResult {
 	work, err := w.prepareWork(params)
@@ -1245,7 +1240,6 @@ func (w *worker) generateWork(params *generateParams) *newPayloadResult {
 	}
 }
 
-// kimcy
 // commitWork generates several new sealing tasks based on the parent block
 // and submit them to the sealer.
 func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
@@ -1269,6 +1263,9 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 		coinbase:  coinbase,
 	})
 	if err != nil {
+		if !errors.Is(err, errSkipMiningBeforeMontBlanc) {
+			log.Error("Fail to prepare work", "err", err)
+		}
 		return
 	}
 	// Fill pending transactions from the txpool into the block.
@@ -1301,8 +1298,11 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 		return
 	}
 	// Submit the generated block for consensus sealing.
-	w.commit(work.copy(), w.fullTaskHook, true, start)
-
+	err = w.commit(work.copy(), w.fullTaskHook, true, start)
+	if err != nil {
+		log.Error("Fail to commit work", "err", err)
+		return
+	}
 	// Swap out the old work with the new one, terminating any leftover
 	// prefetcher processes in the mean time and starting a new one.
 	if w.current != nil {
@@ -1311,7 +1311,6 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 	w.current = work
 }
 
-// kimcy
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
 // Note the assumption is held that the mutation is allowed to the passed env, do

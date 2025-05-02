@@ -21,7 +21,6 @@ func Combine(applies ...ApplyQBFTExtra) ApplyQBFTExtra {
 	}
 }
 
-// kimcy
 func ApplyHeaderQBFTExtra(header *types.Header, applies ...ApplyQBFTExtra) error {
 	extra, err := getExtra(header)
 	if err != nil {

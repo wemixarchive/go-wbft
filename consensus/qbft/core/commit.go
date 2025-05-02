@@ -25,7 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -35,7 +34,6 @@ import (
 // - creates a COMMIT message from current proposal
 // - broadcast COMMIT message to other validators
 func (c *Core) broadcastCommit() {
-	log.Info("kimcy broadcastCommit", "valSet", c.valSet)
 	var err error
 
 	logger := c.currentLogger(true, nil)
@@ -92,7 +90,7 @@ func (c *Core) broadcastCommit() {
 func (c *Core) handleCommitMsg(commit *qbftmessage.Commit) error {
 	logger := c.currentLogger(true, commit)
 
-	logger.Info("kimcy QBFT: handle COMMIT message", "commits.count", c.current.QBFTCommits.Size(), "quorum", c.valSet.QuorumSize(), "valset", c.valSet)
+	logger.Info("QBFT: handle COMMIT message", "commits.count", c.current.QBFTCommits.Size(), "quorum", c.valSet.QuorumSize())
 
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
@@ -137,7 +135,6 @@ func (c *Core) handleCommitMsg(commit *qbftmessage.Commit) error {
 func (c *Core) commitQBFT() {
 	c.setState(StateCommitted)
 
-	log.Info("kimcy: commitQBFT", "round", c.currentView().Round, "proposal", c.current.Proposal().Hash().String(), "config", c.config)
 	proposal := c.current.Proposal()
 	if proposal != nil {
 		// Compute prepared seals
@@ -145,7 +142,6 @@ func (c *Core) commitQBFT() {
 		for i, msg := range c.current.QBFTPrepares.Values() {
 			idx, _ := c.valSet.GetByAddress(msg.Source())
 			if idx < 0 {
-				log.Info("kimcy invalid preparedSeals")
 				continue
 			}
 			preparedSeals[i] = qbft.SealData{
@@ -161,7 +157,6 @@ func (c *Core) commitQBFT() {
 		for i, msg := range c.current.QBFTCommits.Values() {
 			idx, _ := c.valSet.GetByAddress(msg.Source())
 			if idx < 0 {
-				log.Info("kimcy invalid committedSeals")
 				continue
 			}
 			committedSeals[i] = qbft.SealData{

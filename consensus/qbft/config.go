@@ -123,7 +123,6 @@ var DefaultConfig = &Config{
 	AllowedFutureBlockTime: 0,
 }
 
-// todo kimcy : 블록넘버와 상태전환의 관계?
 func (c Config) GetConfig(blockNumber *big.Int) Config {
 	newConfig := c
 
@@ -156,7 +155,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.MaxRequestTimeoutSeconds != nil {
 			newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds
 		}
-		//kimcy
 		if transition.GovParams != nil {
 			newConfig.GovParams = transition.GovParams
 		}
@@ -165,7 +163,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 	return newConfig
 }
 
-// kimcy
 func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {

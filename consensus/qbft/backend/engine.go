@@ -75,9 +75,7 @@ func (sb *Backend) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 }
 
 func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
-	log.Info("kimcy verifyHeader", "qbft.config", sb.config)
 	valSet, prevValSet, err := sb.GetValidatorsForVerifying(chain, header, parents)
-	log.Info("kimcy verifyHeader", "valSet", valSet, "prevValSet", prevValSet)
 	if err != nil {
 		return err
 	}
@@ -153,11 +151,9 @@ func (sb *Backend) timeForNextWork() uint64 {
 	return latestBlock.Time() + sb.Engine().PeriodToNextBlock(next)
 }
 
-// kimcy
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	log.Error("kimcy : backend/engine -> Prepare")
 	valSet, err := sb.Engine().GetValidators(chain, header.Number, header.ParentHash, nil)
 	if err != nil {
 		return err
@@ -177,7 +173,6 @@ func (sb *Backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 	return nil
 }
 
-// kimcy
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 //
@@ -230,7 +225,6 @@ func (sb *Backend) Seal(chain consensus.ChainHeaderReader, block *types.Block, r
 	return nil
 }
 
-// kimcy
 func (sb *Backend) processExtraSeals() ([]qbft.SealData, []qbft.SealData) {
 	sb.coreMu.RLock()
 	defer sb.coreMu.RUnlock()
@@ -257,7 +251,7 @@ func (sb *Backend) Start(
 	chain consensus.ChainHeaderReader,
 	currentBlock func() *types.Block,
 	hasBadBlock func(db ethdb.Reader, hash common.Hash) bool,
-	notifyNewRound func(isProposer bool, waitTime time.Duration, round *big.Int)) error {
+	notifyNewRound func(waitTime time.Duration, round *big.Int)) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -288,13 +282,13 @@ func (sb *Backend) Start(
 	return nil
 }
 
-func (sb *Backend) NotifyNewRound(isProposer bool, round *big.Int) {
+func (sb *Backend) NotifyNewRound(round *big.Int) {
 	if sb.notifyNewRound != nil {
 		waitDuration := time.Duration(0)
 		if round.Uint64() == 0 {
 			waitDuration = time.Until(time.Unix(int64(sb.timeForNextWork()), 0))
 		}
-		sb.notifyNewRound(isProposer, waitDuration, round)
+		sb.notifyNewRound(waitDuration, round)
 	}
 }
 
@@ -332,7 +326,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		if !ok {
 			return qbftcommon.ErrInvalidSpecificCall
 		}
-		notifyNewRound, ok := args[3].(func(isProposer bool, waitTime time.Duration, round *big.Int))
+		notifyNewRound, ok := args[3].(func(waitTime time.Duration, round *big.Int))
 		if !ok {
 			return qbftcommon.ErrInvalidSpecificCall
 		}

@@ -53,7 +53,7 @@ func (c *QBFTConfig) String() string {
 	} else {
 		maxRequestTimeoutSeconds = "<nil>"
 	}
-	//kimcy
+
 	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, Validators: %v, BLSPublicKeys: %v, GovParams: %+v, TargetValidators: %v, MaxRequestTimeoutSeconds: %v}",
 		c.EpochLength,
 		c.BlockPeriodSeconds,
@@ -69,7 +69,6 @@ func (c *QBFTConfig) String() string {
 	)
 }
 
-// kimcy
 type Transition struct {
 	Block                    *big.Int              `json:"block"`
 	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds,omitempty"`  // Minimum request timeout for each QBFT round in milliseconds

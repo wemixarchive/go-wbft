@@ -45,7 +45,6 @@ func TestGovWithoutNCP(t *testing.T) {
 		s2.Operator.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		delegator.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -121,32 +120,32 @@ func TestGovWithoutNCP(t *testing.T) {
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{&EOA{Address: common.Address{}}, s2.Operator, s2.FeeRecipient}, minStaking, feeRate)),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker[*EOA]{&EOA{Address: common.Address{}}, s2.Operator, s2.FeeRecipient}, minStaking, feeRate)),
 				"received ikm is invalid",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{s2.Staker, s2.Staker, s2.FeeRecipient}, minStaking, feeRate)),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker[*EOA]{s2.Staker, s2.Staker, s2.FeeRecipient}, minStaking, feeRate)),
 				"insufficient funds for transfer",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{s2.Staker, s1.Operator, s2.FeeRecipient}, minStaking, feeRate)),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker[*EOA]{s2.Staker, s1.Operator, s2.FeeRecipient}, minStaking, feeRate)),
 				"operator is already registered",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{s1.Staker, s2.Operator, s2.FeeRecipient}, minStaking, feeRate)),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker[*EOA]{s1.Staker, s2.Operator, s2.FeeRecipient}, minStaking, feeRate)),
 				"already registered staker",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{s2.Staker, s2.Operator, &EOA{Address: common.Address{}}}, minStaking, feeRate)),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker[*EOA]{s2.Staker, s2.Operator, &EOA{Address: common.Address{}}}, minStaking, feeRate)),
 				"fee recipient is zero address",
 			)
 
 			ExpectedRevert(t,
-				g.ExpectedFail(g.RegisterStaker(t, &TestStaker{s2.Staker, s2.Operator, s2.FeeRecipient}, minStaking, new(big.Int).SetUint64(10001))),
+				g.ExpectedFail(g.RegisterStaker(t, &TestStaker[*EOA]{s2.Staker, s2.Operator, s2.FeeRecipient}, minStaking, new(big.Int).SetUint64(10001))),
 				"fee rate exceeds precision",
 			)
 		})
@@ -540,7 +539,6 @@ func TestGovWithNCP(t *testing.T) {
 		ncp3.Operator.Address: {Balance: MAX_UINT_128},
 		ncp4.Operator.Address: {Balance: MAX_UINT_128},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 
@@ -982,7 +980,6 @@ func TestGovReward(t *testing.T) {
 		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		delegator2.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -1264,7 +1261,6 @@ func TestGovChangeFeeRate(t *testing.T) {
 		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -1356,7 +1352,6 @@ func TestGovFeeRateConsistency(t *testing.T) {
 		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -1480,7 +1475,6 @@ func TestClaimForUnstakedStaker(t *testing.T) {
 		v1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 		delegator1.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -1616,7 +1610,6 @@ func TestZeroTotalStaking(t *testing.T) {
 		delegator2.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		delegator3.Address:  {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -1808,7 +1801,6 @@ func TestSetCode(t *testing.T) {
 		ncp1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 		ncp2.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -1902,7 +1894,6 @@ func TestGovGetBls(t *testing.T) {
 	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
 		s1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 	})
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()
@@ -1956,7 +1947,7 @@ func TestGovStabilization(t *testing.T) {
 	var (
 		ctx        = context.TODO()
 		minStaking = towei(500000)
-		stakers    = make([]*TestStaker, 0)
+		stakers    = make([]*TestStaker[*EOA], 0)
 		stakerLen  = 5
 		feeRate    = new(big.Int).SetUint64(100)
 	)
@@ -1969,7 +1960,6 @@ func TestGovStabilization(t *testing.T) {
 	}
 
 	g, err := NewGovWBFT(t, nil, genesisAlloc)
-
 	require.NoError(t, err)
 	setWbftGovConfig(g)
 	defer g.backend.Close()

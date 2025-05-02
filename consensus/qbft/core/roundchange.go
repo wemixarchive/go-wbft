@@ -49,7 +49,6 @@ func (c *Core) broadcastNextRoundChange() {
 // - Creates and sign ROUND-CHANGE message
 // - broadcast the ROUND-CHANGE message with the given round
 func (c *Core) broadcastRoundChange(round *big.Int) {
-	log.Error("kimcy: broadcastRoundChange", "round", round)
 	logger := c.currentLogger(true, nil)
 
 	// Validates new round corresponds to current view
@@ -100,7 +99,6 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 // - accumulates ROUND-CHANGE messages until reaching quorum for a given round
 // - when quorum of ROUND-CHANGE messages is reached then
 func (c *Core) handleRoundChangeMsg(roundChange *qbftmessage.RoundChange) error {
-	log.Info("kimcy handleRoundChangeMsg")
 	logger := c.currentLogger(true, roundChange)
 
 	view := roundChange.View()
