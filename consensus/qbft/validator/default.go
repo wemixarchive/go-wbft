@@ -21,7 +21,6 @@
 package validator
 
 import (
-	
 	"math"
 	"reflect"
 	"sync"

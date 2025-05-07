@@ -231,7 +231,7 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 		qbftCfg.Transitions = config.Transitions
 	}
 	if config.QBFT.BlockPeriodSeconds != 0 {
-		qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds햣
+		qbftCfg.BlockPeriod = config.QBFT.BlockPeriodSeconds
 	}
 	if config.QBFT.RequestTimeoutSeconds != 0 {
 		qbftCfg.RequestTimeout = config.QBFT.RequestTimeoutSeconds * 1000
