@@ -436,7 +436,6 @@ func TestEpochInfo(t *testing.T) {
 			engine := NewEngine(&qbft.Config{
 				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
 				Epoch:          3,
-				MinStakers:     999,
 			}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
@@ -543,13 +542,25 @@ func TestEpochInfoTransition(t *testing.T) {
 			*c.chainConfig = *params.TestChainConfig
 			c.chainConfig.MontBlancBlock = tc.montBlancBlock
 			c.chainConfig.MontBlanc = &params.MontBlancConfig{
-				Validators:    validators,
-				BLSPublicKeys: blsPubKeys,
+				NCPs: validators,
 			}
+			value, _ := new(big.Int).SetString("340282366920938463463374607431768211455", 10)
+
 			engine := NewEngine(&qbft.Config{
 				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
 				Epoch:          tc.epoch,
-				MinStakers:     999,
+				BLSPublicKeys:  blsPubKeys,
+				Validators:     validators,
+				GovParams: &params.GovParams{
+					MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
+					MaximumStaking:     (*math.HexOrDecimal256)(value),
+					UnbondingStaker:    604800,                                            // 7 days
+					UnbondingDelegator: 604800,                                            // 7 days
+					FeePrecision:       1000,                                              // 0.1%
+					RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(params.Ether)), // 1 WEMIX
+					ChangeFeeDelay:     604800,                                            // 7 days
+					MinStakers:         999,
+				},
 			}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)

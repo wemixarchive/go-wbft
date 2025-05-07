@@ -87,7 +87,7 @@ func (g *genesisGenerator) makeGenesis() {
 	case choice == "1" || choice == "":
 		g.wbftChainConfig()
 		// allocate governanace contract code in genesis block
-		g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract), Balance: common.Big0}
+		g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract), Balance: common.Big0}
 		g.Genesis.Alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}
 		g.Genesis.Alloc[govwbft.GovRewardeeImpAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovRewardeeImpContract), Balance: common.Big0}
 
@@ -99,7 +99,7 @@ func (g *genesisGenerator) makeGenesis() {
 		g.Genesis.Config.MontBlancBlock = montblancBlock
 		// allocate governanace contract code in genesis block if montblanc block is genesis block
 		if montblancBlock.Cmp(common.Big0) == 0 {
-			g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConstContract), Balance: common.Big0}
+			g.Genesis.Alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract), Balance: common.Big0}
 			g.Genesis.Alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}
 			g.Genesis.Alloc[govwbft.GovRewardeeImpAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovRewardeeImpContract), Balance: common.Big0}
 		}
@@ -193,6 +193,19 @@ func (g *genesisGenerator) wbftChainConfig() {
 		BlockPeriodSeconds:    1,
 		RequestTimeoutSeconds: 2,
 		ProposerPolicy:        0,
+	}
+
+	value, _ := new(big.Int).SetString("340282366920938463463374607431768211455", 10) //type(uint128).max;
+
+	g.Genesis.Config.QBFT.GovParams = &params.GovParams{
+		MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
+		MaximumStaking:     (*math.HexOrDecimal256)(value),
+		UnbondingStaker:    604800,                                            // 7 days
+		UnbondingDelegator: 604800,                                            // 7 days
+		FeePrecision:       1000,                                              //0.1%
+		RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(params.Ether)), // 1 WEMIX,
+		ChangeFeeDelay:     604800,                                            // 7 days
+		MinStakers:         5,
 	}
 
 	// make extra data

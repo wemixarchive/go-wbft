@@ -24,6 +24,7 @@ package ethconfig
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -200,7 +201,11 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		if qbftCfg == nil {
 			qbftCfg = new(qbft.Config)
 		}
-		SetConfigFromChainConfig(qbftCfg, config)
+		err := SetConfigFromChainConfig(qbftCfg, config)
+
+		if err != nil {
+			return nil, err
+		}
 
 		if config.MontBlancBlock != nil {
 			// wemix engine which can do `MontBlanc` hard fork
@@ -220,7 +225,7 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 	return beacon.New(ethash.NewFaker()), nil
 }
 
-func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) {
+func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) error {
 	if len(config.Transitions) > 0 {
 		qbftCfg.Transitions = config.Transitions
 	}
@@ -233,16 +238,39 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 	if config.QBFT.EpochLength != 0 {
 		qbftCfg.Epoch = config.QBFT.EpochLength
 	}
+	if config.QBFT.Validators != nil && config.QBFT.BLSPublicKeys != nil {
+		if len(config.QBFT.Validators) != len(config.QBFT.BLSPublicKeys) {
+			return fmt.Errorf(
+				"mismatched lengths: %d validators vs %d BLS keys",
+				len(config.QBFT.Validators), len(config.QBFT.BLSPublicKeys),
+			)
+		}
+
+		var validators []common.Address
+		var blsPublicKeys []string
+
+		for _, addr := range config.QBFT.Validators {
+			qbftCfg.Validators = append(validators, addr)
+		}
+
+		for _, key := range config.QBFT.BLSPublicKeys {
+			qbftCfg.BLSPublicKeys = append(blsPublicKeys, key)
+		}
+	} else {
+		return fmt.Errorf("qbftCfg.Validators or qbftCfg.BLSPublicKeys are nil")
+	}
 
 	qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.QBFT.ProposerPolicy))
 	qbftCfg.BlockReward = config.QBFT.BlockReward
 	qbftCfg.BlockRewardBeneficiary = config.QBFT.BlockRewardBeneficiary
-	qbftCfg.MinStakers = config.QBFT.MinStakers
+	qbftCfg.GovParams = config.QBFT.GovParams
 	qbftCfg.TargetValidators = config.QBFT.TargetValidators
 
 	if config.QBFT.MaxRequestTimeoutSeconds != nil && *config.QBFT.MaxRequestTimeoutSeconds > 0 {
 		qbftCfg.MaxRequestTimeoutSeconds = *config.QBFT.MaxRequestTimeoutSeconds
 	}
+
+	return nil
 }
 
 func CreateEthashFakeEngine(config *params.ChainConfig) (consensus.Engine, error) {
