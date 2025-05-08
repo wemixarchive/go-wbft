@@ -541,7 +541,7 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 		return nil, err
 	}
 
-	stakers, blsPubKeys := e.cfg.Validators, e.cfg.GetBLSPublicKeys()
+	stakers, blsPubKeys := e.cfg.Validators, e.cfg.BLSPublicKeys
 	// Init diligence score of every staker to DefaultDiligence.
 	newEpoch.Stakers = make([]*types.Staker, len(stakers))
 	for i, staker := range stakers {
@@ -922,7 +922,7 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 				return nil, err
 			}
 
-			vs := validator.NewSet(e.cfg.Validators, e.cfg.GetBLSPublicKeys(), e.cfg.ProposerPolicy)
+			vs := validator.NewSet(e.cfg.Validators, e.cfg.BLSPublicKeys, e.cfg.ProposerPolicy)
 			return vs, nil
 		}
 		_, epochInfo, err = e.extractEpochInfo(chain.GetHeaderByNumber(0))
