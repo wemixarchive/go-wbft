@@ -27,6 +27,19 @@ type GovParams struct {
 	MinStakers         uint64                `json:"minStakers"`               // Minimum number of stakers
 }
 
+func (gp *GovParams) String() string {
+	return fmt.Sprintf("{MinimumStaking: %v MaximumStaking: %v UnbondingStaker: %v UnbondingDelegator: %v FeePrecision: %v RewardPrecision: %v ChangeFeeDelay: %v MinStakers: %v}",
+		((*big.Int)(gp.MinimumStaking)).String(),
+		((*big.Int)(gp.MaximumStaking)).String(),
+		gp.UnbondingStaker,
+		gp.UnbondingDelegator,
+		gp.FeePrecision,
+		((*big.Int)(gp.RewardPrecision)).String(),
+		gp.ChangeFeeDelay,
+		gp.MinStakers,
+	)
+}
+
 type CodeParam struct {
 	Address common.Address `json:"address"`
 	Code    string         `json:"code"`
