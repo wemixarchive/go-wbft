@@ -358,12 +358,12 @@ func (c *Core) newRoundChangeTimer() {
 }
 
 func (c *Core) checkValidatorSignature(data []byte, sig []byte, view qbft.View) (common.Address, error) {
-	if view.Cmp(c.currentView()) < 0 {
-		if c.state == StateAcceptRequest && view.Cmp(&qbft.View{
-			Sequence: new(big.Int).Sub(c.current.Sequence(), common.Big1),
-			Round:    c.PriorRound(),
-		}) == 0 {
-			return qbft.CheckValidatorSignature(c.priorState.validatorSet, data, sig)
+	if view.Cmp(c.currentView()) < 0 && c.state == StateAcceptRequest && view.Cmp(&qbft.View{
+		Sequence: new(big.Int).Sub(c.current.Sequence(), common.Big1),
+		Round:    c.PriorRound(),
+	}) == 0 {
+		if valSet := c.PriorValidators(); valSet != nil {
+			return qbft.CheckValidatorSignature(valSet, data, sig)
 		}
 	}
 	return qbft.CheckValidatorSignature(c.valSet, data, sig)
