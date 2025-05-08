@@ -89,7 +89,8 @@ contract GovStaking {
     event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient);
     event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
 
-    GovConfig public constant GOV_CONST = GovConfig(address(0x1000));
+    uint256 public constant BLS_PUBLIC_KEY_LENGTH = 48;
+    GovConfig public constant GOV_CONFIG = GovConfig(address(0x1000));
 
     // this includes danglingDelegated
     uint256 public totalStaking; // 0x0
@@ -192,13 +193,13 @@ contract GovStaking {
         uint256 _feeRate,
         bytes calldata _blsPK
     ) external payable checkAmount(_amount) isNotRegistered(_staker) {
-        require(_amount >= GOV_CONST.minimumStaking() && _amount <= GOV_CONST.maximumStaking(), "out of bounds");
+        require(_amount >= GOV_CONFIG.minimumStaking() && _amount <= GOV_CONFIG.maximumStaking(), "out of bounds");
         require(msg.sender != _staker, "operator cannot be staker");
         require(_staker != address(0), "zero address");
         require(!isOperator(msg.sender), "operator is already registered");
         require(_feeRecipient != address(0), "fee recipient is zero address");
-        require(_feeRate <= GOV_CONST.feePrecision(), "fee rate exceeds precision");
-        require(_blsPK.length == GOV_CONST.BLS_PUBLIC_KEY_LENGTH(), "invalid bls public key");
+        require(_feeRate <= GOV_CONFIG.feePrecision(), "fee rate exceeds precision");
+        require(_blsPK.length == BLS_PUBLIC_KEY_LENGTH, "invalid bls public key");
 
         GovRewardee _rewardee = new GovRewardee();
         stakerInfo[_staker].operator = msg.sender;
@@ -214,7 +215,7 @@ contract GovStaking {
 
         _addStaking(_staker, msg.sender, _amount);
 
-        if (__stakerSet.length() >= GOV_CONST.minStakers()) {
+        if (__stakerSet.length() >= GOV_CONFIG.minStakers()) {
             afterStabilization = true;
         }
 
@@ -231,7 +232,7 @@ contract GovStaking {
     }
 
     function requestChangingFee(uint256 _feeRate) external isActive(stakerByOperator[msg.sender]) {
-        require(_feeRate <= GOV_CONST.feePrecision(), "fee rate exceeds precision");
+        require(_feeRate <= GOV_CONFIG.feePrecision(), "fee rate exceeds precision");
         address _staker = stakerByOperator[msg.sender];
         require(changingFeeRequests[_staker].requestTime == 0, "request already is on going");
 
@@ -249,7 +250,7 @@ contract GovStaking {
     function executeChangingFee(address _staker) external {
         require(changingFeeRequests[_staker].requestTime > 0, "no request exists");
         require(
-            block.timestamp - changingFeeRequests[_staker].requestTime >= GOV_CONST.changeFeeDelay(),
+            block.timestamp - changingFeeRequests[_staker].requestTime >= GOV_CONFIG.changeFeeDelay(),
             "the request cannot be executed before delay time"
         );
 
@@ -266,7 +267,7 @@ contract GovStaking {
         if (!isStaker(_staker)) {
             // reactivation case: if the staker is not active, then reactivate it
 
-            require(_amount >= GOV_CONST.minimumStaking(), "amount is less than minimum staking");
+            require(_amount >= GOV_CONFIG.minimumStaking(), "amount is less than minimum staking");
 
             __stakerSet.add(_staker);
             danglingDelegated -= stakerInfo[_staker].totalStaked;
@@ -288,7 +289,7 @@ contract GovStaking {
         _subStaking(_staker, msg.sender, _amount);
 
         UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
-        if (_userInfo.stakingAmount < GOV_CONST.minimumStaking()) {
+        if (_userInfo.stakingAmount < GOV_CONFIG.minimumStaking()) {
             require(_userInfo.stakingAmount == 0, "amount must equal balance to deactivate staker");
 
             __stakerSet.remove(_staker);
@@ -298,7 +299,7 @@ contract GovStaking {
             emit StakerRemoved(_staker);
         }
 
-        _newCredential(_amount, GOV_CONST.unbondingPeriodStaker());
+        _newCredential(_amount, GOV_CONFIG.unbondingPeriodStaker());
 
         emit Unstaked(_staker, _amount);
     }
@@ -324,7 +325,7 @@ contract GovStaking {
         _subStaking(_staker, msg.sender, _amount);
 
         if (isStaker(_staker)) {
-            _newCredential(_amount, GOV_CONST.unbondingPeriodDelegator());
+            _newCredential(_amount, GOV_CONFIG.unbondingPeriodDelegator());
         } else {
             danglingDelegated -= _amount;
 
@@ -403,9 +404,9 @@ contract GovStaking {
 
         if (_stakerInfo.totalStaked > 0) {
             uint256 _accBalance = _stakerInfo.rewardee.balance - _stakerInfo.lastRewardBalance;
-            uint256 _rewardPerStaking = (_accBalance * GOV_CONST.rewardPrecision()) / _stakerInfo.totalStaked;
+            uint256 _rewardPerStaking = (_accBalance * GOV_CONFIG.rewardPrecision()) / _stakerInfo.totalStaked;
             _stakerInfo.accRewardPerStaking += _rewardPerStaking;
-            _stakerInfo.accFeePerStaking += (_rewardPerStaking * _stakerInfo.feeRate) / GOV_CONST.feePrecision();
+            _stakerInfo.accFeePerStaking += (_rewardPerStaking * _stakerInfo.feeRate) / GOV_CONFIG.feePrecision();
             _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;
 
             emit RewardInfoUpdated(
@@ -421,10 +422,10 @@ contract GovStaking {
                 UserInfo storage _userInfo = userRewardInfo[_staker][_user];
                 _userInfo.pendingReward +=
                     (_userInfo.stakingAmount * (_stakerInfo.accRewardPerStaking - _userInfo.rewardPerStaking)) /
-                    GOV_CONST.rewardPrecision();
+                    GOV_CONFIG.rewardPrecision();
                 _userInfo.pendingFee +=
                     (_userInfo.stakingAmount * (_stakerInfo.accFeePerStaking - _userInfo.feePerStaking)) /
-                    GOV_CONST.rewardPrecision();
+                    GOV_CONFIG.rewardPrecision();
                 _userInfo.rewardPerStaking = _stakerInfo.accRewardPerStaking;
                 _userInfo.feePerStaking = _stakerInfo.accFeePerStaking;
 
@@ -442,7 +443,7 @@ contract GovStaking {
 
         // if any expired request exists, then execute it
         if (
-            changingFeeRequests[_staker].requestTime > 0 && block.timestamp - changingFeeRequests[_staker].requestTime >= GOV_CONST.changeFeeDelay()
+            changingFeeRequests[_staker].requestTime > 0 && block.timestamp - changingFeeRequests[_staker].requestTime >= GOV_CONFIG.changeFeeDelay()
         ) {
             stakerInfo[_staker].feeRate = changingFeeRequests[_staker].newFeeRate;
             delete changingFeeRequests[_staker];
@@ -453,7 +454,7 @@ contract GovStaking {
 
     function _addStaking(address _staker, address _user, uint256 _amount) private {
         Staker storage _stakerInfo = stakerInfo[_staker];
-        require(_stakerInfo.totalStaked + _amount <= GOV_CONST.maximumStaking(), "exceeded the maximum");
+        require(_stakerInfo.totalStaked + _amount <= GOV_CONFIG.maximumStaking(), "exceeded the maximum");
         UserInfo storage _userInfo = userRewardInfo[_staker][_user];
 
         _stakerInfo.totalStaked += _amount;

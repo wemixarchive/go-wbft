@@ -528,9 +528,6 @@ func checkMontBlancConfig(config *params.ChainConfig) error {
 	if config.MontBlanc == nil {
 		return errors.New("montblanc config is nil")
 	}
-	if len(config.QBFT.Validators) != len(config.QBFT.BLSPublicKeys) {
-		return fmt.Errorf("validators and blsPublicKeys length mismatch")
-	}
 	return nil
 }
 
@@ -544,7 +541,7 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 		return nil, err
 	}
 
-	stakers, blsPubKeys := config.QBFT.Validators, config.QBFT.BLSPublicKeys
+	stakers, blsPubKeys := e.cfg.Validators, e.cfg.BLSPublicKeys
 	// Init diligence score of every staker to DefaultDiligence.
 	newEpoch.Stakers = make([]*types.Staker, len(stakers))
 	for i, staker := range stakers {
@@ -555,16 +552,8 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 	}
 	newEpoch.Validators = e.decideValidators(header, stakers)
 	newEpoch.BLSPublicKeys = make([][]byte, len(newEpoch.Validators))
-	for i, validator := range newEpoch.Validators {
-		hexKey := blsPubKeys[validator]
-		if len(hexKey) == 0 {
-			return nil, fmt.Errorf("blsPublicKey is empty for validator %s", blsPubKeys[validator])
-		}
-		blsPubKey, err := hexutil.Decode(hexKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode blsPublicKey %s: %v", hexKey, err)
-		}
-		newEpoch.BLSPublicKeys[i] = blsPubKey
+	for i, validatorIdx := range newEpoch.Validators {
+		newEpoch.BLSPublicKeys[i] = blsPubKeys[validatorIdx]
 	}
 
 	log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
@@ -585,10 +574,6 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		return nil, err
 	} else if !isEpoch {
 		return nil, nil
-	} else {
-		config.QBFT.Validators = e.cfg.Validators
-		config.QBFT.BLSPublicKeys = e.cfg.BLSPublicKeys
-		config.QBFT.GovParams = e.cfg.GovParams
 	}
 
 	// Generate initial epoch block if a transition occurs.
@@ -937,7 +922,7 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 				return nil, err
 			}
 
-			vs := validator.NewSet(chainConfig.QBFT.Validators, chainConfig.GetBLSPublicKeys(), e.cfg.ProposerPolicy)
+			vs := validator.NewSet(e.cfg.Validators, e.cfg.BLSPublicKeys, e.cfg.ProposerPolicy)
 			return vs, nil
 		}
 		_, epochInfo, err = e.extractEpochInfo(chain.GetHeaderByNumber(0))

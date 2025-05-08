@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
@@ -246,15 +247,18 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 			)
 		}
 
-		var validators []common.Address
-		var blsPublicKeys []string
+		for i, addr := range config.QBFT.Validators {
+			qbftCfg.Validators = append(qbftCfg.Validators, addr)
 
-		for _, addr := range config.QBFT.Validators {
-			qbftCfg.Validators = append(validators, addr)
-		}
-
-		for _, key := range config.QBFT.BLSPublicKeys {
-			qbftCfg.BLSPublicKeys = append(blsPublicKeys, key)
+			blsKey := config.QBFT.BLSPublicKeys[i]
+			if len(blsKey) == 0 {
+				return fmt.Errorf("blsPublicKey is empty for validator %s", addr)
+			}
+			blsPubKey, err := hexutil.Decode(blsKey)
+			if err != nil {
+				return fmt.Errorf("failed to decode blsPublicKey %s: %v", blsKey, err)
+			}
+			qbftCfg.BLSPublicKeys = append(qbftCfg.BLSPublicKeys, blsPubKey)
 		}
 	} else {
 		return fmt.Errorf("qbftCfg.Validators or qbftCfg.BLSPublicKeys are nil")

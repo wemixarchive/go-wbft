@@ -77,8 +77,6 @@ type Transition struct {
 	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
 	BlockRewardBeneficiary   *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
 	GovParams                *GovParams            `json:"govParams,omitempty"`
-	Validators               []common.Address      `json:"validators,omitempty"`               // Validators list when the number of stakers is below the minimum stakers
-	BLSPublicKeys            []string              `json:"blsPublicKeys,omitempty"`            // BLS PublicKey list of QBFTConfig.Validators
 	TargetValidators         *uint64               `json:"targetValidators,omitempty"`         // Target number of validators
 	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds,omitempty"` // The max round time
 }

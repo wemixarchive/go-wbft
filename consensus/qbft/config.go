@@ -26,8 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
-
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
+
 	"github.com/naoina/toml"
 )
 
@@ -108,7 +108,7 @@ type Config struct {
 	BlockReward              *math.HexOrDecimal256   `toml:",omitempty"` // Reward
 	BlockRewardBeneficiary   *params.BeneficiaryInfo `toml:",omitempty"`
 	Validators               []common.Address        `toml:",omitempty"`
-	BLSPublicKeys            []string                `toml:",omitempty"`
+	BLSPublicKeys            [][]byte                `toml:",omitempty"`
 	TargetValidators         uint64                  `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                  `toml:",omitempty"`
 	GovParams                *params.GovParams       `toml:",omitempty"`
@@ -154,12 +154,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		}
 		if transition.BlockRewardBeneficiary != nil {
 			newConfig.BlockRewardBeneficiary = transition.BlockRewardBeneficiary
-		}
-		if len(transition.Validators) > 0 {
-			newConfig.Validators = transition.Validators
-		}
-		if len(transition.BLSPublicKeys) > 0 {
-			newConfig.BLSPublicKeys = transition.BLSPublicKeys
 		}
 		if transition.TargetValidators != nil {
 			newConfig.TargetValidators = *transition.TargetValidators

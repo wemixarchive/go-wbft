@@ -530,10 +530,10 @@ func TestEpochInfoTransition(t *testing.T) {
 			// Setup validators
 			signers := newAccounts(4)
 			var validators []common.Address
-			var blsPubKeys []string
+			var blsPubKeys [][]byte
 			for _, s := range signers {
 				validators = append(validators, s.addr)
-				blsPubKeys = append(blsPubKeys, hexutil.Encode(s.blsKey.PublicKey().Marshal()))
+				blsPubKeys = append(blsPubKeys, s.blsKey.PublicKey().Marshal())
 			}
 
 			// Setup test chain genesis
