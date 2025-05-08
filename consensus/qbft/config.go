@@ -115,12 +115,24 @@ type Config struct {
 	Transitions              []params.Transition
 }
 
+var value, _ = new(big.Int).SetString("340282366920938463463374607431768211455", 10)
+
 var DefaultConfig = &Config{
 	RequestTimeout:         10000,
 	BlockPeriod:            5,
 	ProposerPolicy:         NewRoundRobinProposerPolicy(),
 	Epoch:                  30000,
 	AllowedFutureBlockTime: 0,
+	GovParams: &params.GovParams{
+		MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
+		MaximumStaking:     (*math.HexOrDecimal256)(value),
+		UnbondingStaker:    604800,                                            // 7 days
+		UnbondingDelegator: 604800,                                            // 7 days
+		FeePrecision:       1000,                                              // 0.1%
+		RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(params.Ether)), // 1 WEMIX
+		ChangeFeeDelay:     604800,                                            // 7 days
+		MinStakers:         999,
+	},
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {
