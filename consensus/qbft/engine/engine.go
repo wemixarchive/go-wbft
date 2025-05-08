@@ -541,7 +541,7 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 		return nil, err
 	}
 
-	stakers, blsPubKeys := e.cfg.Validators, e.cfg.BLSPublicKeys
+	stakers, blsPubKeys := e.cfg.Validators, e.cfg.GetBLSPublicKeys()
 	// Init diligence score of every staker to DefaultDiligence.
 	newEpoch.Stakers = make([]*types.Staker, len(stakers))
 	for i, staker := range stakers {
@@ -552,16 +552,8 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 	}
 	newEpoch.Validators = e.decideValidators(header, stakers)
 	newEpoch.BLSPublicKeys = make([][]byte, len(newEpoch.Validators))
-	for i, validator := range newEpoch.Validators {
-		hexKey := blsPubKeys[validator]
-		if len(hexKey) == 0 {
-			return nil, fmt.Errorf("blsPublicKey is empty for validator %s", blsPubKeys[validator])
-		}
-		blsPubKey, err := hexutil.Decode(hexKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode blsPublicKey %s: %v", hexKey, err)
-		}
-		newEpoch.BLSPublicKeys[i] = blsPubKey
+	for i, validatorIdx := range newEpoch.Validators {
+		newEpoch.BLSPublicKeys[i] = blsPubKeys[validatorIdx]
 	}
 
 	log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
@@ -930,7 +922,7 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 				return nil, err
 			}
 
-			vs := validator.NewSet(chainConfig.QBFT.Validators, chainConfig.GetBLSPublicKeys(), e.cfg.ProposerPolicy)
+			vs := validator.NewSet(e.cfg.Validators, e.cfg.GetBLSPublicKeys(), e.cfg.ProposerPolicy)
 			return vs, nil
 		}
 		_, epochInfo, err = e.extractEpochInfo(chain.GetHeaderByNumber(0))

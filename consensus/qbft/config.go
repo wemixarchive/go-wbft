@@ -21,6 +21,7 @@
 package qbft
 
 import (
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -121,6 +122,14 @@ var DefaultConfig = &Config{
 	ProposerPolicy:         NewRoundRobinProposerPolicy(),
 	Epoch:                  30000,
 	AllowedFutureBlockTime: 0,
+}
+
+func (c Config) GetBLSPublicKeys() [][]byte {
+	blsPubKeys := make([][]byte, len(c.BLSPublicKeys))
+	for i, pk := range c.BLSPublicKeys {
+		blsPubKeys[i] = hexutil.MustDecode(pk)
+	}
+	return blsPubKeys
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {
