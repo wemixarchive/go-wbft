@@ -528,9 +528,6 @@ func checkMontBlancConfig(config *params.ChainConfig) error {
 	if config.MontBlanc == nil {
 		return errors.New("montblanc config is nil")
 	}
-	if len(config.QBFT.Validators) != len(config.QBFT.BLSPublicKeys) {
-		return fmt.Errorf("validators and blsPublicKeys length mismatch")
-	}
 	return nil
 }
 
@@ -544,7 +541,7 @@ func (e *Engine) createInitialEpochBlock(config *params.ChainConfig, header *typ
 		return nil, err
 	}
 
-	stakers, blsPubKeys := config.QBFT.Validators, config.QBFT.BLSPublicKeys
+	stakers, blsPubKeys := e.cfg.Validators, e.cfg.BLSPublicKeys
 	// Init diligence score of every staker to DefaultDiligence.
 	newEpoch.Stakers = make([]*types.Staker, len(stakers))
 	for i, staker := range stakers {
@@ -585,10 +582,6 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		return nil, err
 	} else if !isEpoch {
 		return nil, nil
-	} else {
-		config.QBFT.Validators = e.cfg.Validators
-		config.QBFT.BLSPublicKeys = e.cfg.BLSPublicKeys
-		config.QBFT.GovParams = e.cfg.GovParams
 	}
 
 	// Generate initial epoch block if a transition occurs.
