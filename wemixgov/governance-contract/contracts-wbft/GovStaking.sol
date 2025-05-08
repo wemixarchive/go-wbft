@@ -89,6 +89,7 @@ contract GovStaking {
     event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient);
     event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
 
+    uint256 public constant BLS_PUBLIC_KEY_LENGTH = 48;
     GovConfig public constant GOV_CONST = GovConfig(address(0x1000));
 
     // this includes danglingDelegated
@@ -198,7 +199,7 @@ contract GovStaking {
         require(!isOperator(msg.sender), "operator is already registered");
         require(_feeRecipient != address(0), "fee recipient is zero address");
         require(_feeRate <= GOV_CONST.feePrecision(), "fee rate exceeds precision");
-        require(_blsPK.length == GOV_CONST.BLS_PUBLIC_KEY_LENGTH(), "invalid bls public key");
+        require(_blsPK.length == BLS_PUBLIC_KEY_LENGTH, "invalid bls public key");
 
         GovRewardee _rewardee = new GovRewardee();
         stakerInfo[_staker].operator = msg.sender;

@@ -1766,7 +1766,6 @@ func TestSetCode(t *testing.T) {
 			uint256 public constant feePrecision       = 100;
 			uint256 public constant rewardPrecision    = 1e18;
 			uint256 public constant changeFeeDelay     = 1 hours;
-			uint256 public constant BLS_PUBLIC_KEY_LENGTH = 48;
 			uint256 public constant minStakers         = 5;
 		}`
 

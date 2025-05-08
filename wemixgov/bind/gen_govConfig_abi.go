@@ -31,9 +31,8 @@ var (
 
 // GovConfigMetaData contains all meta data concerning the GovConfig contract.
 var GovConfigMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"BLS_PUBLIC_KEY_LENGTH\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"changeFeeDelay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feePrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"maximumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minStakers\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minimumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rewardPrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodDelegator\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodStaker\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"changeFeeDelay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feePrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"maximumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minStakers\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minimumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rewardPrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodDelegator\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodStaker\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
 	Sigs: map[string]string{
-		"8280a25a": "BLS_PUBLIC_KEY_LENGTH()",
 		"3e9e0ade": "changeFeeDelay()",
 		"35ff1e28": "feePrecision()",
 		"478b6653": "maximumStaking()",
@@ -43,7 +42,7 @@ var GovConfigMetaData = &bind.MetaData{
 		"4dbd834d": "unbondingPeriodDelegator()",
 		"ea3e16f6": "unbondingPeriodStaker()",
 	},
-	Bin: "0x608060405234801561001057600080fd5b5061011b806100206000396000f3fe6080604052348015600f57600080fd5b506004361060875760003560e01c80635bae961911605e5780635bae96191460be5780635f0b96e51460c65780638280a25a1460ce578063d479ed711460d5578063ea3e16f61460dd57600080fd5b806335ff1e2814608c5780633e9e0ade1460a6578063478b66531460ae5780634dbd834d1460b6575b600080fd5b609460045481565b60405190815260200160405180910390f35b609460065481565b609460015481565b609460035481565b609460055481565b609460075481565b6094603081565b609460005481565b60946002548156fea2646970667358221220a679af2089b2f1fafeaf45cb7bfe9e91b596367a7a4b0bf1dc4a01f5de0c556364736f6c634300080e0033",
+	Bin: "0x608060405234801561001057600080fd5b5061010a806100206000396000f3fe6080604052348015600f57600080fd5b5060043610607d5760003560e01c80635bae96191160545780635bae96191460b45780635f0b96e51460bc578063d479ed711460c4578063ea3e16f61460cc57600080fd5b806335ff1e281460825780633e9e0ade14609c578063478b66531460a45780634dbd834d1460ac575b600080fd5b608a60045481565b60405190815260200160405180910390f35b608a60065481565b608a60015481565b608a60035481565b608a60055481565b608a60075481565b608a60005481565b608a6002548156fea2646970667358221220ccd9ba3873817dd36c562c41df9f905ee5167458a245b2bd5d0b49d1a86be17864736f6c634300080e0033",
 }
 
 // GovConfigABI is the input ABI used to generate the binding from.
@@ -215,37 +214,6 @@ func (_GovConfig *GovConfigTransactorRaw) Transfer(opts *bind.TransactOpts) (*ty
 // Transact invokes the (paid) contract method with params as input values.
 func (_GovConfig *GovConfigTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
 	return _GovConfig.Contract.contract.Transact(opts, method, params...)
-}
-
-// BLSPUBLICKEYLENGTH is a free data retrieval call binding the contract method 0x8280a25a.
-//
-// Solidity: function BLS_PUBLIC_KEY_LENGTH() view returns(uint256)
-func (_GovConfig *GovConfigCaller) BLSPUBLICKEYLENGTH(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _GovConfig.contract.Call(opts, &out, "BLS_PUBLIC_KEY_LENGTH")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// BLSPUBLICKEYLENGTH is a free data retrieval call binding the contract method 0x8280a25a.
-//
-// Solidity: function BLS_PUBLIC_KEY_LENGTH() view returns(uint256)
-func (_GovConfig *GovConfigSession) BLSPUBLICKEYLENGTH() (*big.Int, error) {
-	return _GovConfig.Contract.BLSPUBLICKEYLENGTH(&_GovConfig.CallOpts)
-}
-
-// BLSPUBLICKEYLENGTH is a free data retrieval call binding the contract method 0x8280a25a.
-//
-// Solidity: function BLS_PUBLIC_KEY_LENGTH() view returns(uint256)
-func (_GovConfig *GovConfigCallerSession) BLSPUBLICKEYLENGTH() (*big.Int, error) {
-	return _GovConfig.Contract.BLSPUBLICKEYLENGTH(&_GovConfig.CallOpts)
 }
 
 // ChangeFeeDelay is a free data retrieval call binding the contract method 0x3e9e0ade.
