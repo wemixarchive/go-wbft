@@ -65,6 +65,13 @@ func BenchmarkUniformSample1028(b *testing.B) {
 	benchmarkSample(b, NewUniformSample(1028))
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func TestExpDecaySample(t *testing.T) {
 	for _, tc := range []struct {
 		reservoirSize int

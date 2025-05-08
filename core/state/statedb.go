@@ -1208,8 +1208,7 @@ func (s *StateDB) Commit(block uint64, deleteEmptyObjects bool) (common.Hash, er
 		}
 	}
 	// Write the account trie changes, measuring the amount of wasted time
-	var start time.Time
-	start = time.Now()
+	start := time.Now()
 
 	root, set, err := s.trie.Commit(true)
 	if err != nil {
