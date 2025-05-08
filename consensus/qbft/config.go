@@ -21,14 +21,14 @@
 package qbft
 
 import (
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
-
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
+
 	"github.com/naoina/toml"
 )
 
