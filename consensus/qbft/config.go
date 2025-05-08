@@ -143,12 +143,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.BlockRewardBeneficiary != nil {
 			newConfig.BlockRewardBeneficiary = transition.BlockRewardBeneficiary
 		}
-		if len(transition.Validators) > 0 {
-			newConfig.Validators = transition.Validators
-		}
-		if len(transition.BLSPublicKeys) > 0 {
-			newConfig.BLSPublicKeys = transition.BLSPublicKeys
-		}
 		if transition.TargetValidators != nil {
 			newConfig.TargetValidators = *transition.TargetValidators
 		}
