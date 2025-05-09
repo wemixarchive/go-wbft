@@ -32,9 +32,20 @@
       "proposerPolicy": 0,
       "epochLength": 10,
       "blockReward": "0xde0b6b3a7640000",
-      "minStakers": 0,
+      "validators": ["0x5b5682ab6952f96f5e68c7dd34c8018c71748248"],
+      "blsPublicKeys": ["0x935344a9e431d256fd4fcb819fd5497fb80ce4cd402b4f93ea0cd585dfb4dc433e962a55a153f8c041a773304ef8833d"],
       "targetValidators": 0,
-      "maxRequestTimeoutSeconds": 4
+      "maxRequestTimeoutSeconds": 4,
+      "govParams": {
+        "minimumStaking": "0x69e10de76676d0800000",
+        "maximumStaking": "0xffffffffffffffffffffffffffffffff",
+        "unbondingPeriodStaker": 604800,
+        "unbondingPeriodDelegator": 604800,
+        "feePrecision": 1000,
+        "rewardPrecision": "0xde0b6b3a7640000",
+        "changeFeeDelay": 604800,
+        "minStakers": 5
+      }
     }
   },
   "nonce": "0x0",
