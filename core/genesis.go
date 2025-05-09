@@ -706,6 +706,9 @@ func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
 	for _, addr := range qbftContract {
 		switch addr {
 		case common.HexToAddress(params.GOV_CONST_ADDRESS):
+			if genesis.Alloc == nil {
+				genesis.Alloc = map[common.Address]types.Account{}
+			}
 			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract), Balance: common.Big0, Storage: make(map[common.Hash]common.Hash)}
 			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(0))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))
 			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(1))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))
