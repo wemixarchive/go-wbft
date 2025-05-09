@@ -4,9 +4,9 @@
   "method": "engine_forkchoiceUpdatedV1",
   "params": [
     {
-      "headBlockHash": "0x23c58355e2c39b1605816064e59dfaaf2ae4e6c57f75a0a93a7aa71eee393526",
-      "safeBlockHash": "0x23c58355e2c39b1605816064e59dfaaf2ae4e6c57f75a0a93a7aa71eee393526",
-      "finalizedBlockHash": "0x23c58355e2c39b1605816064e59dfaaf2ae4e6c57f75a0a93a7aa71eee393526"
+      "headBlockHash": "0x460e777dbaaad81481a555a0df9376067dc20f55aa5006852398963bbecd8dde",
+      "safeBlockHash": "0x460e777dbaaad81481a555a0df9376067dc20f55aa5006852398963bbecd8dde",
+      "finalizedBlockHash": "0x460e777dbaaad81481a555a0df9376067dc20f55aa5006852398963bbecd8dde"
     },
     null
   ]
