@@ -256,7 +256,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		}
 		applyOverrides(genesis.Config)
 
-		if genesis.Config.QBFT != nil &&
+		if genesis.Config.QBFT != nil && overrides != nil &&
 			(genesis.Config.MontBlancBlock == nil || genesis.Config.MontBlancBlock.Sign() == 0) {
 			err := buildInitialExtraData(genesis, genesis.Config)
 			if err != nil {
@@ -285,7 +285,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		}
 		applyOverrides(genesis.Config)
 
-		if genesis.Config.QBFT != nil &&
+		if genesis.Config.QBFT != nil && overrides != nil &&
 			(genesis.Config.MontBlancBlock == nil || genesis.Config.MontBlancBlock.Sign() == 0) {
 			err := buildInitialExtraData(genesis, genesis.Config)
 			if err != nil {
