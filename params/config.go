@@ -330,7 +330,24 @@ var (
 			ProposerPolicy:           0,
 			BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
 			MaxRequestTimeoutSeconds: &mrts,
-			// You should assign `Validators` before using
+			Validators:               []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")},
+			BLSPublicKeys:            []string{"0x935344a9e431d256fd4fcb819fd5497fb80ce4cd402b4f93ea0cd585dfb4dc433e962a55a153f8c041a773304ef8833d"},
+			BlockRewardBeneficiary: &BeneficiaryInfo{Denominator: 10000, Beneficiaries: []*Beneficiary{{
+				Name:      "Wemix Foundation",
+				Addr:      common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248"),
+				Numerator: 10000,
+			}}},
+			TargetValidators: 0,
+			GovParams: &GovParams{
+				MinimumStaking:     (*math.HexOrDecimal256)(big.NewInt(1e18)), // 1 WEMIX
+				MaximumStaking:     (*math.HexOrDecimal256)(new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))),
+				UnbondingStaker:    604800,              // 7 days
+				UnbondingDelegator: 604800,              // 7 days
+				FeePrecision:       1000000000000000000, // 1 WEMIX
+				RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(1e18)),
+				ChangeFeeDelay:     604800, // 7 days
+				MinStakers:         1,
+			},
 		},
 	}
 
