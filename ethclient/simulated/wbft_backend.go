@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"encoding/hex"
 )
 
 // WbftBackend is a simulated blockchain for WBFT. You can use it to test your contracts or
@@ -64,6 +65,9 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
 	blsKey, _ := bls.DeriveFromECDSA(nodeConf.P2P.PrivateKey)
 	blsPubKey := blsKey.PublicKey().Marshal()
+	blsPubKeyStrings := []string{"0x" + hex.EncodeToString(blsPubKey)}
+	ethConf.Genesis.Config.QBFT.Validators = []common.Address{validator}
+	ethConf.Genesis.Config.QBFT.BLSPublicKeys = blsPubKeyStrings
 	ethConf.Genesis.ExtraData = genExtraData(validator, blsPubKey) // simulated chain block
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
