@@ -17,6 +17,7 @@
 package miner
 
 import (
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"sync/atomic"
 	"testing"
@@ -413,6 +414,9 @@ func TestGetSealingWorkWBFT(t *testing.T) {
 	t.Parallel()
 	config := qbft.DefaultConfig
 	config.BlockPeriod = 1
+	blsKey, _ := bls.DeriveFromECDSA(testBankKey)
+	wbftChainConfig.QBFT.Validators = []common.Address{testBankAddress}
+	wbftChainConfig.QBFT.BLSPublicKeys = []string{hexutil.Encode(blsKey.PublicKey().Marshal())}
 	testGetSealingWork(t, wbftChainConfig, qbftBackend.New(config, testBankKey, rawdb.NewMemoryDatabase()))
 }
 
