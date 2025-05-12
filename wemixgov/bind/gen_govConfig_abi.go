@@ -31,18 +31,17 @@ var (
 
 // GovConfigMetaData contains all meta data concerning the GovConfig contract.
 var GovConfigMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"changeFeeDelay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feePrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"maximumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minStakers\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minimumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rewardPrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodDelegator\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodStaker\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"changeFeeDelay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feePrecision\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"maximumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minStakers\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minimumStaking\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodDelegator\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unbondingPeriodStaker\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
 	Sigs: map[string]string{
 		"3e9e0ade": "changeFeeDelay()",
 		"35ff1e28": "feePrecision()",
 		"478b6653": "maximumStaking()",
 		"5f0b96e5": "minStakers()",
 		"d479ed71": "minimumStaking()",
-		"5bae9619": "rewardPrecision()",
 		"4dbd834d": "unbondingPeriodDelegator()",
 		"ea3e16f6": "unbondingPeriodStaker()",
 	},
-	Bin: "0x608060405234801561001057600080fd5b5061010a806100206000396000f3fe6080604052348015600f57600080fd5b5060043610607d5760003560e01c80635bae96191160545780635bae96191460b45780635f0b96e51460bc578063d479ed711460c4578063ea3e16f61460cc57600080fd5b806335ff1e281460825780633e9e0ade14609c578063478b66531460a45780634dbd834d1460ac575b600080fd5b608a60045481565b60405190815260200160405180910390f35b608a60065481565b608a60015481565b608a60035481565b608a60055481565b608a60075481565b608a60005481565b608a6002548156fea2646970667358221220ccd9ba3873817dd36c562c41df9f905ee5167458a245b2bd5d0b49d1a86be17864736f6c634300080e0033",
+	Bin: "0x608060405234801561001057600080fd5b5060f88061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060735760003560e01c80634dbd834d1160545780634dbd834d1460a25780635f0b96e51460aa578063d479ed711460b2578063ea3e16f61460ba57600080fd5b806335ff1e281460785780633e9e0ade146092578063478b665314609a575b600080fd5b608060045481565b60405190815260200160405180910390f35b608060055481565b608060015481565b608060035481565b608060065481565b608060005481565b60806002548156fea26469706673582212204624dc23658fe20a00f7f252c41a22deea300b5ef72cf6150f78cc27758cc6e664736f6c634300080e0033",
 }
 
 // GovConfigABI is the input ABI used to generate the binding from.
@@ -369,37 +368,6 @@ func (_GovConfig *GovConfigSession) MinimumStaking() (*big.Int, error) {
 // Solidity: function minimumStaking() view returns(uint256)
 func (_GovConfig *GovConfigCallerSession) MinimumStaking() (*big.Int, error) {
 	return _GovConfig.Contract.MinimumStaking(&_GovConfig.CallOpts)
-}
-
-// RewardPrecision is a free data retrieval call binding the contract method 0x5bae9619.
-//
-// Solidity: function rewardPrecision() view returns(uint256)
-func (_GovConfig *GovConfigCaller) RewardPrecision(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _GovConfig.contract.Call(opts, &out, "rewardPrecision")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// RewardPrecision is a free data retrieval call binding the contract method 0x5bae9619.
-//
-// Solidity: function rewardPrecision() view returns(uint256)
-func (_GovConfig *GovConfigSession) RewardPrecision() (*big.Int, error) {
-	return _GovConfig.Contract.RewardPrecision(&_GovConfig.CallOpts)
-}
-
-// RewardPrecision is a free data retrieval call binding the contract method 0x5bae9619.
-//
-// Solidity: function rewardPrecision() view returns(uint256)
-func (_GovConfig *GovConfigCallerSession) RewardPrecision() (*big.Int, error) {
-	return _GovConfig.Contract.RewardPrecision(&_GovConfig.CallOpts)
 }
 
 // UnbondingPeriodDelegator is a free data retrieval call binding the contract method 0x4dbd834d.

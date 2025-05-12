@@ -213,11 +213,10 @@ func setConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 		qbftCfg.GovParams = &params.GovParams{
 			MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
 			MaximumStaking:     (*math.HexOrDecimal256)(value),
-			UnbondingStaker:    604800,                                            // 7 days
-			UnbondingDelegator: 604800,                                            // 7 days
-			FeePrecision:       1000,                                              //0.1%
-			RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(params.Ether)), // 1 WEMIX,
-			ChangeFeeDelay:     604800,                                            // 7 days
+			UnbondingStaker:    604800, // 7 days
+			UnbondingDelegator: 604800, // 7 days
+			FeePrecision:       1000,   //0.1%
+			ChangeFeeDelay:     604800, // 7 days
 			MinStakers:         5,
 		}
 	}

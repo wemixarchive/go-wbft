@@ -715,9 +715,8 @@ func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
 			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(2))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))
 			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(3))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))
 			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(4))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(5))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.RewardPrecision))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(6))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(7))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(5))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))
+			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(6))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))
 
 		case common.HexToAddress(params.GOV_STAKING_ADDRESS):
 			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}

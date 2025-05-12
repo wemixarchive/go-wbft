@@ -91,6 +91,7 @@ contract GovStaking {
 
     uint256 public constant BLS_PUBLIC_KEY_LENGTH = 48;
     GovConfig public constant GOV_CONFIG = GovConfig(address(0x1000));
+    uint256 public constant REWARD_PRECISION = 1e27;
 
     // this includes danglingDelegated
     uint256 public totalStaking; // 0x0
@@ -404,7 +405,7 @@ contract GovStaking {
 
         if (_stakerInfo.totalStaked > 0) {
             uint256 _accBalance = _stakerInfo.rewardee.balance - _stakerInfo.lastRewardBalance;
-            uint256 _rewardPerStaking = (_accBalance * GOV_CONFIG.rewardPrecision()) / _stakerInfo.totalStaked;
+            uint256 _rewardPerStaking = (_accBalance * REWARD_PRECISION) / _stakerInfo.totalStaked;
             _stakerInfo.accRewardPerStaking += _rewardPerStaking;
             _stakerInfo.accFeePerStaking += (_rewardPerStaking * _stakerInfo.feeRate) / GOV_CONFIG.feePrecision();
             _stakerInfo.lastRewardBalance = _stakerInfo.rewardee.balance;
@@ -422,10 +423,10 @@ contract GovStaking {
                 UserInfo storage _userInfo = userRewardInfo[_staker][_user];
                 _userInfo.pendingReward +=
                     (_userInfo.stakingAmount * (_stakerInfo.accRewardPerStaking - _userInfo.rewardPerStaking)) /
-                    GOV_CONFIG.rewardPrecision();
+                    REWARD_PRECISION;
                 _userInfo.pendingFee +=
                     (_userInfo.stakingAmount * (_stakerInfo.accFeePerStaking - _userInfo.feePerStaking)) /
-                    GOV_CONFIG.rewardPrecision();
+                    REWARD_PRECISION;
                 _userInfo.rewardPerStaking = _stakerInfo.accRewardPerStaking;
                 _userInfo.feePerStaking = _stakerInfo.accFeePerStaking;
 

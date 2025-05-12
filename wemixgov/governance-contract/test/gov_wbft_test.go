@@ -1990,7 +1990,6 @@ func setWbftGovConfig(g *GovWBFT) {
 		UnbondingStaker:    604800,
 		UnbondingDelegator: 604800,
 		FeePrecision:       10000,
-		RewardPrecision:    (*math.HexOrDecimal256)(towei(1000000000)),
 		ChangeFeeDelay:     604800,
 		MinStakers:         5,
 	}
@@ -2005,9 +2004,8 @@ func setWbftGovConfig(g *GovWBFT) {
 			{Address: addr, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.UnbondingStaker))},
 			{Address: addr, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.UnbondingDelegator))},
 			{Address: addr, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.FeePrecision))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(govParams.RewardPrecision))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.ChangeFeeDelay))},
-			{Address: addr, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.MinStakers))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.ChangeFeeDelay))},
+			{Address: addr, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(govParams.MinStakers))},
 		},
 	})
 }

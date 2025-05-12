@@ -22,19 +22,17 @@ type GovParams struct {
 	UnbondingStaker    uint64                `json:"unbondingPeriodStaker"`    // Staker unbonding duration (seconds)
 	UnbondingDelegator uint64                `json:"unbondingPeriodDelegator"` // Delegate unbundling period (seconds)
 	FeePrecision       uint64                `json:"feePrecision"`             // Fee precision
-	RewardPrecision    *math.HexOrDecimal256 `json:"rewardPrecision"`          // Compensation precision
 	ChangeFeeDelay     uint64                `json:"changeFeeDelay"`           // Fee change latency (seconds)
 	MinStakers         uint64                `json:"minStakers"`               // Minimum number of stakers
 }
 
 func (gp *GovParams) String() string {
-	return fmt.Sprintf("{MinimumStaking: %v MaximumStaking: %v UnbondingStaker: %v UnbondingDelegator: %v FeePrecision: %v RewardPrecision: %v ChangeFeeDelay: %v MinStakers: %v}",
+	return fmt.Sprintf("{MinimumStaking: %v MaximumStaking: %v UnbondingStaker: %v UnbondingDelegator: %v FeePrecision: %v ChangeFeeDelay: %v MinStakers: %v}",
 		((*big.Int)(gp.MinimumStaking)).String(),
 		((*big.Int)(gp.MaximumStaking)).String(),
 		gp.UnbondingStaker,
 		gp.UnbondingDelegator,
 		gp.FeePrecision,
-		((*big.Int)(gp.RewardPrecision)).String(),
 		gp.ChangeFeeDelay,
 		gp.MinStakers,
 	)

@@ -126,11 +126,10 @@ var DefaultConfig = &Config{
 	GovParams: &params.GovParams{
 		MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
 		MaximumStaking:     (*math.HexOrDecimal256)(value),
-		UnbondingStaker:    604800,                                            // 7 days
-		UnbondingDelegator: 604800,                                            // 7 days
-		FeePrecision:       1000,                                              // 0.1%
-		RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(params.Ether)), // 1 WEMIX
-		ChangeFeeDelay:     604800,                                            // 7 days
+		UnbondingStaker:    604800, // 7 days
+		UnbondingDelegator: 604800, // 7 days
+		FeePrecision:       1000,   // 0.1%
+		ChangeFeeDelay:     604800, // 7 days
 		MinStakers:         999,
 	},
 }
@@ -221,9 +220,8 @@ func getMontBlancTransition(config *params.ChainConfig) params.StateTransition {
 			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))},
 			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))},
 			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.RewardPrecision))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))},
 		},
 	}
 
