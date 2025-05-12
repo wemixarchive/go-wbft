@@ -211,19 +211,19 @@ func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params
 func getMontBlancTransition(config *params.ChainConfig) params.StateTransition {
 	st := params.StateTransition{
 		Codes: []params.CodeParam{
-			{Address: govwbft.GovConstAddress, Code: govwbft.GovConfigContract},
+			{Address: govwbft.GovConfigAddress, Code: govwbft.GovConfigContract},
 			{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
 			{Address: govwbft.GovRewardeeImpAddress, Code: govwbft.GovRewardeeImpContract},
 		},
 		States: []params.StateParam{
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))},
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))},
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))},
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))},
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))},
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.RewardPrecision))},
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))},
-			{Address: govwbft.GovConstAddress, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.RewardPrecision))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))},
+			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(7)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))},
 		},
 	}
 

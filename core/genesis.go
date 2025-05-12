@@ -699,13 +699,13 @@ func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
 		return errors.New("Some or all of the QBFT parameters are missing from the genesis configuration.")
 	}
 	qbftContract := []common.Address{
-		common.HexToAddress(params.GOV_CONST_ADDRESS),
+		common.HexToAddress(params.GOV_CONFIG_ADDRESS),
 		common.HexToAddress(params.GOV_STAKING_ADDRESS),
 		common.HexToAddress(params.GOV_REWARDEE_IMP_ADDRESS),
 	}
 	for _, addr := range qbftContract {
 		switch addr {
-		case common.HexToAddress(params.GOV_CONST_ADDRESS):
+		case common.HexToAddress(params.GOV_CONFIG_ADDRESS):
 			if genesis.Alloc == nil {
 				genesis.Alloc = map[common.Address]types.Account{}
 			}

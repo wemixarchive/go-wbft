@@ -180,7 +180,7 @@ func checkSanityQBFT(chainConfig *params.ChainConfig, alloc types.GenesisAlloc) 
 
 	func() {
 		forbidden := []common.Address{
-			govwbft.GovConstAddress,
+			govwbft.GovConfigAddress,
 			govwbft.GovStakingAddress,
 			govwbft.GovRewardeeImpAddress,
 		}

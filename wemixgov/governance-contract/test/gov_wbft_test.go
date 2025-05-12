@@ -1847,7 +1847,7 @@ func TestSetCode(t *testing.T) {
 
 		// upgrade contract
 		g.backend.CommitWithState(params.StateTransition{
-			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: testGovConst}},
+			Codes: []params.CodeParam{{Address: govwbft.GovConfigAddress, Code: testGovConst}},
 		})
 	})
 
@@ -1877,7 +1877,7 @@ func TestSetCode(t *testing.T) {
 
 		// restore GovConfig
 		g.backend.CommitWithState(params.StateTransition{
-			Codes: []params.CodeParam{{Address: govwbft.GovConstAddress, Code: govwbft.GovConfigContract}},
+			Codes: []params.CodeParam{{Address: govwbft.GovConfigAddress, Code: govwbft.GovConfigContract}},
 		})
 	})
 }
@@ -1994,7 +1994,7 @@ func setWbftGovConfig(g *GovWBFT) {
 		ChangeFeeDelay:     604800,
 		MinStakers:         5,
 	}
-	addr := govwbft.GovConstAddress
+	addr := govwbft.GovConfigAddress
 	g.backend.CommitWithState(params.StateTransition{
 		Codes: []params.CodeParam{
 			{Address: addr, Code: govwbft.GovConfigContract},

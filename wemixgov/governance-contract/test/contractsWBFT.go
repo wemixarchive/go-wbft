@@ -75,7 +75,7 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		alloc = make(types.GenesisAlloc)
 	}
 	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
-	alloc[govwbft.GovConstAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract)}
+	alloc[govwbft.GovConfigAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract)}
 	alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract)}
 	alloc[govwbft.GovRewardeeImpAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovRewardeeImpContract)}
 
@@ -92,7 +92,7 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		})
 	}
 
-	g.govConst = compiledWBFT.GovConst.New(g.backend.Client(), govwbft.GovConstAddress)
+	g.govConst = compiledWBFT.GovConst.New(g.backend.Client(), govwbft.GovConfigAddress)
 	g.stakingContract = compiledWBFT.GovStaking.New(g.backend.Client(), govwbft.GovStakingAddress)
 	g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), govwbft.GovNCPAddress)
 	return g, nil
