@@ -18,6 +18,7 @@ package miner
 
 import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"math/big"
 	"sync/atomic"
 	"testing"
@@ -64,6 +65,7 @@ var (
 	// Test accounts
 	testBankKey, _  = crypto.GenerateKey()
 	testBankAddress = crypto.PubkeyToAddress(testBankKey.PublicKey)
+	testBlsKey, _   = bls.DeriveFromECDSA(testBankKey)
 	testBankFunds   = big.NewInt(1000000000000000000)
 
 	testUserKey, _  = crypto.GenerateKey()
@@ -412,12 +414,11 @@ func TestGetSealingWorkPostMerge(t *testing.T) {
 
 func TestGetSealingWorkWBFT(t *testing.T) {
 	t.Parallel()
-	config := qbft.DefaultConfig
-	config.BlockPeriod = 1
-	blsKey, _ := bls.DeriveFromECDSA(testBankKey)
+	var config qbft.Config
 	wbftChainConfig.QBFT.Validators = []common.Address{testBankAddress}
-	wbftChainConfig.QBFT.BLSPublicKeys = []string{hexutil.Encode(blsKey.PublicKey().Marshal())}
-	testGetSealingWork(t, wbftChainConfig, qbftBackend.New(config, testBankKey, rawdb.NewMemoryDatabase()))
+	wbftChainConfig.QBFT.BLSPublicKeys = []string{hexutil.Encode(testBlsKey.PublicKey().Marshal())}
+	ethconfig.SetConfigFromChainConfig(&config, wbftChainConfig)
+	testGetSealingWork(t, wbftChainConfig, qbftBackend.New(&config, testBankKey, rawdb.NewMemoryDatabase()))
 }
 
 func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
