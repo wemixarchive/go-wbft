@@ -2,7 +2,6 @@ package simulated
 
 import (
 	"context"
-	"encoding/hex"
 	"math/big"
 	"time"
 
@@ -65,9 +64,8 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	validator := crypto.PubkeyToAddress(nodeConf.P2P.PrivateKey.PublicKey)
 	blsKey, _ := bls.DeriveFromECDSA(nodeConf.P2P.PrivateKey)
 	blsPubKey := blsKey.PublicKey().Marshal()
-	blsPubKeyStrings := []string{hexutil.Encode(blsPubKey)}
 	ethConf.Genesis.Config.QBFT.Validators = []common.Address{validator}
-	ethConf.Genesis.Config.QBFT.BLSPublicKeys = blsPubKeyStrings
+	ethConf.Genesis.Config.QBFT.BLSPublicKeys = []string{hexutil.Encode(blsPubKey)}
 	ethConf.Genesis.ExtraData = genExtraData(validator, blsPubKey) // simulated chain block
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
