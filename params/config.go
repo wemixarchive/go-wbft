@@ -37,11 +37,11 @@ var (
 	HoleskyGenesisHash      = common.HexToHash("0xb5f7f912443c940f21fd611f12828d75b534364ed9e95ca4e307729a4661bde4")
 	SepoliaGenesisHash      = common.HexToHash("0x25a5cc106eea7138acab33231d7160d69cb777ee0c2c553fcddf5138993e6dd9")
 	GoerliGenesisHash       = common.HexToHash("0xbf7e331f7f7c1dd2e05159666b3bf8bc7a8a3a9eb1d518969eab529dd9b88c1a")
+	rewardPrecision, _      = new(big.Int).SetString("1000000000000000000000000000", 10)
 )
 
 func newUint64(val uint64) *uint64 { return &val }
 
-// kimcy
 var (
 	MainnetTerminalTotalDifficulty, _ = new(big.Int).SetString("58_750_000_000_000_000_000_000", 0)
 
@@ -101,7 +101,7 @@ var (
 				UnbondingStaker:    604800,              // 7 days
 				UnbondingDelegator: 604800,              // 7 days
 				FeePrecision:       1000000000000000000, // 1 WEMIX
-				RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(1e18)),
+				RewardPrecision:    (*math.HexOrDecimal256)(rewardPrecision),
 				ChangeFeeDelay:     604800, // 7 days
 				MinStakers:         1,
 			},
@@ -158,7 +158,7 @@ var (
 				UnbondingStaker:    604800,              // 7 days
 				UnbondingDelegator: 604800,              // 7 days
 				FeePrecision:       1000000000000000000, // 1 WEMIX
-				RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(1e18)),
+				RewardPrecision:    (*math.HexOrDecimal256)(rewardPrecision),
 				ChangeFeeDelay:     604800, // 7 days
 				MinStakers:         1,
 			},
@@ -344,7 +344,7 @@ var (
 				UnbondingStaker:    604800,              // 7 days
 				UnbondingDelegator: 604800,              // 7 days
 				FeePrecision:       1000000000000000000, // 1 WEMIX
-				RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(1e18)),
+				RewardPrecision:    (*math.HexOrDecimal256)(rewardPrecision),
 				ChangeFeeDelay:     604800, // 7 days
 				MinStakers:         1,
 			},
@@ -475,7 +475,7 @@ var (
 				UnbondingStaker:    604800,              // 7 days
 				UnbondingDelegator: 604800,              // 7 days
 				FeePrecision:       1000000000000000000, // 1 WEMIX
-				RewardPrecision:    (*math.HexOrDecimal256)(big.NewInt(1e18)),
+				RewardPrecision:    (*math.HexOrDecimal256)(rewardPrecision),
 				ChangeFeeDelay:     604800, // 7 days
 				MinStakers:         1,
 			},

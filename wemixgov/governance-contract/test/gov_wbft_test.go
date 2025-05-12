@@ -1990,7 +1990,7 @@ func setWbftGovConfig(g *GovWBFT) {
 		UnbondingStaker:    604800,
 		UnbondingDelegator: 604800,
 		FeePrecision:       10000,
-		RewardPrecision:    (*math.HexOrDecimal256)(towei(1)),
+		RewardPrecision:    (*math.HexOrDecimal256)(towei(1000000000)),
 		ChangeFeeDelay:     604800,
 		MinStakers:         5,
 	}

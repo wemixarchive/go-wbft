@@ -2,6 +2,7 @@ package simulated
 
 import (
 	"context"
+	"encoding/hex"
 	"math/big"
 	"time"
 
@@ -24,7 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"encoding/hex"
 )
 
 // WbftBackend is a simulated blockchain for WBFT. You can use it to test your contracts or
