@@ -98,7 +98,7 @@ func init() {
 		Epoch:  30000,
 	}
 	wbftChainConfig = new(params.ChainConfig)
-	*wbftChainConfig = *params.TestChainConfig
+	*wbftChainConfig = *params.TestQBFTChainConfig
 	wbftChainConfig.Ethash = nil
 
 	signer := types.LatestSigner(params.TestChainConfig)

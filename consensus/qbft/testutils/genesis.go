@@ -28,7 +28,7 @@ import (
 func GenesisWithSeals(validators []common.Address, blsPublicKeys [][]byte) *core.Genesis {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
-	genesis.Config = params.TestChainConfig
+	genesis.Config = params.TestQBFTChainConfig
 	// force enable QBFT engine
 	genesis.Config.QBFT = &params.QBFTConfig{}
 	genesis.Config.Ethash = nil
@@ -43,7 +43,7 @@ func GenesisWithSeals(validators []common.Address, blsPublicKeys [][]byte) *core
 func Genesis(validators []common.Address, blsPublicKeys [][]byte) *core.Genesis {
 	// generate genesis block
 	genesis := core.TestGenesisBlock()
-	genesis.Config = params.TestChainConfig
+	genesis.Config = params.TestQBFTChainConfig
 	genesis.Config.Ethash = nil
 	genesis.Difficulty = types.QBFTDefaultDifficulty
 	genesis.Nonce = qbftcommon.EmptyBlockNonce.Uint64()

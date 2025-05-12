@@ -432,7 +432,7 @@ func TestEpochInfo(t *testing.T) {
 
 			// Setup test chain genesis
 			c := new(fakeChain)
-			c.chainConfig = params.TestChainConfig
+			c.chainConfig = params.TestQBFTChainConfig
 			engine := NewEngine(&qbft.Config{
 				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
 				Epoch:          3,
@@ -539,7 +539,7 @@ func TestEpochInfoTransition(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = new(params.ChainConfig) // do not mess TestChainConfig
-			*c.chainConfig = *params.TestChainConfig
+			*c.chainConfig = *params.TestQBFTChainConfig
 			c.chainConfig.MontBlancBlock = tc.montBlancBlock
 			c.chainConfig.MontBlanc = &params.MontBlancConfig{
 				NCPs: validators,
@@ -660,7 +660,7 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 
 			// Setup test chain genesis
 			c := new(fakeChain)
-			c.chainConfig = params.TestChainConfig
+			c.chainConfig = params.TestQBFTChainConfig
 			c.chainConfig.QBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 			engine := NewEngine(tc.qbftConfig, common.Address{}, nil)
@@ -742,7 +742,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 
 			// Setup test chain genesis (non-Brioche config)
 			c := new(fakeChain)
-			c.chainConfig = params.TestChainConfig
+			c.chainConfig = params.TestQBFTChainConfig
 			c.chainConfig.BriocheBlock = nil
 			c.chainConfig.QBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(3000000))
 
