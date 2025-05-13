@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -155,29 +154,11 @@ func (g *genesisGenerator) wbftChainConfig() {
 		}
 	}
 
-	g.Genesis.Config.QBFT = &params.QBFTConfig{
-		BlockReward:           (*math.HexOrDecimal256)(big.NewInt(params.Ether)),
-		EpochLength:           100,
-		BlockPeriodSeconds:    1,
-		RequestTimeoutSeconds: 2,
-		ProposerPolicy:        0,
-	}
+	g.Genesis.Config.QBFT = params.DefaultQBFTConfig
 
 	for i, val := range validators {
 		g.Genesis.Config.QBFT.Validators = append(g.Genesis.Config.QBFT.Validators, val)
 		g.Genesis.Config.QBFT.BLSPublicKeys = append(g.Genesis.Config.QBFT.BLSPublicKeys, blsPublicKeys[i])
-	}
-
-	value, _ := new(big.Int).SetString("340282366920938463463374607431768211455", 10) //type(uint128).max;
-
-	g.Genesis.Config.QBFT.GovParams = &params.GovParams{
-		MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
-		MaximumStaking:     (*math.HexOrDecimal256)(value),
-		UnbondingStaker:    604800, // 7 days
-		UnbondingDelegator: 259200, // 3 days
-		FeePrecision:       10000,  // 0.01%
-		ChangeFeeDelay:     604800, // 7 days
-		MinStakers:         1,
 	}
 
 	// you can add config file for static nodes if you want

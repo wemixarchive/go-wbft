@@ -544,23 +544,12 @@ func TestEpochInfoTransition(t *testing.T) {
 			c.chainConfig.MontBlanc = &params.MontBlancConfig{
 				NCPs: validators,
 			}
-			value, _ := new(big.Int).SetString("340282366920938463463374607431768211455", 10)
 
-			engine := NewEngine(&qbft.Config{
-				ProposerPolicy: qbft.NewRoundRobinProposerPolicy(),
-				Epoch:          tc.epoch,
-				BLSPublicKeys:  blsPubKeys,
-				Validators:     validators,
-				GovParams: &params.GovParams{
-					MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
-					MaximumStaking:     (*math.HexOrDecimal256)(value),
-					UnbondingStaker:    604800, // 7 days
-					UnbondingDelegator: 604800, // 7 days
-					FeePrecision:       1000,   // 0.1%
-					ChangeFeeDelay:     604800, // 7 days
-					MinStakers:         999,
-				},
-			}, common.Address{}, nil)
+			testConfig := *qbft.DefaultConfig
+			testConfig.Epoch = tc.epoch
+			testConfig.Validators = validators
+			testConfig.BLSPublicKeys = blsPubKeys
+			engine := NewEngine(&testConfig, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 

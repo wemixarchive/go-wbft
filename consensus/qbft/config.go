@@ -118,19 +118,19 @@ type Config struct {
 var value, _ = new(big.Int).SetString("340282366920938463463374607431768211455", 10)
 
 var DefaultConfig = &Config{
-	RequestTimeout:         10000,
-	BlockPeriod:            5,
+	RequestTimeout:         1000,
+	BlockPeriod:            1,
 	ProposerPolicy:         NewRoundRobinProposerPolicy(),
-	Epoch:                  30000,
+	Epoch:                  10,
 	AllowedFutureBlockTime: 0,
 	GovParams: &params.GovParams{
 		MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
 		MaximumStaking:     (*math.HexOrDecimal256)(value),
 		UnbondingStaker:    604800, // 7 days
-		UnbondingDelegator: 604800, // 7 days
-		FeePrecision:       1000,   // 0.1%
+		UnbondingDelegator: 259200, // 3 days
+		FeePrecision:       10000,  // 0.01%
 		ChangeFeeDelay:     604800, // 7 days
-		MinStakers:         999,
+		MinStakers:         1,
 	},
 }
 

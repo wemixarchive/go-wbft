@@ -39,6 +39,25 @@ type Beneficiary struct {
 	Numerator uint64         `json:"numerator"`
 }
 
+var uint128Value, _ = new(big.Int).SetString("340282366920938463463374607431768211455", 10) //type(uint128).max;
+
+var DefaultQBFTConfig = &QBFTConfig{
+	RequestTimeoutSeconds: 2,
+	BlockPeriodSeconds:    1,
+	ProposerPolicy:        0,
+	EpochLength:           10,
+	BlockReward:           (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
+	GovParams: &GovParams{
+		MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(500_000))),
+		MaximumStaking:     (*math.HexOrDecimal256)(uint128Value),
+		UnbondingStaker:    604800, // 7 days
+		UnbondingDelegator: 259200, // 3 days
+		FeePrecision:       10000,  // 0.01%
+		ChangeFeeDelay:     604800, // 7 days
+		MinStakers:         1,
+	},
+}
+
 func (c *QBFTConfig) String() string {
 	var blockReward, maxRequestTimeoutSeconds string
 
