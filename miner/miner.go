@@ -52,33 +52,11 @@ type Config struct {
 	GasCeil   uint64         // Target gas ceiling for mined blocks.
 	GasPrice  *big.Int       // Minimum gas price for mining a transaction
 
-	RecommitStr string        `toml:"Recommit"`
-	Recommit    time.Duration `toml:"-"` // The time interval for miner to re-create mining work.
+	Recommit common.Duration `toml:"Recommit"` // The time interval for miner to re-create mining work.
 
-	NewPayloadTimeoutStr string        `toml:"NewPayloadTimeout"`
-	NewPayloadTimeout    time.Duration `toml:"-"` // The maximum time allowance for creating a new payload
+	NewPayloadTimeout common.Duration `toml:"NewPayloadTimeout"` // The maximum time allowance for creating a new payload
 
 	SimulatedEnabled bool `toml:",omitempty"`
-}
-
-// Parse duration fields from string after TOML decoding
-func (c *Config) ParseDurations() error {
-	var err error
-
-	if c.RecommitStr != "" {
-		c.Recommit, err = time.ParseDuration(c.RecommitStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for Recommit (%q): %w", c.RecommitStr, err)
-		}
-	}
-
-	if c.NewPayloadTimeoutStr != "" {
-		c.NewPayloadTimeout, err = time.ParseDuration(c.NewPayloadTimeoutStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for NewPayloadTimeout (%q): %w", c.NewPayloadTimeoutStr, err)
-		}
-	}
-	return nil
 }
 
 // DefaultConfig contains default settings for miner.
@@ -90,8 +68,8 @@ var DefaultConfig = Config{
 	// consensus-layer usually will wait a half slot of time(6s)
 	// for payload generation. It should be enough for Geth to
 	// run 3 rounds.
-	Recommit:          2 * time.Second,
-	NewPayloadTimeout: 2 * time.Second,
+	Recommit:          common.Duration(2 * time.Second),
+	NewPayloadTimeout: common.Duration(2 * time.Second),
 }
 
 // Miner creates blocks and searches for proof-of-work values.

@@ -73,7 +73,7 @@ var (
 	newTxs     []*types.Transaction
 
 	testConfig = &Config{
-		Recommit: time.Second,
+		Recommit: common.Duration(time.Second),
 		GasCeil:  params.GenesisGasLimit,
 	}
 )

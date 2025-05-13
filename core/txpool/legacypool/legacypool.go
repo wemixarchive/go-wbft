@@ -19,7 +19,6 @@ package legacypool
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -127,8 +126,7 @@ type Config struct {
 	NoLocals bool             // Whether local transaction handling should be disabled
 	Journal  string           // Journal of local transactions to survive node restarts
 
-	RejournalStr string        `toml:"Rejournal"`
-	Rejournal    time.Duration `toml:"-"` // Time interval to regenerate the local transaction journal
+	Rejournal common.Duration `toml:"Rejournal"` // Time interval to regenerate the local transaction journal
 
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
@@ -138,35 +136,13 @@ type Config struct {
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
-	LifetimeStr string        `toml:"Lifetime"`
-	Lifetime    time.Duration `toml:"-"` // Maximum amount of time non-executable transaction are queued
-}
-
-// Parse duration fields from string after TOML decoding
-func (c *Config) ParseDurations() error {
-	var err error
-
-	if c.RejournalStr != "" {
-		c.Rejournal, err = time.ParseDuration(c.RejournalStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for Rejournal (%q): %w", c.RejournalStr, err)
-		}
-	}
-
-	if c.LifetimeStr != "" {
-		c.Lifetime, err = time.ParseDuration(c.LifetimeStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for Lifetime (%q): %w", c.LifetimeStr, err)
-		}
-	}
-
-	return nil
+	Lifetime common.Duration `toml:"Lifetime"` // Maximum amount of time non-executable transaction are queued
 }
 
 // DefaultConfig contains the default configurations for the transaction pool.
 var DefaultConfig = Config{
 	Journal:   "transactions.rlp",
-	Rejournal: time.Hour,
+	Rejournal: common.Duration(time.Hour),
 
 	PriceLimit: 1,
 	PriceBump:  10,
@@ -176,16 +152,16 @@ var DefaultConfig = Config{
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
-	Lifetime: 3 * time.Hour,
+	Lifetime: common.Duration(3 * time.Hour),
 }
 
 // sanitize checks the provided user configurations and changes anything that's
 // unreasonable or unworkable.
 func (config *Config) sanitize() Config {
 	conf := *config
-	if conf.Rejournal < time.Second {
+	if conf.Rejournal.Duration() < time.Second {
 		log.Warn("Sanitizing invalid txpool journal time", "provided", conf.Rejournal, "updated", time.Second)
-		conf.Rejournal = time.Second
+		conf.Rejournal = common.Duration(time.Second)
 	}
 	if conf.PriceLimit < 1 {
 		log.Warn("Sanitizing invalid txpool price limit", "provided", conf.PriceLimit, "updated", DefaultConfig.PriceLimit)
@@ -211,7 +187,7 @@ func (config *Config) sanitize() Config {
 		log.Warn("Sanitizing invalid txpool global queue", "provided", conf.GlobalQueue, "updated", DefaultConfig.GlobalQueue)
 		conf.GlobalQueue = DefaultConfig.GlobalQueue
 	}
-	if conf.Lifetime < 1 {
+	if conf.Lifetime.Duration() < 1 {
 		log.Warn("Sanitizing invalid txpool lifetime", "provided", conf.Lifetime, "updated", DefaultConfig.Lifetime)
 		conf.Lifetime = DefaultConfig.Lifetime
 	}
@@ -366,7 +342,7 @@ func (pool *LegacyPool) loop() {
 		// Start the stats reporting and transaction eviction tickers
 		report  = time.NewTicker(statsReportInterval)
 		evict   = time.NewTicker(evictionInterval)
-		journal = time.NewTicker(pool.config.Rejournal)
+		journal = time.NewTicker(pool.config.Rejournal.Duration())
 	)
 	defer report.Stop()
 	defer evict.Stop()
@@ -401,7 +377,7 @@ func (pool *LegacyPool) loop() {
 					continue
 				}
 				// Any non-locals old enough should be removed
-				if time.Since(pool.beats[addr]) > pool.config.Lifetime {
+				if time.Since(pool.beats[addr]) > pool.config.Lifetime.Duration() {
 					list := pool.queue[addr].Flatten()
 					for _, tx := range list {
 						pool.removeTx(tx.Hash(), true, true)

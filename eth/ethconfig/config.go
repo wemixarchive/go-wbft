@@ -24,7 +24,6 @@ package ethconfig
 import (
 	"crypto/ecdsa"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -63,8 +62,8 @@ var Defaults = Config{
 	//SyncMode: downloader.SnapSync,
 	// Quorum - make full sync the default sync mode in quorum (as opposed to upstream geth)
 	SyncMode:       downloader.FullSync,
-	ForceSyncCycle: 10 * time.Second, // Time interval to force syncs, even if few peers are available
-	TdSyncInterval: 10 * time.Second, // Time interval to verify TD changes and detect sync stalling
+	ForceSyncCycle: common.Duration(10 * time.Second), // Time interval to force syncs, even if few peers are available
+	TdSyncInterval: common.Duration(10 * time.Second), // Time interval to verify TD changes and detect sync stalling
 	// ## Quorum QBFT END
 
 	NetworkId:          0, // enable auto configuration of networkID == chainID
@@ -75,14 +74,14 @@ var Defaults = Config{
 	DatabaseCache:      512,
 	TrieCleanCache:     154,
 	TrieDirtyCache:     256,
-	TrieTimeout:        60 * time.Minute,
+	TrieTimeout:        common.Duration(60 * time.Minute),
 	SnapshotCache:      102,
 	FilterLogCacheSize: 32,
 	Miner:              miner.DefaultConfig,
 	TxPool:             legacypool.DefaultConfig,
 	BlobPool:           blobpool.DefaultConfig,
 	RPCGasCap:          50000000,
-	RPCEVMTimeout:      5 * time.Second,
+	RPCEVMTimeout:      common.Duration(5 * time.Second),
 	GPO:                FullNodeGPO,
 	RPCTxFeeCap:        1, // 1 ether
 }
@@ -100,10 +99,8 @@ type Config struct {
 	NetworkId uint64
 	SyncMode  downloader.SyncMode
 
-	ForceSyncCycleStr string        `toml:"ForceSyncCycle"`
-	ForceSyncCycle    time.Duration `toml:"-"`
-	TdSyncIntervalStr string        `toml:"TdSyncInterval"`
-	TdSyncInterval    time.Duration `toml:"-"`
+	ForceSyncCycle common.Duration `toml:"ForceSyncCycle"`
+	TdSyncInterval common.Duration `toml:"TdSyncInterval"`
 
 	// This can be set to list of enrtree:// URLs which will be queried for
 	// for nodes to connect to.
@@ -144,8 +141,7 @@ type Config struct {
 
 	TrieCleanCache int
 	TrieDirtyCache int
-	TrieTimeoutStr string        `toml:"TrieTimeout"`
-	TrieTimeout    time.Duration `toml:"-"`
+	TrieTimeout    common.Duration `toml:"TrieTimeout"`
 	SnapshotCache  int
 	Preimages      bool
 
@@ -175,8 +171,7 @@ type Config struct {
 	RPCGasCap uint64
 
 	// RPCEVMTimeout is the global timeout for eth-call.
-	RPCEVMTimeoutStr string        `toml:"RPCEVMTimeout"`
-	RPCEVMTimeout    time.Duration `toml:"-"`
+	RPCEVMTimeout common.Duration `toml:"RPCEVMTimeout"`
 
 	// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 	// send-transaction variants. The unit is ether.
@@ -187,48 +182,6 @@ type Config struct {
 
 	// OverrideVerkle (TODO: remove after the fork)
 	OverrideVerkle *uint64 `toml:",omitempty"`
-}
-
-// Parse duration fields from string after TOML decoding
-func (c *Config) ParseDurations() error {
-	var err error
-
-	if c.ForceSyncCycleStr != "" {
-		c.ForceSyncCycle, err = time.ParseDuration(c.ForceSyncCycleStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for ForceSyncCycle (%q): %w", c.ForceSyncCycleStr, err)
-		}
-	}
-
-	if c.TdSyncIntervalStr != "" {
-		c.TdSyncInterval, err = time.ParseDuration(c.TdSyncIntervalStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for TdSyncInterval (%q): %w", c.TdSyncIntervalStr, err)
-		}
-	}
-
-	if c.TrieTimeoutStr != "" {
-		c.TrieTimeout, err = time.ParseDuration(c.TrieTimeoutStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for TrieTimeout (%q): %w", c.TrieTimeoutStr, err)
-		}
-	}
-
-	if c.RPCEVMTimeoutStr != "" {
-		c.RPCEVMTimeout, err = time.ParseDuration(c.RPCEVMTimeoutStr)
-		if err != nil {
-			return fmt.Errorf("invalid duration format for RPCEVMTimeout (%q): %w", c.RPCEVMTimeoutStr, err)
-		}
-	}
-
-	if err := c.Miner.ParseDurations(); err != nil {
-		return err
-	}
-
-	if err := c.TxPool.ParseDurations(); err != nil {
-		return err
-	}
-	return nil
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain config.

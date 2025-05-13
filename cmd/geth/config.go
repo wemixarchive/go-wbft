@@ -97,14 +97,6 @@ type gethConfig struct {
 	Metrics  metrics.Config
 }
 
-// Parse duration fields from string after TOML decoding
-func (cfg *gethConfig) parseDurations() error {
-	if err := cfg.Eth.ParseDurations(); err != nil {
-		return fmt.Errorf("eth: %w", err)
-	}
-	return nil
-}
-
 func loadConfig(file string, cfg *gethConfig) error {
 	f, err := os.Open(file)
 	if err != nil {
@@ -115,13 +107,6 @@ func loadConfig(file string, cfg *gethConfig) error {
 	err = tomlSettings.NewDecoder(bufio.NewReader(f)).Decode(cfg)
 	// Add file name to errors that have a line number.
 	if _, ok := err.(*toml.LineError); ok {
-		err = errors.New(file + ", " + err.Error())
-	}
-	if err != nil {
-		return err
-	}
-
-	if err = cfg.parseDurations(); err != nil {
 		err = errors.New(file + ", " + err.Error())
 	}
 

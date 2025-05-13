@@ -306,7 +306,7 @@ var (
 	TxPoolRejournalFlag = &cli.DurationFlag{
 		Name:     "txpool.rejournal",
 		Usage:    "Time interval to regenerate the local transaction journal",
-		Value:    ethconfig.Defaults.TxPool.Rejournal,
+		Value:    ethconfig.Defaults.TxPool.Rejournal.Duration(),
 		Category: flags.TxPoolCategory,
 	}
 	TxPoolPriceLimitFlag = &cli.Uint64Flag{
@@ -348,7 +348,7 @@ var (
 	TxPoolLifetimeFlag = &cli.DurationFlag{
 		Name:     "txpool.lifetime",
 		Usage:    "Maximum amount of time non-executable transaction are queued",
-		Value:    ethconfig.Defaults.TxPool.Lifetime,
+		Value:    ethconfig.Defaults.TxPool.Lifetime.Duration(),
 		Category: flags.TxPoolCategory,
 	}
 	// Blob transaction pool settings
@@ -460,13 +460,13 @@ var (
 	MinerRecommitIntervalFlag = &cli.DurationFlag{
 		Name:     "miner.recommit",
 		Usage:    "Time interval to recreate the block being mined",
-		Value:    ethconfig.Defaults.Miner.Recommit,
+		Value:    ethconfig.Defaults.Miner.Recommit.Duration(),
 		Category: flags.MinerCategory,
 	}
 	MinerNewPayloadTimeout = &cli.DurationFlag{
 		Name:     "miner.newpayload-timeout",
 		Usage:    "Specify the maximum time allowance for creating a new payload",
-		Value:    ethconfig.Defaults.Miner.NewPayloadTimeout,
+		Value:    ethconfig.Defaults.Miner.NewPayloadTimeout.Duration(),
 		Category: flags.MinerCategory,
 	}
 
@@ -512,7 +512,7 @@ var (
 	RPCGlobalEVMTimeoutFlag = &cli.DurationFlag{
 		Name:     "rpc.evmtimeout",
 		Usage:    "Sets a timeout used for eth_call (0=infinite)",
-		Value:    ethconfig.Defaults.RPCEVMTimeout,
+		Value:    ethconfig.Defaults.RPCEVMTimeout.Duration(),
 		Category: flags.APICategory,
 	}
 	RPCGlobalTxFeeCapFlag = &cli.Float64Flag{
@@ -781,13 +781,13 @@ var (
 	ForceSyncCycleFlag = &cli.DurationFlag{
 		Name:     "sync.forcecycle",
 		Usage:    "Time interval to force syncs, even if few peers are available",
-		Value:    ethconfig.Defaults.ForceSyncCycle,
+		Value:    ethconfig.Defaults.ForceSyncCycle.Duration(),
 		Category: flags.NetworkingCategory,
 	}
 	TdSyncIntervalFlag = &cli.DurationFlag{
 		Name:     "sync.tdinterval",
 		Usage:    "Time interval to verify TD changes and detect sync stalling",
-		Value:    ethconfig.Defaults.TdSyncInterval,
+		Value:    ethconfig.Defaults.TdSyncInterval.Duration(),
 		Category: flags.NetworkingCategory,
 	}
 
@@ -1490,7 +1490,7 @@ func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 		cfg.Journal = ctx.String(TxPoolJournalFlag.Name)
 	}
 	if ctx.IsSet(TxPoolRejournalFlag.Name) {
-		cfg.Rejournal = ctx.Duration(TxPoolRejournalFlag.Name)
+		cfg.Rejournal = common.Duration(ctx.Duration(TxPoolRejournalFlag.Name))
 	}
 	if ctx.IsSet(TxPoolPriceLimitFlag.Name) {
 		cfg.PriceLimit = ctx.Uint64(TxPoolPriceLimitFlag.Name)
@@ -1511,7 +1511,7 @@ func setTxPool(ctx *cli.Context, cfg *legacypool.Config) {
 		cfg.GlobalQueue = ctx.Uint64(TxPoolGlobalQueueFlag.Name)
 	}
 	if ctx.IsSet(TxPoolLifetimeFlag.Name) {
-		cfg.Lifetime = ctx.Duration(TxPoolLifetimeFlag.Name)
+		cfg.Lifetime = common.Duration(ctx.Duration(TxPoolLifetimeFlag.Name))
 	}
 }
 
@@ -1526,10 +1526,10 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 		cfg.GasPrice = flags.GlobalBig(ctx, MinerGasPriceFlag.Name)
 	}
 	if ctx.IsSet(MinerRecommitIntervalFlag.Name) {
-		cfg.Recommit = ctx.Duration(MinerRecommitIntervalFlag.Name)
+		cfg.Recommit = common.Duration(ctx.Duration(MinerRecommitIntervalFlag.Name))
 	}
 	if ctx.IsSet(MinerNewPayloadTimeout.Name) {
-		cfg.NewPayloadTimeout = ctx.Duration(MinerNewPayloadTimeout.Name)
+		cfg.NewPayloadTimeout = common.Duration(ctx.Duration(MinerNewPayloadTimeout.Name))
 	}
 }
 
@@ -1645,10 +1645,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.NetworkId = ctx.Uint64(NetworkIdFlag.Name)
 	}
 	if ctx.IsSet(ForceSyncCycleFlag.Name) {
-		cfg.ForceSyncCycle = ctx.Duration(ForceSyncCycleFlag.Name)
+		cfg.ForceSyncCycle = common.Duration(ctx.Duration(ForceSyncCycleFlag.Name))
 	}
 	if ctx.IsSet(TdSyncIntervalFlag.Name) {
-		cfg.TdSyncInterval = ctx.Duration(TdSyncIntervalFlag.Name)
+		cfg.TdSyncInterval = common.Duration(ctx.Duration(TdSyncIntervalFlag.Name))
 	}
 	if ctx.IsSet(CacheFlag.Name) || ctx.IsSet(CacheDatabaseFlag.Name) {
 		cfg.DatabaseCache = ctx.Int(CacheFlag.Name) * ctx.Int(CacheDatabaseFlag.Name) / 100
@@ -1739,7 +1739,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		log.Info("Global gas cap disabled")
 	}
 	if ctx.IsSet(RPCGlobalEVMTimeoutFlag.Name) {
-		cfg.RPCEVMTimeout = ctx.Duration(RPCGlobalEVMTimeoutFlag.Name)
+		cfg.RPCEVMTimeout = common.Duration(ctx.Duration(RPCGlobalEVMTimeoutFlag.Name))
 	}
 	if ctx.IsSet(RPCGlobalTxFeeCapFlag.Name) {
 		cfg.RPCTxFeeCap = ctx.Float64(RPCGlobalTxFeeCapFlag.Name)
@@ -2116,7 +2116,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 		TrieCleanNoPrefetch: ctx.Bool(CacheNoPrefetchFlag.Name),
 		TrieDirtyLimit:      ethconfig.Defaults.TrieDirtyCache,
 		TrieDirtyDisabled:   ctx.String(GCModeFlag.Name) == "archive",
-		TrieTimeLimit:       ethconfig.Defaults.TrieTimeout,
+		TrieTimeLimit:       ethconfig.Defaults.TrieTimeout.Duration(),
 		SnapshotLimit:       ethconfig.Defaults.SnapshotCache,
 		Preimages:           ctx.Bool(CachePreimagesFlag.Name),
 		StateScheme:         scheme,
