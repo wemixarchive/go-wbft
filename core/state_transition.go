@@ -323,7 +323,7 @@ func (st *StateTransition) buyGas() error {
 			return err
 		}
 
-		st.gasRemaining += st.msg.GasLimit
+		st.gasRemaining = st.msg.GasLimit
 
 		st.initialGas = st.msg.GasLimit
 		mgvalU256, _ := uint256.FromBig(mgval)
