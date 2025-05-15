@@ -544,7 +544,7 @@ func (st *StateTransition) refundGas(refundQuotient uint64) uint64 {
 
 	// Return ETH for remaining gas, exchanged at the original rate.
 	remaining := uint256.NewInt(st.gasRemaining)
-	remaining = remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
+	remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
 
 	// fee delegation
 	if st.msg.FeePayer != nil {
