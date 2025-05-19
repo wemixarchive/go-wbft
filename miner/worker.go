@@ -629,7 +629,7 @@ func (w *worker) newWorkLoopWBFT() {
 			}
 
 		case <-w.resubmitIntervalCh:
-			log.Warn("ResubmitAdjust is not used in WBFT")
+			log.Warn("resubmitInterval is not used in WBFT")
 
 		case <-w.resubmitAdjustCh:
 			log.Trace("ResubmitAdjust is not used in WBFT")
