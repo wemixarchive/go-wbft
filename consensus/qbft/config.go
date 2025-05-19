@@ -208,7 +208,6 @@ func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params
 }
 
 func getMontBlancTransition(config *params.ChainConfig) params.StateTransition {
-
 	codes, states := govwbft.BuildGovTransitionParams(config)
 
 	if config.MontBlanc != nil && len(config.MontBlanc.NCPs) > 0 {

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"math/big"
 	"strings"
 
@@ -39,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/holiman/uint256"
 )
 
@@ -713,14 +713,10 @@ func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
 			acct.Storage = make(map[common.Hash]common.Hash)
 		}
 		genesis.Alloc[cp.Address] = acct
-
 	}
 
 	for _, sp := range states {
 		acct := genesis.Alloc[sp.Address]
-		//if acct.Storage == nil {
-		//	acct.Storage = make(map[common.Hash]common.Hash)
-		//}
 		acct.Storage[sp.Key] = sp.Value
 		genesis.Alloc[sp.Address] = acct
 	}

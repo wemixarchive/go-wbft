@@ -1,10 +1,10 @@
 package govwbft
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -98,7 +98,6 @@ func BuildGovTransitionParams(config *params.ChainConfig) (
 	codes []params.CodeParam,
 	states []params.StateParam,
 ) {
-
 	codes = []params.CodeParam{
 		{Address: GovConfigAddress, Code: GovConfigContract},
 		{Address: GovStakingAddress, Code: GovStakingContract},
