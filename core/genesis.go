@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"math/big"
 	"strings"
 
@@ -38,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
-	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/holiman/uint256"
 )
 
@@ -698,33 +698,33 @@ func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
 	if config == nil || config.QBFT == nil || config.QBFT.GovParams == nil {
 		return errors.New("Some or all of the QBFT parameters are missing from the genesis configuration.")
 	}
-	qbftContract := []common.Address{
-		common.HexToAddress(params.GOV_CONFIG_ADDRESS),
-		common.HexToAddress(params.GOV_STAKING_ADDRESS),
-		common.HexToAddress(params.GOV_REWARDEE_IMP_ADDRESS),
+
+	codes, states := govwbft.BuildGovTransitionParams(config)
+
+	if genesis.Alloc == nil {
+		genesis.Alloc = make(map[common.Address]types.Account)
 	}
-	for _, addr := range qbftContract {
-		switch addr {
-		case common.HexToAddress(params.GOV_CONFIG_ADDRESS):
-			if genesis.Alloc == nil {
-				genesis.Alloc = map[common.Address]types.Account{}
-			}
-			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract), Balance: common.Big0, Storage: make(map[common.Hash]common.Hash)}
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(0))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(1))] = common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(2))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(3))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(4))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(5))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))
-			genesis.Alloc[addr].Storage[common.BigToHash(big.NewInt(6))] = common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))
 
-		case common.HexToAddress(params.GOV_STAKING_ADDRESS):
-			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract), Balance: common.Big0}
-
-		case common.HexToAddress(params.GOV_REWARDEE_IMP_ADDRESS):
-			genesis.Alloc[addr] = types.Account{Code: hexutil.MustDecode(govwbft.GovRewardeeImpContract), Balance: common.Big0}
+	for _, cp := range codes {
+		acct := genesis.Alloc[cp.Address]
+		acct.Balance = common.Big0
+		acct.Code = hexutil.MustDecode(cp.Code)
+		if acct.Storage == nil {
+			acct.Storage = make(map[common.Hash]common.Hash)
 		}
+		genesis.Alloc[cp.Address] = acct
+
 	}
+
+	for _, sp := range states {
+		acct := genesis.Alloc[sp.Address]
+		//if acct.Storage == nil {
+		//	acct.Storage = make(map[common.Hash]common.Hash)
+		//}
+		acct.Storage[sp.Key] = sp.Value
+		genesis.Alloc[sp.Address] = acct
+	}
+
 	return nil
 }
 

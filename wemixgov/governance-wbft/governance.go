@@ -1,6 +1,7 @@
 package govwbft
 
 import (
+	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -91,4 +92,55 @@ func NCPStakerInfoMap(state StateReader) map[common.Address]Staker {
 		stakerInfos[v] = StakerInfo(state, v)
 	}
 	return stakerInfos
+}
+
+func BuildGovTransitionParams(config *params.ChainConfig) (
+	codes []params.CodeParam,
+	states []params.StateParam,
+) {
+
+	codes = []params.CodeParam{
+		{Address: GovConfigAddress, Code: GovConfigContract},
+		{Address: GovStakingAddress, Code: GovStakingContract},
+		{Address: GovRewardeeImpAddress, Code: GovRewardeeImpContract},
+	}
+
+	gp := config.QBFT.GovParams
+	if gp.MinimumStaking == nil {
+		x, ok := new(big.Int).SetString("69e10de76676d0800000", 16)
+		if !ok {
+			panic("invalid hexadecimal literal")
+		}
+		gp.MinimumStaking = (*math.HexOrDecimal256)(x)
+	}
+	if gp.MaximumStaking == nil {
+		gp.MaximumStaking = (*math.HexOrDecimal256)(new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1)))
+	}
+	if gp.UnbondingStaker == 0 {
+		gp.UnbondingStaker = 604800 // 7 days
+	}
+	if gp.UnbondingDelegator == 0 {
+		gp.UnbondingDelegator = 259200 // 3 days
+	}
+	if gp.FeePrecision == 0 {
+		gp.FeePrecision = 10000 // 0.01%
+	}
+	if gp.ChangeFeeDelay == 0 {
+		gp.ChangeFeeDelay = 604800 // 7 days
+	}
+	if gp.MinStakers == 0 {
+		gp.MinStakers = 1
+	}
+
+	states = []params.StateParam{
+		{Address: GovConfigAddress, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(gp.MinimumStaking))},
+		{Address: GovConfigAddress, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(gp.MaximumStaking))},
+		{Address: GovConfigAddress, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(gp.UnbondingStaker))},
+		{Address: GovConfigAddress, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(gp.UnbondingDelegator))},
+		{Address: GovConfigAddress, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(gp.FeePrecision))},
+		{Address: GovConfigAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash(new(big.Int).SetUint64(gp.ChangeFeeDelay))},
+		{Address: GovConfigAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(gp.MinStakers))},
+	}
+
+	return
 }

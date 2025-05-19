@@ -51,6 +51,7 @@ func TestCheckMainnetEnvStorageValues(t *testing.T) {
 	require.NoError(t, err)
 
 	block, err := client.BlockByNumber(ctx, common.Big0)
+
 	require.NoError(t, err)
 
 	callOpts := &bind.CallOpts{Context: ctx}
