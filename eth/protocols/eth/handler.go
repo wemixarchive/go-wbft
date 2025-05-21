@@ -108,21 +108,11 @@ func MakeProtocols(backend Backend, network uint64, dnsdisc enode.Iterator) []p2
 				})
 			},
 			NodeInfo: func() interface{} {
-				original := backend.Chain().Config()
-				copied := *original
-				if original.QBFT != nil {
-					qbftCopy := *original.QBFT
-					copied.QBFT = &qbftCopy
-				}
-				if original.MontBlanc != nil {
-					mbCopy := *original.MontBlanc
-					copied.MontBlanc = &mbCopy
-				}
-
+				// Create a copy of the node info to avoid data sharing
+				eth_nodeInfo := nodeInfo(backend.Chain(), network)
+				copied := *eth_nodeInfo.Config
 				copied.QBFT = nil
 				copied.MontBlanc = nil
-
-				eth_nodeInfo := nodeInfo(backend.Chain(), network)
 				eth_nodeInfo.Config = &copied
 
 				return eth_nodeInfo
