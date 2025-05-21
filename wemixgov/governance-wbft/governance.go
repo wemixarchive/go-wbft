@@ -1,20 +1,36 @@
 package govwbft
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
+	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 )
 
-var (
-	GovConfigAddress      = common.HexToAddress(params.GOV_CONFIG_ADDRESS)
-	GovStakingAddress     = common.HexToAddress(params.GOV_STAKING_ADDRESS)
-	GovNCPAddress         = common.HexToAddress(params.GOV_NCP_ADDRESS)
-	GovRewardeeImpAddress = common.HexToAddress(params.GOV_REWARDEE_IMP_ADDRESS)
-)
+func init() {
+	// to avoid import cycle
+	params.CheckGovContractVersions = checkGovContractVersions
+}
 
-func InitializeNCP(ncps []common.Address) []params.StateParam {
+func checkGovContractVersions(govContracts *params.GovContracts) error {
+	if GovContractCodes[gov.CONTRACT_GOV_CONFIG][govContracts.GovConfig.Version] == "" {
+		return fmt.Errorf("`montblanc.init.govContracts.govConfig`: unsupported version %s", govContracts.GovConfig.Version)
+	}
+	if GovContractCodes[gov.CONTRACT_GOV_STAKING][govContracts.GovStaking.Version] == "" {
+		return fmt.Errorf("`montblanc.init.govContracts.govStaking`: unsupported version %s", govContracts.GovStaking.Version)
+	}
+	if GovContractCodes[gov.CONTRACT_GOV_REWARDEE_IMP][govContracts.GovRewardeeImp.Version] == "" {
+		return fmt.Errorf("`montblanc.init.govContracts.govRewardeeImp`: unsupported version %s", govContracts.GovRewardeeImp.Version)
+	}
+	if govContracts.GovNCP != nil && GovContractCodes[gov.CONTRACT_GOV_NCP][govContracts.GovNCP.Version] == "" {
+		return fmt.Errorf("`montblanc.init.govContracts.govNCP`: unsupported version %s", govContracts.GovNCP.Version)
+	}
+	return nil
+}
+
+func InitializeNCP(govNCPAddress common.Address, ncps []common.Address) []params.StateParam {
 	param := make([]params.StateParam, 0)
 
 	valueSlot := common.HexToHash(SLOT_NCP_LIST)
@@ -32,13 +48,13 @@ func InitializeNCP(ncps []common.Address) []params.StateParam {
 		param = append(param,
 			// set index slot
 			params.StateParam{
-				Address: GovNCPAddress,
+				Address: govNCPAddress,
 				Key:     CalculateMappingSlot(indexSlot, ncp),
 				Value:   common.BigToHash(newLength),
 			},
 			// set value slot
 			params.StateParam{
-				Address: GovNCPAddress,
+				Address: govNCPAddress,
 				Key:     CalculateDynamicSlot(valueSlot, new(big.Int).SetUint64(currentIdx)),
 				Value:   common.BytesToHash(ncp.Bytes()),
 			},
@@ -48,7 +64,7 @@ func InitializeNCP(ncps []common.Address) []params.StateParam {
 	}
 	if newLength.Sign() > 0 {
 		param = append(param, params.StateParam{
-			Address: GovNCPAddress,
+			Address: govNCPAddress,
 			Key:     valueSlot,
 			Value:   common.BigToHash(newLength),
 		})
@@ -56,18 +72,11 @@ func InitializeNCP(ncps []common.Address) []params.StateParam {
 	return param
 }
 
-func IsNCPStaker(state StateReader, staker common.Address) bool {
-	if !IsStaker(state, staker) {
-		return false
-	}
-	return IsNCP(state, getOperator(state, stakerInfoSlot(staker)))
-}
-
-func NCPStakers(state StateReader) []common.Address {
+func NCPStakers(govStakingAddress, govNCPAddress common.Address, state StateReader) []common.Address {
 	stakers := make([]common.Address, 0)
-	ncps := NCPList(state)
+	ncps := NCPList(govNCPAddress, state)
 	for _, ncp := range ncps {
-		v := StakerByOperator(state, ncp)
+		v := StakerByOperator(govStakingAddress, state, ncp)
 		if v != (common.Address{}) {
 			stakers = append(stakers, v)
 		}
@@ -75,20 +84,20 @@ func NCPStakers(state StateReader) []common.Address {
 	return stakers
 }
 
-func NCPTotalStaking(state StateReader) *big.Int {
+func NCPTotalStaking(govStakingAddress, govNCPAddress common.Address, state StateReader) *big.Int {
 	totalStaking := new(big.Int)
-	stakers := NCPStakers(state)
+	stakers := NCPStakers(govStakingAddress, govNCPAddress, state)
 	for _, v := range stakers {
-		totalStaking.Add(totalStaking, GetTotalStaked(state, v))
+		totalStaking.Add(totalStaking, GetTotalStaked(govStakingAddress, state, v))
 	}
 	return totalStaking
 }
 
-func NCPStakerInfoMap(state StateReader) map[common.Address]Staker {
+func NCPStakerInfoMap(govStakingAddress, govNCPAddress common.Address, state StateReader) map[common.Address]Staker {
 	stakerInfos := make(map[common.Address]Staker)
-	stakers := NCPStakers(state)
+	stakers := NCPStakers(govStakingAddress, govNCPAddress, state)
 	for _, v := range stakers {
-		stakerInfos[v] = StakerInfo(state, v)
+		stakerInfos[v] = StakerInfo(govStakingAddress, state, v)
 	}
 	return stakerInfos
 }

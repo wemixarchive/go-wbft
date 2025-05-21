@@ -48,6 +48,12 @@ contract GovNCP {
     mapping(uint256 => Proposal) private __proposals;
     mapping(address => bool) private __lockedNCPs;
 
+    //***********************************************************************
+    //* Caution for Upgrading
+    //* - If you add new state variables, please add them after this comment
+    //* - Never modify existing state variables
+    //***********************************************************************
+
     event NewProposal(uint256 indexed id, uint256 proposalType, address ncp, address proposer, uint256 time, uint256 endtime);
     event Vote(uint256 indexed proposalID, address voter, bool accept);
     event ProposalFinalized(uint256 indexed proposalID, bool accepted);

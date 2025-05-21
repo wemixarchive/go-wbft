@@ -4,9 +4,9 @@ pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "./GovConfig.sol";
-import {GovRewardeeImp} from "./GovRewardeeImp.sol";
-import {GovRewardee} from "./GovRewardee.sol";
+import "../v1/GovConfig.sol";
+import {GovRewardeeImp} from "../v1/GovRewardeeImp.sol";
+import {GovRewardee} from "../v1/GovRewardee.sol";
 
 contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -121,6 +121,8 @@ contract GovStaking {
     uint256 public danglingDelegated; // 0xa
     bool public afterStabilization; // 0xb
 
+    uint256 public thisIsSampleUpgradeField; // 0xc
+
     // state definition
     // - UNREGISTERED: stakerInfo[staker].operator = 0
     // - REGISTERED: stakerInfo[staker].operator != 0
@@ -138,6 +140,11 @@ contract GovStaking {
     // - undelegate: REGISTERED
     // - claim: REGISTERED
     // - withdraw: REGISTERED
+
+    // This is a sample function for upgrading
+    function getVersion() external pure returns (string memory) {
+        return "v2";
+    }
 
     modifier isNotRegistered(address _staker) {
         require(stakerInfo[_staker].operator == address(0), "already registered staker");

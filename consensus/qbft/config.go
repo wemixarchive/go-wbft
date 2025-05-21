@@ -21,7 +21,10 @@
 package qbft
 
 import (
+	"errors"
+	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -107,11 +110,9 @@ type Config struct {
 	AllowedFutureBlockTime   uint64                  `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	BlockReward              *math.HexOrDecimal256   `toml:",omitempty"` // Reward
 	BlockRewardBeneficiary   *params.BeneficiaryInfo `toml:",omitempty"`
-	Validators               []common.Address        `toml:",omitempty"`
-	BLSPublicKeys            [][]byte                `toml:",omitempty"`
 	TargetValidators         uint64                  `toml:",omitempty"`
 	MaxRequestTimeoutSeconds uint64                  `toml:",omitempty"`
-	GovParams                *params.GovParams       `toml:",omitempty"`
+	UseNCP                   bool                    `toml:",omitempty"` // Use NCP or not
 	Transitions              []params.Transition
 }
 
@@ -123,15 +124,6 @@ var DefaultConfig = &Config{
 	ProposerPolicy:         NewRoundRobinProposerPolicy(),
 	Epoch:                  10,
 	AllowedFutureBlockTime: 0,
-	GovParams: &params.GovParams{
-		MinimumStaking:     (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(500_000))),
-		MaximumStaking:     (*math.HexOrDecimal256)(value),
-		UnbondingStaker:    604800, // 7 days
-		UnbondingDelegator: 259200, // 3 days
-		FeePrecision:       10000,  // 0.01%
-		ChangeFeeDelay:     604800, // 7 days
-		MinStakers:         1,
-	},
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {
@@ -160,9 +152,7 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 		if transition.MaxRequestTimeoutSeconds != nil {
 			newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds
 		}
-		if transition.GovParams != nil {
-			newConfig.GovParams = transition.GovParams
-		}
+		newConfig.UseNCP = transition.UseNCP
 	})
 
 	return newConfig
@@ -178,56 +168,73 @@ func (c *Config) getTransitionValue(num *big.Int, callback func(transition param
 
 // String implements the stringer interface, returning the consensus engine details.
 func (c *Config) String() string {
-	return "qbft"
+	return "wbft"
 }
 
-func GetFirstWbftBlockNumber(config *params.ChainConfig) *big.Int {
-	if config.MontBlancBlock == nil {
-		// wbft engine started from genesis
-		return common.Big0
-	} else {
-		// wbft engine started with montblanc hardfork
-		return config.MontBlancBlock
+func GetMontBlancTransition(chainConfig *params.ChainConfig, num *big.Int) (*params.StateTransition, error) {
+	if chainConfig == nil || chainConfig.MontBlancBlock == nil || num == nil {
+		return nil, errors.New("nil montBlanc config or nil block number")
 	}
-}
 
-func GetStateTransitions(chainConfig *params.ChainConfig, num *big.Int) []params.StateTransition {
-	if chainConfig != nil && num != nil {
-		transitions := make([]params.StateTransition, 0)
-
-		if chainConfig.MontBlancBlock != nil && chainConfig.MontBlancBlock.Cmp(num) == 0 {
-			transitions = append(transitions, getMontBlancTransition(chainConfig))
-		}
-
-		if st := chainConfig.GetStateTransitions(num); len(st) > 0 {
-			transitions = append(transitions, st...)
-		}
-		return transitions
+	if num.Cmp(chainConfig.MontBlancBlock) == 0 {
+		return getMontBlancTransition(chainConfig.MontBlanc.Init.GovContracts)
 	}
-	return nil
+
+	for _, upgrade := range chainConfig.MontBlanc.Upgrades {
+		if num.Cmp(upgrade.Block) == 0 {
+			return getMontBlancTransition(upgrade.GovContracts)
+		} else if num.Cmp(upgrade.Block) < 0 {
+			break
+		}
+	}
+	return nil, nil
 }
 
-func getMontBlancTransition(config *params.ChainConfig) params.StateTransition {
-	st := params.StateTransition{
+func getMontBlancTransition(govContracts *params.GovContracts) (*params.StateTransition, error) {
+	minStaking, _ := new(big.Int).SetString(govContracts.GovConfig.Params["minimumStaking"], 10)
+	maxStaking, _ := new(big.Int).SetString(govContracts.GovConfig.Params["maximumStaking"], 10)
+	unbondingStaker, _ := new(big.Int).SetString(govContracts.GovConfig.Params["unbondingStaker"], 10)
+	unbondingDelegator, _ := new(big.Int).SetString(govContracts.GovConfig.Params["unbondingDelegator"], 10)
+	feePrecision, _ := new(big.Int).SetString(govContracts.GovConfig.Params["feePrecision"], 10)
+	changeFeeDelay, _ := new(big.Int).SetString(govContracts.GovConfig.Params["changeFeeDelay"], 10)
+	stabilizingStakerThreshold, _ := new(big.Int).SetString(govContracts.GovConfig.Params["stabilizingStakerThreshold"], 10)
+	if minStaking == nil || maxStaking == nil || unbondingStaker == nil || unbondingDelegator == nil ||
+		feePrecision == nil || changeFeeDelay == nil || stabilizingStakerThreshold == nil {
+		return nil, errors.New("invalid gov config params")
+	}
+
+	st := &params.StateTransition{
 		Codes: []params.CodeParam{
-			{Address: govwbft.GovConfigAddress, Code: govwbft.GovConfigContract},
-			{Address: govwbft.GovStakingAddress, Code: govwbft.GovStakingContract},
-			{Address: govwbft.GovRewardeeImpAddress, Code: govwbft.GovRewardeeImpContract},
+			{Address: govContracts.GovConfig.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][govContracts.GovConfig.Version]},
+			{Address: govContracts.GovStaking.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_STAKING][govContracts.GovStaking.Version]},
+			{Address: govContracts.GovRewardeeImp.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_REWARDEE_IMP][govContracts.GovRewardeeImp.Version]},
 		},
 		States: []params.StateParam{
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MinimumStaking))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash((*big.Int)(config.QBFT.GovParams.MaximumStaking))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingStaker))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.UnbondingDelegator))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.FeePrecision))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.ChangeFeeDelay))},
-			{Address: govwbft.GovConfigAddress, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(new(big.Int).SetUint64(config.QBFT.GovParams.MinStakers))},
+			// assign GovConfig params
+			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash(minStaking)},
+			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash(maxStaking)},
+			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(unbondingStaker)},
+			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(3)), Value: common.BigToHash(unbondingDelegator)},
+			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(feePrecision)},
+			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash(changeFeeDelay)},
+			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(stabilizingStakerThreshold)},
+
+			// assign GovStaking param; govConfig
+			{Address: govContracts.GovStaking.Address, Key: common.BigToHash(big.NewInt(0)), Value: common.BytesToHash(govContracts.GovConfig.Address.Bytes())},
+
+			// assign GovRewardeeImp param; govStaking
+			{Address: govContracts.GovRewardeeImp.Address, Key: common.BigToHash(big.NewInt(0)), Value: common.BytesToHash(govContracts.GovStaking.Address.Bytes())},
 		},
 	}
 
-	if config.MontBlanc != nil && len(config.MontBlanc.NCPs) > 0 {
-		st.Codes = append(st.Codes, params.CodeParam{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract})
-		st.States = append(st.States, govwbft.InitializeNCP(config.MontBlanc.NCPs)...)
+	if govContracts.GovNCP != nil {
+		st.Codes = append(st.Codes, params.CodeParam{Address: govContracts.GovNCP.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_NCP][govContracts.GovNCP.Version]})
+		ncpAddresses := strings.Split(govContracts.GovNCP.Params["ncps"], ",")
+		ncps := make([]common.Address, 0)
+		for _, ncp := range ncpAddresses {
+			ncps = append(ncps, common.HexToAddress(ncp))
+		}
+		st.States = append(st.States, govwbft.InitializeNCP(govContracts.GovNCP.Address, ncps)...)
 	}
-	return st
+	return st, nil
 }

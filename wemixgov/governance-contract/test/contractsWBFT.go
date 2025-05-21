@@ -16,9 +16,17 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	TestGovConfigAddress      = common.HexToAddress("0x1000")
+	TestGovStakingAddress     = common.HexToAddress("0x1001")
+	TestGovNCPAddress         = common.HexToAddress("0x1002")
+	TestGovRewardeeImpAddress = common.HexToAddress("0x1003")
 )
 
 var (
@@ -26,7 +34,7 @@ var (
 )
 
 func init() {
-	compiledWBFT.Compile("../contracts-wbft", "../contracts")
+	compiledWBFT.Compile("../contracts-wbft/v1", "../contracts")
 }
 
 type compiledContractWBFT struct {
@@ -68,6 +76,17 @@ type GovWBFT struct {
 
 var defaultBlockPeriod time.Duration
 
+func toNCPsString(ncpList []common.Address) string {
+	ncpStr := ""
+	for _, ncp := range ncpList {
+		if ncpStr != "" {
+			ncpStr += ","
+		}
+		ncpStr += ncp.Hex()
+	}
+	return ncpStr
+}
+
 func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc) (*GovWBFT, error) {
 	owner := getTxOpt(t, "owner")
 
@@ -75,26 +94,31 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		alloc = make(types.GenesisAlloc)
 	}
 	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
-	alloc[govwbft.GovConfigAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovConfigContract)}
-	alloc[govwbft.GovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovStakingContract)}
-	alloc[govwbft.GovRewardeeImpAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovRewardeeImpContract)}
+	alloc[TestGovConfigAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][gov.GOV_CONTRACT_VERSION_1])}
+	alloc[TestGovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovContractCodes[gov.CONTRACT_GOV_STAKING][gov.GOV_CONTRACT_VERSION_1])}
+	alloc[TestGovRewardeeImpAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovContractCodes[gov.CONTRACT_GOV_REWARDEE_IMP][gov.GOV_CONTRACT_VERSION_1])}
 
 	g := &GovWBFT{
 		owner: owner,
 		backend: simulated.NewWbftBackend(alloc, func(nodeConf *node.Config, ethConf *ethconfig.Config) {
-			defaultBlockPeriod = time.Duration(ethConf.Genesis.Config.QBFT.BlockPeriodSeconds) * time.Second
+			defaultBlockPeriod = time.Duration(ethConf.Genesis.Config.MontBlanc.WBFT.BlockPeriodSeconds) * time.Second
 		}),
 	}
 	if len(ncpList) > 0 {
-		g.backend.CommitWithState(params.StateTransition{
-			Codes:  []params.CodeParam{{Address: govwbft.GovNCPAddress, Code: govwbft.GovNCPContract}},
-			States: govwbft.InitializeNCP(ncpList),
-		})
+		g.backend.CommitWithState(&params.GovContracts{
+			GovNCP: &params.GovContract{
+				Address: TestGovNCPAddress,
+				Version: gov.GOV_CONTRACT_VERSION_1,
+				Params: map[string]string{
+					"ncps": toNCPsString(ncpList),
+				},
+			},
+		}, common.Big0)
 	}
 
-	g.govConst = compiledWBFT.GovConst.New(g.backend.Client(), govwbft.GovConfigAddress)
-	g.stakingContract = compiledWBFT.GovStaking.New(g.backend.Client(), govwbft.GovStakingAddress)
-	g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), govwbft.GovNCPAddress)
+	g.govConst = compiledWBFT.GovConst.New(g.backend.Client(), TestGovConfigAddress)
+	g.stakingContract = compiledWBFT.GovStaking.New(g.backend.Client(), TestGovStakingAddress)
+	g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), TestGovNCPAddress)
 	return g, nil
 }
 

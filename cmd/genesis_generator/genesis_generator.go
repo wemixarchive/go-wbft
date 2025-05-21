@@ -154,7 +154,7 @@ func (g *genesisGenerator) wbftChainConfig() {
 		}
 	}
 
-	g.Genesis.Config.QBFT = params.DefaultQBFTConfig
+	g.Genesis.Config.MontBlanc = params.DefaultMontBlancConfig
 
 	for i, val := range validators {
 		g.Genesis.Config.QBFT.Validators = append(g.Genesis.Config.QBFT.Validators, val)

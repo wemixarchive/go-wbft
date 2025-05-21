@@ -271,6 +271,12 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 	// Open trie database with provided config
 	triedb := triedb.NewDatabase(db, cacheConfig.triedbConfig())
 
+	if genesis.Config.MontBlanc != nil {
+		if err := genesis.Config.MontBlanc.CheckValidity(); err != nil {
+			return nil, fmt.Errorf("Invalid genesis config: %v", err)
+		}
+	}
+
 	// Setup the genesis block, commit the provided genesis specification
 	// to database if the genesis block is not present yet, or load the
 	// stored one from database.

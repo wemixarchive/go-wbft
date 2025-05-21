@@ -32,6 +32,9 @@ const (
 )
 
 const (
+	GOV_CONTRACT_VERSION_1 = "v1"
+	GOV_CONTRACT_VERSION_2 = "v2"
+
 	CONTRACT_GOV_STAKING      = "GovStaking"
 	CONTRACT_GOV_NCP          = "GovNCP"
 	CONTRACT_GOV_CONFIG       = "GovConfig"

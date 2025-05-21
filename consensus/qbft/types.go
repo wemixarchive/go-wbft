@@ -25,6 +25,9 @@ package qbft
 import (
 	"bytes"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 
 	"io"
 	"math/big"
@@ -269,4 +272,47 @@ type FinalCommittedEvent struct {
 type SealData struct {
 	Sealer uint32
 	Seal   []byte
+}
+
+func CreateInitialExtraData(config *params.MontBlancConfig) ([]byte, error) {
+	epochInfo, err := CreateInitialEpochInfo(config)
+	if err != nil {
+		return nil, err
+	}
+
+	extraData := &types.QBFTExtra{
+		EpochInfo: epochInfo,
+	}
+
+	extraDataBytes, err := rlp.EncodeToBytes(extraData)
+	if err != nil {
+		return nil, err
+	}
+
+	return extraDataBytes, nil
+}
+
+func CreateInitialEpochInfo(config *params.MontBlancConfig) (*types.EpochInfo, error) {
+	var (
+		stakers       []common.Address
+		blsPublicKeys []string
+		epochInfo     = new(types.EpochInfo)
+	)
+	stakers = append(stakers, config.Init.Validators...)
+	blsPublicKeys = append(blsPublicKeys, config.Init.BLSPublicKeys...)
+	for i, addr := range stakers {
+		epochInfo.Stakers = append(epochInfo.Stakers, &types.Staker{
+			Addr:      addr,
+			Diligence: types.DefaultDiligence,
+		})
+		epochInfo.Validators = append(epochInfo.Validators, uint32(i))
+		epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, hexutil.MustDecode(blsPublicKeys[i]))
+	}
+
+	log.Trace("initial epoch info", "validators", epochInfo.Validators)
+	for i, staker := range epochInfo.Stakers {
+		log.Trace(fmt.Sprintf("  - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
+	}
+
+	return epochInfo, nil
 }
