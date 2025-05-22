@@ -191,26 +191,24 @@ func GetMontBlancTransition(chainConfig *params.ChainConfig, num *big.Int) (*par
 }
 
 func getMontBlancTransition(govContracts *params.GovContracts) (*params.StateTransition, error) {
-	minStaking, _ := new(big.Int).SetString(govContracts.GovConfig.Params["minimumStaking"], 10)
-	maxStaking, _ := new(big.Int).SetString(govContracts.GovConfig.Params["maximumStaking"], 10)
-	unbondingStaker, _ := new(big.Int).SetString(govContracts.GovConfig.Params["unbondingStaker"], 10)
-	unbondingDelegator, _ := new(big.Int).SetString(govContracts.GovConfig.Params["unbondingDelegator"], 10)
-	feePrecision, _ := new(big.Int).SetString(govContracts.GovConfig.Params["feePrecision"], 10)
-	changeFeeDelay, _ := new(big.Int).SetString(govContracts.GovConfig.Params["changeFeeDelay"], 10)
-	stabilizingStakerThreshold, _ := new(big.Int).SetString(govContracts.GovConfig.Params["stabilizingStakerThreshold"], 10)
-	if minStaking == nil || maxStaking == nil || unbondingStaker == nil || unbondingDelegator == nil ||
-		feePrecision == nil || changeFeeDelay == nil || stabilizingStakerThreshold == nil {
-		return nil, errors.New("invalid gov config params")
-	}
+	st := &params.StateTransition{}
 
-	st := &params.StateTransition{
-		Codes: []params.CodeParam{
-			{Address: govContracts.GovConfig.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][govContracts.GovConfig.Version]},
-			{Address: govContracts.GovStaking.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_STAKING][govContracts.GovStaking.Version]},
-			{Address: govContracts.GovRewardeeImp.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_REWARDEE_IMP][govContracts.GovRewardeeImp.Version]},
-		},
-		States: []params.StateParam{
-			// assign GovConfig params
+	if govContracts.GovConfig != nil {
+		minStaking, _ := new(big.Int).SetString(govContracts.GovConfig.Params[gov.GOV_CONFIG_PARAM_MINIMUM_STAKING], 10)
+		maxStaking, _ := new(big.Int).SetString(govContracts.GovConfig.Params[gov.GOV_CONFIG_PARAM_MAXIMUM_STAKING], 10)
+		unbondingStaker, _ := new(big.Int).SetString(govContracts.GovConfig.Params[gov.GOV_CONFIG_PARAM_UNBONDING_STAKER], 10)
+		unbondingDelegator, _ := new(big.Int).SetString(govContracts.GovConfig.Params[gov.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR], 10)
+		feePrecision, _ := new(big.Int).SetString(govContracts.GovConfig.Params[gov.GOV_CONFIG_PARAM_FEE_PRECISION], 10)
+		changeFeeDelay, _ := new(big.Int).SetString(govContracts.GovConfig.Params[gov.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY], 10)
+		stabilizingStakerThreshold, _ := new(big.Int).SetString(govContracts.GovConfig.Params[gov.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD], 10)
+		if minStaking == nil || maxStaking == nil || unbondingStaker == nil || unbondingDelegator == nil ||
+			feePrecision == nil || changeFeeDelay == nil || stabilizingStakerThreshold == nil {
+			return nil, errors.New("invalid gov config params")
+		}
+
+		st.Codes = append(st.Codes, params.CodeParam{
+			Address: govContracts.GovConfig.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][govContracts.GovConfig.Version]})
+		st.States = append(st.States, []params.StateParam{
 			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(0)), Value: common.BigToHash(minStaking)},
 			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(1)), Value: common.BigToHash(maxStaking)},
 			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(2)), Value: common.BigToHash(unbondingStaker)},
@@ -218,18 +216,32 @@ func getMontBlancTransition(govContracts *params.GovContracts) (*params.StateTra
 			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(4)), Value: common.BigToHash(feePrecision)},
 			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(5)), Value: common.BigToHash(changeFeeDelay)},
 			{Address: govContracts.GovConfig.Address, Key: common.BigToHash(big.NewInt(6)), Value: common.BigToHash(stabilizingStakerThreshold)},
+		}...)
+	}
 
-			// assign GovStaking param; govConfig
-			{Address: govContracts.GovStaking.Address, Key: common.BigToHash(big.NewInt(0)), Value: common.BytesToHash(govContracts.GovConfig.Address.Bytes())},
+	if govContracts.GovStaking != nil {
+		st.Codes = append(st.Codes, params.CodeParam{
+			Address: govContracts.GovStaking.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_STAKING][govContracts.GovStaking.Version]})
 
-			// assign GovRewardeeImp param; govStaking
-			{Address: govContracts.GovRewardeeImp.Address, Key: common.BigToHash(big.NewInt(0)), Value: common.BytesToHash(govContracts.GovStaking.Address.Bytes())},
-		},
+		// initialize govConfig, govRewardeeImp addresses of GovStaking contract
+		if govContracts.GovConfig != nil {
+			st.States = append(st.States, params.StateParam{
+				Address: govContracts.GovStaking.Address, Key: common.HexToHash(govwbft.SLOT_GOV_CONFIG_ADDRESS), Value: common.BytesToHash(govContracts.GovConfig.Address.Bytes())})
+		}
+		if govContracts.GovRewardeeImp != nil {
+			st.States = append(st.States, params.StateParam{
+				Address: govContracts.GovStaking.Address, Key: common.HexToHash(govwbft.SLOT_GOV_REWARDEE_IMP_ADDRESS), Value: common.BytesToHash(govContracts.GovRewardeeImp.Address.Bytes())})
+		}
+	}
+
+	if govContracts.GovRewardeeImp != nil {
+		st.Codes = append(st.Codes, params.CodeParam{
+			Address: govContracts.GovRewardeeImp.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_REWARDEE_IMP][govContracts.GovRewardeeImp.Version]})
 	}
 
 	if govContracts.GovNCP != nil {
 		st.Codes = append(st.Codes, params.CodeParam{Address: govContracts.GovNCP.Address, Code: govwbft.GovContractCodes[gov.CONTRACT_GOV_NCP][govContracts.GovNCP.Version]})
-		ncpAddresses := strings.Split(govContracts.GovNCP.Params["ncps"], ",")
+		ncpAddresses := strings.Split(govContracts.GovNCP.Params[gov.GOV_NCP_PARAM_NCPS], ",")
 		ncps := make([]common.Address, 0)
 		for _, ncp := range ncpAddresses {
 			ncps = append(ncps, common.HexToAddress(ncp))

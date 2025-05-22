@@ -23,6 +23,11 @@ contract GovRewardeeImp {
         _;
     }
 
+    function initialize(address _govStaking) external {
+        require(govStaking == address(0), "GovRewardee: already initialized");
+        govStaking = _govStaking;
+    }
+
     function sendRewardTo(address payable recipient, uint256 amount) external onlyGovStaking {
         require(recipient != address(0), "GovRewardee: recipient is the zero address");
         require(amount > 0, "GovRewardee: amount is zero");

@@ -42,4 +42,14 @@ const (
 	CONTRACT_GOV_REWARDEE     = "GovRewardee"
 	CONTRACT_MULTISIG_WALLET  = "MultiSigWallet"
 	CONTRACT_OPERATOR_SAMPLE  = "OperatorSample"
+
+	GOV_CONFIG_PARAM_MINIMUM_STAKING              = "minimumStaking"
+	GOV_CONFIG_PARAM_MAXIMUM_STAKING              = "maximumStaking"
+	GOV_CONFIG_PARAM_UNBONDING_STAKER             = "unbondingPeriodStaker"
+	GOV_CONFIG_PARAM_UNBONDING_DELEGATOR          = "unbondingPeriodDelegator"
+	GOV_CONFIG_PARAM_FEE_PRECISION                = "feePrecision"
+	GOV_CONFIG_PARAM_CHANGE_FEE_DELAY             = "changeFeeDelay"
+	GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD = "stabilizingStakerThreshold"
+
+	GOV_NCP_PARAM_NCPS = "ncps"
 )

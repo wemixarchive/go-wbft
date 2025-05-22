@@ -296,8 +296,8 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 				Params: map[string]string{
 					"minimumStaking":             "10000000000000000000000000",
 					"maximumStaking":             "100000000000000000000000000",
-					"unbondingStaker":            "604800", // 7 days
-					"unbondingDelegator":         "259200", // 3 days
+					"unbondingPeriodStaker":      "604800", // 7 days
+					"unbondingPeriodDelegator":   "259200", // 3 days
 					"feePrecision":               "10000",  // 0.01%
 					"changeFeeDelay":             "604800", // 7 days
 					"stabilizingStakerThreshold": "1",

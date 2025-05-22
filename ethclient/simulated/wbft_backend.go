@@ -108,6 +108,9 @@ func genExtraData(validator common.Address, blsPubKey []byte) []byte {
 // newWithNode sets up a simulated backend on an existing node. The provided node
 // must not be started and will be started by this method.
 func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
+	if err := conf.Genesis.Config.MontBlanc.CheckValidity(); err != nil {
+		return nil, err
+	}
 	backend, err := eth.New(stack, conf)
 	if err != nil {
 		return nil, err

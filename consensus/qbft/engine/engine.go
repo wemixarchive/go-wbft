@@ -58,6 +58,10 @@ func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn) *Engine {
 	}
 }
 
+func mustHavePrevSeals(header *types.Header, config *params.ChainConfig) bool {
+	return header.Number.Cmp(config.MontBlancBlock) > 0 && header.Number.Cmp(common.Big1) > 0
+}
+
 func (e *Engine) Author(header *types.Header) (common.Address, error) {
 	return header.Coinbase, nil
 }
@@ -284,7 +288,9 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	}
 
 	// prev seals validation for monblanc block or first block after genesis is skipped because it's empty
-	if header.Number.Cmp(chain.Config().MontBlancBlock) > 0 {
+	if mustHavePrevSeals(header, chain.Config()) {
+		// if montBlanc == 0: montBlanc+1(== 1) has no prev seals;
+		// if montBlanc > 0: montBlanc+1 has prev seals;
 		// Verify prevPreparedSeals and prevCommittedSeals
 		if err := e.verifyPrevSeals(header, parent, prevValidators); err != nil {
 			return err
@@ -444,11 +450,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		header.Time = uint64(time.Now().Unix())
 	}
 
-	if header.Number.Cmp(chain.Config().MontBlancBlock) == 0 || (header.Number.Cmp(chain.Config().MontBlancBlock) > 0 && chain.Config().MontBlancBlock.Sign() == 0) {
-		// monblac hardFork block has empty prev seal
-		// next block of genesis montblanc block has empty prev seal
-		return ApplyHeaderQBFTExtra(header)
-	} else {
+	if mustHavePrevSeals(header, chain.Config()) {
 		lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
 		if lastCanonicalHeader.Number.Sign() == 0 {
 			return ApplyHeaderQBFTExtra(header)
@@ -474,6 +476,10 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			header,
 			WritePrevSeals(extra.Round, prevPreparedSeal, prevCommittedSeal),
 		)
+	} else {
+		// monblac hardFork block has empty prev seal
+		// next block of genesis montblanc block has empty prev seal
+		return ApplyHeaderQBFTExtra(header)
 	}
 }
 

@@ -113,7 +113,7 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 					"ncps": toNCPsString(ncpList),
 				},
 			},
-		}, common.Big0)
+		}, nil)
 	}
 
 	g.govConst = compiledWBFT.GovConst.New(g.backend.Client(), TestGovConfigAddress)

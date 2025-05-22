@@ -1885,13 +1885,13 @@ func TestSetCode(t *testing.T) {
 				Address: TestGovConfigAddress,
 				Version: gov.GOV_CONTRACT_VERSION_1,
 				Params: map[string]string{
-					"minimumStaking":             towei(500000).String(),
-					"maximumStaking":             (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
-					"unbondingPeriodStaker":      "604800",
-					"unbondingPeriodDelegator":   "259200",
-					"feePrecision":               "10000",
-					"changeFeeDelay":             "604800",
-					"stabilizingStakerThreshold": "5",
+					gov.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
+					gov.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
+					gov.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
+					gov.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
+					gov.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
+					gov.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
+					gov.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
 				},
 			},
 		}, nil)
@@ -2005,14 +2005,14 @@ func setWbftGovConfig(g *GovWBFT) {
 			Address: TestGovConfigAddress,
 			Version: gov.GOV_CONTRACT_VERSION_1,
 			Params: map[string]string{
-				"minimumStaking":             towei(500000).String(),
-				"maximumStaking":             (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
-				"unbondingPeriodStaker":      "604800",
-				"unbondingPeriodDelegator":   "259200",
-				"feePrecision":               "10000",
-				"changeFeeDelay":             "604800",
-				"stabilizingStakerThreshold": "5",
+				gov.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
+				gov.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
+				gov.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
+				gov.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
+				gov.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
+				gov.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
+				gov.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
 			},
 		},
-	}, common.Big0)
+	}, nil)
 }

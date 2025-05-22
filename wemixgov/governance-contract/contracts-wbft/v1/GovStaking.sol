@@ -93,34 +93,35 @@ contract GovStaking {
     uint256 public constant REWARD_PRECISION = 1e27;
 
     address public govConfig; // 0x0; assigned by consensus engine
+    address public govRewardeeImp; // 0x1; assigned by consensus engine
 
     // this includes danglingDelegated
-    uint256 public totalStaking; // 0x1
+    uint256 public totalStaking; // 0x2
 
     // Staker
     // Staker state definition
     //  0. unregistered: stakerInfo[staker].operator = 0, __stakerSet.contains(staker) = false
     //  1. active: stakerInfo[staker].operator != 0, __stakerSet.contains(staker) = true
     //  2. inactive: stakerInfo[staker].operator != 0, __stakerSet.contains(staker) = false
-    EnumerableSet.AddressSet private __stakerSet; // 0x2, 0x3
-    mapping(address => Staker) public stakerInfo; // 0x4
-    mapping(address => address) public stakerByOperator; // 0x5
-    mapping(address => address) public stakerByRewardee; // 0x6
+    EnumerableSet.AddressSet private __stakerSet; // 0x3, 0x4
+    mapping(address => Staker) public stakerInfo; // 0x5
+    mapping(address => address) public stakerByOperator; // 0x6
+    mapping(address => address) public stakerByRewardee; // 0x7
 
     // Withdrawal Credential: credentials[user][credentialIndex]
-    mapping(address => mapping(uint256 => WithdrawalCredential)) public credentials; // 0x7
-    mapping(address => UserCredentialInfo) public userCredential; // 0x8
+    mapping(address => mapping(uint256 => WithdrawalCredential)) public credentials; // 0x8
+    mapping(address => UserCredentialInfo) public userCredential; // 0x9
 
     // pending request
-    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0x9
+    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0xa
 
     // User Reward Info
-    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xa
+    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xb
 
     // danglingDelegated is the delegated balance for the inactive stakers
     // contract's balance = totalStaked + danglingDelegated + unbonding
-    uint256 public danglingDelegated; // 0xb
-    bool public afterStabilization; // 0xc
+    uint256 public danglingDelegated; // 0xc
+    bool public afterStabilization; // 0xd
 
     //***********************************************************************
     //* Caution for Upgrading
@@ -209,7 +210,9 @@ contract GovStaking {
         require(_feeRate <= GovConfig(govConfig).feePrecision(), "fee rate exceeds precision");
         require(_blsPK.length == BLS_PUBLIC_KEY_LENGTH, "invalid bls public key");
 
-        GovRewardee _rewardee = new GovRewardee();
+        GovRewardee _rewardee = new GovRewardee(govRewardeeImp);
+        GovRewardeeImp(payable(address(_rewardee))).initialize(address(this));
+
         stakerInfo[_staker].operator = msg.sender;
         stakerInfo[_staker].rewardee = address(_rewardee);
         stakerInfo[_staker].feeRecipient = _feeRecipient;
