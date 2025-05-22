@@ -287,6 +287,7 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 		ProposerPolicy:        0,
 		EpochLength:           10,
 		BlockReward:           (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
+		UseNCP:                false,
 	},
 	Init: &Init{
 		GovContracts: &GovContracts{
@@ -310,13 +311,6 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 			GovRewardeeImp: &GovContract{
 				Address: common.HexToAddress("0x1002"),
 				Version: "v1",
-			},
-			GovNCP: &GovContract{
-				Address: common.HexToAddress("0x1003"),
-				Version: "v1",
-				Params: map[string]string{
-					"ncps": "0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697", // comma separated
-				},
 			},
 		},
 	},

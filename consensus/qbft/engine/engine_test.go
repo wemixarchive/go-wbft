@@ -541,14 +541,10 @@ func TestEpochInfoTransition(t *testing.T) {
 			c.chainConfig = new(params.ChainConfig) // do not mess TestChainConfig
 			*c.chainConfig = *params.TestQBFTChainConfig
 			c.chainConfig.MontBlancBlock = tc.montBlancBlock
-			c.chainConfig.MontBlanc = &params.MontBlancConfig{
-				NCPs: validators,
-			}
-
+			c.chainConfig.MontBlanc.Init.Validators = validators
+			c.chainConfig.MontBlanc.Init.BLSPublicKeys = []string{hexutil.Encode(blsPubKeys[0])}
 			testConfig := *qbft.DefaultConfig
 			testConfig.Epoch = tc.epoch
-			testConfig.Validators = validators
-			testConfig.BLSPublicKeys = blsPubKeys
 			engine := NewEngine(&testConfig, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
@@ -649,7 +645,7 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = params.TestQBFTChainConfig
-			c.chainConfig.QBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
+			c.chainConfig.MontBlanc.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 			engine := NewEngine(tc.qbftConfig, common.Address{}, nil)
 			parent := makeGenesis(signers)
@@ -732,7 +728,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			c := new(fakeChain)
 			c.chainConfig = params.TestQBFTChainConfig
 			c.chainConfig.BriocheBlock = nil
-			c.chainConfig.QBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(3000000))
+			c.chainConfig.MontBlanc.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(3000000))
 
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 			engine := NewEngine(tc.qbftConfig, common.Address{}, nil)
@@ -766,7 +762,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 				}
 			}
 
-			blockReward := c.Config().GetBlockReward(h.Number)
+			blockReward := c.Config().MontBlanc.WBFT.GetBlockReward(h.Number)
 			origBlockReward := new(big.Int).Set(blockReward)
 			engine.calculateRewards(
 				c,
@@ -776,8 +772,8 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			)
 
 			// Check QBFT config intact
-			if c.Config().GetBlockReward(h.Number).Cmp(origBlockReward) != 0 {
-				t.Errorf("expected block reward config mismatch: have %v, want %v", c.Config().GetBlockReward(h.Number), origBlockReward)
+			if c.Config().MontBlanc.WBFT.GetBlockReward(h.Number).Cmp(origBlockReward) != 0 {
+				t.Errorf("expected block reward config mismatch: have %v, want %v", c.Config().MontBlanc.WBFT.GetBlockReward(h.Number), origBlockReward)
 			}
 
 			// Validate rewards

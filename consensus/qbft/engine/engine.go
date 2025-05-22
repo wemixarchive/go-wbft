@@ -508,9 +508,9 @@ func (e *Engine) GetStakers(config *params.ChainConfig, latestEpochInfo *types.E
 		isStabilized bool
 	)
 	govStakingAddress := config.MontBlanc.GetGovStakingAddress(num)
-	govNCPAddress := config.MontBlanc.GetGovNCPAddress(num)
 	if state != nil && govwbft.IsAfterStabilization(govStakingAddress, state) {
 		if e.cfg.GetConfig(num).UseNCP {
+			govNCPAddress := config.MontBlanc.GetGovNCPAddress(num)
 			stakers = govwbft.NCPStakers(govStakingAddress, govNCPAddress, state)
 		} else {
 			stakers = govwbft.Stakers(govStakingAddress, state)
