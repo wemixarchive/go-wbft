@@ -2,6 +2,7 @@ package govwbft
 
 import (
 	_ "embed"
+
 	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 )
 

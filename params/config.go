@@ -99,7 +99,7 @@ var (
 				TargetValidators: 1, // TODO: define validators
 			},
 			Init: &Init{
-				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define inital validators
+				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define initial validators
 				BLSPublicKeys: []string{"0x935344a9e431d256fd4fcb819fd5497fb80ce4cd402b4f93ea0cd585dfb4dc433e962a55a153f8c041a773304ef8833d"},
 				GovContracts: &GovContracts{
 					GovConfig: &GovContract{
@@ -184,7 +184,7 @@ var (
 				TargetValidators: 1, // TODO: define validators
 			},
 			Init: &Init{
-				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define inital validators
+				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define initial validators
 				BLSPublicKeys: []string{"0x935344a9e431d256fd4fcb819fd5497fb80ce4cd402b4f93ea0cd585dfb4dc433e962a55a153f8c041a773304ef8833d"},
 				GovContracts: &GovContracts{
 					GovConfig: &GovContract{

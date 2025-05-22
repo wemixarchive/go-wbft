@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/bls/blst"
 	"github.com/ethereum/go-ethereum/params"
+	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"

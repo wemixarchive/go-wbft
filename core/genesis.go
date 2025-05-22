@@ -262,7 +262,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			if err != nil {
 				return genesis.Config, common.Hash{}, err
 			}
-			err = injectContracts(genesis, genesis.Config)
+			err = InjectContracts(genesis, genesis.Config)
 			if err != nil {
 				return genesis.Config, common.Hash{}, err
 			}
@@ -291,7 +291,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			if err != nil {
 				return genesis.Config, stored, err
 			}
-			err = injectContracts(genesis, genesis.Config)
+			err = InjectContracts(genesis, genesis.Config)
 			if err != nil {
 				return genesis.Config, stored, err
 			}
@@ -636,7 +636,7 @@ func TestGenesisBlock() *Genesis {
 	}
 }
 
-func injectContracts(genesis *Genesis, config *params.ChainConfig) error {
+func InjectContracts(genesis *Genesis, config *params.ChainConfig) error {
 	transition, err := qbft.GetMontBlancTransition(config, common.Big0)
 	if err != nil {
 		return err

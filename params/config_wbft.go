@@ -223,7 +223,7 @@ type Upgrade struct {
 }
 
 func (u *Upgrade) String() string {
-	return fmt.Sprintf("{Block: %v GovVersion: %v GovParams: %v}",
+	return fmt.Sprintf("{Block: %v GovContracts: %v}",
 		u.Block.String(),
 		u.GovContracts.String(),
 	)
@@ -277,8 +277,6 @@ func (t *Transition) String() string {
 		t.MaxRequestTimeoutSeconds,
 	)
 }
-
-var uint128Value, _ = new(big.Int).SetString("340282366920938463463374607431768211455", 10) //type(uint128).max;
 
 var DefaultMontBlancConfig = &MontBlancConfig{
 	WBFT: &WBFTConfig{

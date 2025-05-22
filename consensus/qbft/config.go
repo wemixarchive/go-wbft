@@ -22,13 +22,13 @@ package qbft
 
 import (
 	"errors"
-	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/params"
+	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 
 	"github.com/naoina/toml"
@@ -115,8 +115,6 @@ type Config struct {
 	UseNCP                   bool                    `toml:",omitempty"` // Use NCP or not
 	Transitions              []params.Transition
 }
-
-var value, _ = new(big.Int).SetString("340282366920938463463374607431768211455", 10)
 
 var DefaultConfig = &Config{
 	RequestTimeout:         1000,
