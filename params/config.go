@@ -614,13 +614,6 @@ var (
 						Address: common.HexToAddress("0x1002"),
 						Version: "v1",
 					},
-					GovNCP: &GovContract{
-						Address: common.HexToAddress("0x1003"),
-						Version: "v1",
-						Params: map[string]string{
-							"ncps": "0x5b5682ab6952f96f5e68c7dd34c8018c71748248", // comma separated
-						},
-					},
 				},
 			},
 		},

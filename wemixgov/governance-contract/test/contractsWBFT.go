@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/bls"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
@@ -18,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
-	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,13 +92,11 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		alloc = make(types.GenesisAlloc)
 	}
 	alloc[owner.From] = types.Account{Balance: MAX_UINT_128}
-	alloc[TestGovConfigAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][gov.GOV_CONTRACT_VERSION_1])}
-	alloc[TestGovStakingAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovContractCodes[gov.CONTRACT_GOV_STAKING][gov.GOV_CONTRACT_VERSION_1])}
-	alloc[TestGovRewardeeImpAddress] = types.Account{Code: hexutil.MustDecode(govwbft.GovContractCodes[gov.CONTRACT_GOV_REWARDEE_IMP][gov.GOV_CONTRACT_VERSION_1])}
 
 	g := &GovWBFT{
 		owner: owner,
 		backend: simulated.NewWbftBackend(alloc, func(nodeConf *node.Config, ethConf *ethconfig.Config) {
+			ethConf.Genesis.Config.MontBlanc.WBFT.UseNCP = len(ncpList) > 0
 			defaultBlockPeriod = time.Duration(ethConf.Genesis.Config.MontBlanc.WBFT.BlockPeriodSeconds) * time.Second
 		}),
 	}
