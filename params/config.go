@@ -854,7 +854,7 @@ func (c *ChainConfig) Description() string {
 		} else {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
 		}
-	case c.MontBlanc != nil:
+	case c.MontBlancEnabled():
 		banner += "Consensus: WBFT (wemix-byzantine-fault-tolerance)\n"
 	default:
 		banner += "Consensus: WEMIX PoA\n"
@@ -1085,6 +1085,10 @@ func (c *ChainConfig) IsVerkle(num *big.Int, time uint64) bool {
 
 func (c *ChainConfig) IsMontBlanc(num *big.Int) bool {
 	return isBlockForked(c.MontBlancBlock, num)
+}
+
+func (c *ChainConfig) MontBlancEnabled() bool {
+	return c.MontBlancBlock != nil && c.MontBlanc != nil
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported

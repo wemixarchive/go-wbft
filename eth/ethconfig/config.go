@@ -196,7 +196,7 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		return beacon.New(clique.New(config.Clique, db)), nil
 	}
 
-	if config.MontBlanc != nil {
+	if config.MontBlancEnabled() {
 		if qbftCfg == nil {
 			qbftCfg = new(qbft.Config)
 		}

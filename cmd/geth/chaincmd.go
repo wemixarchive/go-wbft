@@ -222,7 +222,7 @@ func initGenesis(ctx *cli.Context) error {
 	}
 
 	// Check sanity for QBFT.
-	if genesis.Config.MontBlanc != nil {
+	if genesis.Config.MontBlancEnabled() {
 		if err := genesis.Config.MontBlanc.CheckValidity(); err != nil {
 			utils.Fatalf("Invalid genesis config: %v", err)
 		}
@@ -251,7 +251,7 @@ func initGenesis(ctx *cli.Context) error {
 }
 
 func checkAllocAddress(genesis *core.Genesis) error {
-	if genesis.Alloc != nil && genesis.Config.MontBlanc != nil {
+	if genesis.Alloc != nil && genesis.Config.MontBlancEnabled() {
 		forbidden := []common.Address{
 			genesis.Config.MontBlanc.Init.GovContracts.GovConfig.Address,
 			genesis.Config.MontBlanc.Init.GovContracts.GovStaking.Address,
