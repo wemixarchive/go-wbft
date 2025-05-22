@@ -530,10 +530,10 @@ func TestEpochInfoTransition(t *testing.T) {
 			// Setup validators
 			signers := newAccounts(4)
 			var validators []common.Address
-			var blsPubKeys [][]byte
+			var blsPubKeys []string
 			for _, s := range signers {
 				validators = append(validators, s.addr)
-				blsPubKeys = append(blsPubKeys, s.blsKey.PublicKey().Marshal())
+				blsPubKeys = append(blsPubKeys, hexutil.Encode(s.blsKey.PublicKey().Marshal()))
 			}
 
 			// Setup test chain genesis
@@ -542,7 +542,7 @@ func TestEpochInfoTransition(t *testing.T) {
 			*c.chainConfig = *params.TestQBFTChainConfig
 			c.chainConfig.MontBlancBlock = tc.montBlancBlock
 			c.chainConfig.MontBlanc.Init.Validators = validators
-			c.chainConfig.MontBlanc.Init.BLSPublicKeys = []string{hexutil.Encode(blsPubKeys[0])}
+			c.chainConfig.MontBlanc.Init.BLSPublicKeys = blsPubKeys
 			testConfig := *qbft.DefaultConfig
 			testConfig.Epoch = tc.epoch
 			engine := NewEngine(&testConfig, common.Address{}, nil)
