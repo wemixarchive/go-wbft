@@ -510,11 +510,10 @@ func (e *Engine) GetStakers(config *params.ChainConfig, latestEpochInfo *types.E
 	govStakingAddress := config.MontBlanc.GetGovStakingAddress(num)
 	govNCPAddress := config.MontBlanc.GetGovNCPAddress(num)
 	if state != nil && govwbft.IsAfterStabilization(govStakingAddress, state) {
-		if config.MontBlancBlock == nil {
-			// WBFT chain
-			stakers = govwbft.Stakers(govStakingAddress, state)
-		} else {
+		if e.cfg.GetConfig(num).UseNCP {
 			stakers = govwbft.NCPStakers(govStakingAddress, govNCPAddress, state)
+		} else {
+			stakers = govwbft.Stakers(govStakingAddress, state)
 		}
 		isStabilized = true
 	} else {

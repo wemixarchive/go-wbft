@@ -292,7 +292,7 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 		GovContracts: &GovContracts{
 			GovConfig: &GovContract{
 				Address: common.HexToAddress("0x1000"),
-				Version: "1",
+				Version: "v1",
 				Params: map[string]string{
 					"minimumStaking":             "10000000000000000000000000",
 					"maximumStaking":             "100000000000000000000000000",

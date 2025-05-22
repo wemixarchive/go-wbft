@@ -232,12 +232,7 @@ func (c *BoundContract) Call(opts *CallOpts, results *[]interface{}, method stri
 }
 
 func (c *BoundContract) Pack(method string, params ...interface{}) ([]byte, error) {
-	// Pack the input
-	input, err := c.abi.Pack(method, params...)
-	if err != nil {
-		return nil, err
-	}
-	return input, nil
+	return c.abi.Pack(method, params...)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
