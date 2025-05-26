@@ -15,6 +15,23 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
+var (
+	DefaultGovConfigAddress      = common.HexToAddress("0x1000")
+	DefaultGovStakingAddress     = common.HexToAddress("0x1001")
+	DefaultGovRewardeeImpAddress = common.HexToAddress("0x1002")
+	DefaultGovNCPAddress         = common.HexToAddress("0x1003")
+	DefaultGovVersion            = "v1"
+	DefaultGovConfigParams       = map[string]string{
+		"minimumStaking":             "10000000000000000000000000",
+		"maximumStaking":             "100000000000000000000000000",
+		"unbondingPeriodStaker":      "604800", // 7 days
+		"unbondingPeriodDelegator":   "259200", // 3 days
+		"feePrecision":               "10000",  // 0.01%
+		"changeFeeDelay":             "604800", // 7 days
+		"stabilizingStakerThreshold": "1",
+	}
+)
+
 var CheckInitGovContractVersions func(govContracts *GovContracts) error
 var CheckUpgradeGovContractVersions func(govContracts *GovContracts) error
 

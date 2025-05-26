@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/bls/blst"
 	"github.com/ethereum/go-ethereum/params"
-	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
 )
@@ -1779,7 +1778,7 @@ func TestSetCode(t *testing.T) {
 	)
 
 	// register upgrading contract
-	govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][testVersion] = govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][params.DefaultGovVersion]
+	govwbft.GovContractCodes[govwbft.CONTRACT_GOV_CONFIG][testVersion] = govwbft.GovContractCodes[govwbft.CONTRACT_GOV_CONFIG][params.DefaultGovVersion]
 
 	// for duplicate test
 	ncpInput := []common.Address{ncp3.Operator.Address, ncp3.Operator.Address}
@@ -1871,15 +1870,15 @@ func TestSetCode(t *testing.T) {
 		g.backend.CommitWithState(&params.GovContracts{
 			GovConfig: &params.GovContract{
 				Address: TestGovConfigAddress,
-				Version: gov.GOV_CONTRACT_VERSION_1,
+				Version: govwbft.GOV_CONTRACT_VERSION_1,
 				Params: map[string]string{
-					gov.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
-					gov.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
-					gov.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
-					gov.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
-					gov.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
-					gov.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
-					gov.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
+					govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
+					govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
+					govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
+					govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
+					govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
+					govwbft.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
+					govwbft.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
 				},
 			},
 		}, nil)
@@ -1991,15 +1990,15 @@ func setWbftGovConfig(g *GovWBFT) {
 	g.backend.CommitWithState(&params.GovContracts{
 		GovConfig: &params.GovContract{
 			Address: TestGovConfigAddress,
-			Version: gov.GOV_CONTRACT_VERSION_1,
+			Version: govwbft.GOV_CONTRACT_VERSION_1,
 			Params: map[string]string{
-				gov.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
-				gov.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
-				gov.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
-				gov.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
-				gov.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
-				gov.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
-				gov.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
+				govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
+				govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
+				govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
+				govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
+				govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
+				govwbft.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
+				govwbft.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
 			},
 		},
 	}, nil)

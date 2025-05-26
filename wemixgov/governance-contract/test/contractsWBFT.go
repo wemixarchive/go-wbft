@@ -15,8 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
-	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,7 +103,7 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 		g.backend.CommitWithState(&params.GovContracts{
 			GovNCP: &params.GovContract{
 				Address: TestGovNCPAddress,
-				Version: gov.GOV_CONTRACT_VERSION_1,
+				Version: govwbft.GOV_CONTRACT_VERSION_1,
 				Params: map[string]string{
 					"ncps": toNCPsString(ncpList),
 				},

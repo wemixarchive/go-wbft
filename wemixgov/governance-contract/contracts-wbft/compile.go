@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
 	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 func main() {
 	flag.Parse()
 	root := *rootFlag
-	versions := []string{gov.GOV_CONTRACT_VERSION_1, gov.GOV_CONTRACT_VERSION_2}
+	versions := []string{govwbft.GOV_CONTRACT_VERSION_1, govwbft.GOV_CONTRACT_VERSION_2}
 	srcFiles := [][]string{
 		{ // v1
 			filepath.Join(filepath.Join(root, versions[0]), "GovStaking.sol"),
@@ -33,15 +33,15 @@ func main() {
 	}
 	contractBins := [][]string{
 		{ // v1
-			gov.CONTRACT_GOV_STAKING,
-			gov.CONTRACT_GOV_NCP,
-			gov.CONTRACT_GOV_CONFIG,
-			gov.CONTRACT_GOV_REWARDEE,
-			gov.CONTRACT_GOV_REWARDEE_IMP,
-			gov.CONTRACT_OPERATOR_SAMPLE,
+			govwbft.CONTRACT_GOV_STAKING,
+			govwbft.CONTRACT_GOV_NCP,
+			govwbft.CONTRACT_GOV_CONFIG,
+			govwbft.CONTRACT_GOV_REWARDEE,
+			govwbft.CONTRACT_GOV_REWARDEE_IMP,
+			govwbft.CONTRACT_OPERATOR_SAMPLE,
 		},
 		{ // v2
-			gov.CONTRACT_GOV_STAKING,
+			govwbft.CONTRACT_GOV_STAKING,
 		},
 	}
 	openZeppelin := *openZeppelinFlag

@@ -37,21 +37,6 @@ var (
 	HoleskyGenesisHash      = common.HexToHash("0xb5f7f912443c940f21fd611f12828d75b534364ed9e95ca4e307729a4661bde4")
 	SepoliaGenesisHash      = common.HexToHash("0x25a5cc106eea7138acab33231d7160d69cb777ee0c2c553fcddf5138993e6dd9")
 	GoerliGenesisHash       = common.HexToHash("0xbf7e331f7f7c1dd2e05159666b3bf8bc7a8a3a9eb1d518969eab529dd9b88c1a")
-
-	DefaultGovConfigAddress      = common.HexToAddress("0x1000")
-	DefaultGovStakingAddress     = common.HexToAddress("0x1001")
-	DefaultGovRewardeeImpAddress = common.HexToAddress("0x1002")
-	DefaultGovNCPAddress         = common.HexToAddress("0x1003")
-	DefaultGovVersion            = "v1"
-	DefaultGovConfigParams       = map[string]string{
-		"minimumStaking":             "10000000000000000000000000",
-		"maximumStaking":             "100000000000000000000000000",
-		"unbondingPeriodStaker":      "604800", // 7 days
-		"unbondingPeriodDelegator":   "259200", // 3 days
-		"feePrecision":               "10000",  // 0.01%
-		"changeFeeDelay":             "604800", // 7 days
-		"stabilizingStakerThreshold": "1",
-	}
 )
 
 func newUint64(val uint64) *uint64 { return &val }
