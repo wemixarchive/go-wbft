@@ -21,10 +21,9 @@ import (
 )
 
 var (
-	TestGovConfigAddress      = common.HexToAddress("0x1000")
-	TestGovStakingAddress     = common.HexToAddress("0x1001")
-	TestGovNCPAddress         = common.HexToAddress("0x1002")
-	TestGovRewardeeImpAddress = common.HexToAddress("0x1003")
+	TestGovConfigAddress  = params.DefaultGovConfigAddress
+	TestGovStakingAddress = params.DefaultGovStakingAddress
+	TestGovNCPAddress     = params.DefaultGovNCPAddress
 )
 
 var (
@@ -110,11 +109,11 @@ func NewGovWBFT(t *testing.T, ncpList []common.Address, alloc types.GenesisAlloc
 				},
 			},
 		}, nil)
+		g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), TestGovNCPAddress)
 	}
 
 	g.govConst = compiledWBFT.GovConst.New(g.backend.Client(), TestGovConfigAddress)
 	g.stakingContract = compiledWBFT.GovStaking.New(g.backend.Client(), TestGovStakingAddress)
-	g.ncpContract = compiledWBFT.GovNCP.New(g.backend.Client(), TestGovNCPAddress)
 	return g, nil
 }
 
