@@ -3,8 +3,6 @@ package test
 import (
 	"context"
 	"math/big"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/bls/blst"
 	"github.com/ethereum/go-ethereum/params"
 	gov "github.com/ethereum/go-ethereum/wemixgov/bind"
-	compile "github.com/ethereum/go-ethereum/wemixgov/governance-contract"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/stretchr/testify/require"
 )
@@ -1756,25 +1753,15 @@ func TestZeroTotalStaking(t *testing.T) {
 }
 
 func TestSetCode(t *testing.T) {
-	var testSource = `
-		pragma solidity ^0.8.0;
-		contract TestGovConfig{
-			uint256 public minimumStaking = 100000e18;
-    		uint256 public maximumStaking = type(uint128).max;
-    		uint256 public unbondingPeriodStaker = 3 hours;
-    		uint256 public unbondingPeriodDelegator = 72 hours;
-    		uint256 public feePrecision = 100;
-    		uint256 public changeFeeDelay = 1 hours;
-    		uint256 public stabilizingStakerThreshold = 5;
-		}`
-
-	var (
-		dir      = t.TempDir()
-		filename = "Test.sol"
-	)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, filename), []byte(testSource), 0700))
-	compiled, err := compile.Compile(dir, filepath.Join(dir, filename))
-	require.NoError(t, err)
+	var testParams = map[string]string{
+		"minimumStaking":             "100000000000000000000000",
+		"maximumStaking":             "100000000000000000000000000",
+		"unbondingPeriodStaker":      "10800",  // 3 hours
+		"unbondingPeriodDelegator":   "259200", // 3 days
+		"feePrecision":               "100",
+		"changeFeeDelay":             "3600", // 1 hour
+		"stabilizingStakerThreshold": "5",
+	}
 
 	var (
 		testVersion  = "test_version"
@@ -1792,7 +1779,7 @@ func TestSetCode(t *testing.T) {
 	)
 
 	// register upgrading contract
-	govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][testVersion] = compiled["TestGovConfig"].RuntimeCode
+	govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][testVersion] = govwbft.GovContractCodes[gov.CONTRACT_GOV_CONFIG][params.DefaultGovVersion]
 
 	// for duplicate test
 	ncpInput := []common.Address{ncp3.Operator.Address, ncp3.Operator.Address}
@@ -1851,6 +1838,7 @@ func TestSetCode(t *testing.T) {
 			GovConfig: &params.GovContract{
 				Address: TestGovConfigAddress,
 				Version: testVersion,
+				Params:  testParams,
 			},
 		}, nil)
 	})

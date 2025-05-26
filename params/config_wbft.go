@@ -15,7 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
-var CheckGovContractVersions func(govContracts *GovContracts) error
+var CheckInitGovContractVersions func(govContracts *GovContracts) error
+var CheckUpgradeGovContractVersions func(govContracts *GovContracts) error
 
 // ## MontBlanc CHAIN CONFIG START
 type MontBlancConfig struct {
@@ -114,7 +115,7 @@ func (c *MontBlancConfig) CheckValidity() error {
 	if c.Init.GovContracts.GovRewardeeImp == nil {
 		return errors.New("`montblanc.init.govContracts: missing `govRewardeeImp`")
 	}
-	if err := CheckGovContractVersions(c.Init.GovContracts); err != nil {
+	if err := CheckInitGovContractVersions(c.Init.GovContracts); err != nil {
 		return fmt.Errorf("`montblanc.init.govContracts`: %v", err)
 	}
 
@@ -125,7 +126,7 @@ func (c *MontBlancConfig) CheckValidity() error {
 		if upgrade.GovContracts == nil {
 			return errors.New("`montblanc.upgrades`: missing `govContracts`")
 		}
-		if err := CheckGovContractVersions(upgrade.GovContracts); err != nil {
+		if err := CheckUpgradeGovContractVersions(upgrade.GovContracts); err != nil {
 			return fmt.Errorf("`montblanc.upgrades.govContracts`: %v", err)
 		}
 	}

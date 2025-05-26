@@ -11,10 +11,11 @@ import (
 
 func init() {
 	// to avoid import cycle
-	params.CheckGovContractVersions = checkGovContractVersions
+	params.CheckInitGovContractVersions = checkInitGovContractVersions
+	params.CheckUpgradeGovContractVersions = checkUpgradeGovContractVersions
 }
 
-func checkGovContractVersions(govContracts *params.GovContracts) error {
+func checkInitGovContractVersions(govContracts *params.GovContracts) error {
 	if GovContractCodes[gov.CONTRACT_GOV_CONFIG][govContracts.GovConfig.Version] == "" {
 		return fmt.Errorf("`montblanc.init.govContracts.govConfig`: unsupported version %s", govContracts.GovConfig.Version)
 	}
@@ -26,6 +27,22 @@ func checkGovContractVersions(govContracts *params.GovContracts) error {
 	}
 	if govContracts.GovNCP != nil && GovContractCodes[gov.CONTRACT_GOV_NCP][govContracts.GovNCP.Version] == "" {
 		return fmt.Errorf("`montblanc.init.govContracts.govNCP`: unsupported version %s", govContracts.GovNCP.Version)
+	}
+	return nil
+}
+
+func checkUpgradeGovContractVersions(govContracts *params.GovContracts) error {
+	if govContracts.GovConfig != nil && GovContractCodes[gov.CONTRACT_GOV_CONFIG][govContracts.GovConfig.Version] == "" {
+		return fmt.Errorf("`montblanc.upgrades.govContracts.govConfig`: unsupported version %s", govContracts.GovConfig.Version)
+	}
+	if govContracts.GovStaking != nil && GovContractCodes[gov.CONTRACT_GOV_STAKING][govContracts.GovStaking.Version] == "" {
+		return fmt.Errorf("`montblanc.upgrades.govContracts.govStaking`: unsupported version %s", govContracts.GovStaking.Version)
+	}
+	if govContracts.GovRewardeeImp != nil && GovContractCodes[gov.CONTRACT_GOV_REWARDEE_IMP][govContracts.GovRewardeeImp.Version] == "" {
+		return fmt.Errorf("`montblanc.upgrades.govContracts.govRewardeeImp`: unsupported version %s", govContracts.GovRewardeeImp.Version)
+	}
+	if govContracts.GovNCP != nil && GovContractCodes[gov.CONTRACT_GOV_NCP][govContracts.GovNCP.Version] == "" {
+		return fmt.Errorf("`montblanc.upgrades.govContracts.govNCP`: unsupported version %s", govContracts.GovNCP.Version)
 	}
 	return nil
 }
