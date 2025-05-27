@@ -858,49 +858,49 @@ func (c *ChainConfig) Description() string {
 		banner += fmt.Sprintf("   - HalvingTimes:              %-8v\n", c.Brioche.HalvingTimes)
 		banner += fmt.Sprintf("   - HalvingRate:               %-8v\n", c.Brioche.HalvingRate)
 	}
-	banner += fmt.Sprintf(" - MontBlanc:                     #%-8v\n", c.MontBlancBlock)
+	banner += fmt.Sprintf(" - MontBlanc:                   #%-8v\n", c.MontBlancBlock)
 	if c.MontBlanc != nil {
 		if c.MontBlanc.WBFT != nil {
 			banner += "   - WBFT\n"
-			banner += fmt.Sprintf("   - EpochLength:               %-8v\n", c.MontBlanc.WBFT.EpochLength)
-			banner += fmt.Sprintf("   - BlockPeriodSeconds:        %-8v\n", c.MontBlanc.WBFT.BlockPeriodSeconds)
-			banner += fmt.Sprintf("   - RequestTimeoutSeconds:     %-8v\n", c.MontBlanc.WBFT.RequestTimeoutSeconds)
-			banner += fmt.Sprintf("   - ProposerPolicy:            %-8v\n", c.MontBlanc.WBFT.ProposerPolicy)
+			banner += fmt.Sprintf("     - EpochLength:               %-8v\n", c.MontBlanc.WBFT.EpochLength)
+			banner += fmt.Sprintf("     - BlockPeriodSeconds:        %-8v\n", c.MontBlanc.WBFT.BlockPeriodSeconds)
+			banner += fmt.Sprintf("     - RequestTimeoutSeconds:     %-8v\n", c.MontBlanc.WBFT.RequestTimeoutSeconds)
+			banner += fmt.Sprintf("     - ProposerPolicy:            %-8v\n", c.MontBlanc.WBFT.ProposerPolicy)
 			if c.MontBlanc.WBFT.BlockReward == nil {
-				banner += fmt.Sprintf("   - BlockReward:               %-8v\n", 0)
+				banner += fmt.Sprintf("     - BlockReward:               %-8v\n", 0)
 			} else {
-				banner += fmt.Sprintf("   - BlockReward:               %-8v\n", ((*big.Int)(c.MontBlanc.WBFT.BlockReward)).Int64())
+				banner += fmt.Sprintf("     - BlockReward:               %-8v\n", ((*big.Int)(c.MontBlanc.WBFT.BlockReward)).Int64())
 			}
 			if c.MontBlanc.WBFT.BlockRewardBeneficiary == nil {
-				banner += fmt.Sprintf("   - BlockRewardBeneficiary:    %v\n", nil)
+				banner += fmt.Sprintf("     - BlockRewardBeneficiary:    %v\n", nil)
 			} else {
-				banner += fmt.Sprintf("   - BlockRewardBeneficiary.Denominator: %v\n", c.MontBlanc.WBFT.BlockRewardBeneficiary.Denominator)
+				banner += fmt.Sprintf("     - BlockRewardBeneficiary.Denominator: %v\n", c.MontBlanc.WBFT.BlockRewardBeneficiary.Denominator)
 				for i, b := range c.MontBlanc.WBFT.BlockRewardBeneficiary.Beneficiaries {
-					banner += fmt.Sprintf("   - BlockRewardBeneficiary[%v]: %v\n", i, b)
+					banner += fmt.Sprintf("     - BlockRewardBeneficiary[%v]: %v\n", i, b)
 				}
 			}
 			if c.MontBlanc.WBFT.MaxRequestTimeoutSeconds == nil {
-				banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", 0)
+				banner += fmt.Sprintf("     - MaxRequestTimeoutSeconds:  %-8v\n", 0)
 			} else {
-				banner += fmt.Sprintf("   - MaxRequestTimeoutSeconds:  %-8v\n", *c.MontBlanc.WBFT.MaxRequestTimeoutSeconds)
+				banner += fmt.Sprintf("     - MaxRequestTimeoutSeconds:  %-8v\n", *c.MontBlanc.WBFT.MaxRequestTimeoutSeconds)
 			}
 			if c.MontBlanc.WBFT.Transitions != nil {
-				banner += "   - Transitions\n"
+				banner += "     - Transitions\n"
 				for i, t := range c.MontBlanc.WBFT.Transitions {
-					banner += fmt.Sprintf("     - Transitions[%v]: %v\n", i, t)
+					banner += fmt.Sprintf("       - Transitions[%v]: %v\n", i, t)
 				}
 			}
 		}
 		if c.MontBlanc.Init != nil {
 			if c.MontBlanc.Init != nil {
 				banner += "   - Init\n"
-				banner += fmt.Sprintf("     - Validators:           #%-8v\n", c.MontBlanc.Init.Validators)
-				banner += fmt.Sprintf("     - BLSPublicKeys:        #%-8v\n", c.MontBlanc.Init.BLSPublicKeys)
-				banner += fmt.Sprintf("     - GovContracts:         #%-8v\n", c.MontBlanc.Init.GovContracts)
-				banner += fmt.Sprintf("       - GovConfig:           #%-8v\n", c.MontBlanc.Init.GovContracts.GovConfig)
-				banner += fmt.Sprintf("       - GovStaking:           #%-8v\n", c.MontBlanc.Init.GovContracts.GovStaking)
-				banner += fmt.Sprintf("       - GovRewardeeImp:           #%-8v\n", c.MontBlanc.Init.GovContracts.GovRewardeeImp)
-				banner += fmt.Sprintf("       - GovNCP:           #%-8v\n", c.MontBlanc.Init.GovContracts.GovNCP)
+				banner += fmt.Sprintf("     - Validators:         %-8v\n", c.MontBlanc.Init.Validators)
+				banner += fmt.Sprintf("     - BLSPublicKeys:      %-8v\n", c.MontBlanc.Init.BLSPublicKeys)
+				banner += fmt.Sprintf("     - GovContracts:\n")
+				banner += fmt.Sprintf("       - GovConfig:        %-8v\n", c.MontBlanc.Init.GovContracts.GovConfig)
+				banner += fmt.Sprintf("       - GovStaking:       %-8v\n", c.MontBlanc.Init.GovContracts.GovStaking)
+				banner += fmt.Sprintf("       - GovRewardeeImp:   %-8v\n", c.MontBlanc.Init.GovContracts.GovRewardeeImp)
+				banner += fmt.Sprintf("       - GovNCP:           %-8v\n", c.MontBlanc.Init.GovContracts.GovNCP)
 			}
 			if c.MontBlanc.Upgrades != nil {
 				banner += "   - Upgrades\n"
