@@ -896,7 +896,7 @@ func (c *ChainConfig) Description() string {
 				banner += "   - Init\n"
 				banner += fmt.Sprintf("     - Validators:         %-8v\n", c.MontBlanc.Init.Validators)
 				banner += fmt.Sprintf("     - BLSPublicKeys:      %-8v\n", c.MontBlanc.Init.BLSPublicKeys)
-				banner += fmt.Sprintf("     - GovContracts:\n")
+				banner += "     - GovContracts:\n"
 				banner += fmt.Sprintf("       - GovConfig:        %-8v\n", c.MontBlanc.Init.GovContracts.GovConfig)
 				banner += fmt.Sprintf("       - GovStaking:       %-8v\n", c.MontBlanc.Init.GovContracts.GovStaking)
 				banner += fmt.Sprintf("       - GovRewardeeImp:   %-8v\n", c.MontBlanc.Init.GovContracts.GovRewardeeImp)
