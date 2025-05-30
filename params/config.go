@@ -97,7 +97,7 @@ var (
 					Numerator: 2500,
 				}}},
 				TargetValidators:            1, // TODO: define validators
-				StabilizingStakersThreshold: 1,
+				StabilizingStakersThreshold: 1, // TODO: define min stakers
 			},
 			Init: &Init{
 				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define initial validators
@@ -106,7 +106,15 @@ var (
 					GovConfig: &GovContract{
 						Address: DefaultGovConfigAddress,
 						Version: DefaultGovVersion,
-						Params:  DefaultGovConfigParams,
+						Params: map[string]string{
+							"minimumStaking":           "500000000000000000000000",
+							"maximumStaking":           "1000000000000000000000000000",
+							"unbondingPeriodStaker":    "604800", // 7 days
+							"unbondingPeriodDelegator": "259200", // 3 days
+							"feePrecision":             "10000",  // 0.01%
+							"changeFeeDelay":           "604800", // 7 days
+							"govCouncil":               DefaultGovNCPAddress.String(),
+						},
 					},
 					GovStaking: &GovContract{
 						Address: DefaultGovStakingAddress,
@@ -120,7 +128,7 @@ var (
 						Address: DefaultGovNCPAddress,
 						Version: DefaultGovVersion,
 						Params: map[string]string{
-							"ncps": "0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697", // comma separated
+							"ncps": "0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697", // comma separated; TODO: define NCPs
 						},
 					},
 				},
@@ -184,7 +192,15 @@ var (
 					GovConfig: &GovContract{
 						Address: DefaultGovConfigAddress,
 						Version: DefaultGovVersion,
-						Params:  DefaultGovConfigParams,
+						Params: map[string]string{
+							"minimumStaking":           "500000000000000000000000",
+							"maximumStaking":           "1000000000000000000000000000",
+							"unbondingPeriodStaker":    "604800", // 7 days
+							"unbondingPeriodDelegator": "259200", // 3 days
+							"feePrecision":             "10000",  // 0.01%
+							"changeFeeDelay":           "604800", // 7 days
+							"govCouncil":               DefaultGovNCPAddress.String(),
+						},
 					},
 					GovStaking: &GovContract{
 						Address: DefaultGovStakingAddress,
