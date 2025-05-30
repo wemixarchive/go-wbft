@@ -151,6 +151,10 @@ func (g *GovWBFT) Unstake(t *testing.T, operator *EOA, amount *big.Int) (*types.
 	return g.stakingContractTx(t, "unstake", operator, nil, amount)
 }
 
+func (g *GovWBFT) TransferOperatorShip(t *testing.T, sender *EOA, newOperator common.Address) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "transferOperatorShip", sender, nil, newOperator)
+}
+
 func (g *GovWBFT) Delegate(t *testing.T, delegator *EOA, staker common.Address, amount *big.Int) (*types.Transaction, error) {
 	return g.stakingContractTx(t, "delegate", delegator, amount, staker, amount)
 }

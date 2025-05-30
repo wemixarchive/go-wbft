@@ -34,12 +34,14 @@ func TestGovWithoutNCP(t *testing.T) {
 		s1        = NewTestStaker()
 		s2        = NewTestStaker()
 		delegator = NewEOA()
+		newStaker = NewEOA()
 	)
 
 	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
 		s1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 		s2.Operator.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		delegator.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+		newStaker.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 	require.NoError(t, err)
 	setWbftGovConfig(g)
@@ -500,6 +502,23 @@ func TestGovWithoutNCP(t *testing.T) {
 			expectedBalance := new(big.Int).Add(beforeBalance, new(big.Int).Sub(undelegateAmount, gasCost))
 			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegator.Address, nil))
 		})
+	})
+
+	t.Run("Transfer operator ship", func(t *testing.T) {
+		_, err := g.ExpectedOk(g.TransferOperatorShip(t, s1.Operator, newStaker.Address))
+		require.NoError(t, err)
+
+		require.Equal(t, govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).Operator, newStaker.Address)
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.TransferOperatorShip(t, s1.Operator, newStaker.Address)),
+			"unregistered staker",
+		)
+
+		_, err = g.ExpectedOk(g.TransferOperatorShip(t, newStaker, s1.Operator.Address))
+		require.NoError(t, err)
+
+		require.Equal(t, govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).Operator, s1.Operator.Address)
 	})
 }
 
