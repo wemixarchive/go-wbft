@@ -246,6 +246,7 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.WBFTConfig) e
 	if config.MaxRequestTimeoutSeconds != nil && *config.MaxRequestTimeoutSeconds > 0 {
 		qbftCfg.MaxRequestTimeoutSeconds = *config.MaxRequestTimeoutSeconds
 	}
+	qbftCfg.StabilizingStakersThreshold = config.StabilizingStakersThreshold
 	qbftCfg.UseNCP = config.UseNCP
 
 	return nil

@@ -294,7 +294,7 @@ func TestOperatorContractMultiSig(t *testing.T) {
 		var unbonding *big.Int
 		var stakedAmt *big.Int
 		t.Run("Unstake and withdraw unstaked amount", func(t *testing.T) {
-			stakedAmt = govwbft.UserInfo(TestGovStakingAddress, stateDB, s1.Staker.Address, operatorSampleAddr).StakingAmount
+			stakedAmt = govwbft.UserInfo(TestGovStakingAddress, stateDB, s1.Staker.Address, s1.Staker.Address).StakingAmount
 			t.Run("Unstake failure case", func(t *testing.T) {
 				// need multiSig
 				ExpectedRevert(t, g.ExpectedFail(g.SingleOwnerUnstake(owner1, stakedAmt)), "Operator: only wallet can access")
@@ -562,7 +562,7 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 
 	t.Run("Unstake and withdraw undstaked amount", func(t *testing.T) {
 		// unstake the staked amount
-		stakedAmt := govwbft.UserInfo(TestGovStakingAddress, stateDB, s1.Staker.Address, operatorSampleAddr).StakingAmount
+		stakedAmt := govwbft.UserInfo(TestGovStakingAddress, stateDB, s1.Staker.Address, s1.Staker.Address).StakingAmount
 		receipt, err := g.ExpectedOk(g.SingleOwnerUnstake(operatorContractSingleOwner, stakedAmt))
 		require.NoError(t, err)
 		unbondingPeriod := findEvents("NewCredential", receipt.Logs)[0]["unbonding"].(*big.Int)

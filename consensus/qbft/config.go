@@ -105,25 +105,28 @@ func (p *ProposerPolicy) Use(v ValidatorSortByFunc) {
 }
 
 type Config struct {
-	RequestTimeout           uint64                  `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
-	BlockPeriod              uint64                  `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
-	ProposerPolicy           *ProposerPolicy         `toml:",omitempty"` // The policy for proposer selection
-	Epoch                    uint64                  `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
-	AllowedFutureBlockTime   uint64                  `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
-	BlockReward              *math.HexOrDecimal256   `toml:",omitempty"` // Reward
-	BlockRewardBeneficiary   *params.BeneficiaryInfo `toml:",omitempty"`
-	TargetValidators         uint64                  `toml:",omitempty"`
-	MaxRequestTimeoutSeconds uint64                  `toml:",omitempty"`
-	UseNCP                   bool                    `toml:",omitempty"` // Use NCP or not
-	Transitions              []params.Transition
+	RequestTimeout              uint64                  `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
+	BlockPeriod                 uint64                  `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
+	ProposerPolicy              *ProposerPolicy         `toml:",omitempty"` // The policy for proposer selection
+	Epoch                       uint64                  `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
+	AllowedFutureBlockTime      uint64                  `toml:",omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	BlockReward                 *math.HexOrDecimal256   `toml:",omitempty"` // Reward
+	BlockRewardBeneficiary      *params.BeneficiaryInfo `toml:",omitempty"`
+	TargetValidators            uint64                  `toml:",omitempty"`
+	MaxRequestTimeoutSeconds    uint64                  `toml:",omitempty"`
+	StabilizingStakersThreshold uint64                  `toml:",omitempty"`
+	UseNCP                      bool                    `toml:",omitempty"` // Use NCP or not
+	Transitions                 []params.Transition
 }
 
 var DefaultConfig = &Config{
-	RequestTimeout:         1000,
-	BlockPeriod:            1,
-	ProposerPolicy:         NewRoundRobinProposerPolicy(),
-	Epoch:                  10,
-	AllowedFutureBlockTime: 0,
+	RequestTimeout:              1000,
+	BlockPeriod:                 1,
+	ProposerPolicy:              NewRoundRobinProposerPolicy(),
+	Epoch:                       10,
+	AllowedFutureBlockTime:      0,
+	StabilizingStakersThreshold: 1,
+	UseNCP:                      false,
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {
@@ -223,6 +226,7 @@ func CreateInitialEpochInfo(config *params.MontBlancConfig) (*types.EpochInfo, e
 		})
 		epochInfo.Validators = append(epochInfo.Validators, uint32(i))
 		epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, hexutil.MustDecode(blsPublicKeys[i]))
+		epochInfo.Stabilizing = true
 	}
 
 	log.Trace("initial epoch info", "validators", epochInfo.Validators)

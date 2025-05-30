@@ -150,7 +150,6 @@ func (env *testEnv) commitNewWork() {
 		block := makeBlockNoNewChainHead(chain, engine, chain.CurrentFullBlock())
 		currState, _ := chain.State()
 		block, _ = engine.FinalizeAndAssemble(chain, block.Header(), currState, nil, nil, nil, nil)
-
 		// all engines try to seal
 		engine.Seal(chain, block, env.results[engine.address], env.stopSealingCh)
 	}

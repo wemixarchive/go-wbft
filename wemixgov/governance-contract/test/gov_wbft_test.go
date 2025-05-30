@@ -536,7 +536,7 @@ func TestGovWithNCP(t *testing.T) {
 		ncp4.Operator.Address: {Balance: MAX_UINT_128},
 	})
 	require.NoError(t, err)
-	setWbftGovConfig(g)
+	setWbftGovConfigWithGovCouncil(g)
 
 	stateDB := &TestStateDB{
 		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
@@ -920,8 +920,9 @@ func TestGovWithNCP(t *testing.T) {
 	t.Run("Cannot change NCP for being locked", func(t *testing.T) {
 		defer checkNCPStaker()
 
-		_, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Operator, ncp4.Operator.Address))
+		receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Operator, ncp4.Operator.Address))
 		require.NoError(t, err)
+		proposalEvent := findEvent("NewProposal", receipt.Logs)
 		// ncp1, ncp4 locked
 
 		ExpectedRevert(t,
@@ -933,6 +934,45 @@ func TestGovWithNCP(t *testing.T) {
 			g.ExpectedFail(g.ChangeNCP(t, ncp4.Operator, ncp2.Operator.Address)),
 			"belong in an on-going proposal",
 		)
+
+		_, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))
+		require.NoError(t, err)
+	})
+
+	t.Run("Set emergency", func(t *testing.T) {
+		defer checkNCPStaker()
+
+		// set emergency mode
+		receipt, err := g.ExpectedOk(g.NewProposalEmergencyMode(t, ncp1.Operator, true))
+		require.NoError(t, err)
+		proposalEvent := findEvent("NewProposal", receipt.Logs)
+
+		_, err = g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Vote(t, ncp4.Operator, proposalEvent["id"].(*big.Int), true))
+		require.NoError(t, err)
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.Stake(t, ncp1.Operator, minStaking)),
+			"operation not permitted by council",
+		)
+
+		// set emergency mode off
+		receipt, err = g.ExpectedOk(g.NewProposalEmergencyMode(t, ncp1.Operator, false))
+		require.NoError(t, err)
+		proposalEvent = findEvent("NewProposal", receipt.Logs)
+
+		_, err = g.ExpectedOk(g.Vote(t, ncp1.Operator, proposalEvent["id"].(*big.Int), true))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Vote(t, ncp4.Operator, proposalEvent["id"].(*big.Int), true))
+		require.NoError(t, err)
+
+		_, err = g.ExpectedOk(g.Stake(t, ncp1.Operator, minStaking))
+		require.NoError(t, err)
+		totalStaking = totalStaking.Add(totalStaking, minStaking)
+		ncpTotalStaking = ncpTotalStaking.Add(ncpTotalStaking, minStaking)
 	})
 }
 
@@ -1009,9 +1049,9 @@ func TestGovReward(t *testing.T) {
 		require.Equal(t, minStaking, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).TotalStaked)
 		require.Equal(t, 0, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).AccRewardPerStaking.Sign())
 		require.Equal(t, 0, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).LastRewardBalance.Sign())
-		require.Equal(t, minStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Operator.Address).StakingAmount)
-		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Operator.Address).PendingReward.Sign())
-		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Operator.Address).RewardPerStaking.Sign())
+		require.Equal(t, minStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Staker.Address).StakingAmount)
+		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Staker.Address).PendingReward.Sign())
+		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Staker.Address).RewardPerStaking.Sign())
 	})
 
 	t.Run("second staking", func(t *testing.T) {
@@ -1029,9 +1069,9 @@ func TestGovReward(t *testing.T) {
 		require.Equal(t, minStaking, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v2.Staker.Address).TotalStaked)
 		require.Equal(t, 0, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v2.Staker.Address).AccRewardPerStaking.Sign())
 		require.Equal(t, 0, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v2.Staker.Address).LastRewardBalance.Sign())
-		require.Equal(t, minStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v2.Staker.Address, v2.Operator.Address).StakingAmount)
-		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v2.Staker.Address, v2.Operator.Address).PendingReward.Sign())
-		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v2.Staker.Address, v2.Operator.Address).RewardPerStaking.Sign())
+		require.Equal(t, minStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v2.Staker.Address, v2.Staker.Address).StakingAmount)
+		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v2.Staker.Address, v2.Staker.Address).PendingReward.Sign())
+		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v2.Staker.Address, v2.Staker.Address).RewardPerStaking.Sign())
 	})
 
 	t.Run("delegator1 delegates to v1", func(t *testing.T) {
@@ -1085,9 +1125,9 @@ func TestGovReward(t *testing.T) {
 		require.Equal(t, new(big.Int).Add(minStaking, minStaking), govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).TotalStaked)
 		require.Equal(t, calcRewardPerStaking, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).AccRewardPerStaking)
 		require.Equal(t, expectedBalance, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).LastRewardBalance)
-		require.Equal(t, minStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Operator.Address).StakingAmount)
-		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Operator.Address).PendingReward.Sign())
-		require.Equal(t, calcRewardPerStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Operator.Address).RewardPerStaking)
+		require.Equal(t, minStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Staker.Address).StakingAmount)
+		require.Equal(t, 0, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Staker.Address).PendingReward.Sign())
+		require.Equal(t, calcRewardPerStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, v1.Staker.Address).RewardPerStaking)
 		afterBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
 		require.Equal(t, expectedClaimed, afterBalance.Sub(afterBalance, beforeBalance).Add(afterBalance, gasCost))
 	})
@@ -1753,13 +1793,12 @@ func TestZeroTotalStaking(t *testing.T) {
 
 func TestSetCode(t *testing.T) {
 	var testParams = map[string]string{
-		"minimumStaking":             "100000000000000000000000",
-		"maximumStaking":             "100000000000000000000000000",
-		"unbondingPeriodStaker":      "10800",  // 3 hours
-		"unbondingPeriodDelegator":   "259200", // 3 days
-		"feePrecision":               "100",
-		"changeFeeDelay":             "3600", // 1 hour
-		"stabilizingStakerThreshold": "5",
+		"minimumStaking":           "100000000000000000000000",
+		"maximumStaking":           "100000000000000000000000000",
+		"unbondingPeriodStaker":    "10800",  // 3 hours
+		"unbondingPeriodDelegator": "259200", // 3 days
+		"feePrecision":             "100",
+		"changeFeeDelay":           "3600", // 1 hour
 	}
 
 	var (
@@ -1872,13 +1911,12 @@ func TestSetCode(t *testing.T) {
 				Address: TestGovConfigAddress,
 				Version: govwbft.GOV_CONTRACT_VERSION_1,
 				Params: map[string]string{
-					govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
-					govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
-					govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
-					govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
-					govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
-					govwbft.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
-					govwbft.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
+					govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:     towei(500000).String(),
+					govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:     (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
+					govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:    "604800",
+					govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR: "259200",
+					govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:       "10000",
+					govwbft.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:    "604800",
 				},
 			},
 		}, nil)
@@ -1945,60 +1983,36 @@ func TestGovGetBls(t *testing.T) {
 	})
 }
 
-func TestGovStabilization(t *testing.T) {
-	var (
-		ctx        = context.TODO()
-		minStaking = towei(500000)
-		stakers    = make([]*TestStaker[*EOA], 0)
-		stakerLen  = 5
-		feeRate    = new(big.Int).SetUint64(100)
-	)
-
-	genesisAlloc := types.GenesisAlloc{}
-	for i := 0; i < stakerLen; i++ {
-		staker := NewTestStaker()
-		stakers = append(stakers, staker)
-		genesisAlloc[staker.Operator.Address] = types.Account{Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)}
-	}
-
-	g, err := NewGovWBFT(t, nil, genesisAlloc)
-	require.NoError(t, err)
-	setWbftGovConfig(g)
-	defer g.backend.Close()
-
-	stateDB := &TestStateDB{
-		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
-			value, _ := g.backend.Client().StorageAt(ctx, addr, hash, nil)
-			return common.BytesToHash(value)
-		},
-	}
-
-	require.False(t, govwbft.IsAfterStabilization(TestGovStakingAddress, stateDB))
-	for _, s := range stakers[1:] {
-		_, err := g.ExpectedOk(g.RegisterStaker(t, s, minStaking, feeRate))
-		require.NoError(t, err)
-	}
-	require.False(t, govwbft.IsAfterStabilization(TestGovStakingAddress, stateDB))
-
-	_, err = g.ExpectedOk(g.RegisterStaker(t, stakers[0], minStaking, feeRate))
-	require.NoError(t, err)
-
-	require.True(t, govwbft.IsAfterStabilization(TestGovStakingAddress, stateDB))
-}
-
 func setWbftGovConfig(g *GovWBFT) {
 	g.backend.CommitWithState(&params.GovContracts{
 		GovConfig: &params.GovContract{
 			Address: TestGovConfigAddress,
 			Version: govwbft.GOV_CONTRACT_VERSION_1,
 			Params: map[string]string{
-				govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:              towei(500000).String(),
-				govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:              (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
-				govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:             "604800",
-				govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR:          "259200",
-				govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:                "10000",
-				govwbft.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:             "604800",
-				govwbft.GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD: "5",
+				govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:     towei(500000).String(),
+				govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:     (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
+				govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:    "604800",
+				govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR: "259200",
+				govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:       "10000",
+				govwbft.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:    "604800",
+			},
+		},
+	}, nil)
+}
+
+func setWbftGovConfigWithGovCouncil(g *GovWBFT) {
+	g.backend.CommitWithState(&params.GovContracts{
+		GovConfig: &params.GovContract{
+			Address: TestGovConfigAddress,
+			Version: govwbft.GOV_CONTRACT_VERSION_1,
+			Params: map[string]string{
+				govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:     towei(500000).String(),
+				govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:     (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
+				govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:    "604800",
+				govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR: "259200",
+				govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:       "10000",
+				govwbft.GOV_CONFIG_PARAM_CHANGE_FEE_DELAY:    "604800",
+				govwbft.GOV_CONFIG_PARAM_GOV_COUNCIL:         TestGovNCPAddress.String(),
 			},
 		},
 	}, nil)

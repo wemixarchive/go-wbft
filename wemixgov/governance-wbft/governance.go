@@ -58,9 +58,9 @@ func GetMontBlancTransition(govContracts *params.GovContracts) (*params.StateTra
 		unbondingDelegator, _ := new(big.Int).SetString(govContracts.GovConfig.Params[GOV_CONFIG_PARAM_UNBONDING_DELEGATOR], 10)
 		feePrecision, _ := new(big.Int).SetString(govContracts.GovConfig.Params[GOV_CONFIG_PARAM_FEE_PRECISION], 10)
 		changeFeeDelay, _ := new(big.Int).SetString(govContracts.GovConfig.Params[GOV_CONFIG_PARAM_CHANGE_FEE_DELAY], 10)
-		stabilizingStakerThreshold, _ := new(big.Int).SetString(govContracts.GovConfig.Params[GOV_CONFIG_PARAM_STABILIZING_STAKER_THRESHOLD], 10)
+		govCouncil := common.HexToAddress(govContracts.GovConfig.Params[GOV_CONFIG_PARAM_GOV_COUNCIL])
 		if minStaking == nil || maxStaking == nil || unbondingStaker == nil || unbondingDelegator == nil ||
-			feePrecision == nil || changeFeeDelay == nil || stabilizingStakerThreshold == nil {
+			feePrecision == nil || changeFeeDelay == nil {
 			return nil, errors.New("invalid gov config params")
 		}
 
@@ -73,8 +73,11 @@ func GetMontBlancTransition(govContracts *params.GovContracts) (*params.StateTra
 			{Address: govContracts.GovConfig.Address, Key: common.HexToHash(SLOT_GOV_CONFIG_UNBONDING_DELEGATOR), Value: common.BigToHash(unbondingDelegator)},
 			{Address: govContracts.GovConfig.Address, Key: common.HexToHash(SLOT_GOV_CONFIG_FEE_PRECISION), Value: common.BigToHash(feePrecision)},
 			{Address: govContracts.GovConfig.Address, Key: common.HexToHash(SLOT_GOV_CONFIG_CHANGE_FEE_DELAY), Value: common.BigToHash(changeFeeDelay)},
-			{Address: govContracts.GovConfig.Address, Key: common.HexToHash(SLOT_GOV_CONFIG_STABILIZING_STAKER_THRESHOLD), Value: common.BigToHash(stabilizingStakerThreshold)},
 		}...)
+		if govCouncil != (common.Address{}) {
+			st.States = append(st.States, params.StateParam{
+				Address: govContracts.GovConfig.Address, Key: common.HexToHash(SLOT_GOV_CONFIG_GOV_COUNCIL), Value: common.BytesToHash(govCouncil.Bytes())})
+		}
 	}
 
 	if govContracts.GovStaking != nil {

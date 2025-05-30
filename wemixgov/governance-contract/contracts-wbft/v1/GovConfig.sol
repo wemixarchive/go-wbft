@@ -9,7 +9,7 @@ contract GovConfig {
     uint256 public unbondingPeriodDelegator;
     uint256 public feePrecision;
     uint256 public changeFeeDelay;
-    uint256 public stabilizingStakerThreshold;
+    address public govCouncil; // if zero address, no council is applied
 
     //***********************************************************************
     //* Caution for Upgrading

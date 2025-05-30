@@ -126,7 +126,7 @@ func setQBFTExtra(genesis *core.Genesis, validators []common.Address, blsPublicK
 		epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, blsPublicKeys[i])
 		blsPubKeys[i] = hexutil.Encode(blsPublicKeys[i])
 	}
-
+	epochInfo.Stabilizing = true
 	ist := &types.QBFTExtra{
 		VanityData:    vanity,
 		Round:         0,

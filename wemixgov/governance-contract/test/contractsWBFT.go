@@ -196,6 +196,10 @@ func (g *GovWBFT) NewProposalToRemoveNCP(t *testing.T, proposer *EOA, ncp common
 	return g.ncpContractTx(t, "newProposalToRemoveNCP", proposer, nil, ncp)
 }
 
+func (g *GovWBFT) NewProposalEmergencyMode(t *testing.T, proposer *EOA, mode bool) (*types.Transaction, error) {
+	return g.ncpContractTx(t, "newProposalEmergencyMode", proposer, nil, mode)
+}
+
 func (g *GovWBFT) ChangeNCP(t *testing.T, ncp *EOA, newNCP common.Address) (*types.Transaction, error) {
 	return g.ncpContractTx(t, "changeNCP", ncp, nil, newNCP)
 }

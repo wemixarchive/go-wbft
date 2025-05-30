@@ -504,25 +504,27 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 // If number of stakers < minStakers , use validator list (regarded as staker list) from previous epoch.
 func (e *Engine) GetStakers(config *params.ChainConfig, latestEpochInfo *types.EpochInfo, state govwbft.StateReader, num *big.Int) ([]common.Address, bool) {
 	var (
-		stakers      []common.Address
-		isStabilized bool
+		stakers     []common.Address
+		stabilizing bool = latestEpochInfo.Stabilizing
 	)
 	govStakingAddress := config.MontBlanc.GetGovStakingAddress(num)
-	if state != nil && govwbft.IsAfterStabilization(govStakingAddress, state) {
-		if e.cfg.GetConfig(num).UseNCP {
-			govNCPAddress := config.MontBlanc.GetGovNCPAddress(num)
-			stakers = govwbft.NCPStakers(govStakingAddress, govNCPAddress, state)
-		} else {
-			stakers = govwbft.Stakers(govStakingAddress, state)
-		}
-		isStabilized = true
+	if e.cfg.GetConfig(num).UseNCP {
+		govNCPAddress := config.MontBlanc.GetGovNCPAddress(num)
+		stakers = govwbft.NCPStakers(govStakingAddress, govNCPAddress, state)
 	} else {
-		// epoch in a stabilization stage has the validator set which is same to the previous epoch
-		stakers = latestEpochInfo.GetValidators()
-		isStabilized = false
+		stakers = govwbft.Stakers(govStakingAddress, state)
+	}
+	if stabilizing {
+		if uint64(len(stakers)) >= e.cfg.StabilizingStakersThreshold {
+			// finally we have enough stakers to be stabilized!!
+			stabilizing = false
+		} else {
+			// epoch in a stabilization stage has the validator set which is same to the previous epoch
+			stakers = latestEpochInfo.GetValidators()
+		}
 	}
 
-	return stakers, isStabilized
+	return stakers, stabilizing
 }
 
 type stakerInfo struct {
@@ -691,7 +693,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	)
 
 	// Update epoch info.
-	newStakers, isStabilized := e.GetStakers(config, latestEpochInfo, state, header.Number)
+	newStakers, stabilizing := e.GetStakers(config, latestEpochInfo, state, header.Number)
 	newEpoch.Stakers = make([]*types.Staker, len(newStakers))
 	for i, staker := range newStakers {
 		var d uint64
@@ -745,9 +747,12 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// epoch in a stabilization stage has the validator set which is same to the previous epoch
-	if isStabilized {
+	if stabilizing {
+		newEpoch.Validators = latestEpochInfo.Validators
+		newEpoch.BLSPublicKeys = latestEpochInfo.BLSPublicKeys
+	} else {
 		govStakingAddress := config.MontBlanc.GetGovStakingAddress(header.Number)
-		newEpoch.Validators = e.decideValidators(header, newStakers)
+		newEpoch.Validators = e.decideValidators(header, newStakers, e.cfg.GetConfig(header.Number).TargetValidators)
 		newEpoch.BLSPublicKeys = make([][]byte, len(newEpoch.Validators))
 		for i, addr := range newEpoch.GetValidators() {
 			pk := govwbft.GetBLSPublicKey(govStakingAddress, state, addr)
@@ -758,10 +763,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			}
 			newEpoch.BLSPublicKeys[i] = pk
 		}
-	} else {
-		newEpoch.Validators = latestEpochInfo.Validators
-		newEpoch.BLSPublicKeys = latestEpochInfo.BLSPublicKeys
 	}
+	newEpoch.Stabilizing = stabilizing
 
 	log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
 	for i, staker := range newEpoch.Stakers {
@@ -1127,11 +1130,27 @@ func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Hea
 	if len(epoch.Validators) != len(extra.EpochInfo.Validators) {
 		return errors.New("WBFT: mismatch in validator sizes")
 	}
-	for _, valIdx := range epoch.Validators {
-		if epoch.Stakers[valIdx].Addr != extra.EpochInfo.GetValidator(valIdx) {
+	for i := range extra.EpochInfo.Validators {
+		if epoch.Validators[i] != extra.EpochInfo.Validators[i] {
 			return errors.New("WBFT: The two validators do not match")
 		}
 	}
+
+	// Check BLS public keys.
+	if len(epoch.BLSPublicKeys) != len(extra.EpochInfo.BLSPublicKeys) {
+		return errors.New("WBFT: mismatch in BLS public key sizes")
+	}
+	for i, pk := range epoch.BLSPublicKeys {
+		if !bytes.Equal(pk, extra.EpochInfo.BLSPublicKeys[i]) {
+			return errors.New("WBFT: The two BLS public keys do not match")
+		}
+	}
+
+	// Check Stabilizing flag.
+	if epoch.Stabilizing != extra.EpochInfo.Stabilizing {
+		return errors.New("WBFT: mismatch in stabilizing flag")
+	}
+
 	return nil
 }
 
@@ -1142,7 +1161,7 @@ func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Hea
 // If number of stakers <= targetValidators, use staker list as it is.
 // If number of stakers > targetValidators, random selection from the list in VRF manner
 // depending on their staking amounts and diligence score.
-func (e *Engine) decideValidators(header *types.Header, newStakers []common.Address) []uint32 {
+func (e *Engine) decideValidators(header *types.Header, newStakers []common.Address, targetValidators uint64) []uint32 {
 	validators := make([]uint32, len(newStakers))
 
 	l := make([]uint32, len(validators))

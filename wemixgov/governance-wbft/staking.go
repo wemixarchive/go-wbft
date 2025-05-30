@@ -16,7 +16,6 @@ const (
 	SLOT_STAKER_BY_OPERATOR       = "0x6"
 	SLOT_USER_REWARD_INFO         = "0xb"
 	SLOT_DANGLING_DELEGATED       = "0xc"
-	SLOT_AFTER_STABILIZATION      = "0xd"
 )
 
 type Staker struct {
@@ -51,10 +50,6 @@ const (
 	StakerInfo_AccFeePerStaking
 	StakerInfo_LastRewardBalance
 )
-
-func IsAfterStabilization(govStakingAddress common.Address, state StateReader) bool {
-	return state.GetState(govStakingAddress, common.HexToHash(SLOT_AFTER_STABILIZATION)).Big().Sign() > 0
-}
 
 func TotalStaking(govStakingAddress common.Address, state StateReader) *big.Int {
 	return state.GetState(govStakingAddress, common.HexToHash(SLOT_TOTAL_STAKING)).Big()
@@ -103,7 +98,7 @@ func StakerInfo(govStakingAddress common.Address, state StateReader, staker comm
 		AccFeePerStaking:    state.GetState(govStakingAddress, IncrementHash(baseSlot, big.NewInt(StakerInfo_AccFeePerStaking))).Big(),
 		LastRewardBalance:   state.GetState(govStakingAddress, IncrementHash(baseSlot, big.NewInt(StakerInfo_LastRewardBalance))).Big(),
 	}
-	userInfo := UserInfo(govStakingAddress, state, staker, stakerInfo.Operator)
+	userInfo := UserInfo(govStakingAddress, state, staker, staker)
 	x := new(big.Int).Set(stakerInfo.TotalStaked)
 	stakerInfo.Delegated = x.Sub(x, userInfo.StakingAmount)
 	return stakerInfo

@@ -169,6 +169,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 				Stakers: []*types.Staker{
 					{Addr: testBankAddress, Diligence: types.DefaultDiligence},
 				},
+				Stabilizing:   true,
 				Validators:    []uint32{0},
 				BLSPublicKeys: [][]byte{testBankBlsPubKey.Marshal()},
 			},

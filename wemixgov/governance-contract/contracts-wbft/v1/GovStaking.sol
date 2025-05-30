@@ -7,9 +7,18 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./GovConfig.sol";
 import {GovRewardeeImp} from "./GovRewardeeImp.sol";
 import {GovRewardee} from "./GovRewardee.sol";
+import {IGovCouncil} from "./IGovCouncil.sol";
 
 contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    struct RegisterStakerParams {
+        uint256 amount;
+        address staker;
+        address feeRecipient;
+        uint256 feeRate;
+        bytes blsPK;
+    }
 
     struct Staker {
         // configuration
@@ -59,6 +68,7 @@ contract GovStaking {
         uint256 staking,
         bytes blsPK
     );
+    event OperatorTransferred(address indexed staker, address indexed newOperator);
     event Staked(address indexed staker, uint256 amount);
     event Unstaked(address indexed staker, uint256 amount);
     event StakerRemoved(address indexed staker);
@@ -121,7 +131,6 @@ contract GovStaking {
     // danglingDelegated is the delegated balance for the inactive stakers
     // contract's balance = totalStaked + danglingDelegated + unbonding
     uint256 public danglingDelegated; // 0xc
-    bool public afterStabilization; // 0xd
 
     //***********************************************************************
     //* Caution for Upgrading
@@ -174,6 +183,18 @@ contract GovStaking {
         _;
     }
 
+    modifier inspectWithCouncil(bytes4 selector, bytes memory arguments) {
+        address _govCouncil = GovConfig(govConfig).govCouncil();
+        if (_govCouncil != address(0)) {
+            // if the GovCouncil is set, then check an operation with governance council
+            require(
+                IGovCouncil(_govCouncil).inspectOperation(selector, msg.sender, arguments),
+                "operation not permitted by council"
+            );
+        }
+        _;
+    }
+
     // Rewardee sends coin to this contract, so receive() is required
     receive() external payable {
         require(isStaker(stakerByRewardee[msg.sender]), "only an active rewardee can send coin");
@@ -200,8 +221,10 @@ contract GovStaking {
         address _staker,
         address _feeRecipient,
         uint256 _feeRate,
-        bytes calldata _blsPK
-    ) external payable checkAmount(_amount) isNotRegistered(_staker) {
+        bytes memory _blsPK
+    ) external payable isNotRegistered(_staker) checkAmount(_amount)
+        inspectWithCouncil(GovStaking.registerStaker.selector,
+            abi.encode(_amount, _staker, _feeRecipient, _feeRate, _blsPK)) {
         require(_amount >= GovConfig(govConfig).minimumStaking() && _amount <= GovConfig(govConfig).maximumStaking(), "out of bounds");
         require(msg.sender != _staker, "operator cannot be staker");
         require(_staker != address(0), "zero address");
@@ -210,30 +233,59 @@ contract GovStaking {
         require(_feeRate <= GovConfig(govConfig).feePrecision(), "fee rate exceeds precision");
         require(_blsPK.length == BLS_PUBLIC_KEY_LENGTH, "invalid bls public key");
 
+        RegisterStakerParams memory _params = RegisterStakerParams({
+            amount: _amount,
+            staker: _staker,
+            feeRecipient: _feeRecipient,
+            feeRate: _feeRate,
+            blsPK: _blsPK
+        });
+        _registerStaker(_params);
+    }
+
+    function _registerStaker(RegisterStakerParams memory _params) internal {
         GovRewardee _rewardee = new GovRewardee(govRewardeeImp);
         GovRewardeeImp(payable(address(_rewardee))).initialize(address(this));
 
-        stakerInfo[_staker].operator = msg.sender;
-        stakerInfo[_staker].rewardee = address(_rewardee);
-        stakerInfo[_staker].feeRecipient = _feeRecipient;
-        stakerInfo[_staker].feeRate = _feeRate;
-        stakerInfo[_staker].blsPubKey = _blsPK;
+        stakerInfo[_params.staker].operator = msg.sender;
+        stakerInfo[_params.staker].rewardee = address(_rewardee);
+        stakerInfo[_params.staker].feeRecipient = _params.feeRecipient;
+        stakerInfo[_params.staker].feeRate = _params.feeRate;
+        stakerInfo[_params.staker].blsPubKey = _params.blsPK;
 
-        stakerByOperator[msg.sender] = _staker;
-        stakerByRewardee[address(_rewardee)] = _staker;
+        stakerByOperator[msg.sender] = _params.staker;
+        stakerByRewardee[address(_rewardee)] = _params.staker;
 
-        __stakerSet.add(_staker);
+        __stakerSet.add(_params.staker);
 
-        _addStaking(_staker, msg.sender, _amount);
+        _addStaking(_params.staker, _params.staker, _params.amount);
 
-        if (__stakerSet.length() >= GovConfig(govConfig).stabilizingStakerThreshold()) {
-            afterStabilization = true;
-        }
-
-        emit StakerRegistered(_staker, msg.sender, address(_rewardee), _feeRecipient, _feeRate, _amount, _blsPK);
+        emit StakerRegistered(
+            _params.staker,
+            msg.sender,
+            address(_rewardee),
+            _params.feeRecipient,
+            _params.feeRate,
+            _params.amount,
+            _params.blsPK);
     }
 
-    function changeFeeRecipient(address _newRecipient) external isRegistered(stakerByOperator[msg.sender]) {
+    function transferOperatorShip(address _newOperator) external isRegistered(stakerByOperator[msg.sender])
+        inspectWithCouncil(GovStaking.transferOperatorShip.selector, abi.encode(_newOperator)) {
+        require(_newOperator != address(0), "zero address");
+        address _staker = stakerByOperator[msg.sender];
+        require(_newOperator != _staker, "cannot transfer to self");
+
+        // update operator
+        stakerInfo[_staker].operator = _newOperator;
+        stakerByOperator[_newOperator] = _staker;
+        delete stakerByOperator[msg.sender];
+
+        emit OperatorTransferred(_staker, _newOperator);
+    }
+
+    function changeFeeRecipient(address _newRecipient) external isRegistered(stakerByOperator[msg.sender])
+        inspectWithCouncil(GovStaking.changeFeeRecipient.selector, abi.encode(_newRecipient)) {
         require(_newRecipient != address(0), "zero address");
         address _staker = stakerByOperator[msg.sender];
         address oldRecipient = stakerInfo[_staker].feeRecipient;
@@ -242,7 +294,8 @@ contract GovStaking {
         emit FeeRecipientChanged(_staker, oldRecipient, _newRecipient);
     }
 
-    function requestChangingFee(uint256 _feeRate) external isActive(stakerByOperator[msg.sender]) {
+    function requestChangingFee(uint256 _feeRate) external isActive(stakerByOperator[msg.sender])
+        inspectWithCouncil(GovStaking.requestChangingFee.selector, abi.encode(_feeRate)) {
         require(_feeRate <= GovConfig(govConfig).feePrecision(), "fee rate exceeds precision");
         address _staker = stakerByOperator[msg.sender];
         require(changingFeeRequests[_staker].requestTime == 0, "request already is on going");
@@ -258,7 +311,8 @@ contract GovStaking {
         emit ChangingFeeRateRequested(_staker, oldFeeRate, _feeRate);
     }
 
-    function executeChangingFee(address _staker) external {
+    function executeChangingFee(address _staker) external
+        inspectWithCouncil(GovStaking.executeChangingFee.selector, abi.encode(_staker)) {
         require(changingFeeRequests[_staker].requestTime > 0, "no request exists");
         require(
             block.timestamp - changingFeeRequests[_staker].requestTime >= GovConfig(govConfig).changeFeeDelay(),
@@ -269,11 +323,12 @@ contract GovStaking {
         _updateRewardInfo(_staker, address(0));
     }
 
-    function stake(uint256 _amount) external payable isRegistered(stakerByOperator[msg.sender]) checkAmount(_amount) {
+    function stake(uint256 _amount) external payable isRegistered(stakerByOperator[msg.sender]) checkAmount(_amount)
+        inspectWithCouncil(GovStaking.stake.selector, abi.encode(_amount)) {
         address _staker = stakerByOperator[msg.sender];
 
         // update stake info
-        _updateRewardInfo(_staker, msg.sender);
+        _updateRewardInfo(_staker, _staker);
 
         if (!isStaker(_staker)) {
             // reactivation case: if the staker is not active, then reactivate it
@@ -284,22 +339,23 @@ contract GovStaking {
             danglingDelegated -= stakerInfo[_staker].totalStaked;
         }
 
-        _addStaking(_staker, msg.sender, _amount);
+        _addStaking(_staker, _staker, _amount);
 
         emit Staked(_staker, _amount);
     }
 
-    function unstake(uint256 _amount) external isActive(stakerByOperator[msg.sender]) {
+    function unstake(uint256 _amount) external isActive(stakerByOperator[msg.sender])
+        inspectWithCouncil(GovStaking.unstake.selector, abi.encode(_amount)) {
         require(_amount > 0, "amount is zero");
 
         address _staker = stakerByOperator[msg.sender];
 
         // update stake info
-        _updateRewardInfo(_staker, msg.sender);
+        _updateRewardInfo(_staker, _staker);
 
-        _subStaking(_staker, msg.sender, _amount);
+        _subStaking(_staker, _staker, _amount);
 
-        UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
+        UserInfo storage _userInfo = userRewardInfo[_staker][_staker];
         if (_userInfo.stakingAmount < GovConfig(govConfig).minimumStaking()) {
             require(_userInfo.stakingAmount == 0, "amount must equal balance to deactivate staker");
 
@@ -315,7 +371,8 @@ contract GovStaking {
         emit Unstaked(_staker, _amount);
     }
 
-    function delegate(address _staker, uint256 _amount) external payable isActive(_staker) checkAmount(_amount) {
+    function delegate(address _staker, uint256 _amount) external payable isActive(_staker) checkAmount(_amount)
+        inspectWithCouncil(GovStaking.delegate.selector, abi.encode(_staker, _amount)) {
         require(msg.sender != _staker, "staker cannot delegate to self");
         require(msg.sender != stakerInfo[_staker].operator, "operator cannot delegate to self");
 
@@ -326,7 +383,8 @@ contract GovStaking {
         emit Delegated(msg.sender, _staker, _amount);
     }
 
-    function undelegate(address _staker, uint256 _amount) external isRegistered(_staker) {
+    function undelegate(address _staker, uint256 _amount) external isRegistered(_staker)
+        inspectWithCouncil(GovStaking.undelegate.selector, abi.encode(_staker, _amount)) {
         require(msg.sender != _staker, "staker cannot undelegate to self");
         require(msg.sender != stakerInfo[_staker].operator, "operator cannot undelegate to self");
 
@@ -347,17 +405,19 @@ contract GovStaking {
         emit Undelegated(msg.sender, _staker, _amount);
     }
 
-    function claim(address _staker, bool _restake) external isRegistered(_staker) {
-        require(userRewardInfo[_staker][msg.sender].stakingAmount > 0 || userRewardInfo[_staker][msg.sender].pendingReward > 0, "no reward to claim");
+    function claim(address _staker, bool _restake) external isRegistered(_staker)
+        inspectWithCouncil(GovStaking.claim.selector, abi.encode(_staker, _restake)) {
+        address _user = isOperator(msg.sender) ? _staker : msg.sender;
+        require(userRewardInfo[_staker][_user].stakingAmount > 0 || userRewardInfo[_staker][_user].pendingReward > 0, "no reward to claim");
         Staker storage _stakerInfo = stakerInfo[_staker];
-        UserInfo storage _userInfo = userRewardInfo[_staker][msg.sender];
+        UserInfo storage _userInfo = userRewardInfo[_staker][_user];
         // update stake info
-        _updateRewardInfo(_staker, msg.sender);
+        _updateRewardInfo(_staker, _user);
 
         uint256 _reward = _userInfo.pendingReward;
         uint256 _fee = 0;
-        if (msg.sender != _stakerInfo.operator) {
-            // staker himself(operator) does not pay fee
+        if (_user != _staker) {
+            // staker himself does not pay fee
             _fee = _userInfo.pendingFee;
             _reward = _reward - _fee;
         }
@@ -368,7 +428,7 @@ contract GovStaking {
             require(isStaker(_staker), "staker is inactive");
             GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(address(this)), _reward);
 
-            _addStaking(_staker, msg.sender, _reward);
+            _addStaking(_staker, _user, _reward);
         } else {
             GovRewardeeImp(payable(_stakerInfo.rewardee)).sendRewardTo(payable(msg.sender), _reward);
         }
@@ -381,7 +441,8 @@ contract GovStaking {
         emit Claimed(_staker, msg.sender, _reward, _restake);
     }
 
-    function withdraw(uint256 _withdrawalCount) external {
+    function withdraw(uint256 _withdrawalCount) external
+        inspectWithCouncil(GovStaking.withdraw.selector, abi.encode(_withdrawalCount)) {
         UserCredentialInfo storage _userCredential = userCredential[msg.sender];
         require(_userCredential.credentialIndex > _userCredential.withdrawalIndex, "no credential to withdraw");
 
@@ -496,10 +557,10 @@ contract GovStaking {
     }
 
     function getStakerAmount(address _staker) external view returns (uint256) {
-        return userRewardInfo[_staker][stakerInfo[_staker].operator].stakingAmount;
+        return userRewardInfo[_staker][_staker].stakingAmount;
     }
 
     function getDelegatedAmount(address _staker) public view returns (uint256) {
-        return stakerInfo[_staker].totalStaked - userRewardInfo[_staker][stakerInfo[_staker].operator].stakingAmount;
+        return stakerInfo[_staker].totalStaked - userRewardInfo[_staker][_staker].stakingAmount;
     }
 }

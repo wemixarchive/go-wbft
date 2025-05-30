@@ -96,7 +96,8 @@ var (
 					Addr:      common.HexToAddress("0xC79d535f6EDD3E0Fa648D6169eA5b8e1Aa38921e"),
 					Numerator: 2500,
 				}}},
-				TargetValidators: 1, // TODO: define validators
+				TargetValidators:            1, // TODO: define validators
+				StabilizingStakersThreshold: 1,
 			},
 			Init: &Init{
 				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define initial validators
@@ -173,7 +174,8 @@ var (
 					Addr:      common.HexToAddress("0xC79d535f6EDD3E0Fa648D6169eA5b8e1Aa38921e"),
 					Numerator: 2500,
 				}}},
-				TargetValidators: 1, // TODO: define validators
+				TargetValidators:            1, // TODO: define validators
+				StabilizingStakersThreshold: 1,
 			},
 			Init: &Init{
 				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define initial validators
@@ -375,7 +377,8 @@ var (
 					Addr:      common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248"),
 					Numerator: 5000,
 				}}},
-				TargetValidators: 1,
+				TargetValidators:            1,
+				StabilizingStakersThreshold: 1,
 			},
 			Init: &Init{
 				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")},
@@ -563,7 +566,8 @@ var (
 					Addr:      common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248"),
 					Numerator: 5000,
 				}}},
-				TargetValidators: 1,
+				TargetValidators:            1,
+				StabilizingStakersThreshold: 1,
 			},
 			Init: &Init{
 				Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")},

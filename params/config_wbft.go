@@ -22,13 +22,13 @@ var (
 	DefaultGovNCPAddress         = common.HexToAddress("0x1003")
 	DefaultGovVersion            = "v1"
 	DefaultGovConfigParams       = map[string]string{
-		"minimumStaking":             "10000000000000000000000000",
-		"maximumStaking":             "100000000000000000000000000",
-		"unbondingPeriodStaker":      "604800", // 7 days
-		"unbondingPeriodDelegator":   "259200", // 3 days
-		"feePrecision":               "10000",  // 0.01%
-		"changeFeeDelay":             "604800", // 7 days
-		"stabilizingStakerThreshold": "1",
+		"minimumStaking":           "10000000000000000000000000",
+		"maximumStaking":           "100000000000000000000000000",
+		"unbondingPeriodStaker":    "604800", // 7 days
+		"unbondingPeriodDelegator": "259200", // 3 days
+		"feePrecision":             "10000",  // 0.01%
+		"changeFeeDelay":           "604800", // 7 days
+		"govCouncil":               common.HexToAddress("0x0").String(),
 	}
 )
 
@@ -148,6 +148,10 @@ func (c *MontBlancConfig) CheckValidity() error {
 		}
 	}
 
+	if c.WBFT.StabilizingStakersThreshold == 0 {
+		return errors.New("`montblanc.wBFT`: `stabilizingStakersThreshold` must be greater than 0")
+	}
+
 	if err := checkSanityBeneficiaries(c.WBFT.BlockRewardBeneficiary); err != nil {
 		return fmt.Errorf("`montblanc.wBFT`: %v", err)
 	}
@@ -248,16 +252,18 @@ func (u *Upgrade) String() string {
 }
 
 type WBFTConfig struct {
-	RequestTimeoutSeconds    uint64                `json:"requestTimeoutSeconds"`            // Minimum request timeout for each QBFT round in milliseconds
-	BlockPeriodSeconds       uint64                `json:"blockPeriodSeconds"`               // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
-	ProposerPolicy           uint64                `json:"proposerPolicy"`                   // The policy for proposer selection
-	EpochLength              uint64                `json:"epochLength"`                      // The duration during which a fixed validator set remains active
-	BlockReward              *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
-	BlockRewardBeneficiary   *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
-	TargetValidators         uint64                `json:"targetValidators"`                 // Target number of validators
-	MaxRequestTimeoutSeconds *uint64               `json:"maxRequestTimeoutSeconds"`         // The max round time
-	UseNCP                   bool                  `json:"useNCP"`                           // Use NCP or not
-	Transitions              []Transition          `json:"transitions,omitempty"`            // Transition config based on the block number
+	RequestTimeoutSeconds       uint64                `json:"requestTimeoutSeconds"`            // Minimum request timeout for each QBFT round in milliseconds
+	BlockPeriodSeconds          uint64                `json:"blockPeriodSeconds"`               // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
+	ProposerPolicy              uint64                `json:"proposerPolicy"`                   // The policy for proposer selection
+	EpochLength                 uint64                `json:"epochLength"`                      // The duration during which a fixed validator set remains active
+	BlockReward                 *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
+	BlockRewardBeneficiary      *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
+	TargetValidators            uint64                `json:"targetValidators"`                 // Target number of validators
+	MaxRequestTimeoutSeconds    *uint64               `json:"maxRequestTimeoutSeconds"`         // The max round time
+	StabilizingStakersThreshold uint64                `json:"stabilizingStakersThreshold"`      // initial stabilizing stakers threshold, default is 1
+	UseNCP                      bool                  `json:"useNCP"`                           // Use NCP or not
+
+	Transitions []Transition `json:"transitions,omitempty"` // Transition config based on the block number
 }
 
 type BeneficiaryInfo struct {
@@ -298,12 +304,13 @@ func (t *Transition) String() string {
 
 var DefaultMontBlancConfig = &MontBlancConfig{
 	WBFT: &WBFTConfig{
-		RequestTimeoutSeconds: 2,
-		BlockPeriodSeconds:    1,
-		ProposerPolicy:        0,
-		EpochLength:           10,
-		BlockReward:           (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
-		UseNCP:                false,
+		RequestTimeoutSeconds:       2,
+		BlockPeriodSeconds:          1,
+		ProposerPolicy:              0,
+		EpochLength:                 10,
+		BlockReward:                 (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
+		StabilizingStakersThreshold: 1,
+		UseNCP:                      false,
 	},
 	Init: &Init{
 		GovContracts: &GovContracts{
@@ -311,13 +318,12 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 				Address: common.HexToAddress("0x1000"),
 				Version: "v1",
 				Params: map[string]string{
-					"minimumStaking":             "10000000000000000000000000",
-					"maximumStaking":             "100000000000000000000000000",
-					"unbondingPeriodStaker":      "604800", // 7 days
-					"unbondingPeriodDelegator":   "259200", // 3 days
-					"feePrecision":               "10000",  // 0.01%
-					"changeFeeDelay":             "604800", // 7 days
-					"stabilizingStakerThreshold": "1",
+					"minimumStaking":           "10000000000000000000000000",
+					"maximumStaking":           "100000000000000000000000000",
+					"unbondingPeriodStaker":    "604800", // 7 days
+					"unbondingPeriodDelegator": "259200", // 3 days
+					"feePrecision":             "10000",  // 0.01%
+					"changeFeeDelay":           "604800", // 7 days
 				},
 			},
 			GovStaking: &GovContract{
@@ -347,7 +353,7 @@ func (c *WBFTConfig) String() string {
 		maxRequestTimeoutSeconds = "<nil>"
 	}
 
-	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, TargetValidators: %v, MaxRequestTimeoutSeconds: %v, Transitions: %v}",
+	return fmt.Sprintf("{EpochLength: %v BlockPeriodSeconds: %v RequestTimeoutSeconds: %v, ProposerPolicy: %v, BlockReward: %v, BlockRewardBeneficiaries: %+v, TargetValidators: %v, MaxRequestTimeoutSeconds: %v, StabilizingStakersThreshold: %v, UseNCP: %v, Transitions: %v}",
 		c.EpochLength,
 		c.BlockPeriodSeconds,
 		c.RequestTimeoutSeconds,
@@ -356,6 +362,8 @@ func (c *WBFTConfig) String() string {
 		c.BlockRewardBeneficiary,
 		c.TargetValidators,
 		maxRequestTimeoutSeconds,
+		c.StabilizingStakersThreshold,
+		c.UseNCP,
 		c.Transitions,
 	)
 }
