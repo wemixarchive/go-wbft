@@ -461,13 +461,14 @@ contract GovStaking {
                 break;
             }
             _userCredential.withdrawalIndex++;
+            uint256 _withdrawalIndex = _userCredential.withdrawalIndex;
+            uint256 _amount = _credential.amount;
+            delete credentials[msg.sender][i];
 
-            (bool success, ) = payable(msg.sender).call{ value: _credential.amount }("");
+            (bool success, ) = payable(msg.sender).call{ value: _amount }("");
             require(success, "failed to send withdrawal amount");
 
-            emit Withdrawn(msg.sender, _userCredential.withdrawalIndex, _credential.amount);
-
-            delete credentials[msg.sender][i];
+            emit Withdrawn(msg.sender, _withdrawalIndex, _amount);
         }
     }
 
