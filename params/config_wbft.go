@@ -152,6 +152,11 @@ func (c *MontBlancConfig) CheckValidity() error {
 		return errors.New("`montblanc.wBFT`: `stabilizingStakersThreshold` must be greater than 0")
 	}
 
+	if c.WBFT.EpochLength < c.WBFT.TargetValidators {
+		return fmt.Errorf("`montblanc.wBFT`: `epochLength` (%d) must be greater than or equal to `targetValidators` (%d)",
+			c.WBFT.EpochLength, c.WBFT.TargetValidators)
+	}
+
 	if err := checkSanityBeneficiaries(c.WBFT.BlockRewardBeneficiary); err != nil {
 		return fmt.Errorf("`montblanc.wBFT`: %v", err)
 	}

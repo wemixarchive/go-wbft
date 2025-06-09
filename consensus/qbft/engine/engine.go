@@ -42,6 +42,12 @@ var (
 
 type SignerFn func(data []byte) ([]byte, error)
 
+type Candidate struct {
+	Addr      common.Address
+	Power     *big.Int
+	Diligence uint64
+}
+
 type Engine struct {
 	cfg        *qbft.Config
 	signer     common.Address // Ethereum address of the signing key
@@ -752,7 +758,16 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		newEpoch.BLSPublicKeys = latestEpochInfo.BLSPublicKeys
 	} else {
 		govStakingAddress := config.MontBlanc.GetGovStakingAddress(header.Number)
-		newEpoch.Validators = e.decideValidators(header, newStakers, e.cfg.GetConfig(header.Number).TargetValidators)
+		candidates := make([]Candidate, 0, len(newStakers))
+		for _, s := range newEpoch.Stakers {
+			candidate := Candidate{
+				Addr:      s.Addr,
+				Diligence: s.Diligence,
+				Power:     govwbft.GetTotalStaked(govStakingAddress, state, s.Addr),
+			}
+			candidates = append(candidates, candidate)
+		}
+		newEpoch.Validators = e.decideValidators(header, candidates, e.cfg.GetConfig(header.Number).TargetValidators)
 		newEpoch.BLSPublicKeys = make([][]byte, len(newEpoch.Validators))
 		for i, addr := range newEpoch.GetValidators() {
 			pk := govwbft.GetBLSPublicKey(govStakingAddress, state, addr)
@@ -1161,7 +1176,7 @@ func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Hea
 // If number of stakers <= targetValidators, use staker list as it is.
 // If number of stakers > targetValidators, random selection from the list in VRF manner
 // depending on their staking amounts and diligence score.
-func (e *Engine) decideValidators(header *types.Header, newStakers []common.Address, targetValidators uint64) []uint32 {
+func (e *Engine) decideValidators(header *types.Header, newStakers []Candidate, targetValidators uint64) []uint32 {
 	validators := make([]uint32, len(newStakers))
 
 	l := make([]uint32, len(validators))

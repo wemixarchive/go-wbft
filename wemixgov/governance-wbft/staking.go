@@ -85,7 +85,7 @@ func StakerByOperator(govStakingAddress common.Address, state StateReader, opera
 }
 
 func StakerInfo(govStakingAddress common.Address, state StateReader, staker common.Address) Staker {
-	baseSlot := stakerInfoSlot(govStakingAddress, staker)
+	baseSlot := stakerInfoSlot(staker)
 
 	stakerInfo := Staker{
 		Operator:            getOperator(govStakingAddress, state, baseSlot),
@@ -105,7 +105,7 @@ func StakerInfo(govStakingAddress common.Address, state StateReader, staker comm
 }
 
 func UserInfo(govStakingAddress common.Address, state StateReader, staker common.Address, user common.Address) UserRewardInfo {
-	baseSlot := userInfoSlot(govStakingAddress, staker, user)
+	baseSlot := userInfoSlot(staker, user)
 
 	return UserRewardInfo{
 		StakingAmount:    state.GetState(govStakingAddress, baseSlot).Big(),
@@ -126,11 +126,11 @@ func StakerInfoMap(govStakingAddress common.Address, state StateReader) map[comm
 }
 
 func GetTotalStaked(govStakingAddress common.Address, state StateReader, staker common.Address) *big.Int {
-	return getTotalStaked(govStakingAddress, state, stakerInfoSlot(govStakingAddress, staker))
+	return getTotalStaked(govStakingAddress, state, stakerInfoSlot(staker))
 }
 
 func GetBLSPublicKey(govStakingAddress common.Address, state StateReader, staker common.Address) []byte {
-	return getBLSPublicKey(govStakingAddress, state, stakerInfoSlot(govStakingAddress, staker))
+	return getBLSPublicKey(govStakingAddress, state, stakerInfoSlot(staker))
 }
 
 func getOperator(govStakingAddress common.Address, state StateReader, baseSlot common.Hash) common.Address {
@@ -145,11 +145,11 @@ func getBLSPublicKey(govStakingAddress common.Address, state StateReader, baseSl
 	return GetBytes(state, govStakingAddress, IncrementHash(baseSlot, big.NewInt(StakerInfo_BLSPublicKey)))
 }
 
-func stakerInfoSlot(govStakingAddress common.Address, staker common.Address) common.Hash {
+func stakerInfoSlot(staker common.Address) common.Hash {
 	return CalculateMappingSlot(common.HexToHash(SLOT_STAKER_INFO), staker)
 }
 
-func userInfoSlot(govStakingAddress common.Address, staker common.Address, user common.Address) common.Hash {
+func userInfoSlot(staker common.Address, user common.Address) common.Hash {
 	stakerMap := CalculateMappingSlot(common.HexToHash(SLOT_USER_REWARD_INFO), staker)
 	return CalculateMappingSlot(stakerMap, user)
 }
