@@ -797,17 +797,6 @@ func makeQBFTMessagePayload(message messages.QBFTMessage, node otherNode) ([]byt
 	return payload, nil
 }
 
-func nodeSendPreprepareMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
-	preprepare := messages.NewPreprepare(sequence, round, targetBlock)
-	payload, err := makeQBFTMessagePayload(preprepare, node)
-	if err != nil {
-		return err
-	}
-	go postMsgEventToBackend(qbftEngine, preprepare, payload)
-
-	return nil
-}
-
 func nodeSendPrepareMsg(qbftEngine *Backend, node otherNode, sequence, round *big.Int, targetBlock *types.Block) error {
 	blsKey, err := bls.DeriveFromECDSA(node.privateKey)
 	if err != nil {
