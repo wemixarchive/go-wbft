@@ -366,6 +366,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		// validators are stored in genesis block
 		qbftengine.ApplyHeaderQBFTExtra(
 			header,
+			sb.Engine().WriteRandao(sb.chain.Config(), parent, header),
 			qbftengine.WritePrevSeals(extra.Round, prevPreparedSeal, prevCommittedSeal))
 		return nil
 	case "NewChainHead":

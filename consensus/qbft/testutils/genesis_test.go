@@ -14,6 +14,8 @@ import (
 func TestGeneratingGenesisExtra(t *testing.T) {
 	QBFTExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
+		RandaoMix:         common.Hash{},
+		RandaoReveal:      []byte{},
 		PrevRound:         0,
 		PreparedSeal:      &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
 		PrevPreparedSeal:  &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},

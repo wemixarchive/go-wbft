@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/bls"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -41,6 +42,7 @@ var (
 )
 
 type SignerFn func(data []byte) ([]byte, error)
+type CheckSignatureFn func(data []byte, address common.Address, sig []byte) error
 
 type Candidate struct {
 	Addr      common.Address
@@ -50,16 +52,18 @@ type Candidate struct {
 
 type Engine struct {
 	cfg        *qbft.Config
-	signer     common.Address // Ethereum address of the signing key
-	sign       SignerFn       // Signer function to authorize hashes with
+	signer     common.Address   // Ethereum address of the signing key
+	sign       SignerFn         // Signer function to authorize hashes with
+	checkSig   CheckSignatureFn // Check signature function to verify signatures
 	epochCache *lru.Cache[uint64, *types.EpochInfo]
 }
 
-func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn) *Engine {
+func NewEngine(cfg *qbft.Config, signer common.Address, sign SignerFn, checkSig CheckSignatureFn) *Engine {
 	return &Engine{
 		cfg:        cfg,
 		signer:     signer,
 		sign:       sign,
+		checkSig:   checkSig,
 		epochCache: lru.NewCache[uint64, *types.EpochInfo](inmemoryCache),
 	}
 }
@@ -293,6 +297,31 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		}
 	}
 
+	// verify extra RandaoMix and RandaoReveal
+	currentExtra, err := types.ExtractQBFTExtra(header)
+	if err != nil {
+		return fmt.Errorf("failed to extract QBFT extra from header: %w", err)
+	}
+	if err := e.checkSig(header.Number.Bytes(), header.Coinbase, currentExtra.RandaoReveal); err != nil {
+		return fmt.Errorf("failed to verify randao reveal signature: %w", err)
+	}
+	var parentRandaoMix common.Hash
+	if !chain.Config().IsMontBlanc(parent.Number) {
+		// If the parent is not montblanc, we use the initial randao mix
+		parentRandaoMix = qbft.InitialWBFTRandaoMix
+	} else {
+		// If the parent is montblanc, we extract the randao mix from the parent's extra data
+		parentExtra, err := types.ExtractQBFTExtra(parent)
+		if err != nil {
+			return fmt.Errorf("failed to extract QBFT extra from parent header: %w", err)
+		}
+		parentRandaoMix = parentExtra.RandaoMix
+	}
+	calculatedRandaoMix := calculateRandaoMix(parentRandaoMix, currentExtra.RandaoReveal)
+	if calculatedRandaoMix != currentExtra.RandaoMix {
+		return fmt.Errorf("invalid randao mix: have %x, want %x", currentExtra.RandaoMix, calculatedRandaoMix)
+	}
+
 	// prev seals validation for monblanc block or first block after genesis is skipped because it's empty
 	if mustHavePrevSeals(header, chain.Config()) {
 		// if montBlanc == 0: montBlanc+1(== 1) has no prev seals;
@@ -459,7 +488,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	if mustHavePrevSeals(header, chain.Config()) {
 		lastCanonicalHeader := chain.GetHeaderByNumber(header.Number.Uint64() - 1)
 		if lastCanonicalHeader.Number.Sign() == 0 {
-			return ApplyHeaderQBFTExtra(header)
+			return ApplyHeaderQBFTExtra(header, e.WriteRandao(chain.Config(), parent, header))
 		}
 		extra, err := types.ExtractQBFTExtra(lastCanonicalHeader)
 		if err != nil {
@@ -480,13 +509,46 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 		// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 		return ApplyHeaderQBFTExtra(
 			header,
+			e.WriteRandao(chain.Config(), parent, header),
 			WritePrevSeals(extra.Round, prevPreparedSeal, prevCommittedSeal),
 		)
 	} else {
 		// monblac hardFork block has empty prev seal
 		// next block of genesis montblanc block has empty prev seal
-		return ApplyHeaderQBFTExtra(header)
+		return ApplyHeaderQBFTExtra(header, e.WriteRandao(chain.Config(), parent, header))
 	}
+}
+
+func (e *Engine) WriteRandao(config *params.ChainConfig, parent *types.Header, header *types.Header) ApplyQBFTExtra {
+	return func(qbftExtra *types.QBFTExtra) error {
+		var parentRandaoMix common.Hash
+		if !config.IsMontBlanc(parent.Number) {
+			parentRandaoMix = qbft.InitialWBFTRandaoMix
+		} else {
+			parentExtra, err := types.ExtractQBFTExtra(parent)
+			if err != nil {
+				return fmt.Errorf("failed to extract QBFT extra from parent header: %w", err)
+			}
+			parentRandaoMix = parentExtra.RandaoMix
+		}
+
+		randaoReveal, err2 := e.sign(header.Number.Bytes())
+		if err2 != nil {
+			return fmt.Errorf("failed to sign randao reveal: %w", err2)
+		}
+
+		qbftExtra.RandaoMix = calculateRandaoMix(parentRandaoMix, randaoReveal)
+		qbftExtra.RandaoReveal = randaoReveal
+		return nil
+	}
+}
+
+func calculateRandaoMix(prevRandaoMix common.Hash, randaoReveal []byte) common.Hash {
+	// Calculate the new RandaoMix by XORing the previous RandaoMix with the new RandaoReveal
+	bigA := new(big.Int).SetBytes(prevRandaoMix.Bytes())
+	bigB := new(big.Int).SetBytes(crypto.Keccak256Hash(randaoReveal).Bytes())
+	resultBigInt := new(big.Int).Xor(bigA, bigB)
+	return common.BigToHash(resultBigInt)
 }
 
 func WritePrevSeals(prevRound uint32, prevPreparedSeal, prevCommittedSeal *types.QBFTAggregatedSeal) ApplyQBFTExtra {
@@ -964,6 +1026,8 @@ func getExtra(header *types.Header) (*types.QBFTExtra, error) {
 		vanity := append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity-len(header.Extra))...)
 		return &types.QBFTExtra{
 			VanityData:        vanity,
+			RandaoMix:         common.Hash{},
+			RandaoReveal:      []byte{},
 			PrevRound:         0,
 			PrevPreparedSeal:  nil,
 			PrevCommittedSeal: nil,

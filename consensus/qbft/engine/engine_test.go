@@ -79,10 +79,12 @@ func toTestAccount(prvKey string) account {
 }
 
 func TestWriteCommittedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf901a48080c0c080c0f86301b860a7c28d1668faa74b00d7edb22fb059478b453064c892c6a5fe71063dbdf82b24d64e989a47f7e74274704723e1f163b10d2a32d600bef81b08694f6b75dd0586ed634248bbf16fb4081f847ba5d1ca90ad7a1898f60e46b45ba88c657e04342ff90136f868d99438007fcf6b864660f6609a78b234c3ed2dda0165831cfde0d9942348a3100ba18e638b9fbdc71fc30a270da842fe831cfde0d994a2ae7388bbc7ba8cb7077d286a777ff944f75323831cfde0d9946726d67c31f91c8f2312f0d34edc71deb9478653831cfde0c480010203f8c4b0a22bf1dba4afc80a1783fb8f1870d1ff03e360284c2127db01abc0f5c4f810420968d5de337464d53dd926238c2984efb0b324470b778f2b89fee03494ba1e372916afd91d3711e99dd4bccab89b706ee814fbbf9770c14c31da1479beda9a054db0afd075d669527722dde94cb8664e54ae53becf8dd56801ec87c6893351a1691fabb9d2a39c6a864b903f10965bb16bafb08220645a1a3eebe953059de9164d9fec6c30c0dcd22d650f8de907d4c2cd74423312cdb56150019ede5ec1cec43bc8a101")
+	istRawData := hexutil.MustDecode("0xf901c680a000000000000000000000000000000000000000000000000000000000000000008080c0c080c0f86301b860a7c28d1668faa74b00d7edb22fb059478b453064c892c6a5fe71063dbdf82b24d64e989a47f7e74274704723e1f163b10d2a32d600bef81b08694f6b75dd0586ed634248bbf16fb4081f847ba5d1ca90ad7a1898f60e46b45ba88c657e04342ff90136f868d99438007fcf6b864660f6609a78b234c3ed2dda0165831cfde0d9942348a3100ba18e638b9fbdc71fc30a270da842fe831cfde0d994a2ae7388bbc7ba8cb7077d286a777ff944f75323831cfde0d9946726d67c31f91c8f2312f0d34edc71deb9478653831cfde0c480010203f8c4b0a22bf1dba4afc80a1783fb8f1870d1ff03e360284c2127db01abc0f5c4f810420968d5de337464d53dd926238c2984efb0b324470b778f2b89fee03494ba1e372916afd91d3711e99dd4bccab89b706ee814fbbf9770c14c31da1479beda9a054db0afd075d669527722dde94cb8664e54ae53becf8dd56801ec87c6893351a1691fabb9d2a39c6a864b903f10965bb16bafb08220645a1a3eebe953059de9164d9fec6c30c0dcd22d650f8de907d4c2cd74423312cdb56150019ede5ec1cec43bc8a101")
 	expectedCommittedSeal := testAccount1.blsKey.Sign(append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)).Marshal()
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
+		RandaoMix:         common.Hash{},
+		RandaoReveal:      []byte{},
 		PrevRound:         0,
 		PrevCommittedSeal: nil,
 		PrevPreparedSeal:  nil,
@@ -106,6 +108,10 @@ func TestWriteCommittedSeals(t *testing.T) {
 			},
 		},
 	}
+	// use this to generate istRawData
+	//encodedIstExtra, _ := rlp.EncodeToBytes(expectedIstExtra)
+	//fmt.Printf("encodedIstExtra: %s\n", hexutil.Encode(encodedIstExtra))
+
 	h := &types.Header{
 		Extra: istRawData,
 	}
@@ -147,10 +153,12 @@ func TestWriteCommittedSeals(t *testing.T) {
 }
 
 func TestWritePreparedSeals(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf901a48080c0c080f86301b860a7c28d1668faa74b00d7edb22fb059478b453064c892c6a5fe71063dbdf82b24d64e989a47f7e74274704723e1f163b10d2a32d600bef81b08694f6b75dd0586ed634248bbf16fb4081f847ba5d1ca90ad7a1898f60e46b45ba88c657e04342fc0f90136f868d99438007fcf6b864660f6609a78b234c3ed2dda0165831cfde0d9942348a3100ba18e638b9fbdc71fc30a270da842fe831cfde0d994a2ae7388bbc7ba8cb7077d286a777ff944f75323831cfde0d9946726d67c31f91c8f2312f0d34edc71deb9478653831cfde0c480010203f8c4b0a22bf1dba4afc80a1783fb8f1870d1ff03e360284c2127db01abc0f5c4f810420968d5de337464d53dd926238c2984efb0b324470b778f2b89fee03494ba1e372916afd91d3711e99dd4bccab89b706ee814fbbf9770c14c31da1479beda9a054db0afd075d669527722dde94cb8664e54ae53becf8dd56801ec87c6893351a1691fabb9d2a39c6a864b903f10965bb16bafb08220645a1a3eebe953059de9164d9fec6c30c0dcd22d650f8de907d4c2cd74423312cdb56150019ede5ec1cec43bc8a101")
+	istRawData := hexutil.MustDecode("0xf901c680a000000000000000000000000000000000000000000000000000000000000000008080c0c080f86301b860a7c28d1668faa74b00d7edb22fb059478b453064c892c6a5fe71063dbdf82b24d64e989a47f7e74274704723e1f163b10d2a32d600bef81b08694f6b75dd0586ed634248bbf16fb4081f847ba5d1ca90ad7a1898f60e46b45ba88c657e04342fc0f90136f868d99438007fcf6b864660f6609a78b234c3ed2dda0165831cfde0d9942348a3100ba18e638b9fbdc71fc30a270da842fe831cfde0d994a2ae7388bbc7ba8cb7077d286a777ff944f75323831cfde0d9946726d67c31f91c8f2312f0d34edc71deb9478653831cfde0c480010203f8c4b0a22bf1dba4afc80a1783fb8f1870d1ff03e360284c2127db01abc0f5c4f810420968d5de337464d53dd926238c2984efb0b324470b778f2b89fee03494ba1e372916afd91d3711e99dd4bccab89b706ee814fbbf9770c14c31da1479beda9a054db0afd075d669527722dde94cb8664e54ae53becf8dd56801ec87c6893351a1691fabb9d2a39c6a864b903f10965bb16bafb08220645a1a3eebe953059de9164d9fec6c30c0dcd22d650f8de907d4c2cd74423312cdb56150019ede5ec1cec43bc8a101")
 	expectedPreparedSeal := testAccount1.blsKey.Sign(append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)).Marshal()
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
+		RandaoMix:         common.Hash{},
+		RandaoReveal:      []byte{},
 		PrevRound:         0,
 		PrevCommittedSeal: nil,
 		PrevPreparedSeal:  nil,
@@ -174,6 +182,10 @@ func TestWritePreparedSeals(t *testing.T) {
 			Stabilizing: true,
 		},
 	}
+	// use this to generate istRawData
+	//encodedIstExtra, _ := rlp.EncodeToBytes(expectedIstExtra)
+	//fmt.Printf("encodedIstExtra: %s\n", hexutil.Encode(encodedIstExtra))
+
 	h := &types.Header{
 		Extra: istRawData,
 	}
@@ -216,9 +228,11 @@ func TestWritePreparedSeals(t *testing.T) {
 }
 
 func TestWriteRoundNumber(t *testing.T) {
-	istRawData := hexutil.MustDecode("0xf901408080c0c080c0c0f90136f868d99438007fcf6b864660f6609a78b234c3ed2dda0165831cfde0d9942348a3100ba18e638b9fbdc71fc30a270da842fe831cfde0d994a2ae7388bbc7ba8cb7077d286a777ff944f75323831cfde0d9946726d67c31f91c8f2312f0d34edc71deb9478653831cfde0c480010203f8c4b0a22bf1dba4afc80a1783fb8f1870d1ff03e360284c2127db01abc0f5c4f810420968d5de337464d53dd926238c2984efb0b324470b778f2b89fee03494ba1e372916afd91d3711e99dd4bccab89b706ee814fbbf9770c14c31da1479beda9a054db0afd075d669527722dde94cb8664e54ae53becf8dd56801ec87c6893351a1691fabb9d2a39c6a864b903f10965bb16bafb08220645a1a3eebe953059de9164d9fec6c30c0dcd22d650f8de907d4c2cd74423312cdb56150019ede5ec1cec43bc8a101")
+	istRawData := hexutil.MustDecode("0xf9016280a000000000000000000000000000000000000000000000000000000000000000008080c0c080c0c0f90136f868d99438007fcf6b864660f6609a78b234c3ed2dda0165831cfde0d9942348a3100ba18e638b9fbdc71fc30a270da842fe831cfde0d994a2ae7388bbc7ba8cb7077d286a777ff944f75323831cfde0d9946726d67c31f91c8f2312f0d34edc71deb9478653831cfde0c480010203f8c4b0a22bf1dba4afc80a1783fb8f1870d1ff03e360284c2127db01abc0f5c4f810420968d5de337464d53dd926238c2984efb0b324470b778f2b89fee03494ba1e372916afd91d3711e99dd4bccab89b706ee814fbbf9770c14c31da1479beda9a054db0afd075d669527722dde94cb8664e54ae53becf8dd56801ec87c6893351a1691fabb9d2a39c6a864b903f10965bb16bafb08220645a1a3eebe953059de9164d9fec6c30c0dcd22d650f8de907d4c2cd74423312cdb56150019ede5ec1cec43bc8a101")
 	expectedIstExtra := &types.QBFTExtra{
 		VanityData:        []byte{},
+		RandaoMix:         common.Hash{},
+		RandaoReveal:      []byte{},
 		PrevRound:         0,
 		PrevCommittedSeal: nil,
 		PrevPreparedSeal:  nil,
@@ -242,6 +256,9 @@ func TestWriteRoundNumber(t *testing.T) {
 			},
 		},
 	}
+	// use this to generate istRawData
+	//encodedIstExtra, _ := rlp.EncodeToBytes(expectedIstExtra)
+	//fmt.Printf("encodedIstExtra: %s\n", hexutil.Encode(encodedIstExtra))
 
 	var expectedErr error
 
@@ -269,6 +286,65 @@ func TestWriteRoundNumber(t *testing.T) {
 	istExtra.Round = expectedIstExtra.Round
 	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
 		t.Errorf("extra data mismatch: have %v, want %v", istExtra.VanityData, expectedIstExtra.VanityData)
+	}
+}
+
+func TestWriteRandao(t *testing.T) {
+	privateKey, _ := crypto.GenerateKey()
+	blockNumber := big.NewInt(3)
+	parentBlockNumber := new(big.Int).Sub(blockNumber, big.NewInt(1))
+	parentExtra := &types.QBFTExtra{
+		VanityData: []byte{},
+		RandaoMix:  crypto.Keccak256Hash([]byte("My sample randao mix")),
+	}
+	parentExtraDecoded, _ := rlp.EncodeToBytes(parentExtra)
+	parent := &types.Header{
+		Extra:  parentExtraDecoded,
+		Number: parentBlockNumber,
+	}
+	engine := NewEngine(qbft.DefaultConfig, crypto.PubkeyToAddress(privateKey.PublicKey), func(data []byte) ([]byte, error) {
+		hashData := crypto.Keccak256(data)
+		return crypto.Sign(hashData, privateKey)
+	}, nil)
+
+	expectedRandaoReveal, _ := crypto.Sign(crypto.Keccak256(blockNumber.Bytes()), privateKey)
+	randaoRevealHash := crypto.Keccak256Hash(expectedRandaoReveal)
+	bigA := new(big.Int).SetBytes(parentExtra.RandaoMix.Bytes())
+	bigB := new(big.Int).SetBytes(randaoRevealHash.Bytes())
+	resultBigInt := new(big.Int).Xor(bigA, bigB)
+	expectedRandaoMix := common.BigToHash(resultBigInt)
+
+	expectedIstExtra := &types.QBFTExtra{
+		VanityData:        []byte{},
+		RandaoMix:         expectedRandaoMix,
+		RandaoReveal:      expectedRandaoReveal,
+		PrevRound:         0,
+		PrevCommittedSeal: nil,
+		PrevPreparedSeal:  nil,
+		Round:             0,
+		CommittedSeal:     nil,
+		PreparedSeal:      nil,
+		EpochInfo:         nil,
+	}
+	header := &types.Header{
+		Number: blockNumber,
+	}
+
+	chainConfig := &params.ChainConfig{
+		MontBlancBlock: parentBlockNumber,
+	}
+	ApplyHeaderQBFTExtra(header, engine.WriteRandao(chainConfig, parent, header))
+
+	// verify qbft extra-data
+	istExtra, err := getExtra(header)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
+	if istExtra.RandaoMix.Cmp(expectedIstExtra.RandaoMix) != 0 {
+		t.Errorf("extra RandaoMix mismatch: have %v, want %v", istExtra.RandaoMix, expectedIstExtra.RandaoMix)
+	}
+	if !bytes.Equal(istExtra.RandaoReveal, expectedIstExtra.RandaoReveal) {
+		t.Errorf("extra RandaoReveal mismatch: have %v, want %v", istExtra.RandaoReveal, expectedIstExtra.RandaoReveal)
 	}
 }
 
@@ -438,7 +514,7 @@ func TestEpochInfo(t *testing.T) {
 				ProposerPolicy:              qbft.NewRoundRobinProposerPolicy(),
 				Epoch:                       3,
 				StabilizingStakersThreshold: c.chainConfig.MontBlanc.WBFT.StabilizingStakersThreshold,
-			}, common.Address{}, nil)
+			}, common.Address{}, nil, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -553,7 +629,7 @@ func TestEpochInfoTransition(t *testing.T) {
 			c.chainConfig.MontBlanc.Init.BLSPublicKeys = blsPubKeys
 			testConfig := *qbft.DefaultConfig
 			testConfig.Epoch = tc.epoch
-			engine := NewEngine(&testConfig, common.Address{}, nil)
+			engine := NewEngine(&testConfig, common.Address{}, nil, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -655,7 +731,7 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 			c.chainConfig = params.TestQBFTChainConfig
 			c.chainConfig.MontBlanc.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-			engine := NewEngine(tc.qbftConfig, common.Address{}, nil)
+			engine := NewEngine(tc.qbftConfig, common.Address{}, nil, nil)
 			parent := makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -739,7 +815,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			c.chainConfig.MontBlanc.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(3000000))
 
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-			engine := NewEngine(tc.qbftConfig, common.Address{}, nil)
+			engine := NewEngine(tc.qbftConfig, common.Address{}, nil, nil)
 			parent := makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -848,7 +924,7 @@ func getEpochBlock(e *Engine, chain consensus.ChainHeaderReader, header *types.H
 }
 
 func TestIsEpochBlock(t *testing.T) {
-	engine := NewEngine(nil, common.Address{}, nil)
+	engine := NewEngine(nil, common.Address{}, nil, nil)
 
 	testCases := []struct {
 		chainConfig         params.ChainConfig

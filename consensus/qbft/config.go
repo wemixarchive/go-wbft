@@ -200,6 +200,7 @@ func CreateInitialExtraData(config *params.MontBlancConfig) ([]byte, error) {
 	}
 
 	extraData := &types.QBFTExtra{
+		RandaoMix: InitialWBFTRandaoMix,
 		EpochInfo: epochInfo,
 	}
 
