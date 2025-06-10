@@ -957,6 +957,22 @@ func TestGovWithNCP(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("Cannot change the ncp to an address that is proposed as the new ncp", func(t *testing.T) {
+		defer checkNCPStaker()
+
+		receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp2.Operator.Address))
+		require.NoError(t, err)
+		proposalEvent := findEvent("NewProposal", receipt.Logs)
+
+		ExpectedRevert(t,
+			g.ExpectedFail(g.ChangeNCP(t, ncp1.Operator, ncp2.Operator.Address)),
+			"cannot change the ncp to an address that is proposed as the new ncp",
+		)
+
+		_, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))
+		require.NoError(t, err)
+	})
+
 	t.Run("Set emergency", func(t *testing.T) {
 		defer checkNCPStaker()
 
