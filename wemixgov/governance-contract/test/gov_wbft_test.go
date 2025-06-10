@@ -936,23 +936,22 @@ func TestGovWithNCP(t *testing.T) {
 		ncps = append(ncps, ncp4.Operator.Address)
 	})
 
-	t.Run("Cannot change NCP for being locked", func(t *testing.T) {
+	t.Run("Can change NCP even if there is an ongoing proposal", func(t *testing.T) {
 		defer checkNCPStaker()
 
 		receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Operator, ncp4.Operator.Address))
 		require.NoError(t, err)
 		proposalEvent := findEvent("NewProposal", receipt.Logs)
-		// ncp1, ncp4 locked
 
-		ExpectedRevert(t,
-			g.ExpectedFail(g.ChangeNCP(t, ncp1.Operator, ncp2.Operator.Address)),
-			"belong in an on-going proposal",
-		)
+		// must success even if there is an ongoing proposal
+		g.ExpectedOk(g.ChangeNCP(t, ncp1.Operator, ncp2.Operator.Address))
+		// back to ncp1
+		g.ExpectedOk(g.ChangeNCP(t, ncp2.Operator, ncp1.Operator.Address))
 
-		ExpectedRevert(t,
-			g.ExpectedFail(g.ChangeNCP(t, ncp4.Operator, ncp2.Operator.Address)),
-			"belong in an on-going proposal",
-		)
+		// must success even if there is an ongoing proposal
+		g.ExpectedOk(g.ChangeNCP(t, ncp4.Operator, ncp2.Operator.Address))
+		// back to ncp4
+		g.ExpectedOk(g.ChangeNCP(t, ncp2.Operator, ncp4.Operator.Address))
 
 		_, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))
 		require.NoError(t, err)
