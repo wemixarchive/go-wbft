@@ -148,7 +148,7 @@ func (sb *Backend) timeForNextWork() uint64 {
 	}
 	next := new(big.Int).Set(latestBlock.Number())
 	next = next.Add(next, big.NewInt(1))
-	return latestBlock.Time() + sb.Engine().PeriodToNextBlock(next)
+	return latestBlock.Time() + sb.Engine().PeriodToNextBlock(next, sb.ChainConfig())
 }
 
 // Prepare initializes the consensus fields of a block header according to the

@@ -50,8 +50,9 @@ func TestProposerPolicy_MarshalTOML(t *testing.T) {
 	assert.Equal(t, output, b, "ProposerPolicy MarshalTOML mismatch")
 }
 
+// refac: fix this test case. transtions will be gone
 func TestGetConfig(t *testing.T) {
-	if !reflect.DeepEqual(DefaultConfig.GetConfig(nil), *DefaultConfig) {
+	if !reflect.DeepEqual(DefaultConfig.GetConfig(nil, nil), *DefaultConfig) {
 		t.Errorf("error default config:\nexpected: %v\n", DefaultConfig)
 	}
 
@@ -89,9 +90,13 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		c := test.expectedConfig.GetConfig(big.NewInt(test.blockNumber))
+		c := test.expectedConfig.GetConfig(big.NewInt(test.blockNumber), nil)
 		if !reflect.DeepEqual(c, test.expectedConfig) {
 			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.expectedConfig, c)
 		}
 	}
+}
+
+func TestGetGovContracts(t *testing.T) {
+	
 }

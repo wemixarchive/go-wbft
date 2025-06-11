@@ -116,7 +116,7 @@ type Config struct {
 	MaxRequestTimeoutSeconds    uint64                  `toml:",omitempty"`
 	StabilizingStakersThreshold uint64                  `toml:",omitempty"`
 	UseNCP                      bool                    `toml:",omitempty"` // Use NCP or not
-	Transitions                 []params.Transition
+	Transitions                 []params.Transition     // Refac : will  be removed
 }
 
 var DefaultConfig = &Config{
@@ -129,39 +129,115 @@ var DefaultConfig = &Config{
 	UseNCP:                      false,
 }
 
-func (c Config) GetConfig(blockNumber *big.Int) Config {
-	newConfig := c
+func (c *Config) GetGovContracts(blockNumber *big.Int, chainConfig *params.ChainConfig) params.GovContracts {
+	gc := params.GovContracts{}
 
-	c.getTransitionValue(blockNumber, func(transition params.Transition) {
-		if transition.RequestTimeoutSeconds != 0 {
-			// RequestTimeout is on milliseconds
-			newConfig.RequestTimeout = transition.RequestTimeoutSeconds * 1000
+	if chainConfig.MontBlanc.Upgrades != nil {
+		for _, upgrade := range chainConfig.MontBlanc.Upgrades {
+			if upgrade.Block.Cmp(blockNumber) > 0 {
+				break
+			}
+			gc = *upgrade.GovContracts
 		}
-		if transition.EpochLength != 0 {
-			newConfig.Epoch = transition.EpochLength
-		}
-		if transition.BlockPeriodSeconds != 0 {
-			newConfig.BlockPeriod = transition.BlockPeriodSeconds
-		}
-		if transition.BlockReward != nil {
-			newConfig.BlockReward = transition.BlockReward
-		}
-		if transition.BlockRewardBeneficiary != nil {
-			newConfig.BlockRewardBeneficiary = transition.BlockRewardBeneficiary
-		}
-		if transition.TargetValidators != nil {
-			newConfig.TargetValidators = *transition.TargetValidators
-		}
-		if transition.MaxRequestTimeoutSeconds != nil {
-			newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds
-		}
-		newConfig.UseNCP = transition.UseNCP
-	})
+	} else {
+		c.getGovContractsHardforkValue(blockNumber, chainConfig, func(govContracts params.GovContracts) {
+			if govContracts.GovConfig != nil {
+				gc.GovConfig = govContracts.GovConfig
+			}
+			if govContracts.GovStaking != nil {
+				gc.GovStaking = govContracts.GovStaking
+			}
+			if govContracts.GovRewardeeImp != nil {
+				gc.GovRewardeeImp = govContracts.GovRewardeeImp
+			}
+			if govContracts.GovNCP != nil {
+				gc.GovNCP = govContracts.GovNCP
+			}
+		})
+	}
+	return gc
+}
+
+func (c Config) GetConfig(blockNumber *big.Int, chainConfig *params.ChainConfig) Config {
+	newConfig := c
+	// refac : transition will be nil.
+	if c.Transitions != nil {
+		c.getTransitionValue(blockNumber, chainConfig, func(transition params.Transition) {
+			if transition.RequestTimeoutSeconds != 0 {
+				// RequestTimeout is on milliseconds
+				newConfig.RequestTimeout = transition.RequestTimeoutSeconds * 1000
+			}
+			if transition.EpochLength != 0 {
+				newConfig.Epoch = transition.EpochLength
+			}
+			if transition.BlockPeriodSeconds != 0 {
+				newConfig.BlockPeriod = transition.BlockPeriodSeconds
+			}
+			if transition.BlockReward != nil {
+				newConfig.BlockReward = transition.BlockReward
+			}
+			if transition.BlockRewardBeneficiary != nil {
+				newConfig.BlockRewardBeneficiary = transition.BlockRewardBeneficiary
+			}
+			if transition.TargetValidators != nil {
+				newConfig.TargetValidators = *transition.TargetValidators
+			}
+			if transition.MaxRequestTimeoutSeconds != nil {
+				newConfig.MaxRequestTimeoutSeconds = *transition.MaxRequestTimeoutSeconds
+			}
+			newConfig.UseNCP = transition.UseNCP
+		})
+	} else {
+		c.getWbftHardforkValue(blockNumber, chainConfig, func(wbftConfig params.WBFTConfig) {
+			if wbftConfig.RequestTimeoutSeconds != 0 {
+				// RequestTimeout is on milliseconds
+				newConfig.RequestTimeout = wbftConfig.RequestTimeoutSeconds * 1000
+			}
+			if wbftConfig.EpochLength != 0 {
+				newConfig.Epoch = wbftConfig.EpochLength
+			}
+			if wbftConfig.BlockPeriodSeconds != 0 {
+				newConfig.BlockPeriod = wbftConfig.BlockPeriodSeconds
+			}
+			if wbftConfig.BlockReward != nil {
+				newConfig.BlockReward = wbftConfig.BlockReward
+			}
+			if wbftConfig.BlockRewardBeneficiary != nil {
+				newConfig.BlockRewardBeneficiary = wbftConfig.BlockRewardBeneficiary
+			}
+			if wbftConfig.MaxRequestTimeoutSeconds != nil {
+				newConfig.MaxRequestTimeoutSeconds = *wbftConfig.MaxRequestTimeoutSeconds
+			}
+			newConfig.TargetValidators = wbftConfig.TargetValidators
+			newConfig.UseNCP = wbftConfig.UseNCP
+		})
+	}
 
 	return newConfig
 }
 
-func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
+func (c *Config) getWbftHardforkValue(num *big.Int, chainConfig *params.ChainConfig, callback func(wbftConfig params.WBFTConfig)) {
+	if c != nil && num != nil {
+		if chainConfig.IsMontBlanc(num) {
+			// do nothing. use qbftConfig as it is, since qbftConfig is set as montblanc
+		}
+		// add hardforks that includes wbft config change after montblanc like :
+		// if chainConfig.IsDalgona(num){ callback(*chainConfig.Dalgona.WBFT) }
+	}
+}
+
+func (c *Config) getGovContractsHardforkValue(num *big.Int, chainConfig *params.ChainConfig, callback func(govContract params.GovContracts)) {
+	if c != nil && num != nil {
+		if chainConfig.IsMontBlanc(num) {
+			callback(*chainConfig.MontBlanc.GovContracts)
+		}
+		// add hardforks that includes govContract config change after montblanc like :
+		// if chainConfig.IsDalgona(num){ callback(*chainConfig.Dalgona.GovContracts) }
+	}
+}
+
+// refac : transition will be nil.
+func (c *Config) getTransitionValue(num *big.Int, chainConfig *params.ChainConfig, callback func(transition params.Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
 			callback(c.Transitions[i])
@@ -180,9 +256,10 @@ func GetMontBlancTransition(chainConfig *params.ChainConfig, num *big.Int) (*par
 	}
 
 	if num.Cmp(chainConfig.MontBlancBlock) == 0 {
-		return govwbft.GetMontBlancTransition(chainConfig.MontBlanc.Init.GovContracts)
+		return govwbft.GetMontBlancTransition(chainConfig.MontBlanc.GovContracts)
 	}
 
+	// refac : upgrades will be removed
 	for _, upgrade := range chainConfig.MontBlanc.Upgrades {
 		if num.Cmp(upgrade.Block) == 0 {
 			return govwbft.GetMontBlancTransition(upgrade.GovContracts)

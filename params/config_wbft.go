@@ -32,25 +32,22 @@ var (
 	}
 )
 
-var CheckInitGovContractVersions func(govContracts *GovContracts) error
-var CheckUpgradeGovContractVersions func(govContracts *GovContracts) error
+var CheckInitGovContractVersions func(govContracts *GovContracts) error // refac : will be removed
+var CheckUpgradeGovContractVersions func(govContracts *GovContracts) error // refac : will be removed
+var CheckGovContractVersions func(govContracts *GovContracts) error
 
-// ## MontBlanc CHAIN CONFIG START
-type MontBlancConfig struct {
-	WBFT     *WBFTConfig `json:"wBFT"`
-	Init     *Init       `json:"init"`
-	Upgrades []Upgrade   `json:"upgrades"`
+type MontBlancWbftConfig struct {
+	WBFT *WBFTConfig `json:"wBFT"`
+	Init *WbftInit `json:"init"`
+	GovContracts *GovContracts `json:"govContracts"`
 }
 
-func (c *MontBlancConfig) String() string {
-	return fmt.Sprintf("{WBFT: %v Init: %v Upgrades: %v}",
-		c.WBFT,
-		c.Init,
-		c.Upgrades,
-	)
+type WbftInit struct {
+	Validators    []common.Address `json:"validators"`    // initial WBFT validators, order is matter
+	BLSPublicKeys []string         `json:"blsPublicKeys"` // BLS public ket list of validators, order must be same as validators
 }
 
-func (c *MontBlancConfig) GetInitialBLSPublicKeys() [][]byte {
+func (c *MontBlancWbftConfig) GetInitialBLSPublicKeys() [][]byte {
 	blsPubKeys := make([][]byte, len(c.Init.BLSPublicKeys))
 	for i, pk := range c.Init.BLSPublicKeys {
 		blsPubKeys[i] = hexutil.MustDecode(pk)
@@ -58,48 +55,74 @@ func (c *MontBlancConfig) GetInitialBLSPublicKeys() [][]byte {
 	return blsPubKeys
 }
 
-func (c *MontBlancConfig) GetGovConfigAddress(blockNum *big.Int) common.Address {
-	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
-		return contracts.GovConfig != nil
-	})
-	return latestGovContracts.GovConfig.Address
-}
 
-func (c *MontBlancConfig) GetGovStakingAddress(blockNum *big.Int) common.Address {
-	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
-		return contracts.GovStaking != nil
-	})
-	return latestGovContracts.GovStaking.Address
-}
+// ----------------------refactor end---------------------
 
-func (c *MontBlancConfig) GetGovRewardeeImpAddress(blockNum *big.Int) common.Address {
-	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
-		return contracts.GovRewardeeImp != nil
-	})
-	return latestGovContracts.GovRewardeeImp.Address
-}
+// ## MontBlanc CHAIN CONFIG START
+// type MontBlancConfig struct {
+// 	WBFT     *WBFTConfig `json:"wBFT"`
+// 	Init     *Init       `json:"init"`
+// 	Upgrades []Upgrade   `json:"upgrades"`
+// }
 
-func (c *MontBlancConfig) GetGovNCPAddress(blockNum *big.Int) common.Address {
-	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
-		return contracts.GovNCP != nil
-	})
-	return latestGovContracts.GovNCP.Address
-}
+// func (c *MontBlancConfig) String() string {
+// 	return fmt.Sprintf("{WBFT: %v Init: %v Upgrades: %v}",
+// 		c.WBFT,
+// 		c.Init,
+// 		c.Upgrades,
+// 	)
+// }
 
-func (c *MontBlancConfig) findLatestGovContracts(blockNum *big.Int, hasTargetContract func(contracts *GovContracts) bool) *GovContracts {
-	latestGovContracts := c.Init.GovContracts
-	if c.Upgrades != nil {
-		for _, upgrade := range c.Upgrades {
-			if upgrade.Block.Cmp(blockNum) > 0 {
-				break
-			}
-			if hasTargetContract(upgrade.GovContracts) {
-				latestGovContracts = upgrade.GovContracts
-			}
-		}
-	}
-	return latestGovContracts
-}
+// func (c *MontBlancConfig) GetInitialBLSPublicKeys() [][]byte {
+// 	blsPubKeys := make([][]byte, len(c.Init.BLSPublicKeys))
+// 	for i, pk := range c.Init.BLSPublicKeys {
+// 		blsPubKeys[i] = hexutil.MustDecode(pk)
+// 	}
+// 	return blsPubKeys
+// }
+
+// func (c *MontBlancConfig) GetGovConfigAddress(blockNum *big.Int) common.Address {
+// 	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
+// 		return contracts.GovConfig != nil
+// 	})
+// 	return latestGovContracts.GovConfig.Address
+// }
+
+// func (c *MontBlancConfig) GetGovStakingAddress(blockNum *big.Int) common.Address {
+// 	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
+// 		return contracts.GovStaking != nil
+// 	})
+// 	return latestGovContracts.GovStaking.Address
+// }
+
+// func (c *MontBlancConfig) GetGovRewardeeImpAddress(blockNum *big.Int) common.Address {
+// 	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
+// 		return contracts.GovRewardeeImp != nil
+// 	})
+// 	return latestGovContracts.GovRewardeeImp.Address
+// }
+
+// func (c *MontBlancConfig) GetGovNCPAddress(blockNum *big.Int) common.Address {
+// 	latestGovContracts := c.findLatestGovContracts(blockNum, func(contracts *GovContracts) bool {
+// 		return contracts.GovNCP != nil
+// 	})
+// 	return latestGovContracts.GovNCP.Address
+// }
+
+// func (c *MontBlancConfig) findLatestGovContracts(blockNum *big.Int, hasTargetContract func(contracts *GovContracts) bool) *GovContracts {
+// 	latestGovContracts := c.Init.GovContracts
+// 	if c.Upgrades != nil {
+// 		for _, upgrade := range c.Upgrades {
+// 			if upgrade.Block.Cmp(blockNum) > 0 {
+// 				break
+// 			}
+// 			if hasTargetContract(upgrade.GovContracts) {
+// 				latestGovContracts = upgrade.GovContracts
+// 			}
+// 		}
+// 	}
+// 	return latestGovContracts
+// }
 
 func (c *MontBlancConfig) CheckValidity() error {
 	if c == nil {
@@ -120,22 +143,23 @@ func (c *MontBlancConfig) CheckValidity() error {
 			len(c.Init.Validators), len(c.Init.BLSPublicKeys),
 		)
 	}
-	if c.Init.GovContracts == nil {
-		return errors.New("`montblanc.init: missing `govContracts` section")
+	if c.GovContracts == nil {
+		return errors.New("`montblanc: missing `govContracts` section")
 	}
-	if c.Init.GovContracts.GovStaking == nil {
-		return errors.New("`montblanc.init.govContracts: missing `govStaking`")
+	if c.GovContracts.GovStaking == nil {
+		return errors.New("`montblanc.govContracts: missing `govStaking`")
 	}
-	if c.Init.GovContracts.GovConfig == nil {
-		return errors.New("`montblanc.init.govContracts: missing `govConfig`")
+	if c.GovContracts.GovConfig == nil {
+		return errors.New("`montblanc.govContracts: missing `govConfig`")
 	}
-	if c.Init.GovContracts.GovRewardeeImp == nil {
-		return errors.New("`montblanc.init.govContracts: missing `govRewardeeImp`")
+	if c.GovContracts.GovRewardeeImp == nil {
+		return errors.New("`montblanc.govContracts: missing `govRewardeeImp`")
 	}
-	if err := CheckInitGovContractVersions(c.Init.GovContracts); err != nil {
-		return fmt.Errorf("`montblanc.init.govContracts`: %v", err)
+	if err := CheckGovContractVersions(c.GovContracts); err != nil {
+		return fmt.Errorf("`montblanc.govContracts`: %v", err)
 	}
 
+	// refac : will be removed
 	for _, upgrade := range c.Upgrades {
 		if upgrade.Block == nil {
 			return errors.New("`montblanc.upgrades`: missing `block`")
@@ -161,6 +185,7 @@ func (c *MontBlancConfig) CheckValidity() error {
 		return fmt.Errorf("`montblanc.wBFT`: %v", err)
 	}
 
+	//refac: will be removed
 	if c.WBFT.Transitions != nil {
 		for _, t := range c.WBFT.Transitions {
 			if err := checkSanityBeneficiaries(t.BlockRewardBeneficiary); err != nil {
@@ -268,7 +293,7 @@ type WBFTConfig struct {
 	StabilizingStakersThreshold uint64                `json:"stabilizingStakersThreshold"`      // initial stabilizing stakers threshold, default is 1
 	UseNCP                      bool                  `json:"useNCP"`                           // Use NCP or not
 
-	Transitions []Transition `json:"transitions,omitempty"` // Transition config based on the block number
+	Transitions []Transition `json:"transitions,omitempty"` // refac : will be removed
 }
 
 type BeneficiaryInfo struct {
@@ -308,16 +333,16 @@ func (t *Transition) String() string {
 }
 
 var DefaultMontBlancConfig = &MontBlancConfig{
-	WBFT: &WBFTConfig{
-		RequestTimeoutSeconds:       2,
-		BlockPeriodSeconds:          1,
-		ProposerPolicy:              0,
-		EpochLength:                 10,
-		BlockReward:                 (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
-		StabilizingStakersThreshold: 1,
-		UseNCP:                      false,
-	},
-	Init: &Init{
+	MontBlancWbftConfig: &MontBlancWbftConfig{
+		WBFT: &WBFTConfig{
+			RequestTimeoutSeconds:       2,
+			BlockPeriodSeconds:          1,
+			ProposerPolicy:              0,
+			EpochLength:                 10,
+			BlockReward:                 (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
+			StabilizingStakersThreshold: 1,
+			UseNCP:                      false,
+		},
 		GovContracts: &GovContracts{
 			GovConfig: &GovContract{
 				Address: common.HexToAddress("0x1000"),
@@ -342,6 +367,42 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 		},
 	},
 }
+
+// var DefaultMontBlancConfigOld = &MontBlancConfig{
+// 	WBFT: &WBFTConfig{
+// 		RequestTimeoutSeconds:       2,
+// 		BlockPeriodSeconds:          1,
+// 		ProposerPolicy:              0,
+// 		EpochLength:                 10,
+// 		BlockReward:                 (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
+// 		StabilizingStakersThreshold: 1,
+// 		UseNCP:                      false,
+// 	},
+// 	Init: &Init{
+// 		GovContracts: &GovContracts{
+// 			GovConfig: &GovContract{
+// 				Address: common.HexToAddress("0x1000"),
+// 				Version: "v1",
+// 				Params: map[string]string{
+// 					"minimumStaking":           "10000000000000000000000000",
+// 					"maximumStaking":           "100000000000000000000000000",
+// 					"unbondingPeriodStaker":    "604800", // 7 days
+// 					"unbondingPeriodDelegator": "259200", // 3 days
+// 					"feePrecision":             "10000",  // 0.01%
+// 					"changeFeeDelay":           "604800", // 7 days
+// 				},
+// 			},
+// 			GovStaking: &GovContract{
+// 				Address: common.HexToAddress("0x1001"),
+// 				Version: "v1",
+// 			},
+// 			GovRewardeeImp: &GovContract{
+// 				Address: common.HexToAddress("0x1002"),
+// 				Version: "v1",
+// 			},
+// 		},
+// 	},
+// }
 
 func (c *WBFTConfig) String() string {
 	var blockReward, maxRequestTimeoutSeconds string
@@ -369,10 +430,11 @@ func (c *WBFTConfig) String() string {
 		maxRequestTimeoutSeconds,
 		c.StabilizingStakersThreshold,
 		c.UseNCP,
-		c.Transitions,
+		c.Transitions, // refac : will be removed
 	)
 }
 
+// refac : will be removed
 // gets value at or after a transition
 func (c *WBFTConfig) GetTransitionValue(num *big.Int, callback func(transition Transition)) {
 	if c != nil && num != nil && c.Transitions != nil {
@@ -382,6 +444,7 @@ func (c *WBFTConfig) GetTransitionValue(num *big.Int, callback func(transition T
 	}
 }
 
+// refac : will be removed
 func (c *WBFTConfig) GetBlockReward(num *big.Int) *big.Int {
 	blockReward := big.NewInt(0)
 

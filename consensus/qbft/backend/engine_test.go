@@ -217,7 +217,7 @@ func makeHeader(chainConfig *params.ChainConfig, engineConfig *qbft.Config, pare
 		Number:     blockNumber,
 		GasLimit:   parent.GasLimit(),
 		GasUsed:    0, // empty tx
-		Time:       parent.Time() + engineConfig.GetConfig(blockNumber).BlockPeriod,
+		Time:       parent.Time() + engineConfig.GetConfig(blockNumber, chainConfig).BlockPeriod,
 		Difficulty: types.QBFTDefaultDifficulty,
 		BaseFee:    eip1559.CalcBaseFee(chainConfig, parent.Header()),
 	}
@@ -601,7 +601,7 @@ func TestVerifyHeaderForSingleBlock(t *testing.T) {
 	// invalid timestamp
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
-	header.Time = chain.Genesis().Time() + (engine.config.GetConfig(block.Number()).BlockPeriod - 1)
+	header.Time = chain.Genesis().Time() + (engine.config.GetConfig(block.Number(), chain.Config()).BlockPeriod - 1)
 	err = engine.VerifyHeader(chain, header)
 	if err != qbftcommon.ErrInvalidTimestamp {
 		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrInvalidTimestamp)

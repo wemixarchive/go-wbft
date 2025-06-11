@@ -150,6 +150,11 @@ func (sb *Backend) Address() common.Address {
 	return sb.Engine().Address()
 }
 
+// ChainConfig returns the chain configuration
+func (sb *Backend) ChainConfig() *params.ChainConfig {
+	return sb.chain.Config()
+}
+
 // Broadcast implements qbft.Backend.Broadcast
 func (sb *Backend) Broadcast(valSet qbft.ValidatorSet, code uint64, payload []byte) error {
 	_, validator := valSet.GetByAddress(sb.address)

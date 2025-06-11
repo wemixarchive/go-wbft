@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftmessage "github.com/ethereum/go-ethereum/consensus/qbft/messages"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type State uint64
@@ -135,6 +136,9 @@ type Backend interface {
 
 	// HasBadProposal returns whether the block with the hash is a bad block
 	HasBadProposal(hash common.Hash) bool
+
+	// ChainConfig returns the chain configuration
+	ChainConfig() *params.ChainConfig
 
 	Close() error
 
