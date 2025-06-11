@@ -3,7 +3,7 @@
 WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT(https://github.com/ethereum/EIPs/issues/650) and QBFT(https://github.com/Consensys/qbft-formal-spec-and-verification) for use in public blockchains. The following improvements have been implemented:
 
 - Adoption of DPoS(Delegated Proof of Stake): Allows anyone to participate as a validator through staking.
-- Validator selection: Chosen via VRF based on staking amount and validation diligence.
+- Validator selection: Chosen via randao(randomness dao) based on staking amount and validation diligence.
 - Reward system and diligence metrics.
 - Concept of epoch: Defines a unit where the validator set changes.
 - Inclusion of consensus proof in the agreement process.
@@ -70,10 +70,10 @@ In WBFT, the proposer of the last block in an epoch (referred to as the epoch bl
   - The very first validator set is defined in genesis.json, and validators in the genesis block initially have a staking amount of zero.
 - After stabilization stage, validator selection follows below rules
   - `minimum stakers <= number of stakers <= target validators`: every stakers become validators.
-  - `number of stakers > target validators`: validators are selected using VRF, considering staking amount and diligence.
+  - `number of stakers > target validators`: validators are selected using randao, considering staking amount and diligence.
   - `number of stakers < minimum stakers`: all remaining stakers become validators, which should not occur in a public network after stabilization stage for the sake of network security.
 
-Validators are selected to act as proposers in a round-robin manner.
+Validators are selected to act as proposers in a round-robin manner and the order is shuffled at every epoch.
 
 ### Reward System and Diligence Metrics
 WBFT rewards consist of two types:
@@ -319,7 +319,7 @@ The process of obtaining the validator set at any block height is as follows (re
 
 #### Not implemented in WEMIX 3.5
 - Slashing: The NCP system is used to ensure the safety of the chain during the transition period, and the slashing mechanism is not necessary.
-- VRF for validator selection: All NCPs are validators, so the VRF is not used for validator selection.
+- validator random selection based on staking amount and diligence.
 
 ## Building the source
 
