@@ -307,7 +307,12 @@ func TestWriteRandao(t *testing.T) {
 		return crypto.Sign(hashData, privateKey)
 	}, nil)
 
-	expectedRandaoReveal, _ := crypto.Sign(crypto.Keccak256(blockNumber.Bytes()), privateKey)
+	chainConfig := &params.ChainConfig{
+		ChainID:        new(big.Int).SetUint64(9999),
+		MontBlancBlock: parentBlockNumber,
+	}
+
+	expectedRandaoReveal, _ := crypto.Sign(crypto.Keccak256(makeRandaoData(chainConfig, blockNumber)), privateKey)
 	randaoRevealHash := crypto.Keccak256Hash(expectedRandaoReveal)
 	bigA := new(big.Int).SetBytes(parentExtra.RandaoMix.Bytes())
 	bigB := new(big.Int).SetBytes(randaoRevealHash.Bytes())
@@ -330,9 +335,6 @@ func TestWriteRandao(t *testing.T) {
 		Number: blockNumber,
 	}
 
-	chainConfig := &params.ChainConfig{
-		MontBlancBlock: parentBlockNumber,
-	}
 	ApplyHeaderQBFTExtra(header, engine.WriteRandao(chainConfig, parent, header))
 
 	// verify qbft extra-data
@@ -1176,5 +1178,33 @@ func TestIsEpochBlock(t *testing.T) {
 				t.Errorf("[case %d] unexpected epoch: have %v, want %v", i+1, epoch, tc.expectedLatestEpoch)
 			}
 		}
+	}
+}
+
+func TestComputeShuffledIndex(t *testing.T) {
+	sampleSeed := crypto.Keccak256Hash([]byte("sample seed for testing"))
+	result1 := make([]uint64, 0)
+	result2 := make([]uint64, 0)
+	for i := 0; i < 10; i++ {
+		result, err := computeShuffledIndex(uint64(i), uint64(10), sampleSeed, true)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		for _, h := range result1 {
+			if result == h {
+				t.Errorf("duplicate index found: %d", result)
+			}
+		}
+		result1 = append(result1, result)
+	}
+	for i := 0; i < 10; i++ {
+		result, err := computeShuffledIndex(uint64(i), uint64(10), sampleSeed, true)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		result2 = append(result2, result)
+	}
+	if !slices.Equal(result1, result2) {
+		t.Errorf("expected results to be equal, but got different results: %v and %v", result1, result2)
 	}
 }

@@ -7,9 +7,11 @@ package qbftengine
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -302,7 +304,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	if err != nil {
 		return fmt.Errorf("failed to extract QBFT extra from header: %w", err)
 	}
-	if err := e.checkSig(header.Number.Bytes(), header.Coinbase, currentExtra.RandaoReveal); err != nil {
+	if err := e.checkSig(makeRandaoData(chain.Config(), header.Number), header.Coinbase, currentExtra.RandaoReveal); err != nil {
 		return fmt.Errorf("failed to verify randao reveal signature: %w", err)
 	}
 	var parentRandaoMix common.Hash
@@ -532,7 +534,7 @@ func (e *Engine) WriteRandao(config *params.ChainConfig, parent *types.Header, h
 			parentRandaoMix = parentExtra.RandaoMix
 		}
 
-		randaoReveal, err2 := e.sign(header.Number.Bytes())
+		randaoReveal, err2 := e.sign(makeRandaoData(config, header.Number))
 		if err2 != nil {
 			return fmt.Errorf("failed to sign randao reveal: %w", err2)
 		}
@@ -541,6 +543,20 @@ func (e *Engine) WriteRandao(config *params.ChainConfig, parent *types.Header, h
 		qbftExtra.RandaoReveal = randaoReveal
 		return nil
 	}
+}
+
+func makeRandaoData(config *params.ChainConfig, number *big.Int) []byte {
+	var data []byte
+	chainId := config.ChainID
+	randaoVersion := new(big.Int)
+	if config.IsMontBlanc(number) {
+		randaoVersion.SetUint64(1) // montBlanc randao version is 1
+	}
+	data = append(data, chainId.Bytes()...)
+	data = append(data, randaoVersion.Bytes()...)
+	data = append(data, number.Bytes()...)
+
+	return crypto.Keccak256(data)
 }
 
 func calculateRandaoMix(prevRandaoMix common.Hash, randaoReveal []byte) common.Hash {
@@ -829,7 +845,11 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			}
 			candidates = append(candidates, candidate)
 		}
-		newEpoch.Validators = e.decideValidators(header, candidates, e.cfg.GetConfig(header.Number).TargetValidators)
+		newEpoch.Validators, err = e.decideValidators(header, candidates, e.cfg.GetConfig(header.Number).TargetValidators)
+		if err != nil {
+			log.Error("Failed to decide validators", "err", err)
+			return nil, err
+		}
 		newEpoch.BLSPublicKeys = make([][]byte, len(newEpoch.Validators))
 		for i, addr := range newEpoch.GetValidators() {
 			pk := govwbft.GetBLSPublicKey(govStakingAddress, state, addr)
@@ -1234,21 +1254,61 @@ func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Hea
 }
 
 // 1. WEMIX 3.5
-// Use staker list as it is.
+// - sort by (staking amount, diligence) descending
+// - cut off the list at targetValidators
+// - shuffle the list randomly
 //
 // 2. WEMIX 4.0 (not implemented yet)
-// If number of stakers <= targetValidators, use staker list as it is.
-// If number of stakers > targetValidators, random selection from the list in VRF manner
-// depending on their staking amounts and diligence score.
-func (e *Engine) decideValidators(header *types.Header, newStakers []Candidate, targetValidators uint64) []uint32 {
-	validators := make([]uint32, len(newStakers))
+// - randomSelect(staking amount, diligence) until targetValidators
+// - shuffle the list randomly
+func (e *Engine) decideValidators(header *types.Header, newStakers []Candidate, targetValidators uint64) ([]uint32, error) {
+	indices := sortCandidates(newStakers)
+	if uint64(len(indices)) > targetValidators {
+		// If the number of candidates is greater than targetValidators,
+		// we cut off the list at targetValidators.
+		indices = indices[:targetValidators]
+	}
+	validators := make([]uint32, len(indices))
+	extra, err := types.ExtractQBFTExtra(header)
+	if err != nil {
+		log.Error("Failed to extract QBFT extra data", "err", err)
+		return nil, err
+	}
+	for i, idx := range indices {
+		// Convert the index to uint32 and store it in the validators slice.
+		shuffledIdx, err := computeShuffledIndex(uint64(idx), uint64(len(validators)), [32]byte(extra.RandaoMix), true)
+		if err != nil {
+			log.Error("Failed to compute shuffled index", "index", idx, "err", err)
+			return nil, err
+		}
+		validators[i] = uint32(shuffledIdx)
+	}
+	return validators, nil
+}
 
-	l := make([]uint32, len(validators))
-	for i := 0; i < len(l); i++ {
-		l[i] = uint32(i)
+func sortCandidates(candidates []Candidate) []int {
+	indices := make([]int, len(candidates))
+	for i := range indices {
+		indices[i] = i
 	}
 
-	return l
+	sort.Slice(indices, func(i, j int) bool {
+		originalIndexI := indices[i]
+		originalIndexJ := indices[j]
+
+		candidateI := candidates[originalIndexI]
+		candidateJ := candidates[originalIndexJ]
+
+		powerComparison := candidateI.Power.Cmp(candidateJ.Power)
+
+		if powerComparison != 0 {
+			return powerComparison > 0
+		}
+
+		return candidateI.Diligence > candidateJ.Diligence
+	})
+
+	return indices
 }
 
 func getSignerAddress(epochInfo *types.EpochInfo, signedSeal *types.QBFTAggregatedSeal) ([]common.Address, error) {
@@ -1382,4 +1442,78 @@ func (e *Engine) extractEpochInfo(epochHeader *types.Header) (*big.Int, *types.E
 	e.epochCache.Add(epochHeader.Number.Uint64(), epochExtra.EpochInfo)
 
 	return epochHeader.Number, epochExtra.EpochInfo, nil
+}
+
+const seedSize = int8(32)
+const roundSize = int8(1)
+const positionWindowSize = int8(4)
+const pivotViewSize = seedSize + roundSize
+const totalSize = seedSize + roundSize + positionWindowSize
+const shuffleRoundCount = uint8(33)
+
+func fromBytes8(x []byte) uint64 {
+	if len(x) < 8 {
+		return 0
+	}
+	return binary.LittleEndian.Uint64(x)
+}
+
+// computeShuffledIndex is from prysm's computeShuffledIndex function.
+// this function follows ethereum beacon chain's shuffling algorithm.
+func computeShuffledIndex(index uint64, indexCount uint64, seed [32]byte, shuffle bool) (uint64, error) {
+	if index >= indexCount {
+		return 0, fmt.Errorf("input index %d out of bounds: %d", index, indexCount)
+	}
+	rounds := shuffleRoundCount
+	round := uint8(0)
+	if !shuffle {
+		// Starting last round and iterating through the rounds in reverse, un-swaps everything,
+		// effectively un-shuffling the list.
+		round = rounds - 1
+	}
+	buf := make([]byte, totalSize)
+	posBuffer := make([]byte, 8)
+	hashfunc := crypto.Keccak256Hash
+
+	// Seed is always the first 32 bytes of the hash input, we never have to change this part of the buffer.
+	copy(buf[:32], seed[:])
+	for {
+		buf[seedSize] = round
+		h := hashfunc(buf[:pivotViewSize])
+		hash8 := h[:8]
+		hash8Int := fromBytes8(hash8)
+		pivot := hash8Int % indexCount
+		flip := (pivot + indexCount - index) % indexCount
+		// Consider every pair only once by picking the highest pair index to retrieve randomness.
+		position := index
+		if flip > position {
+			position = flip
+		}
+		// Add position except its last byte to []buf for randomness,
+		// it will be used later to select a bit from the resulting hash.
+		binary.LittleEndian.PutUint64(posBuffer[:8], position>>8)
+		copy(buf[pivotViewSize:], posBuffer[:4])
+		source := hashfunc(buf)
+		// Effectively keep the first 5 bits of the byte value of the position,
+		// and use it to retrieve one of the 32 (= 2^5) bytes of the hash.
+		byteV := source[(position&0xff)>>3]
+		// Using the last 3 bits of the position-byte, determine which bit to get from the hash-byte (note: 8 bits = 2^3)
+		bitV := (byteV >> (position & 0x7)) & 0x1
+		// index = flip if bit else index
+		if bitV == 1 {
+			index = flip
+		}
+		if shuffle {
+			round++
+			if round == rounds {
+				break
+			}
+		} else {
+			if round == 0 {
+				break
+			}
+			round--
+		}
+	}
+	return index, nil
 }
