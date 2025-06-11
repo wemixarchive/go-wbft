@@ -289,6 +289,34 @@ func TestWriteRoundNumber(t *testing.T) {
 	}
 }
 
+func TestSortCandidates(t *testing.T) {
+	candidates := []Candidate{
+		{Addr: common.HexToAddress("0x1"), Power: new(big.Int).SetUint64(10001), Diligence: 100},
+		{Addr: common.HexToAddress("0x2"), Power: new(big.Int).SetUint64(10001), Diligence: 101},
+		{Addr: common.HexToAddress("0x3"), Power: new(big.Int).SetUint64(10002), Diligence: 102},
+		{Addr: common.HexToAddress("0x4"), Power: new(big.Int).SetUint64(10002), Diligence: 103},
+		{Addr: common.HexToAddress("0x5"), Power: new(big.Int).SetUint64(10000), Diligence: 104},
+		{Addr: common.HexToAddress("0x6"), Power: new(big.Int).SetUint64(10000), Diligence: 105},
+	}
+	expected := []Candidate{
+		{Addr: common.HexToAddress("0x4"), Power: new(big.Int).SetUint64(10002), Diligence: 103},
+		{Addr: common.HexToAddress("0x3"), Power: new(big.Int).SetUint64(10002), Diligence: 102},
+		{Addr: common.HexToAddress("0x2"), Power: new(big.Int).SetUint64(10001), Diligence: 101},
+		{Addr: common.HexToAddress("0x1"), Power: new(big.Int).SetUint64(10001), Diligence: 100},
+		{Addr: common.HexToAddress("0x6"), Power: new(big.Int).SetUint64(10000), Diligence: 105},
+		{Addr: common.HexToAddress("0x5"), Power: new(big.Int).SetUint64(10000), Diligence: 104},
+	}
+	results := sortCandidates(candidates)
+	if len(results) != len(expected) {
+		t.Fatalf("expected %d candidates, got %d", len(expected), len(results))
+	}
+	for i, result := range results {
+		if candidates[result].Addr != expected[i].Addr {
+			t.Errorf("candidate %d address mismatch: have %s, want %s", i, candidates[result].Addr.Hex(), expected[i].Addr.Hex())
+		}
+	}
+}
+
 func TestWriteRandao(t *testing.T) {
 	privateKey, _ := crypto.GenerateKey()
 	blockNumber := big.NewInt(3)
