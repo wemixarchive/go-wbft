@@ -45,34 +45,33 @@
         ],
         "blsPublicKeys": [
           "0x991c4ae79b8102c8c37dab61c18e0d4e627005392165d1ea244d3fca3d6cbce43bae0ae0704311bbcda83fbd41a3d5ce"
-        ],
-        "govContracts": {
-          "govConfig": {
-            "address": "0x0000000000000000000000000000000000001000",
-            "version": "v1",
-            "params": {
-              "changeFeeDelay": "604800",
-              "feePrecision": "10000",
-              "maximumStaking": "100000000000000000000000000",
-              "minimumStaking": "10000000000000000000000000",
-              "unbondingPeriodDelegator": "259200",
-              "unbondingPeriodStaker": "604800"
-            }
-          },
-          "govStaking": {
-            "address": "0x0000000000000000000000000000000000001001",
-            "version": "v1",
-            "params": null
-          },
-          "govRewardeeImp": {
-            "address": "0x0000000000000000000000000000000000001002",
-            "version": "v1",
-            "params": null
-          },
-          "govNCP": null
-        }
+        ]
       },
-      "upgrades": null
+      "govContracts": {
+        "govConfig": {
+          "address": "0x0000000000000000000000000000000000001000",
+          "version": "v1",
+          "params": {
+            "changeFeeDelay": "604800",
+            "feePrecision": "10000",
+            "maximumStaking": "100000000000000000000000000",
+            "minimumStaking": "10000000000000000000000000",
+            "unbondingPeriodDelegator": "259200",
+            "unbondingPeriodStaker": "604800"
+          }
+        },
+        "govStaking": {
+          "address": "0x0000000000000000000000000000000000001001",
+          "version": "v1",
+          "params": null
+        },
+        "govRewardeeImp": {
+          "address": "0x0000000000000000000000000000000000001002",
+          "version": "v1",
+          "params": null
+        },
+        "govNCP": null
+      }
     }
   },
   "nonce": "0x0",
