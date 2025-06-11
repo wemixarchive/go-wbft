@@ -79,7 +79,7 @@ Validators are selected to act as proposers in a round-robin manner and the orde
 WBFT uses a randao system to select validators and to order them based on their staking amount and diligence. The randao system is designed to be secure against manipulation by validators, ensuring that the selection process is fair and transparent.
 WBFT blocks include a `randaoMix` and `randaoReveal` fields in the extra data, which are used to generate a random value for validator selection and shuffled ordering.
 - `randaoMix`: a xor value of the previous block's `randaoMix` and the current block's `randaoReveal`
-- `randaoReveal`: is a ECDSA signature of the proposer on some data(chainId, hard fork version, block height) 
+- `randaoReveal`: is a ECDSA signature of the proposer on some data(chainId, hard fork version, block height) using big-endian encoding.
 
 ### Reward System and Diligence Metrics
 WBFT rewards consist of two types:
