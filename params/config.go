@@ -931,7 +931,8 @@ type ChainConfig struct {
 	Clique  *CliqueConfig  `json:"clique,omitempty"`
 	Brioche *BriocheConfig `json:"brioche,omitempty"` // if this config is nil, brioche halving is not applied
 
-	MontBlanc *MontBlancConfig `json:"montBlanc,omitempty"`
+	MontBlanc   *MontBlancConfig `json:"montBlanc,omitempty"`
+	Transitions []Transition     `json:"transitions,omitempty"`
 }
 
 // Brioche halving configuration
@@ -1114,12 +1115,6 @@ func (c *ChainConfig) Description() string {
 				banner += fmt.Sprintf("     - MaxRequestTimeoutSeconds:  %-8v\n", 0)
 			} else {
 				banner += fmt.Sprintf("     - MaxRequestTimeoutSeconds:  %-8v\n", *c.MontBlanc.WBFT.MaxRequestTimeoutSeconds)
-			}
-			if c.MontBlanc.WBFT.Transitions != nil {
-				banner += "     - Transitions\n"
-				for i, t := range c.MontBlanc.WBFT.Transitions {
-					banner += fmt.Sprintf("       - Transitions[%v]: %v\n", i, t)
-				}
 			}
 		}
 		if c.MontBlanc.Init != nil {

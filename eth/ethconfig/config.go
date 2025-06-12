@@ -24,6 +24,8 @@ package ethconfig
 import (
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
+	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -201,7 +203,7 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		if qbftCfg == nil {
 			qbftCfg = new(qbft.Config)
 		}
-		err := SetConfigFromChainConfig(qbftCfg, config.MontBlanc.WBFT)
+		err := SetConfigFromChainConfig(qbftCfg, config)
 
 		if err != nil {
 			return nil, err
@@ -224,11 +226,8 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 	return beacon.New(ethash.NewFaker()), nil
 }
 
-func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.WBFTConfig) error {
-	//refac : transitions will be removed
-	if len(config.Transitions) > 0 {
-		qbftCfg.Transitions = config.Transitions
-	}
+func SetConfigFromChainConfig(qbftCfg *qbft.Config, chainCfg *params.ChainConfig) error {
+	config := chainCfg.MontBlanc.WBFT
 	if config.RequestTimeoutSeconds != 0 {
 		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
 	}
@@ -256,6 +255,36 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.WBFTConfig) e
 	if config.UseNCP != nil {
 		qbftCfg.UseNCP = *config.UseNCP
 	}
+
+	hfTransitionBlocks := make(map[*big.Int]bool)
+
+	//add hardforks that includes wbft config after montblanc here like :
+	// transition := params.Transition{
+	// 	Block:      chainCfg.DalgonaBlock,
+	// 	WBFTConfig: chainCfg.Dalgona.WBFT,
+	// }
+	// qbftCfg.Transitions = append(qbftCfg.Transitions, transition)
+	// hfTransitionBlocks[chainCfg.DalgonaBlock] = true
+
+	if chainCfg.Transitions != nil && len(chainCfg.Transitions) > 0 {
+		for _, t := range chainCfg.Transitions {
+			if hfTransitionBlocks[t.Block] {
+				return errors.New("hardfork transition block already exists")
+			}
+			qbftCfg.Transitions = append(qbftCfg.Transitions, t)
+		}
+	}
+
+	sort.Slice(qbftCfg.Transitions, func(i, j int) bool {
+		if qbftCfg.Transitions[i].Block == nil {
+			return false
+		}
+		if qbftCfg.Transitions[j].Block == nil {
+			return true
+		}
+		return qbftCfg.Transitions[i].Block.Cmp(qbftCfg.Transitions[j].Block) < 0
+	})
+
 	return nil
 }
 

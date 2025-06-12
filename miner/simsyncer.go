@@ -37,7 +37,9 @@ func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *qbft.Config,
 	if ss.adjustedBlockPeriod[number] > 0 {
 		config.Transitions = append(config.Transitions, params.Transition{
 			Block:              num,
-			BlockPeriodSeconds: ss.adjustedBlockPeriod[number],
+			WBFTConfig: &params.WBFTConfig{
+				BlockPeriodSeconds: ss.adjustedBlockPeriod[number],
+			},
 		})
 	}
 	if upgradeContracts, ok := ss.upgradeContracts[number]; ok {

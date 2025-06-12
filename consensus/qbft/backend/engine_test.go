@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -185,28 +186,66 @@ func newBlockChainWithCustom(n int, customizeConfig func(config *qbft.Config)) (
 }
 
 // this is a copy of ethconfig.SetConfigFromChainConfig; avoiding cyclic import
-func setConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) {
-	if len(config.MontBlanc.WBFT.Transitions) > 0 {
-		qbftCfg.Transitions = config.MontBlanc.WBFT.Transitions
+func setConfigFromChainConfig(qbftCfg *qbft.Config,  chainCfg *params.ChainConfig) error {
+	config := chainCfg.MontBlanc.WBFT
+	if config.RequestTimeoutSeconds != 0 {
+		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
 	}
-	if config.MontBlanc.WBFT.BlockPeriodSeconds != 0 {
-		qbftCfg.BlockPeriod = config.MontBlanc.WBFT.BlockPeriodSeconds
+	if config.BlockPeriodSeconds != 0 {
+		qbftCfg.BlockPeriod = config.BlockPeriodSeconds
 	}
-	if config.MontBlanc.WBFT.RequestTimeoutSeconds != 0 {
-		qbftCfg.RequestTimeout = config.MontBlanc.WBFT.RequestTimeoutSeconds * 1000
+	if config.EpochLength != 0 {
+		qbftCfg.Epoch = config.EpochLength
 	}
-	if config.MontBlanc.WBFT.EpochLength != 0 {
-		qbftCfg.Epoch = config.MontBlanc.WBFT.EpochLength
-	}
-	qbftCfg.StabilizingStakersThreshold = *config.MontBlanc.WBFT.StabilizingStakersThreshold
-	qbftCfg.UseNCP = *config.MontBlanc.WBFT.UseNCP
+	qbftCfg.BlockReward = config.BlockReward
+	qbftCfg.BlockRewardBeneficiary = config.BlockRewardBeneficiary
 
-	qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*config.MontBlanc.WBFT.ProposerPolicy))
-	qbftCfg.BlockReward = config.MontBlanc.WBFT.BlockReward
-
-	if config.MontBlanc.WBFT.MaxRequestTimeoutSeconds != nil && *config.MontBlanc.WBFT.MaxRequestTimeoutSeconds > 0 {
-		qbftCfg.MaxRequestTimeoutSeconds = *config.MontBlanc.WBFT.MaxRequestTimeoutSeconds
+	if config.ProposerPolicy != nil {
+		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*config.ProposerPolicy))
 	}
+	if config.TargetValidators != nil {
+		qbftCfg.TargetValidators = *config.TargetValidators
+	}
+	if config.MaxRequestTimeoutSeconds != nil {
+		qbftCfg.MaxRequestTimeoutSeconds = *config.MaxRequestTimeoutSeconds
+	}
+	if config.StabilizingStakersThreshold != nil {
+		qbftCfg.StabilizingStakersThreshold = *config.StabilizingStakersThreshold
+	}
+	if config.UseNCP != nil {
+		qbftCfg.UseNCP = *config.UseNCP
+	}
+
+	hfTransitionBlocks := make(map[*big.Int]bool)
+
+	//add hardforks that includes wbft config after montblanc here like :
+	// transition := params.Transition{
+	// 	Block:      chainCfg.DalgonaBlock,
+	// 	WBFTConfig: chainCfg.Dalgona.WBFT,
+	// }
+	// qbftCfg.Transitions = append(qbftCfg.Transitions, transition)
+	// hfTransitionBlocks[chainCfg.DalgonaBlock] = true
+
+	if chainCfg.Transitions != nil && len(chainCfg.Transitions) > 0 {
+		for _, t := range chainCfg.Transitions {
+			if hfTransitionBlocks[t.Block] {
+				return errors.New("hardfork transition block already exists")
+			}
+			qbftCfg.Transitions = append(qbftCfg.Transitions, t)
+		}
+	}
+
+	sort.Slice(qbftCfg.Transitions, func(i, j int) bool {
+		if qbftCfg.Transitions[i].Block == nil {
+			return false
+		}
+		if qbftCfg.Transitions[j].Block == nil {
+			return true
+		}
+		return qbftCfg.Transitions[i].Block.Cmp(qbftCfg.Transitions[j].Block) < 0
+	})
+
+	return nil
 }
 
 // makeHeader create header executing no txs
@@ -217,7 +256,7 @@ func makeHeader(chainConfig *params.ChainConfig, engineConfig *qbft.Config, pare
 		Number:     blockNumber,
 		GasLimit:   parent.GasLimit(),
 		GasUsed:    0, // empty tx
-		Time:       parent.Time() + engineConfig.GetConfig(blockNumber, chainConfig).BlockPeriod,
+		Time:       parent.Time() + engineConfig.GetConfig(blockNumber).BlockPeriod,
 		Difficulty: types.QBFTDefaultDifficulty,
 		BaseFee:    eip1559.CalcBaseFee(chainConfig, parent.Header()),
 	}
@@ -601,7 +640,7 @@ func TestVerifyHeaderForSingleBlock(t *testing.T) {
 	// invalid timestamp
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
-	header.Time = chain.Genesis().Time() + (engine.config.GetConfig(block.Number(), chain.Config()).BlockPeriod - 1)
+	header.Time = chain.Genesis().Time() + (engine.config.GetConfig(block.Number()).BlockPeriod - 1)
 	err = engine.VerifyHeader(chain, header)
 	if err != qbftcommon.ErrInvalidTimestamp {
 		t.Errorf("error mismatch: have %v, want %v", err, qbftcommon.ErrInvalidTimestamp)

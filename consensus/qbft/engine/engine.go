@@ -261,7 +261,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	// Ensure that the block's timestamp isn't too close to it's parent
 	// When the BlockPeriod is reduced it is reduced for the proposal.
 	// e.g when blockperiod is 1 from block 10 the block period between 9 and 10 is 1
-		if parent.Time+e.cfg.GetConfig(header.Number, chain.Config()).BlockPeriod > header.Time {
+	if parent.Time+e.cfg.GetConfig(header.Number).BlockPeriod > header.Time {
 		return qbftcommon.ErrInvalidTimestamp
 	}
 	// Verify that the gasUsed is <= gasLimit
@@ -427,8 +427,8 @@ func (e *Engine) VerifySeal(chain consensus.ChainHeaderReader, header *types.Hea
 	return e.verifySigner(chain, header, nil, validators)
 }
 
-func (e *Engine) PeriodToNextBlock(blockNumber *big.Int, chainConfig *params.ChainConfig) uint64 {
-	return e.cfg.GetConfig(blockNumber, chainConfig).BlockPeriod
+func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
+	return e.cfg.GetConfig(blockNumber).BlockPeriod
 }
 
 func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators qbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal []qbft.SealData) error {
@@ -451,7 +451,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Difficulty = types.QBFTDefaultDifficulty
 
 	// set header's timestamp
-	header.Time = parent.Time + e.cfg.GetConfig(header.Number, chain.Config()).BlockPeriod
+	header.Time = parent.Time + e.cfg.GetConfig(header.Number).BlockPeriod
 	if header.Time < uint64(time.Now().Unix()) {
 		header.Time = uint64(time.Now().Unix())
 	}
@@ -505,7 +505,6 @@ func WriteEpochInfo(epochInfo *types.EpochInfo) ApplyQBFTExtra {
 	}
 }
 
-
 // GetStakers
 // If number of stakers >= minStakers (after stabilization stage), use staker list from gov.
 // If number of stakers < minStakers , use validator list (regarded as staker list) from previous epoch.
@@ -514,9 +513,10 @@ func (e *Engine) GetStakers(config *params.ChainConfig, latestEpochInfo *types.E
 		stakers     []common.Address
 		stabilizing bool = latestEpochInfo.Stabilizing
 	)
-	govStakingAddress := e.cfg.GetGovContracts(num, config).GovStaking.Address
-	if e.cfg.GetConfig(num, config).UseNCP {
-		govNCPAddress := e.cfg.GetGovContracts(num, config).GovNCP.Address
+	govContracts := e.cfg.GetGovContracts(num, config)
+	govStakingAddress := govContracts.GovStaking.Address
+	if e.cfg.GetConfig(num).UseNCP {
+		govNCPAddress := govContracts.GovNCP.Address
 		stakers = govwbft.NCPStakers(govStakingAddress, govNCPAddress, state)
 	} else {
 		stakers = govwbft.Stakers(govStakingAddress, state)
@@ -768,7 +768,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			}
 			candidates = append(candidates, candidate)
 		}
-		newEpoch.Validators = e.decideValidators(header, candidates, e.cfg.GetConfig(header.Number, config).TargetValidators)
+		newEpoch.Validators = e.decideValidators(header, candidates, e.cfg.GetConfig(header.Number).TargetValidators)
 		newEpoch.BLSPublicKeys = make([][]byte, len(newEpoch.Validators))
 		for i, addr := range newEpoch.GetValidators() {
 			pk := govwbft.GetBLSPublicKey(govStakingAddress, state, addr)
@@ -868,6 +868,7 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 	if config.MontBlancBlock != nil {
 		firstNewEpoch.Set(config.MontBlancBlock)
 	}
+
 	for _, transition := range e.cfg.Transitions {
 		if transition.Block.Cmp(number) > 0 {
 			break
@@ -879,6 +880,7 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 		firstNewEpoch.Set(transition.Block)
 		epochLength.SetUint64(transition.EpochLength)
 	}
+
 	rem := new(big.Int).Sub(number, firstNewEpoch)
 	rem.Rem(rem, epochLength)
 	return rem.Sign() == 0, new(big.Int).Sub(number, rem), nil
@@ -1013,7 +1015,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	if chain.Config().IsBrioche(header.Number) {
 		blockReward = chain.Config().Brioche.GetBriocheBlockReward(params.DefaultBriocheBlockReward, header.Number)
 	} else {
-		cfgBlockReward := e.cfg.GetConfig(header.Number, chain.Config()).BlockReward
+		cfgBlockReward := e.cfg.GetConfig(header.Number).BlockReward
 		if cfgBlockReward != nil {
 			blockReward = new(big.Int).Set((*big.Int)(cfgBlockReward))
 		}
@@ -1022,7 +1024,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	// Deduct rewards of beneficiaries.
 	if blockReward.Sign() > 0 {
 		bReward := new(big.Int)
-		beneficiaryInfo := e.cfg.GetConfig(header.Number, chain.Config()).BlockRewardBeneficiary
+		beneficiaryInfo := e.cfg.GetConfig(header.Number).BlockRewardBeneficiary
 		if beneficiaryInfo != nil {
 			for _, beneficiary := range beneficiaryInfo.Beneficiaries {
 				r := new(big.Int).Set(blockReward)
