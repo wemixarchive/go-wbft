@@ -770,8 +770,6 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 					Delegated:   big.NewInt(0),
 				}
 			}
-			
-			//blockReward := c.Config().MontBlanc.WBFT.GetBlockReward(h.Number)
 			blockReward := new(big.Int).Set((*big.Int)(tc.qbftConfig.GetConfig(h.Number).BlockReward))
 			origBlockReward := new(big.Int).Set(blockReward)
 			engine.calculateRewards(
@@ -976,7 +974,7 @@ func TestIsEpochBlock(t *testing.T) {
 				Epoch: 100,
 				Transitions: []params.Transition{
 					{Block: new(big.Int).SetUint64(1101), WBFTConfig: &params.WBFTConfig{EpochLength: 200}},
-				},	
+				},
 			},
 			new(big.Int).SetUint64(1100), // before transition
 			true,

@@ -36,7 +36,7 @@ func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *qbft.Config,
 	number := num.Uint64()
 	if ss.adjustedBlockPeriod[number] > 0 {
 		config.Transitions = append(config.Transitions, params.Transition{
-			Block:              num,
+			Block: num,
 			WBFTConfig: &params.WBFTConfig{
 				BlockPeriodSeconds: ss.adjustedBlockPeriod[number],
 			},

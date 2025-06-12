@@ -186,7 +186,7 @@ func newBlockChainWithCustom(n int, customizeConfig func(config *qbft.Config)) (
 }
 
 // this is a copy of ethconfig.SetConfigFromChainConfig; avoiding cyclic import
-func setConfigFromChainConfig(qbftCfg *qbft.Config,  chainCfg *params.ChainConfig) error {
+func setConfigFromChainConfig(qbftCfg *qbft.Config, chainCfg *params.ChainConfig) error {
 	config := chainCfg.MontBlanc.WBFT
 	if config.RequestTimeoutSeconds != 0 {
 		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000

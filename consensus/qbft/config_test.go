@@ -395,5 +395,4 @@ func TestGetGovContracts(t *testing.T) {
 			}
 		})
 	}
-
 }
