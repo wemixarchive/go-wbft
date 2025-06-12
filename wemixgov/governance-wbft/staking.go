@@ -15,8 +15,8 @@ const (
 	SLOT_STAKER_SET                  = "0x4"
 	SLOT_STAKER_INFO                 = "0x6"
 	SLOT_STAKER_BY_OPERATOR          = "0x7"
-	SLOT_USER_REWARD_INFO            = "0xc"
-	SLOT_DANGLING_DELEGATED          = "0xd"
+	SLOT_USER_REWARD_INFO            = "0xd"
+	SLOT_DANGLING_DELEGATED          = "0xe"
 )
 
 type Staker struct {

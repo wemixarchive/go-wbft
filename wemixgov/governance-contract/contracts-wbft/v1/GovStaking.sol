@@ -119,20 +119,21 @@ contract GovStaking {
     mapping(address => Staker) public stakerInfo; // 0x6
     mapping(address => address) public stakerByOperator; // 0x7
     mapping(address => address) public stakerByRewardee; // 0x8
+    mapping(bytes => address) public stakerByBLSPublicKey; // 0x9
 
     // Withdrawal Credential: credentials[user][credentialIndex]
-    mapping(address => mapping(uint256 => WithdrawalCredential)) public credentials; // 0x9
-    mapping(address => UserCredentialInfo) public userCredential; // 0xa
+    mapping(address => mapping(uint256 => WithdrawalCredential)) public credentials; // 0xa
+    mapping(address => UserCredentialInfo) public userCredential; // 0xb
 
     // pending request
-    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0xb
+    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0xc
 
     // User Reward Info
-    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xc
+    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xd
 
     // danglingDelegated is the delegated balance for the inactive stakers
     // contract's balance = totalStaked + danglingDelegated + unbonding
-    uint256 public danglingDelegated; // 0xd
+    uint256 public danglingDelegated; // 0xe
 
     //***********************************************************************
     //* Caution for Upgrading
@@ -259,6 +260,7 @@ contract GovStaking {
 
         stakerByOperator[msg.sender] = _params.staker;
         stakerByRewardee[address(_rewardee)] = _params.staker;
+        stakerByBLSPublicKey[_params.blsPK] = _params.staker;
 
         __stakerSet.add(_params.staker);
 
@@ -270,6 +272,7 @@ contract GovStaking {
     function _checkBLSPublicKey(bytes calldata _blsPK, bytes calldata _blsSig) internal view {
         require(_blsPK.length == BLS_PUBLIC_KEY_LENGTH, "invalid bls public key length");
         require(_blsSig.length == BLS_SIGNATURE_LENGTH, "invalid bls signature length");
+        require(stakerByBLSPublicKey[_blsPK] == address(0), "already registered bls public key");
 
         (bool _success, bytes memory _result) = blsPoP.staticcall(abi.encodePacked(_blsPK, _blsSig));
         require(_success, "failed to verify bls pop");
