@@ -437,7 +437,7 @@ func TestEpochInfo(t *testing.T) {
 			engine := NewEngine(&qbft.Config{
 				ProposerPolicy:              qbft.NewRoundRobinProposerPolicy(),
 				Epoch:                       3,
-				StabilizingStakersThreshold: c.chainConfig.MontBlanc.WBFT.StabilizingStakersThreshold,
+				StabilizingStakersThreshold: *c.chainConfig.MontBlanc.WBFT.StabilizingStakersThreshold,
 			}, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)

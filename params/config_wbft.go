@@ -32,13 +32,13 @@ var (
 	}
 )
 
-var CheckInitGovContractVersions func(govContracts *GovContracts) error // refac : will be removed
+var CheckInitGovContractVersions func(govContracts *GovContracts) error    // refac : will be removed
 var CheckUpgradeGovContractVersions func(govContracts *GovContracts) error // refac : will be removed
 var CheckGovContractVersions func(govContracts *GovContracts) error
 
 type MontBlancWbftConfig struct {
-	WBFT *WBFTConfig `json:"wBFT"`
-	Init *WbftInit `json:"init"`
+	WBFT         *WBFTConfig   `json:"wBFT"`
+	Init         *WbftInit     `json:"init"`
 	GovContracts *GovContracts `json:"govContracts"`
 }
 
@@ -54,7 +54,6 @@ func (c *MontBlancWbftConfig) GetInitialBLSPublicKeys() [][]byte {
 	}
 	return blsPubKeys
 }
-
 
 // ----------------------refactor end---------------------
 
@@ -172,13 +171,28 @@ func (c *MontBlancConfig) CheckValidity() error {
 		}
 	}
 
-	if c.WBFT.StabilizingStakersThreshold == 0 {
+	if c.WBFT == nil {
+		return errors.New("`montblanc`: missing `wBFT` section")
+	}
+	if c.WBFT.RequestTimeoutSeconds == 0 {
+		return errors.New("`montblanc.wBFT`: `requestTimeoutSeconds` must be greater than 0")
+	}
+	if c.WBFT.BlockPeriodSeconds == 0 {
+		return errors.New("`montblanc.wBFT`: `blockPeriodSeconds` must be greater than 0")
+	}
+	if c.WBFT.EpochLength == 0 {
+		return errors.New("`montblanc.wBFT`: `epochLength` must be greater than 0")
+	}
+	if c.WBFT.StabilizingStakersThreshold == nil {
+		return errors.New("`montblanc.wBFT`: missing `stabilizingStakersThreshold`")
+	} else if *c.WBFT.StabilizingStakersThreshold == 0 {
 		return errors.New("`montblanc.wBFT`: `stabilizingStakersThreshold` must be greater than 0")
 	}
-
-	if c.WBFT.EpochLength < c.WBFT.TargetValidators {
+	if c.WBFT.TargetValidators == nil {
+		return errors.New("`montblanc.wBFT`: missing `targetValidators`")
+	} else if c.WBFT.EpochLength < *c.WBFT.TargetValidators {
 		return fmt.Errorf("`montblanc.wBFT`: `epochLength` (%d) must be greater than or equal to `targetValidators` (%d)",
-			c.WBFT.EpochLength, c.WBFT.TargetValidators)
+			c.WBFT.EpochLength, *c.WBFT.TargetValidators)
 	}
 
 	if err := checkSanityBeneficiaries(c.WBFT.BlockRewardBeneficiary); err != nil {
@@ -284,14 +298,14 @@ func (u *Upgrade) String() string {
 type WBFTConfig struct {
 	RequestTimeoutSeconds       uint64                `json:"requestTimeoutSeconds"`            // Minimum request timeout for each QBFT round in milliseconds
 	BlockPeriodSeconds          uint64                `json:"blockPeriodSeconds"`               // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
-	ProposerPolicy              uint64                `json:"proposerPolicy"`                   // The policy for proposer selection
 	EpochLength                 uint64                `json:"epochLength"`                      // The duration during which a fixed validator set remains active
 	BlockReward                 *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
 	BlockRewardBeneficiary      *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
-	TargetValidators            uint64                `json:"targetValidators"`                 // Target number of validators
+	ProposerPolicy              *uint64               `json:"proposerPolicy"`                   // The policy for proposer selection
+	TargetValidators            *uint64               `json:"targetValidators"`                 // Target number of validators
 	MaxRequestTimeoutSeconds    *uint64               `json:"maxRequestTimeoutSeconds"`         // The max round time
-	StabilizingStakersThreshold uint64                `json:"stabilizingStakersThreshold"`      // initial stabilizing stakers threshold, default is 1
-	UseNCP                      bool                  `json:"useNCP"`                           // Use NCP or not
+	StabilizingStakersThreshold *uint64               `json:"stabilizingStakersThreshold"`      // initial stabilizing stakers threshold, default is 1
+	UseNCP                      *bool                 `json:"useNCP"`                           // Use NCP or not
 
 	Transitions []Transition `json:"transitions,omitempty"` // refac : will be removed
 }
@@ -337,11 +351,11 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 		WBFT: &WBFTConfig{
 			RequestTimeoutSeconds:       2,
 			BlockPeriodSeconds:          1,
-			ProposerPolicy:              0,
+			ProposerPolicy:              newUint64(0),
 			EpochLength:                 10,
 			BlockReward:                 (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
-			StabilizingStakersThreshold: 1,
-			UseNCP:                      false,
+			StabilizingStakersThreshold: newUint64(1),
+			UseNCP:                      newBool(false),
 		},
 		GovContracts: &GovContracts{
 			GovConfig: &GovContract{

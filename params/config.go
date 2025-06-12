@@ -40,6 +40,7 @@ var (
 )
 
 func newUint64(val uint64) *uint64 { return &val }
+func newBool(val bool) *bool       { return &val }
 
 var (
 	MainnetTerminalTotalDifficulty, _ = new(big.Int).SetString("58_750_000_000_000_000_000_000", 0)
@@ -85,7 +86,7 @@ var (
 					EpochLength:              100,
 					BlockPeriodSeconds:       1,
 					RequestTimeoutSeconds:    1000,
-					ProposerPolicy:           0,
+					ProposerPolicy:           newUint64(0),
 					BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
 					MaxRequestTimeoutSeconds: &mrts,
 					BlockRewardBeneficiary: &BeneficiaryInfo{Denominator: 10000, Beneficiaries: []*Beneficiary{{
@@ -97,8 +98,8 @@ var (
 						Addr:      common.HexToAddress("0xC79d535f6EDD3E0Fa648D6169eA5b8e1Aa38921e"),
 						Numerator: 2500,
 					}}},
-					TargetValidators:            1, // TODO: define validators
-					StabilizingStakersThreshold: 1, // TODO: define min stakers
+					TargetValidators:            newUint64(1), // TODO: define validators
+					StabilizingStakersThreshold: newUint64(1), // TODO: define min stakers
 				},
 				Init: &WbftInit{
 					Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define initial validators
@@ -228,7 +229,7 @@ var (
 					EpochLength:              100,
 					BlockPeriodSeconds:       1,
 					RequestTimeoutSeconds:    1000,
-					ProposerPolicy:           0,
+					ProposerPolicy:           newUint64(0),
 					BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
 					MaxRequestTimeoutSeconds: &mrts,
 					BlockRewardBeneficiary: &BeneficiaryInfo{Denominator: 10000, Beneficiaries: []*Beneficiary{{
@@ -240,8 +241,8 @@ var (
 						Addr:      common.HexToAddress("0xC79d535f6EDD3E0Fa648D6169eA5b8e1Aa38921e"),
 						Numerator: 2500,
 					}}},
-					TargetValidators:            1, // TODO: define validators
-					StabilizingStakersThreshold: 1,
+					TargetValidators:            newUint64(1), // TODO: define validators
+					StabilizingStakersThreshold: newUint64(1),
 				},
 				Init: &WbftInit{
 					Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")}, // TODO: define initial validators
@@ -500,7 +501,7 @@ var (
 					EpochLength:              100,
 					BlockPeriodSeconds:       1,
 					RequestTimeoutSeconds:    1000,
-					ProposerPolicy:           0,
+					ProposerPolicy:           newUint64(0),
 					BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
 					MaxRequestTimeoutSeconds: &mrts,
 					BlockRewardBeneficiary: &BeneficiaryInfo{Denominator: 10000, Beneficiaries: []*Beneficiary{{
@@ -508,8 +509,8 @@ var (
 						Addr:      common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248"),
 						Numerator: 5000,
 					}}},
-					TargetValidators:            1,
-					StabilizingStakersThreshold: 1,
+					TargetValidators:            newUint64(1),
+					StabilizingStakersThreshold: newUint64(1),
 				},
 				Init: &WbftInit{
 					Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")},
@@ -734,7 +735,7 @@ var (
 					EpochLength:              100,
 					BlockPeriodSeconds:       1,
 					RequestTimeoutSeconds:    1000,
-					ProposerPolicy:           0,
+					ProposerPolicy:           newUint64(0),
 					BlockReward:              (*math.HexOrDecimal256)(big.NewInt(1000000000000000000)),
 					MaxRequestTimeoutSeconds: &mrts,
 					BlockRewardBeneficiary: &BeneficiaryInfo{Denominator: 10000, Beneficiaries: []*Beneficiary{{
@@ -742,8 +743,9 @@ var (
 						Addr:      common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248"),
 						Numerator: 5000,
 					}}},
-					TargetValidators:            1,
-					StabilizingStakersThreshold: 1,
+					TargetValidators:            newUint64(1),
+					StabilizingStakersThreshold: newUint64(1),
+					UseNCP:                      newBool(false),
 				},
 				Init: &WbftInit{
 					Validators:    []common.Address{common.HexToAddress("0x5b5682ab6952f96f5e68c7dd34c8018c71748248")},

@@ -193,11 +193,11 @@ func (c Config) GetConfig(blockNumber *big.Int, chainConfig *params.ChainConfig)
 				// RequestTimeout is on milliseconds
 				newConfig.RequestTimeout = wbftConfig.RequestTimeoutSeconds * 1000
 			}
-			if wbftConfig.EpochLength != 0 {
-				newConfig.Epoch = wbftConfig.EpochLength
-			}
 			if wbftConfig.BlockPeriodSeconds != 0 {
 				newConfig.BlockPeriod = wbftConfig.BlockPeriodSeconds
+			}
+			if wbftConfig.EpochLength != 0 {
+				newConfig.Epoch = wbftConfig.EpochLength
 			}
 			if wbftConfig.BlockReward != nil {
 				newConfig.BlockReward = wbftConfig.BlockReward
@@ -205,11 +205,21 @@ func (c Config) GetConfig(blockNumber *big.Int, chainConfig *params.ChainConfig)
 			if wbftConfig.BlockRewardBeneficiary != nil {
 				newConfig.BlockRewardBeneficiary = wbftConfig.BlockRewardBeneficiary
 			}
+			if wbftConfig.ProposerPolicy != nil {
+				newConfig.ProposerPolicy = NewProposerPolicy(ProposerPolicyId(*wbftConfig.ProposerPolicy))
+			}
+			if wbftConfig.TargetValidators != nil {
+				newConfig.TargetValidators = *wbftConfig.TargetValidators
+			}
 			if wbftConfig.MaxRequestTimeoutSeconds != nil {
 				newConfig.MaxRequestTimeoutSeconds = *wbftConfig.MaxRequestTimeoutSeconds
 			}
-			newConfig.TargetValidators = wbftConfig.TargetValidators
-			newConfig.UseNCP = wbftConfig.UseNCP
+			if wbftConfig.StabilizingStakersThreshold != nil {
+				newConfig.StabilizingStakersThreshold = *wbftConfig.StabilizingStakersThreshold
+			}
+			if wbftConfig.UseNCP != nil {
+				newConfig.UseNCP = *wbftConfig.UseNCP
+			}
 		})
 	}
 
@@ -218,11 +228,11 @@ func (c Config) GetConfig(blockNumber *big.Int, chainConfig *params.ChainConfig)
 
 func (c *Config) getWbftHardforkValue(num *big.Int, chainConfig *params.ChainConfig, callback func(wbftConfig params.WBFTConfig)) {
 	if c != nil && num != nil {
-		if chainConfig.IsMontBlanc(num) {
+		if chainConfig.IsMontBlanc(num) && chainConfig.MontBlanc.WBFT != nil {
 			// do nothing. use qbftConfig as it is, since qbftConfig is set as montblanc
 		}
 		// add hardforks that includes wbft config change after montblanc like :
-		// if chainConfig.IsDalgona(num){ callback(*chainConfig.Dalgona.WBFT) }
+		// if chainConfig.IsDalgona(num) && chainConfig.Dalgona.WBFT != nil { callback(*chainConfig.Dalgona.WBFT) }
 	}
 }
 

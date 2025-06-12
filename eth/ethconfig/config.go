@@ -225,30 +225,37 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 }
 
 func SetConfigFromChainConfig(qbftCfg *qbft.Config, config *params.WBFTConfig) error {
+	//refac : transitions will be removed
 	if len(config.Transitions) > 0 {
 		qbftCfg.Transitions = config.Transitions
-	}
-	if config.BlockPeriodSeconds != 0 {
-		qbftCfg.BlockPeriod = config.BlockPeriodSeconds
 	}
 	if config.RequestTimeoutSeconds != 0 {
 		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
 	}
+	if config.BlockPeriodSeconds != 0 {
+		qbftCfg.BlockPeriod = config.BlockPeriodSeconds
+	}
 	if config.EpochLength != 0 {
 		qbftCfg.Epoch = config.EpochLength
 	}
-
-	qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.ProposerPolicy))
 	qbftCfg.BlockReward = config.BlockReward
 	qbftCfg.BlockRewardBeneficiary = config.BlockRewardBeneficiary
-	qbftCfg.TargetValidators = config.TargetValidators
 
-	if config.MaxRequestTimeoutSeconds != nil && *config.MaxRequestTimeoutSeconds > 0 {
+	if config.ProposerPolicy != nil {
+		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*config.ProposerPolicy))
+	}
+	if config.TargetValidators != nil {
+		qbftCfg.TargetValidators = *config.TargetValidators
+	}
+	if config.MaxRequestTimeoutSeconds != nil {
 		qbftCfg.MaxRequestTimeoutSeconds = *config.MaxRequestTimeoutSeconds
 	}
-	qbftCfg.StabilizingStakersThreshold = config.StabilizingStakersThreshold
-	qbftCfg.UseNCP = config.UseNCP
-
+	if config.StabilizingStakersThreshold != nil {
+		qbftCfg.StabilizingStakersThreshold = *config.StabilizingStakersThreshold
+	}
+	if config.UseNCP != nil {
+		qbftCfg.UseNCP = *config.UseNCP
+	}
 	return nil
 }
 

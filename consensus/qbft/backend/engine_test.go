@@ -198,10 +198,10 @@ func setConfigFromChainConfig(qbftCfg *qbft.Config, config *params.ChainConfig) 
 	if config.MontBlanc.WBFT.EpochLength != 0 {
 		qbftCfg.Epoch = config.MontBlanc.WBFT.EpochLength
 	}
-	qbftCfg.StabilizingStakersThreshold = config.MontBlanc.WBFT.StabilizingStakersThreshold
-	qbftCfg.UseNCP = config.MontBlanc.WBFT.UseNCP
+	qbftCfg.StabilizingStakersThreshold = *config.MontBlanc.WBFT.StabilizingStakersThreshold
+	qbftCfg.UseNCP = *config.MontBlanc.WBFT.UseNCP
 
-	qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(config.MontBlanc.WBFT.ProposerPolicy))
+	qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*config.MontBlanc.WBFT.ProposerPolicy))
 	qbftCfg.BlockReward = config.MontBlanc.WBFT.BlockReward
 
 	if config.MontBlanc.WBFT.MaxRequestTimeoutSeconds != nil && *config.MontBlanc.WBFT.MaxRequestTimeoutSeconds > 0 {

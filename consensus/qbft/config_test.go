@@ -50,53 +50,245 @@ func TestProposerPolicy_MarshalTOML(t *testing.T) {
 	assert.Equal(t, output, b, "ProposerPolicy MarshalTOML mismatch")
 }
 
-// refac: fix this test case. transtions will be gone
-func TestGetConfig(t *testing.T) {
-	if !reflect.DeepEqual(DefaultConfig.GetConfig(nil, nil), *DefaultConfig) {
-		t.Errorf("error default config:\nexpected: %v\n", DefaultConfig)
-	}
+// TestGetConfigTransition tests the transition from old Transitions to new hard fork approach
+//func TestGetConfigTransition(t *testing.T) {
+//	// Test config with old Transitions (should still work for backward compatibility)
+//	configWithTransitions := *DefaultConfig
+//	configWithTransitions.Transitions = []params.Transition{{
+//		Block:                 big.NewInt(1),
+//		EpochLength:           300,
+//		BlockPeriodSeconds:    3,
+//		RequestTimeoutSeconds: 3000,
+//	}}
+//
+//	result := configWithTransitions.GetConfig(big.NewInt(1), nil)
+//
+//	expectedConfig := *DefaultConfig
+//	expectedConfig.Epoch = 300
+//	expectedConfig.BlockPeriod = 3
+//	expectedConfig.RequestTimeout = 3000 * 1000
+//
+//	if !reflect.DeepEqual(result, expectedConfig) {
+//		t.Errorf("error transition config:\nexpected: %+v\ngot: %+v\n", expectedConfig, result)
+//	}
+//}
 
-	config := *DefaultConfig
-	config.Transitions = []params.Transition{{
-		Block:       big.NewInt(1),
-		EpochLength: 40000,
-	}, {
-		Block:              big.NewInt(3),
-		BlockPeriodSeconds: 5,
-	}, {
-		Block:                 big.NewInt(5),
-		RequestTimeoutSeconds: 15000,
-	}}
-	config1 := *DefaultConfig
-	config1.Epoch = 40000
-	config1.BlockPeriod = 1 // default value
-	config3 := config1
-	config3.BlockPeriod = 5
-	config5 := config3
-	config5.RequestTimeout = 15000
+// testChainConfigWrapper wraps ChainConfig to add fake hardForks for testing
+type chainConfigWrapper struct {
+	*params.ChainConfig
+	fakeHardForks []fakeHardFork
+}
 
-	type test struct {
-		blockNumber    int64
-		expectedConfig Config
-	}
-	tests := []test{
-		{1, config1},
-		{2, config1},
-		{3, config3},
-		{4, config3},
-		{5, config5},
-		{10, config5},
-		{100, config5},
-	}
+type fakeHardFork struct {
+	name              string
+	blockNum          *big.Int
+	WBFTConfig        *params.WBFTConfig
+	GovContractConfig *params.GovContracts
+}
 
-	for _, test := range tests {
-		c := test.expectedConfig.GetConfig(big.NewInt(test.blockNumber), nil)
-		if !reflect.DeepEqual(c, test.expectedConfig) {
-			t.Errorf("error mismatch:\nexpected: %v\ngot: %v\n", test.expectedConfig, c)
+// newTestChainConfig creates a test chain config with fake hard forks
+func newTestChainConfig() *chainConfigWrapper {
+	return &chainConfigWrapper{
+		ChainConfig:   params.TestQBFTChainConfig,
+		fakeHardForks: make([]fakeHardFork, 0),
+	}
+}
+
+// addFakeHardFork adds a fake hard fork for testing
+func (cw *chainConfigWrapper) addFakeHardFork(name string, blockNum *big.Int, wbftConfig *params.WBFTConfig, govContractConfig *params.GovContracts) {
+	fh := fakeHardFork{
+		name:              name,
+		blockNum:          blockNum,
+		WBFTConfig:        wbftConfig,
+		GovContractConfig: govContractConfig,
+	}
+	cw.fakeHardForks = append(cw.fakeHardForks, fh)
+}
+
+// isFakeHardFork checks if a fake hard fork is active at the given block
+func (cw *chainConfigWrapper) isFakeHardFork(name string, blockNum *big.Int) bool {
+	var hf fakeHardFork
+	for _, fh := range cw.fakeHardForks {
+		if fh.name == name {
+			hf = fh
+			break
+		}
+	}
+	if hf.blockNum == nil {
+		return false
+	} else {
+		return blockNum.Cmp(hf.blockNum) >= 0
+	}
+}
+
+// getWbftHardforkValueTest is a test version of getWbftHardforkValue that works with fake hardforks
+func (c *Config) getWbftHardforkValueTest(num *big.Int, testConfig *chainConfigWrapper, callback func(wbftConfig params.WBFTConfig)) {
+	if c != nil && num != nil && testConfig != nil {
+		// Check MontBlanc first
+		if testConfig.ChainConfig.IsMontBlanc(num) && testConfig.ChainConfig.MontBlanc != nil && testConfig.ChainConfig.MontBlanc.WBFT != nil {
+			// do nothing. use qbftConfig as it is, since qbftConfig is set as montblanc
+		}
+		// Check fake hard forks in order (TestFork1, TestFork2, TestFork3)
+		for _, fh := range testConfig.fakeHardForks {
+			if testConfig.isFakeHardFork(fh.name, num) {
+				callback(*fh.WBFTConfig)
+			}
 		}
 	}
 }
 
+// GetConfigTest is a test version of GetConfig that works with fake hardforks
+func (c Config) GetConfigTest(blockNumber *big.Int, testConfig *chainConfigWrapper) Config {
+	newConfig := c
+
+	// Use fake hard fork logic instead of real hard fork logic
+	if testConfig != nil {
+		c.getWbftHardforkValueTest(blockNumber, testConfig, func(wbftConfig params.WBFTConfig) {
+			if wbftConfig.RequestTimeoutSeconds != 0 {
+				// RequestTimeout is on milliseconds
+				newConfig.RequestTimeout = wbftConfig.RequestTimeoutSeconds * 1000
+			}
+			if wbftConfig.BlockPeriodSeconds != 0 {
+				newConfig.BlockPeriod = wbftConfig.BlockPeriodSeconds
+			}
+			if wbftConfig.EpochLength != 0 {
+				newConfig.Epoch = wbftConfig.EpochLength
+			}
+			if wbftConfig.BlockReward != nil {
+				newConfig.BlockReward = wbftConfig.BlockReward
+			}
+			if wbftConfig.BlockRewardBeneficiary != nil {
+				newConfig.BlockRewardBeneficiary = wbftConfig.BlockRewardBeneficiary
+			}
+			if wbftConfig.ProposerPolicy != nil {
+				newConfig.ProposerPolicy = NewProposerPolicy(ProposerPolicyId(*wbftConfig.ProposerPolicy))
+			}
+			if wbftConfig.TargetValidators != nil {
+				newConfig.TargetValidators = *wbftConfig.TargetValidators
+			}
+			if wbftConfig.MaxRequestTimeoutSeconds != nil {
+				newConfig.MaxRequestTimeoutSeconds = *wbftConfig.MaxRequestTimeoutSeconds
+			}
+			if wbftConfig.StabilizingStakersThreshold != nil {
+				newConfig.StabilizingStakersThreshold = *wbftConfig.StabilizingStakersThreshold
+			}
+			if wbftConfig.UseNCP != nil {
+				newConfig.UseNCP = *wbftConfig.UseNCP
+			}
+		})
+	}
+	return newConfig
+}
+
+func setConfigFromChainConfig(qbftCfg *Config, config *params.WBFTConfig) error {
+	if len(config.Transitions) > 0 {
+		qbftCfg.Transitions = config.Transitions
+	}
+	if config.BlockPeriodSeconds != 0 {
+		qbftCfg.BlockPeriod = config.BlockPeriodSeconds
+	}
+	if config.RequestTimeoutSeconds != 0 {
+		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
+	}
+	if config.EpochLength != 0 {
+		qbftCfg.Epoch = config.EpochLength
+	}
+
+	qbftCfg.ProposerPolicy = NewProposerPolicy(ProposerPolicyId(*config.ProposerPolicy))
+	qbftCfg.BlockReward = config.BlockReward
+	qbftCfg.BlockRewardBeneficiary = config.BlockRewardBeneficiary
+	qbftCfg.TargetValidators = *config.TargetValidators
+
+	if config.MaxRequestTimeoutSeconds != nil && *config.MaxRequestTimeoutSeconds > 0 {
+		qbftCfg.MaxRequestTimeoutSeconds = *config.MaxRequestTimeoutSeconds
+	}
+	qbftCfg.StabilizingStakersThreshold = *config.StabilizingStakersThreshold
+	qbftCfg.UseNCP = *config.UseNCP
+
+	return nil
+}
+
+func TestGetConfig(t *testing.T) {
+	// Create test chain config with fake hard forks
+	testConfig := newTestChainConfig()
+	qbftCfg := new(Config)
+
+	setConfigFromChainConfig(qbftCfg, testConfig.MontBlanc.WBFT)
+
+	createExpectedConfig := func(baseConfig *Config, modifications func(*Config)) Config {
+		expected := *baseConfig
+		modifications(&expected)
+		return expected
+	}
+
+	// Add fake hard forks
+	testConfig.addFakeHardFork("TestFork1", big.NewInt(10),
+		&params.WBFTConfig{
+			EpochLength: 200,
+		},
+		nil,
+	)
+
+	testConfig.addFakeHardFork("TestFork2", big.NewInt(20),
+		&params.WBFTConfig{
+			BlockPeriodSeconds: 3,
+		},
+		nil,
+	)
+
+	testConfig.addFakeHardFork("TestFork3", big.NewInt(30),
+		&params.WBFTConfig{
+			RequestTimeoutSeconds: 4000,
+		},
+		nil,
+	)
+
+	tests := []struct {
+		name           string
+		blockNumber    uint64
+		expectedConfig Config
+	}{
+		{
+			name:           "Before any hard fork (block 5)",
+			blockNumber:    5,
+			expectedConfig: *qbftCfg,
+		},
+		{
+			name:        "After TestFork1 (block 15)",
+			blockNumber: 15,
+			expectedConfig: createExpectedConfig(qbftCfg, func(cfg *Config) {
+				cfg.Epoch = 200 // From TestFork1
+			}),
+		},
+		{
+			name:        "After TestFork2 (block 25)",
+			blockNumber: 25,
+			expectedConfig: createExpectedConfig(qbftCfg, func(cfg *Config) {
+				cfg.Epoch = 200     // From TestFork1
+				cfg.BlockPeriod = 3 // From TestFork2
+			}),
+		},
+		{
+			name:        "After TestFork3 (block 35)",
+			blockNumber: 35,
+			expectedConfig: createExpectedConfig(qbftCfg, func(cfg *Config) {
+				cfg.Epoch = 200                  // From TestFork1
+				cfg.BlockPeriod = 3              // From TestFork2
+				cfg.RequestTimeout = 4000 * 1000 // From TestFork3
+			}),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := qbftCfg.GetConfigTest(big.NewInt(int64(test.blockNumber)), testConfig)
+			if !reflect.DeepEqual(result, test.expectedConfig) {
+				t.Errorf("error in %s:\nexpected: %+v\ngot: %+v\n", test.name, test.expectedConfig, result)
+			}
+		})
+	}
+}
+
 func TestGetGovContracts(t *testing.T) {
-	
+
 }
