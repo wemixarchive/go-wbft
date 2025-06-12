@@ -81,6 +81,8 @@ func TestGovWithoutNCP(t *testing.T) {
 		t.Run("failure case", func(t *testing.T) {
 			s1_bls_pop, err := s1.GetBLSPoPSignature()
 			require.NoError(t, err)
+			s1_bls_pk, err := s1.GetBLSPublicKey()
+			require.NoError(t, err)
 			s2_bls_pk, err := s2.GetBLSPublicKey()
 			require.NoError(t, err)
 			s2_bls_pop, err := s2.GetBLSPoPSignature()
@@ -128,6 +130,20 @@ func TestGovWithoutNCP(t *testing.T) {
 					s2_bls_pop_byte[1:],
 				)),
 				"invalid bls signature length",
+			)
+
+			ExpectedRevert(t,
+				g.ExpectedFail(g.stakingContractTx(t,
+					"registerStaker",
+					s2.Operator, minStaking,
+					minStaking,
+					s2.Staker.Address,
+					s2.FeeRecipient.Address,
+					feeRate,
+					s1_bls_pk.Marshal(),
+					s1_bls_pop.Marshal(),
+				)),
+				"already registered bls public key",
 			)
 
 			ExpectedRevert(t,

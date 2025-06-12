@@ -237,7 +237,11 @@ func (g *GovWBFT) SingleOwnerRegisterStaker(sender *bind.TransactOpts, v *TestSt
 	if err != nil {
 		return nil, err
 	}
-	return g.operatorContractTx("registerStaker", sender, amount, v.Staker.Address, v.FeeRecipient.Address, feeRate, blsPubkey.Marshal())
+	blsPoPSig, err := v.GetBLSPoPSignature()
+	if err != nil {
+		return nil, err
+	}
+	return g.operatorContractTx("registerStaker", sender, amount, v.Staker.Address, v.FeeRecipient.Address, feeRate, blsPubkey.Marshal(), blsPoPSig.Marshal())
 }
 
 func (g *GovWBFT) SingleOwnerStake(sender *bind.TransactOpts, amount *big.Int) (*types.Transaction, error) {
