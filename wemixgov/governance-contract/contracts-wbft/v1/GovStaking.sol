@@ -99,40 +99,40 @@ contract GovStaking {
     event FeeRecipientChanged(address indexed staker, address oldRecipient, address newRecipient);
     event FeeRateChangeRequested(address indexed staker, uint256 oldFeeRate, uint256 newFeeRate);
 
-    address public constant BLS_POP_PRECOMPILE = address(0x10001); /// @dev Precompiled contract address for BLS PoP verification
     uint256 public constant BLS_PUBLIC_KEY_LENGTH = 48;
     uint256 public constant BLS_SIGNATURE_LENGTH = 96;
     uint256 public constant REWARD_PRECISION = 1e27;
 
-    address public govConfig; // 0x0; assigned by consensus engine
-    address public govRewardeeImp; // 0x1; assigned by consensus engine
+    address public blsPoP; /// 0x0; Precompiled contract address for BLS PoP verification
+    address public govConfig; // 0x1; assigned by consensus engine
+    address public govRewardeeImp; // 0x2; assigned by consensus engine
 
     // this includes danglingDelegated
-    uint256 public totalStaking; // 0x2
+    uint256 public totalStaking; // 0x3
 
     // Staker
     // Staker state definition
     //  0. unregistered: stakerInfo[staker].operator = 0, __stakerSet.contains(staker) = false
     //  1. active: stakerInfo[staker].operator != 0, __stakerSet.contains(staker) = true
     //  2. inactive: stakerInfo[staker].operator != 0, __stakerSet.contains(staker) = false
-    EnumerableSet.AddressSet private __stakerSet; // 0x3, 0x4
-    mapping(address => Staker) public stakerInfo; // 0x5
-    mapping(address => address) public stakerByOperator; // 0x6
-    mapping(address => address) public stakerByRewardee; // 0x7
+    EnumerableSet.AddressSet private __stakerSet; // 0x4, 0x5
+    mapping(address => Staker) public stakerInfo; // 0x6
+    mapping(address => address) public stakerByOperator; // 0x7
+    mapping(address => address) public stakerByRewardee; // 0x8
 
     // Withdrawal Credential: credentials[user][credentialIndex]
-    mapping(address => mapping(uint256 => WithdrawalCredential)) public credentials; // 0x8
-    mapping(address => UserCredentialInfo) public userCredential; // 0x9
+    mapping(address => mapping(uint256 => WithdrawalCredential)) public credentials; // 0x9
+    mapping(address => UserCredentialInfo) public userCredential; // 0xa
 
     // pending request
-    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0xa
+    mapping(address => ChangingFeeRequest) public changingFeeRequests; // 0xb
 
     // User Reward Info
-    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xb
+    mapping(address => mapping(address => UserInfo)) public userRewardInfo; // 0xc
 
     // danglingDelegated is the delegated balance for the inactive stakers
     // contract's balance = totalStaked + danglingDelegated + unbonding
-    uint256 public danglingDelegated; // 0xc
+    uint256 public danglingDelegated; // 0xd
 
     //***********************************************************************
     //* Caution for Upgrading
@@ -235,7 +235,7 @@ contract GovStaking {
         require(!isOperator(msg.sender), "operator is already registered");
         require(_feeRecipient != address(0), "fee recipient is zero address");
         require(_feeRate <= GovConfig(govConfig).feePrecision(), "fee rate exceeds precision");
-        require(_checkBLSPublicKey(_blsPK, _blsSig), "invalid bls public key");
+        _checkBLSPublicKey(_blsPK, _blsSig);
 
         RegisterStakerParams memory _params = RegisterStakerParams({
             amount: _amount,
@@ -267,16 +267,13 @@ contract GovStaking {
         emit StakerRegistered(_params.staker, msg.sender, address(_rewardee), _params.feeRecipient, _params.feeRate, _params.amount, _params.blsPK);
     }
 
-    function _checkBLSPublicKey(bytes calldata _blsPK, bytes calldata _blsSig) internal view returns (bool) {
+    function _checkBLSPublicKey(bytes calldata _blsPK, bytes calldata _blsSig) internal view {
         require(_blsPK.length == BLS_PUBLIC_KEY_LENGTH, "invalid bls public key length");
         require(_blsSig.length == BLS_SIGNATURE_LENGTH, "invalid bls signature length");
 
-        bytes memory input = abi.encodePacked(_blsPK, _blsSig);
-
-        (bool success, bytes memory result) = BLS_POP_PRECOMPILE.staticcall(input);
-        require(success, "bls PoP failed");
-
-        return abi.decode(result, (bool));
+        (bool _success, bytes memory _result) = blsPoP.staticcall(abi.encodePacked(_blsPK, _blsSig));
+        require(_success, "failed to verify bls pop");
+        require(abi.decode(_result, (bool)), "invalid bls public key");
     }
 
     function transferOperatorShip(

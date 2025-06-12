@@ -194,4 +194,7 @@ var (
 var (
 	FixedDifficulty           int64 = 1 // 0 means no fixed difficulty
 	DefaultBriocheBlockReward       = big.NewInt(1e18)
+
+	BLSPoPPrecompileAddress        = common.HexToAddress("0x10001") // TODO: determine appropriate contract address
+	BLSPoPPrecompileGas     uint64 = 110000                         // TODO: determine appropriate gas cost
 )

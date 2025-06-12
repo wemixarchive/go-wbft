@@ -133,9 +133,7 @@ var PrecompiledContractsMontBlanc = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{8}):    &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{9}):    &blake2F{},
 	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
-
-	// TODO: determine appropriate contract address
-	common.HexToAddress("0x10001"): &blsPoP{},
+	params.BLSPoPPrecompileAddress:      &blsPoP{},
 }
 
 var (
@@ -1163,8 +1161,7 @@ type blsPoP struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *blsPoP) RequiredGas(input []byte) uint64 {
-	// TODO: determine appropriate gas cost
-	return 110000
+	return params.BLSPoPPrecompileGas
 }
 
 func (c *blsPoP) Run(input []byte) ([]byte, error) {
