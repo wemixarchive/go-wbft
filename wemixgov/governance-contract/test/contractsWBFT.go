@@ -140,7 +140,11 @@ func (g *GovWBFT) RegisterStaker(t *testing.T, v *TestStaker[*EOA], amount *big.
 	if err != nil {
 		return nil, err
 	}
-	return g.stakingContractTx(t, "registerStaker", v.Operator, amount, amount, v.Staker.Address, v.FeeRecipient.Address, fee, blsPubKey.Marshal())
+	blsPoPSig, err := v.GetBLSPoPSignature()
+	if err != nil {
+		return nil, err
+	}
+	return g.stakingContractTx(t, "registerStaker", v.Operator, amount, amount, v.Staker.Address, v.FeeRecipient.Address, fee, blsPubKey.Marshal(), blsPoPSig.Marshal())
 }
 
 func (g *GovWBFT) Stake(t *testing.T, operator *EOA, amount *big.Int) (*types.Transaction, error) {
@@ -362,4 +366,12 @@ func (s *TestStaker[T]) GetBLSPublicKey() (bls.PublicKey, error) {
 		return nil, err
 	}
 	return blsSecretKey.PublicKey(), nil
+}
+
+func (s *TestStaker[T]) GetBLSPoPSignature() (bls.Signature, error) {
+	sk, err := s.GetBLSSecretKey()
+	if err != nil {
+		return nil, err
+	}
+	return sk.Sign(sk.PublicKey().Marshal()), nil
 }
