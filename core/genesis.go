@@ -644,7 +644,7 @@ func TestGenesisBlock() *Genesis {
 }
 
 func InjectContracts(genesis *Genesis, config *params.ChainConfig) error {
-	transition, err := qbft.GetMontBlancTransition(config, common.Big0)
+	transition, err := qbft.GetMontBlancStateTransition(config, common.Big0)
 	if err != nil {
 		return err
 	}

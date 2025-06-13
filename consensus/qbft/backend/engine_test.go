@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -170,7 +169,7 @@ func newBlockChain(n int) (*core.BlockChain, *Backend, []otherNode) {
 	genesis, nodeKeys, _ := testutils.GenesisAndKeys(n)
 
 	config := new(qbft.Config)
-	setConfigFromChainConfig(config, genesis.Config)
+	qbft.SetConfigFromChainConfig(config, genesis.Config)
 
 	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
@@ -179,74 +178,74 @@ func newBlockChainWithCustom(n int, customizeConfig func(config *qbft.Config)) (
 	genesis, nodeKeys, _ := testutils.GenesisAndKeys(n)
 
 	config := new(qbft.Config)
-	setConfigFromChainConfig(config, genesis.Config)
+	qbft.SetConfigFromChainConfig(config, genesis.Config)
 	customizeConfig(config)
 
 	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
 
-// this is a copy of ethconfig.SetConfigFromChainConfig; avoiding cyclic import
-func setConfigFromChainConfig(qbftCfg *qbft.Config, chainCfg *params.ChainConfig) error {
-	config := chainCfg.MontBlanc.WBFT
-	if config.RequestTimeoutSeconds != 0 {
-		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
-	}
-	if config.BlockPeriodSeconds != 0 {
-		qbftCfg.BlockPeriod = config.BlockPeriodSeconds
-	}
-	if config.EpochLength != 0 {
-		qbftCfg.Epoch = config.EpochLength
-	}
-	qbftCfg.BlockReward = config.BlockReward
-	qbftCfg.BlockRewardBeneficiary = config.BlockRewardBeneficiary
+// // this is a copy of ethconfig.SetConfigFromChainConfig; avoiding cyclic import
+// func SetConfigFromChainConfig(qbftCfg *qbft.Config, chainCfg *params.ChainConfig) error {
+// 	config := chainCfg.MontBlanc.WBFT
+// 	if config.RequestTimeoutSeconds != 0 {
+// 		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
+// 	}
+// 	if config.BlockPeriodSeconds != 0 {
+// 		qbftCfg.BlockPeriod = config.BlockPeriodSeconds
+// 	}
+// 	if config.EpochLength != 0 {
+// 		qbftCfg.Epoch = config.EpochLength
+// 	}
+// 	qbftCfg.BlockReward = config.BlockReward
+// 	qbftCfg.BlockRewardBeneficiary = config.BlockRewardBeneficiary
 
-	if config.ProposerPolicy != nil {
-		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*config.ProposerPolicy))
-	}
-	if config.TargetValidators != nil {
-		qbftCfg.TargetValidators = *config.TargetValidators
-	}
-	if config.MaxRequestTimeoutSeconds != nil {
-		qbftCfg.MaxRequestTimeoutSeconds = *config.MaxRequestTimeoutSeconds
-	}
-	if config.StabilizingStakersThreshold != nil {
-		qbftCfg.StabilizingStakersThreshold = *config.StabilizingStakersThreshold
-	}
-	if config.UseNCP != nil {
-		qbftCfg.UseNCP = *config.UseNCP
-	}
+// 	if config.ProposerPolicy != nil {
+// 		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*config.ProposerPolicy))
+// 	}
+// 	if config.TargetValidators != nil {
+// 		qbftCfg.TargetValidators = *config.TargetValidators
+// 	}
+// 	if config.MaxRequestTimeoutSeconds != nil {
+// 		qbftCfg.MaxRequestTimeoutSeconds = *config.MaxRequestTimeoutSeconds
+// 	}
+// 	if config.StabilizingStakersThreshold != nil {
+// 		qbftCfg.StabilizingStakersThreshold = *config.StabilizingStakersThreshold
+// 	}
+// 	if config.UseNCP != nil {
+// 		qbftCfg.UseNCP = *config.UseNCP
+// 	}
 
-	hfTransitionBlocks := make(map[*big.Int]bool)
+// 	hfTransitionBlocks := make(map[*big.Int]bool)
 
-	//add hardforks that includes wbft config after montblanc here like :
-	// transition := params.Transition{
-	// 	Block:      chainCfg.DalgonaBlock,
-	// 	WBFTConfig: chainCfg.Dalgona.WBFT,
-	// }
-	// qbftCfg.Transitions = append(qbftCfg.Transitions, transition)
-	// hfTransitionBlocks[chainCfg.DalgonaBlock] = true
+// 	//add hardforks that includes wbft config after montblanc here like :
+// 	// transition := params.Transition{
+// 	// 	Block:      chainCfg.DalgonaBlock,
+// 	// 	WBFTConfig: chainCfg.Dalgona.WBFT,
+// 	// }
+// 	// qbftCfg.Transitions = append(qbftCfg.Transitions, transition)
+// 	// hfTransitionBlocks[chainCfg.DalgonaBlock] = true
 
-	if chainCfg.Transitions != nil && len(chainCfg.Transitions) > 0 {
-		for _, t := range chainCfg.Transitions {
-			if hfTransitionBlocks[t.Block] {
-				return errors.New("hardfork transition block already exists")
-			}
-			qbftCfg.Transitions = append(qbftCfg.Transitions, t)
-		}
-	}
+// 	if chainCfg.Transitions != nil && len(chainCfg.Transitions) > 0 {
+// 		for _, t := range chainCfg.Transitions {
+// 			if hfTransitionBlocks[t.Block] {
+// 				return errors.New("hardfork transition block already exists")
+// 			}
+// 			qbftCfg.Transitions = append(qbftCfg.Transitions, t)
+// 		}
+// 	}
 
-	sort.Slice(qbftCfg.Transitions, func(i, j int) bool {
-		if qbftCfg.Transitions[i].Block == nil {
-			return false
-		}
-		if qbftCfg.Transitions[j].Block == nil {
-			return true
-		}
-		return qbftCfg.Transitions[i].Block.Cmp(qbftCfg.Transitions[j].Block) < 0
-	})
+// 	sort.Slice(qbftCfg.Transitions, func(i, j int) bool {
+// 		if qbftCfg.Transitions[i].Block == nil {
+// 			return false
+// 		}
+// 		if qbftCfg.Transitions[j].Block == nil {
+// 			return true
+// 		}
+// 		return qbftCfg.Transitions[i].Block.Cmp(qbftCfg.Transitions[j].Block) < 0
+// 	})
 
-	return nil
-}
+// 	return nil
+// }
 
 // makeHeader create header executing no txs
 func makeHeader(chainConfig *params.ChainConfig, engineConfig *qbft.Config, parent *types.Block) *types.Header {

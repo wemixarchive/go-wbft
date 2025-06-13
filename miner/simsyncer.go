@@ -56,25 +56,25 @@ func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *qbft.Config,
 
 			config.GovContractUpgrades = append(config.GovContractUpgrades, newUpgrade)
 
-			if chainConfig.MontBlanc.Upgrades == nil {
-				chainConfig.MontBlanc.Upgrades = make([]params.Upgrade, 0) // refac : wil be removed
-				chainConfig.MontBlanc.Upgrades = append(chainConfig.MontBlanc.Upgrades, newUpgrade)
-			} else {
-				for i, upgrade := range chainConfig.MontBlanc.Upgrades {
-					if upgrade.Block.Cmp(num) == 0 {
-						combineGovContracts(upgrade.GovContracts, upgradeContracts)
-						return
-					} else if upgrade.Block.Cmp(num) > 0 {
-						chainConfig.MontBlanc.Upgrades = append(chainConfig.MontBlanc.Upgrades, newUpgrade)
-						for j := len(chainConfig.MontBlanc.Upgrades) - 1; j > i; j-- {
-							chainConfig.MontBlanc.Upgrades[j] = chainConfig.MontBlanc.Upgrades[j-1]
-						}
-						chainConfig.MontBlanc.Upgrades[i] = newUpgrade
-						return
-					}
-				}
-				chainConfig.MontBlanc.Upgrades = append(chainConfig.MontBlanc.Upgrades, newUpgrade)
-			}
+			//	if chainConfig.MontBlanc.Upgrades == nil {
+			//		chainConfig.MontBlanc.Upgrades = make([]params.Upgrade, 0) // refac : wil be removed
+			//		chainConfig.MontBlanc.Upgrades = append(chainConfig.MontBlanc.Upgrades, newUpgrade)
+			//	} else {
+			//		for i, upgrade := range chainConfig.MontBlanc.Upgrades {
+			//			if upgrade.Block.Cmp(num) == 0 {
+			//				combineGovContracts(upgrade.GovContracts, upgradeContracts)
+			//				return
+			//			} else if upgrade.Block.Cmp(num) > 0 {
+			//				chainConfig.MontBlanc.Upgrades = append(chainConfig.MontBlanc.Upgrades, newUpgrade)
+			//				for j := len(chainConfig.MontBlanc.Upgrades) - 1; j > i; j-- {
+			//					chainConfig.MontBlanc.Upgrades[j] = chainConfig.MontBlanc.Upgrades[j-1]
+			//				}
+			//				chainConfig.MontBlanc.Upgrades[i] = newUpgrade
+			//				return
+			//			}
+			//		}
+			//		chainConfig.MontBlanc.Upgrades = append(chainConfig.MontBlanc.Upgrades, newUpgrade)
+			//	}
 		}
 	}
 }

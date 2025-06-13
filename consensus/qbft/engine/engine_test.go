@@ -434,22 +434,23 @@ func TestEpochInfo(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = params.TestQBFTChainConfig
-			engine := NewEngine(&qbft.Config{
-				ProposerPolicy:              qbft.NewRoundRobinProposerPolicy(),
-				Epoch:                       3,
-				StabilizingStakersThreshold: *c.chainConfig.MontBlanc.WBFT.StabilizingStakersThreshold,
-			}, common.Address{}, nil)
+			qbftCfg := new(qbft.Config)
+			qbft.SetConfigFromChainConfig(qbftCfg, c.chainConfig)
+			qbftCfg.Epoch = 3
+
+			engine := NewEngine(qbftCfg, common.Address{}, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 
 			db := rawdb.NewMemoryDatabase()
 			tdb := state.NewDatabase(db)
 			statedb, _ := state.New(types.EmptyRootHash, tdb, nil)
-			transition, _ := qbft.GetMontBlancTransition(c.chainConfig, parent.Number)
-			for _, c := range transition.Codes {
+
+			st, _ := qbft.GetGovContractsStateTransition(qbftCfg, parent.Number)
+			for _, c := range st.Codes {
 				statedb.SetCode(c.Address, hexutil.MustDecode(c.Code))
 			}
-			for _, s := range transition.States {
+			for _, s := range st.States {
 				statedb.SetState(s.Address, s.Key, s.Value)
 			}
 

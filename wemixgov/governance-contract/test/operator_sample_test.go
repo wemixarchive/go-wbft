@@ -43,6 +43,7 @@ func TestOperatorContractMultiSig(t *testing.T) {
 	})
 	require.NoError(t, err)
 	defer g.backend.Close()
+	setWbftGovConfig(g)
 
 	stateDB := &TestStateDB{
 		getState: func(addr common.Address, hash common.Hash) (result common.Hash) {
@@ -435,6 +436,7 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 		fundManager.From:                 {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
 	})
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	stateDB := &TestStateDB{
@@ -632,6 +634,7 @@ func TestMultiSig(t *testing.T) {
 		notOwner.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
 	})
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	// deploy operatorSample with single owner
@@ -728,6 +731,7 @@ func TestCallingNCPContract(t *testing.T) {
 		owner3.From: {Balance: new(big.Int).Add(MAX_UINT_128, common.Big2)},
 	})
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 
 	require.NoError(t, err)

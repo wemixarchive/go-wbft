@@ -812,13 +812,13 @@ func (e *Engine) processFinalize(chain consensus.ChainHeaderReader, header *type
 		return err
 	}
 
-	if transition, err := qbft.GetMontBlancTransition(chain.Config(), header.Number); err != nil {
+	if st, err := qbft.GetGovContractsStateTransition(e.cfg, header.Number); err != nil {
 		return err
-	} else if transition != nil {
-		for _, c := range transition.Codes {
+	} else if st != nil {
+		for _, c := range st.Codes {
 			state.SetCode(c.Address, hexutil.MustDecode(c.Code))
 		}
-		for _, s := range transition.States {
+		for _, s := range st.States {
 			state.SetState(s.Address, s.Key, s.Value)
 		}
 	}

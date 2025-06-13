@@ -214,15 +214,15 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 	return newConfig
 }
 
-func (c *Config) getGovContractsHardforkValue(num *big.Int, chainConfig *params.ChainConfig, callback func(govContract params.GovContracts)) {
-	if c != nil && num != nil {
-		if chainConfig.IsMontBlanc(num) {
-			callback(*chainConfig.MontBlanc.GovContracts)
-		}
-		// add hardforks that includes govContract config change after montblanc like :
-		// if chainConfig.IsDalgona(num){ callback(*chainConfig.Dalgona.GovContracts) }
-	}
-}
+//func (c *Config) getGovContractsHardforkValue(num *big.Int, chainConfig *params.ChainConfig, callback func(govContract params.GovContracts)) {
+//	if c != nil && num != nil {
+//		if chainConfig.IsMontBlanc(num) {
+//			callback(*chainConfig.MontBlanc.GovContracts)
+//		}
+//		// add hardforks that includes govContract config change after montblanc like :
+//		// if chainConfig.IsDalgona(num){ callback(*chainConfig.Dalgona.GovContracts) }
+//	}
+//}
 
 func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
 	if c != nil && num != nil {
@@ -237,13 +237,24 @@ func (c *Config) String() string {
 	return "wbft"
 }
 
-func GetMontBlancTransition(chainConfig *params.ChainConfig, num *big.Int) (*params.StateTransition, error) {
+func GetMontBlancStateTransition(chainConfig *params.ChainConfig, num *big.Int) (*params.StateTransition, error) {
 	if chainConfig == nil || chainConfig.MontBlancBlock == nil || num == nil {
 		return nil, errors.New("nil montBlanc config or nil block number")
 	}
 
 	if num.Cmp(chainConfig.MontBlancBlock) == 0 {
 		return govwbft.GetMontBlancTransition(chainConfig.MontBlanc.GovContracts)
+	}
+	return nil, nil
+}
+
+func GetGovContractsStateTransition(qbftCfg *Config, num *big.Int) (*params.StateTransition, error) {
+	for _, upgrade := range qbftCfg.GovContractUpgrades {
+		if num.Cmp(upgrade.Block) == 0 {
+			return govwbft.GetMontBlancTransition(upgrade.GovContracts)
+		} else if num.Cmp(upgrade.Block) < 0 {
+			break
+		}
 	}
 	return nil, nil
 }
