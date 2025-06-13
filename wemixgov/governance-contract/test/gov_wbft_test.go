@@ -160,6 +160,22 @@ func TestGovWithoutNCP(t *testing.T) {
 				"invalid bls public key",
 			)
 
+			s2_bls_sig_s1Pk, err := s2.BLSSign(s1_bls_pk.Marshal())
+			require.NoError(t, err)
+			ExpectedRevert(t,
+				g.ExpectedFail(g.stakingContractTx(t,
+					"registerStaker",
+					s2.Operator, minStaking,
+					minStaking,
+					s2.Staker.Address,
+					s2.FeeRecipient.Address,
+					feeRate,
+					s2_bls_pk_byte,
+					s2_bls_sig_s1Pk.Marshal(),
+				)),
+				"invalid bls public key",
+			)
+
 			ExpectedRevert(t,
 				g.ExpectedFail(g.RegisterStaker(t, s2, new(big.Int).Sub(minStaking, big.NewInt(1)), feeRate)),
 				"out of bounds",

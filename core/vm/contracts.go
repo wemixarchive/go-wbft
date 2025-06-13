@@ -1156,7 +1156,6 @@ func kZGToVersionedHash(kzg kzg4844.Commitment) common.Hash {
 	return h
 }
 
-// TODO: determine appropriate contract name
 type blsPoP struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.

@@ -364,6 +364,14 @@ func (s *TestStaker[T]) GetBLSSecretKey() (bls.SecretKey, error) {
 	return blsSecretKey, nil
 }
 
+func (s *TestStaker[T]) BLSSign(msg []byte) (bls.Signature, error) {
+	sk, err := s.GetBLSSecretKey()
+	if err != nil {
+		return nil, err
+	}
+	return sk.Sign(msg), nil
+}
+
 func (s *TestStaker[T]) GetBLSPublicKey() (bls.PublicKey, error) {
 	blsSecretKey, err := s.GetBLSSecretKey()
 	if err != nil {
@@ -373,9 +381,9 @@ func (s *TestStaker[T]) GetBLSPublicKey() (bls.PublicKey, error) {
 }
 
 func (s *TestStaker[T]) GetBLSPoPSignature() (bls.Signature, error) {
-	sk, err := s.GetBLSSecretKey()
+	pk, err := s.GetBLSPublicKey()
 	if err != nil {
 		return nil, err
 	}
-	return sk.Sign(sk.PublicKey().Marshal()), nil
+	return s.BLSSign(pk.Marshal())
 }
