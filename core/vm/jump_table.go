@@ -115,6 +115,12 @@ func newMergeInstructionSet() JumpTable {
 
 func newMontBlancInstructionSet() JumpTable {
 	instructionSet := newLondonInstructionSet()
+	instructionSet[PREVRANDAO] = &operation{
+		execute:     opRandom,
+		constantGas: GasQuickStep,
+		minStack:    minStack(0, 1),
+		maxStack:    maxStack(0, 1),
+	}
 
 	// merge
 	// MontBlanc does not support EIP-4339 (PREVRANDAO opcode)
