@@ -79,9 +79,18 @@ func TestGovWithoutNCP(t *testing.T) {
 		})
 
 		t.Run("failure case", func(t *testing.T) {
+			s1_bls_pop, err := s1.GetBLSPoPSignature()
+			require.NoError(t, err)
+			s1_bls_pk, err := s1.GetBLSPublicKey()
+			require.NoError(t, err)
 			s2_bls_pk, err := s2.GetBLSPublicKey()
 			require.NoError(t, err)
+			s2_bls_pop, err := s2.GetBLSPoPSignature()
+			require.NoError(t, err)
+
 			s2_bls_pk_byte := s2_bls_pk.Marshal()
+			s2_bls_pop_byte := s2_bls_pop.Marshal()
+
 			ExpectedRevert(t,
 				g.ExpectedFail(g.stakingContractTx(t,
 					"registerStaker",
@@ -91,6 +100,7 @@ func TestGovWithoutNCP(t *testing.T) {
 					s2.FeeRecipient.Address,
 					feeRate,
 					s2_bls_pk_byte,
+					s2_bls_pop_byte,
 				)),
 				"amount and msg.value mismatch",
 			)
@@ -103,6 +113,65 @@ func TestGovWithoutNCP(t *testing.T) {
 					s2.FeeRecipient.Address,
 					feeRate,
 					s2_bls_pk_byte[1:],
+					s2_bls_pop_byte,
+				)),
+				"invalid bls public key length",
+			)
+
+			ExpectedRevert(t,
+				g.ExpectedFail(g.stakingContractTx(t,
+					"registerStaker",
+					s2.Operator, minStaking,
+					minStaking,
+					s2.Staker.Address,
+					s2.FeeRecipient.Address,
+					feeRate,
+					s2_bls_pk_byte,
+					s2_bls_pop_byte[1:],
+				)),
+				"invalid bls signature length",
+			)
+
+			ExpectedRevert(t,
+				g.ExpectedFail(g.stakingContractTx(t,
+					"registerStaker",
+					s2.Operator, minStaking,
+					minStaking,
+					s2.Staker.Address,
+					s2.FeeRecipient.Address,
+					feeRate,
+					s1_bls_pk.Marshal(),
+					s1_bls_pop.Marshal(),
+				)),
+				"already registered bls public key",
+			)
+
+			ExpectedRevert(t,
+				g.ExpectedFail(g.stakingContractTx(t,
+					"registerStaker",
+					s2.Operator, minStaking,
+					minStaking,
+					s2.Staker.Address,
+					s2.FeeRecipient.Address,
+					feeRate,
+					s2_bls_pk_byte,
+					s1_bls_pop.Marshal(),
+				)),
+				"invalid bls public key",
+			)
+
+			s2_bls_sig_s1Pk, err := s2.BLSSign(s1_bls_pk.Marshal())
+			require.NoError(t, err)
+			ExpectedRevert(t,
+				g.ExpectedFail(g.stakingContractTx(t,
+					"registerStaker",
+					s2.Operator, minStaking,
+					minStaking,
+					s2.Staker.Address,
+					s2.FeeRecipient.Address,
+					feeRate,
+					s2_bls_pk_byte,
+					s2_bls_sig_s1Pk.Marshal(),
 				)),
 				"invalid bls public key",
 			)
@@ -936,22 +1005,37 @@ func TestGovWithNCP(t *testing.T) {
 		ncps = append(ncps, ncp4.Operator.Address)
 	})
 
-	t.Run("Cannot change NCP for being locked", func(t *testing.T) {
+	t.Run("Can change NCP even if there is an ongoing proposal", func(t *testing.T) {
 		defer checkNCPStaker()
 
 		receipt, err := g.ExpectedOk(g.NewProposalToRemoveNCP(t, ncp1.Operator, ncp4.Operator.Address))
 		require.NoError(t, err)
 		proposalEvent := findEvent("NewProposal", receipt.Logs)
-		// ncp1, ncp4 locked
+
+		// must success even if there is an ongoing proposal
+		g.ExpectedOk(g.ChangeNCP(t, ncp1.Operator, ncp2.Operator.Address))
+		// back to ncp1
+		g.ExpectedOk(g.ChangeNCP(t, ncp2.Operator, ncp1.Operator.Address))
+
+		// must success even if there is an ongoing proposal
+		g.ExpectedOk(g.ChangeNCP(t, ncp4.Operator, ncp2.Operator.Address))
+		// back to ncp4
+		g.ExpectedOk(g.ChangeNCP(t, ncp2.Operator, ncp4.Operator.Address))
+
+		_, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))
+		require.NoError(t, err)
+	})
+
+	t.Run("Cannot change the ncp to an address that is proposed as the new ncp", func(t *testing.T) {
+		defer checkNCPStaker()
+
+		receipt, err := g.ExpectedOk(g.NewProposalToAddNCP(t, ncp1.Operator, ncp2.Operator.Address))
+		require.NoError(t, err)
+		proposalEvent := findEvent("NewProposal", receipt.Logs)
 
 		ExpectedRevert(t,
 			g.ExpectedFail(g.ChangeNCP(t, ncp1.Operator, ncp2.Operator.Address)),
-			"belong in an on-going proposal",
-		)
-
-		ExpectedRevert(t,
-			g.ExpectedFail(g.ChangeNCP(t, ncp4.Operator, ncp2.Operator.Address)),
-			"belong in an on-going proposal",
+			"cannot change the ncp to an address that is proposed as the new ncp",
 		)
 
 		_, err = g.ExpectedOk(g.CancelProposal(t, ncp1.Operator, proposalEvent["id"].(*big.Int)))

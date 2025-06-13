@@ -42,6 +42,7 @@ func TestOperatorContractMultiSig(t *testing.T) {
 		delegator1.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 	require.NoError(t, err)
+	setWbftGovConfig(g)
 	defer g.backend.Close()
 	setWbftGovConfig(g)
 
@@ -82,7 +83,8 @@ func TestOperatorContractMultiSig(t *testing.T) {
 
 			// 2-2. cannot submit multisig transaction that calls govContract's registerStaker function
 			blsPubkey, _ := s1.GetBLSPublicKey()
-			callData, _ := g.stakingContract.Pack("registerStaker", minStaking, s1.Staker.Address, operatorSampleAddr, feeRate, blsPubkey.Marshal())
+			blsSig, _ := s1.GetBLSPoPSignature()
+			callData, _ := g.stakingContract.Pack("registerStaker", minStaking, s1.Staker.Address, operatorSampleAddr, feeRate, blsPubkey.Marshal(), blsSig.Marshal())
 			ExpectedRevert(
 				t,
 				g.ExpectedFail(g.SubmitTransaction(owner1, TestGovStakingAddress, common.Big0, callData)),
@@ -94,7 +96,8 @@ func TestOperatorContractMultiSig(t *testing.T) {
 		t.Run("Success case", func(t *testing.T) {
 			// submit multiSig transaction that calls operatorContract's registerStaker function
 			blsPubkey, _ := s1.GetBLSPublicKey()
-			callData, _ := g.operatorContract.Pack("registerStaker", minStaking, s1.Staker.Address, operatorSampleAddr, feeRate, blsPubkey.Marshal())
+			blsSig, _ := s1.GetBLSPoPSignature()
+			callData, _ := g.operatorContract.Pack("registerStaker", minStaking, s1.Staker.Address, operatorSampleAddr, feeRate, blsPubkey.Marshal(), blsSig.Marshal())
 			receipt, err = g.ExpectedOk(g.SubmitTransaction(owner1, operatorSampleAddr, common.Big0, callData))
 			txId := findEvents("SubmitTransaction", receipt.Logs)[0]["txIndex"].(*big.Int)
 			// confirm and execute
