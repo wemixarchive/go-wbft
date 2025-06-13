@@ -163,7 +163,7 @@ The existing miner worker is designed to be fit to the ethash algorithm. When a 
 - The WBFT engine waits for the block period before notifying the worker(In the existing IBFT, the block period was waited for when sealing the block).
 - When new work starts, the worker begins the process of preparing the block.
 
-#### Mont Blanc hard fork
+### Mont Blanc hard fork
 WBFT is not only implemented to run a WBFT chain from genesis but is also designed and implemented to enable a hard fork from a legacy chain to the WBFT chain. This hard fork is named the `Mont Blanc` hard fork.
 You should define the Mont Blanc hard fork in genesis.json to run a WBFT chain. Two chain configs are added for Mont Blanc hard fork; `MontBlancBlock` and `montBlanc`.
 - `montBlancBlock`: Defines the block height at which the Mont Blanc hard fork occurs. You can set it to zero for the genesis block.
@@ -180,6 +180,16 @@ The Mont Blanc hard fork protocols are as follows:
 - The first epoch starts from the block after the Mont Blanc block, during which stakers start staking from zero.
 - If the number of stakers is equal to or greater than the minimum stakers during the first epoch, these stakers become validators from the next epoch.
 - If the number of stakers is less than the minimum stakers during the first epoch, the initial validator set is maintained.
+
+#### Compatibility with Ethereum hard forks
+- Mont Blanc hard fork includes all feature of the `London` hard fork and priors.
+- Mont Blanc hard fork includes new evm instructions of the `Shanghai` and `Cancun` hard forks.
+  - EIP-3855 (PUSH0 opcode)
+  - EIP-3860 (Limit and meter initcode)
+  - EIP-1153 (Transient Storage)
+  - EIP-5656 (MCOPY opcode)
+  - EIP-6780 SELFDESTRUCT only in same transaction
+  - EIP-4339 (PREVRANDAO opcode)
 
 ### Modified Structures
 The existing QBFT Config was revised by removing unnecessary fields and adding required ones, resulting in the following structure.
