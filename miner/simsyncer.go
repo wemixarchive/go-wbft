@@ -53,6 +53,9 @@ func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *qbft.Config,
 				Block:        num,
 				GovContracts: upgradeContracts,
 			}
+
+			config.GovContractUpgrades = append(config.GovContractUpgrades, newUpgrade)
+
 			if chainConfig.MontBlanc.Upgrades == nil {
 				chainConfig.MontBlanc.Upgrades = make([]params.Upgrade, 0) // refac : wil be removed
 				chainConfig.MontBlanc.Upgrades = append(chainConfig.MontBlanc.Upgrades, newUpgrade)

@@ -117,6 +117,7 @@ type Config struct {
 	StabilizingStakersThreshold uint64                  `toml:",omitempty"`
 	UseNCP                      bool                    `toml:",omitempty"` // Use NCP or not
 	Transitions                 []params.Transition
+	GovContractUpgrades         []params.Upgrade
 }
 
 var DefaultConfig = &Config{
@@ -131,21 +132,46 @@ var DefaultConfig = &Config{
 
 func (c *Config) GetGovContracts(blockNumber *big.Int, chainConfig *params.ChainConfig) params.GovContracts {
 	gc := params.GovContracts{}
-	c.getGovContractsHardforkValue(blockNumber, chainConfig, func(govContracts params.GovContracts) {
-		if govContracts.GovConfig != nil {
-			gc.GovConfig = govContracts.GovConfig
-		}
-		if govContracts.GovStaking != nil {
-			gc.GovStaking = govContracts.GovStaking
-		}
-		if govContracts.GovRewardeeImp != nil {
-			gc.GovRewardeeImp = govContracts.GovRewardeeImp
-		}
-		if govContracts.GovNCP != nil {
-			gc.GovNCP = govContracts.GovNCP
-		}
-	})
+
+	if c.GovContractUpgrades != nil && len(c.GovContractUpgrades) > 0 {
+		c.getGovContractsValue(blockNumber, func(upgrade params.Upgrade) {
+			if upgrade.GovStaking != nil {
+				gc.GovStaking = upgrade.GovStaking
+			}
+			if upgrade.GovConfig != nil {
+				gc.GovConfig = upgrade.GovConfig
+			}
+			if upgrade.GovRewardeeImp != nil {
+				gc.GovRewardeeImp = upgrade.GovRewardeeImp
+			}
+			if upgrade.GovNCP != nil {
+				gc.GovNCP = upgrade.GovNCP
+			}
+		})
+	}
+	//c.getGovContractsHardforkValue(blockNumber, chainConfig, func(govContracts params.GovContracts) {
+	//	if govContracts.GovConfig != nil {
+	//		gc.GovConfig = govContracts.GovConfig
+	//	}
+	//	if govContracts.GovStaking != nil {
+	//		gc.GovStaking = govContracts.GovStaking
+	//	}
+	//	if govContracts.GovRewardeeImp != nil {
+	//		gc.GovRewardeeImp = govContracts.GovRewardeeImp
+	//	}
+	//	if govContracts.GovNCP != nil {
+	//		gc.GovNCP = govContracts.GovNCP
+	//	}
+	//})
 	return gc
+}
+
+func (c *Config) getGovContractsValue(num *big.Int, callback func(govContracts params.Upgrade)) {
+	if c != nil && num != nil {
+		for i := 0; i < len(c.GovContractUpgrades) && c.GovContractUpgrades[i].Block.Cmp(num) <= 0; i++ {
+			callback(c.GovContractUpgrades[i])
+		}
+	}
 }
 
 func (c Config) GetConfig(blockNumber *big.Int) Config {

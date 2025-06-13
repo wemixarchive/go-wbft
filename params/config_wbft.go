@@ -190,8 +190,8 @@ func (gc *GovContract) String() string {
 }
 
 type Upgrade struct {
-	Block        *big.Int      `json:"block"`
-	GovContracts *GovContracts `json:"govContracts"`
+	Block         *big.Int `json:"block"`
+	*GovContracts `json:"govContracts"`
 }
 
 func (u *Upgrade) String() string {

@@ -29,10 +29,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
+	"github.com/ethereum/go-ethereum/consensus/qbft"
 	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
 	"github.com/ethereum/go-ethereum/consensus/wemix"
 	"github.com/ethereum/go-ethereum/core"
@@ -46,6 +48,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"github.com/holiman/uint256"
 )
 
@@ -1143,6 +1146,52 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		log.Error("Failed to create sealing context", "err", err)
 		return nil, err
 	}
+	
+	// Apply GovContracts state transitions immediately after consensus preparation
+	// This ensures that GovContracts changes are reflected in state before transaction execution
+	if w.chainConfig.IsMontBlanc(header.Number) {
+		// Apply state transition for GovContracts using GetMontBlancTransition
+		if transition, err := qbft.GetMontBlancTransition(w.chainConfig, header.Number); err == nil && transition != nil {
+			// Apply code changes
+			for _, code := range transition.Codes {
+				env.state.SetCode(code.Address, hexutil.MustDecode(code.Code))
+			}
+			// Apply state changes
+			for _, state := range transition.States {
+				env.state.SetState(state.Address, state.Key, state.Value)
+			}
+		}
+		
+		// Also check for GovContract upgrades from SimSyncer by checking if we have a simulated backend
+		if w.config.SimulatedEnabled {
+			// For simulated backend, we need to apply GovContract upgrades that were set via SimSyncer
+			// Create a temporary config to get the current GovContracts
+			tempConfig := &qbft.Config{}
+			if w.simSyncer != nil {
+				// Apply the simSyncer changes to get the current state
+				w.simSyncer.Apply(w.chainConfig, tempConfig, header.Number)
+				
+				// Get current GovContracts from the temporary config
+				govContracts := tempConfig.GetGovContracts(header.Number, w.chainConfig)
+				
+				// Convert GovContracts to state transition if any contracts are defined
+				if govContracts.GovConfig != nil || govContracts.GovStaking != nil || 
+				   govContracts.GovNCP != nil || govContracts.GovRewardeeImp != nil {
+					if govTransition, err := govwbft.GetMontBlancTransition(&govContracts); err == nil && govTransition != nil {
+						// Apply code changes from GovContracts
+						for _, code := range govTransition.Codes {
+							env.state.SetCode(code.Address, hexutil.MustDecode(code.Code))
+						}
+						// Apply state changes from GovContracts
+						for _, state := range govTransition.States {
+							env.state.SetState(state.Address, state.Key, state.Value)
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	if header.ParentBeaconRoot != nil {
 		context := core.NewEVMBlockContext(header, w.chain, nil)
 		vmenv := vm.NewEVM(context, vm.TxContext{}, env.state, w.chainConfig, vm.Config{})

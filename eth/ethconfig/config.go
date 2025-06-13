@@ -285,6 +285,9 @@ func SetConfigFromChainConfig(qbftCfg *qbft.Config, chainCfg *params.ChainConfig
 		return qbftCfg.Transitions[i].Block.Cmp(qbftCfg.Transitions[j].Block) < 0
 	})
 
+	qbftCfg.GovContractUpgrades = append(qbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.MontBlancBlock, GovContracts: chainCfg.MontBlanc.GovContracts})
+	// add hardforks that includes govContracts after montblanc here like :
+	// qbftCfg.GovContractUpgrades = append(qbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.DalgonaBlock, GovContracts: chainCfg.Dalgona.GovContracts})
 	return nil
 }
 

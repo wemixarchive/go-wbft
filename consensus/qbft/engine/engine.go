@@ -1011,7 +1011,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	var blockReward *big.Int
 
 	// if brioche config exists, use it
-	// else, get block reward from chain config
+	// else, get block reward from qbft config
 	if chain.Config().IsBrioche(header.Number) {
 		blockReward = chain.Config().Brioche.GetBriocheBlockReward(params.DefaultBriocheBlockReward, header.Number)
 	} else {
