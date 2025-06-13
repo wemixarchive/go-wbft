@@ -184,69 +184,6 @@ func newBlockChainWithCustom(n int, customizeConfig func(config *qbft.Config)) (
 	return newBlockchainFromConfig(genesis, nodeKeys, config)
 }
 
-// // this is a copy of ethconfig.SetConfigFromChainConfig; avoiding cyclic import
-// func SetConfigFromChainConfig(qbftCfg *qbft.Config, chainCfg *params.ChainConfig) error {
-// 	config := chainCfg.MontBlanc.WBFT
-// 	if config.RequestTimeoutSeconds != 0 {
-// 		qbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
-// 	}
-// 	if config.BlockPeriodSeconds != 0 {
-// 		qbftCfg.BlockPeriod = config.BlockPeriodSeconds
-// 	}
-// 	if config.EpochLength != 0 {
-// 		qbftCfg.Epoch = config.EpochLength
-// 	}
-// 	qbftCfg.BlockReward = config.BlockReward
-// 	qbftCfg.BlockRewardBeneficiary = config.BlockRewardBeneficiary
-
-// 	if config.ProposerPolicy != nil {
-// 		qbftCfg.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*config.ProposerPolicy))
-// 	}
-// 	if config.TargetValidators != nil {
-// 		qbftCfg.TargetValidators = *config.TargetValidators
-// 	}
-// 	if config.MaxRequestTimeoutSeconds != nil {
-// 		qbftCfg.MaxRequestTimeoutSeconds = *config.MaxRequestTimeoutSeconds
-// 	}
-// 	if config.StabilizingStakersThreshold != nil {
-// 		qbftCfg.StabilizingStakersThreshold = *config.StabilizingStakersThreshold
-// 	}
-// 	if config.UseNCP != nil {
-// 		qbftCfg.UseNCP = *config.UseNCP
-// 	}
-
-// 	hfTransitionBlocks := make(map[*big.Int]bool)
-
-// 	//add hardforks that includes wbft config after montblanc here like :
-// 	// transition := params.Transition{
-// 	// 	Block:      chainCfg.DalgonaBlock,
-// 	// 	WBFTConfig: chainCfg.Dalgona.WBFT,
-// 	// }
-// 	// qbftCfg.Transitions = append(qbftCfg.Transitions, transition)
-// 	// hfTransitionBlocks[chainCfg.DalgonaBlock] = true
-
-// 	if chainCfg.Transitions != nil && len(chainCfg.Transitions) > 0 {
-// 		for _, t := range chainCfg.Transitions {
-// 			if hfTransitionBlocks[t.Block] {
-// 				return errors.New("hardfork transition block already exists")
-// 			}
-// 			qbftCfg.Transitions = append(qbftCfg.Transitions, t)
-// 		}
-// 	}
-
-// 	sort.Slice(qbftCfg.Transitions, func(i, j int) bool {
-// 		if qbftCfg.Transitions[i].Block == nil {
-// 			return false
-// 		}
-// 		if qbftCfg.Transitions[j].Block == nil {
-// 			return true
-// 		}
-// 		return qbftCfg.Transitions[i].Block.Cmp(qbftCfg.Transitions[j].Block) < 0
-// 	})
-
-// 	return nil
-// }
-
 // makeHeader create header executing no txs
 func makeHeader(chainConfig *params.ChainConfig, engineConfig *qbft.Config, parent *types.Block) *types.Header {
 	blockNumber := parent.Number().Add(parent.Number(), common.Big1)

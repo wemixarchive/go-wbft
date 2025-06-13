@@ -2008,8 +2008,8 @@ func setWbftGovConfig(g *GovWBFT) {
 			Address: TestGovConfigAddress,
 			Version: govwbft.GOV_CONTRACT_VERSION_1,
 			Params: map[string]string{
-				govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:     towei(500000).String(),                                                           //  minimumStaking -> 500000000000000000000000
-				govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:     (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(), // maximumStaking -> 340282366920938463463374607431768211455
+				govwbft.GOV_CONFIG_PARAM_MINIMUM_STAKING:     towei(500000).String(),
+				govwbft.GOV_CONFIG_PARAM_MAXIMUM_STAKING:     (new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 128), big.NewInt(1))).String(),
 				govwbft.GOV_CONFIG_PARAM_UNBONDING_STAKER:    "604800",
 				govwbft.GOV_CONFIG_PARAM_UNBONDING_DELEGATOR: "259200",
 				govwbft.GOV_CONFIG_PARAM_FEE_PRECISION:       "10000",

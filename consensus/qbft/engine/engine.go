@@ -868,7 +868,6 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 	if config.MontBlancBlock != nil {
 		firstNewEpoch.Set(config.MontBlancBlock)
 	}
-
 	for _, transition := range e.cfg.Transitions {
 		if transition.Block.Cmp(number) > 0 {
 			break
@@ -880,7 +879,6 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 		firstNewEpoch.Set(transition.Block)
 		epochLength.SetUint64(transition.EpochLength)
 	}
-
 	rem := new(big.Int).Sub(number, firstNewEpoch)
 	rem.Rem(rem, epochLength)
 	return rem.Sign() == 0, new(big.Int).Sub(number, rem), nil

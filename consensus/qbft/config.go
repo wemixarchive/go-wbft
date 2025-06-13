@@ -204,16 +204,6 @@ func (c Config) GetConfig(blockNumber *big.Int) Config {
 	return newConfig
 }
 
-//func (c *Config) getGovContractsHardforkValue(num *big.Int, chainConfig *params.ChainConfig, callback func(govContract params.GovContracts)) {
-//	if c != nil && num != nil {
-//		if chainConfig.IsMontBlanc(num) {
-//			callback(*chainConfig.MontBlanc.GovContracts)
-//		}
-//		// add hardforks that includes govContract config change after montblanc like :
-//		// if chainConfig.IsDalgona(num){ callback(*chainConfig.Dalgona.GovContracts) }
-//	}
-//}
-
 func (c *Config) getTransitionValue(num *big.Int, callback func(transition params.Transition)) {
 	if c != nil && num != nil {
 		for i := 0; i < len(c.Transitions) && c.Transitions[i].Block.Cmp(num) <= 0; i++ {
@@ -227,6 +217,7 @@ func (c *Config) String() string {
 	return "wbft"
 }
 
+// GetMontBlancStateTransition is used when montblanc block is 0, montblanc's gov ocntracts needts to be set in the genesis state
 func GetMontBlancStateTransition(chainConfig *params.ChainConfig, num *big.Int) (*params.StateTransition, error) {
 	if chainConfig == nil || chainConfig.MontBlancBlock == nil || num == nil {
 		return nil, errors.New("nil montBlanc config or nil block number")
@@ -238,6 +229,7 @@ func GetMontBlancStateTransition(chainConfig *params.ChainConfig, num *big.Int) 
 	return nil, nil
 }
 
+// GetGovContractsStateTransition is used when for gov contracts needs to be set in the middle of the chain processing
 func GetGovContractsStateTransition(qbftCfg *Config, num *big.Int) (*params.StateTransition, error) {
 	for _, upgrade := range qbftCfg.GovContractUpgrades {
 		if num.Cmp(upgrade.Block) == 0 {
