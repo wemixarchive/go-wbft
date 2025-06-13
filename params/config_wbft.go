@@ -251,6 +251,7 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 			ProposerPolicy:              newUint64(0),
 			EpochLength:                 10,
 			BlockReward:                 (*math.HexOrDecimal256)(new(big.Int).Mul(big.NewInt(Ether), big.NewInt(1))),
+			TargetValidators:            newUint64(1),
 			StabilizingStakersThreshold: newUint64(1),
 			UseNCP:                      newBool(false),
 		},
