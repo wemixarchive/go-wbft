@@ -325,7 +325,6 @@ func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}
 
 	result := map[string]interface{}{
 		"vanityData":        DecodeVanityData(extra.VanityData),
-		"randaoMix":         extra.RandaoMix.Hex(),
 		"randaoReveal":      "0x" + hex.EncodeToString(extra.RandaoReveal),
 		"prevRound":         fmt.Sprintf("0x%x", extra.PrevRound),
 		"prevPreparedSeal":  sealForJSON(extra.PrevPreparedSeal, validators),

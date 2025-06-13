@@ -41,10 +41,10 @@
       },
       "init": {
         "validators": [
-          "0x7a859efb5d6c56e66a0389434430c102501f996a"
+          "0x77b0ea29a1e0b534a12ac4fd73a83c369d2d3cf8"
         ],
         "blsPublicKeys": [
-          "0xaac2cd3f29986b5a546e9709981b7f67e2efe0df8d28f4546aa2df53470b7846e09bf9109fd20815d8d95e0ff811eb0a"
+          "0xb702c6e380c4fd0f306f682a9dcf9def4ac5da18b0e4adf4a331f1b742fc3b1364e9128d65c703155b6c6e20dd843d38"
         ],
         "govContracts": {
           "govConfig": {
@@ -77,7 +77,7 @@
   },
   "nonce": "0x0",
   "timestamp": "0x0",
-  "extraData": "0xf87b80a0dd814ce4974ae4ac2b5389bc313c7a71c5b43828efa1e0e54fc562d5dba043558080c0c080c0c0f850dad9947a859efb5d6c56e66a0389434430c102501f996a831cfde0c180f1b0aac2cd3f29986b5a546e9709981b7f67e2efe0df8d28f4546aa2df53470b7846e09bf9109fd20815d8d95e0ff811eb0a01",
+  "extraData": "0xf85a808080c0c080c0c0f850dad99477b0ea29a1e0b534a12ac4fd73a83c369d2d3cf8831cfde0c180f1b0b702c6e380c4fd0f306f682a9dcf9def4ac5da18b0e4adf4a331f1b742fc3b1364e9128d65c703155b6c6e20dd843d3801",
   "gasLimit": "0x23f3e20",
   "difficulty": "0x1",
   "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -153,7 +153,7 @@
     "7435ed30a8b4aeb0877cef0c6e8cffe834eb865f": {
       "balance": "0xc097ce7bc90715b34b9f1000000000"
     },
-    "7a859efb5d6c56e66a0389434430c102501f996a": {
+    "77b0ea29a1e0b534a12ac4fd73a83c369d2d3cf8": {
       "balance": "0xc097ce7bc90715b34b9f1000000000"
     },
     "7dcd17433742f4c0ca53122ab541d0ba67fc27df": {

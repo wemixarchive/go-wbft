@@ -420,7 +420,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 				header := block.Header()
 				extra, _ := types.ExtractQBFTExtra(header)
 				// write invalid round
-				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound+1, extra.PrevPreparedSeal, extra.PrevCommittedSeal)); err != nil {
+				if _, err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound+1, extra.PrevPreparedSeal, extra.PrevCommittedSeal)); err != nil {
 					return nil
 				}
 				return header
@@ -432,7 +432,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 			func(block *types.Block) *types.Header {
 				header := block.Header()
 				extra, _ := types.ExtractQBFTExtra(header)
-				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, nil, extra.PrevCommittedSeal)); err != nil {
+				if _, err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, nil, extra.PrevCommittedSeal)); err != nil {
 					return nil
 				}
 				return header
@@ -444,7 +444,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 			func(block *types.Block) *types.Header {
 				header := block.Header()
 				extra, _ := types.ExtractQBFTExtra(header)
-				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, extra.PrevPreparedSeal, nil)); err != nil {
+				if _, err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, extra.PrevPreparedSeal, nil)); err != nil {
 					return nil
 				}
 				return header
@@ -457,7 +457,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 			func(block *types.Block) *types.Header {
 				header := block.Header()
 				extra, _ := types.ExtractQBFTExtra(header)
-				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, nil, extra.PrevCommittedSeal)); err != nil {
+				if _, err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, nil, extra.PrevCommittedSeal)); err != nil {
 					return nil
 				}
 				return header
@@ -469,7 +469,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 			func(block *types.Block) *types.Header {
 				header := block.Header()
 				extra, _ := types.ExtractQBFTExtra(header)
-				if err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, extra.PrevPreparedSeal, nil)); err != nil {
+				if _, err := qbftengine.ApplyHeaderQBFTExtra(header, qbftengine.WritePrevSeals(extra.PrevRound, extra.PrevPreparedSeal, nil)); err != nil {
 					return nil
 				}
 				return header

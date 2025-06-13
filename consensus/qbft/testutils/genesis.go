@@ -129,7 +129,6 @@ func setQBFTExtra(genesis *core.Genesis, validators []common.Address, blsPublicK
 	epochInfo.Stabilizing = true
 	ist := &types.QBFTExtra{
 		VanityData:    vanity,
-		RandaoMix:     common.Hash{},
 		Round:         0,
 		PreparedSeal:  &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},
 		CommittedSeal: &types.QBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}},

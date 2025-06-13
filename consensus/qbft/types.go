@@ -32,11 +32,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 )
-
-var InitialWBFTRandaoMix = crypto.Keccak256Hash([]byte("WBFT Initial Randao Mix"))
 
 // Proposal supports retrieving height and serialized block to be used during Istanbul consensus.
 type Proposal interface {
