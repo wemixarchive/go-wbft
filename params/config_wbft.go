@@ -276,6 +276,7 @@ var DefaultMontBlancConfig = &MontBlancConfig{
 				Version: "v1",
 			},
 		},
+		Init: &WbftInit{},
 	},
 }
 
