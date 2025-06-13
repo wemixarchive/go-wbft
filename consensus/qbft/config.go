@@ -148,21 +148,11 @@ func (c *Config) GetGovContracts(blockNumber *big.Int, chainConfig *params.Chain
 				gc.GovNCP = upgrade.GovNCP
 			}
 		})
+	} else {
+		// Normally unreachable since c.GovContractsUpgrades is set when qbft engine is created,
+		// but used in few tests where qbft.Config isn't properly initialized — fallback to Montblanc chain config.
+		gc = *chainConfig.MontBlanc.GovContracts
 	}
-	//c.getGovContractsHardforkValue(blockNumber, chainConfig, func(govContracts params.GovContracts) {
-	//	if govContracts.GovConfig != nil {
-	//		gc.GovConfig = govContracts.GovConfig
-	//	}
-	//	if govContracts.GovStaking != nil {
-	//		gc.GovStaking = govContracts.GovStaking
-	//	}
-	//	if govContracts.GovRewardeeImp != nil {
-	//		gc.GovRewardeeImp = govContracts.GovRewardeeImp
-	//	}
-	//	if govContracts.GovNCP != nil {
-	//		gc.GovNCP = govContracts.GovNCP
-	//	}
-	//})
 	return gc
 }
 

@@ -86,22 +86,6 @@ func (cw *chainConfigWrapper) addFakeHardFork(name string, blockNum *big.Int, wb
 	cw.fakeHardForks = append(cw.fakeHardForks, fh)
 }
 
-// isFakeHardFork checks if a fake hard fork is active at the given block
-func (cw *chainConfigWrapper) isFakeHardFork(name string, blockNum *big.Int) bool {
-	var hf fakeHardFork
-	for _, fh := range cw.fakeHardForks {
-		if fh.name == name {
-			hf = fh
-			break
-		}
-	}
-	if hf.blockNum == nil {
-		return false
-	} else {
-		return blockNum.Cmp(hf.blockNum) >= 0
-	}
-}
-
 // setConfigFromChainConfig is a test version of SetConfigFromChainConfig that works with fake hardForks
 func setConfigFromChainConfig(qbftCfg *Config, chainCfg *chainConfigWrapper) error {
 	config := chainCfg.MontBlanc.WBFT
@@ -161,6 +145,15 @@ func setConfigFromChainConfig(qbftCfg *Config, chainCfg *chainConfigWrapper) err
 		}
 		return qbftCfg.Transitions[i].Block.Cmp(qbftCfg.Transitions[j].Block) < 0
 	})
+
+	qbftCfg.GovContractUpgrades = append(qbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.MontBlancBlock, GovContracts: chainCfg.MontBlanc.GovContracts})
+	for _, hf := range chainCfg.fakeHardForks {
+		upgrade := params.Upgrade{
+			Block:        hf.blockNum,
+			GovContracts: hf.GovContractConfig,
+		}
+		qbftCfg.GovContractUpgrades = append(qbftCfg.GovContractUpgrades, upgrade)
+	}
 
 	return nil
 }
@@ -285,39 +278,32 @@ func TestGetConfig(t *testing.T) {
 }
 
 // getGovContracts is test version of GetGovContracts that works with fake hardForks
-func getGovContracts(blockNumber *big.Int, chainConfig *chainConfigWrapper) params.GovContracts {
+func getGovContracts(blockNumber *big.Int, qbftCfg *Config) params.GovContracts {
 	gc := params.GovContracts{}
-	getGovContractsFakeHardforkValue(blockNumber, chainConfig, func(govContracts params.GovContracts) {
-		if govContracts.GovConfig != nil {
-			gc.GovConfig = govContracts.GovConfig
-		}
-		if govContracts.GovStaking != nil {
-			gc.GovStaking = govContracts.GovStaking
-		}
-		if govContracts.GovRewardeeImp != nil {
-			gc.GovRewardeeImp = govContracts.GovRewardeeImp
-		}
-		if govContracts.GovNCP != nil {
-			gc.GovNCP = govContracts.GovNCP
-		}
-	})
-	return gc
-}
 
-func getGovContractsFakeHardforkValue(num *big.Int, chainConfig *chainConfigWrapper, callback func(govContract params.GovContracts)) {
-	if chainConfig.IsMontBlanc(num) {
-		callback(*chainConfig.MontBlanc.GovContracts)
+	if qbftCfg.GovContractUpgrades != nil && len(qbftCfg.GovContractUpgrades) > 0 {
+		qbftCfg.getGovContractsValue(blockNumber, func(upgrade params.Upgrade) {
+			if upgrade.GovStaking != nil {
+				gc.GovStaking = upgrade.GovStaking
+			}
+			if upgrade.GovConfig != nil {
+				gc.GovConfig = upgrade.GovConfig
+			}
+			if upgrade.GovRewardeeImp != nil {
+				gc.GovRewardeeImp = upgrade.GovRewardeeImp
+			}
+			if upgrade.GovNCP != nil {
+				gc.GovNCP = upgrade.GovNCP
+			}
+		})
 	}
-	for _, hf := range chainConfig.fakeHardForks {
-		if chainConfig.isFakeHardFork(hf.name, num) {
-			callback(*hf.GovContractConfig)
-		}
-	}
+	return gc
 }
 
 func TestGetGovContracts(t *testing.T) {
 	// Create test chain config with fake hard forks
 	testConfig := newTestChainConfig()
+	qbftCfg := new(Config)
 
 	// Add fake hard forks
 	testConfig.addFakeHardFork("TestFork1", big.NewInt(10),
@@ -341,6 +327,7 @@ func TestGetGovContracts(t *testing.T) {
 		},
 	)
 
+	setConfigFromChainConfig(qbftCfg, testConfig)
 	baseContracts := testConfig.MontBlanc.GovContracts
 
 	createExpectedGovContracts := func(baseConfig *params.GovContracts, modifications func(config *params.GovContracts)) params.GovContracts {
@@ -389,7 +376,7 @@ func TestGetGovContracts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := getGovContracts(big.NewInt(int64(test.blockNumber)), testConfig)
+			result := getGovContracts(big.NewInt(int64(test.blockNumber)), qbftCfg)
 			if !reflect.DeepEqual(result, test.expectedConfig) {
 				t.Errorf("error in %s:\nexpected: %+v\ngot: %+v\n", test.name, test.expectedConfig, result)
 			}

@@ -802,7 +802,6 @@ func (bc *BriocheConfig) String() string {
 
 type MontBlancConfig struct {
 	*MontBlancWbftConfig
-	//Upgrades []Upgrade `json:"upgrades,omitempty"` // will be removed
 }
 
 func (c *MontBlancConfig) String() string {
