@@ -122,10 +122,6 @@ func newMontBlancInstructionSet() JumpTable {
 		maxStack:    maxStack(0, 1),
 	}
 
-	// merge
-	// MontBlanc does not support EIP-4339 (PREVRANDAO opcode)
-	// Instead, DIFFICULTY operation is executed due to the same opcode.
-
 	// shanghai
 	enable3855(&instructionSet) // PUSH0 instruction
 	enable3860(&instructionSet) // Limit and meter initcode
