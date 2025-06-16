@@ -21,7 +21,6 @@
 package qbft
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -217,23 +216,11 @@ func (c *Config) String() string {
 	return "wbft"
 }
 
-// GetMontBlancStateTransition is used when montblanc block is 0, montblanc's gov ocntracts needts to be set in the genesis state
-func GetMontBlancStateTransition(chainConfig *params.ChainConfig, num *big.Int) (*params.StateTransition, error) {
-	if chainConfig == nil || chainConfig.MontBlancBlock == nil || num == nil {
-		return nil, errors.New("nil montBlanc config or nil block number")
-	}
-
-	if num.Cmp(chainConfig.MontBlancBlock) == 0 {
-		return govwbft.GetMontBlancTransition(chainConfig.MontBlanc.GovContracts)
-	}
-	return nil, nil
-}
-
 // GetGovContractsStateTransition is used when for gov contracts needs to be set in the middle of the chain processing
 func GetGovContractsStateTransition(qbftCfg *Config, num *big.Int) (*params.StateTransition, error) {
 	for _, upgrade := range qbftCfg.GovContractUpgrades {
 		if num.Cmp(upgrade.Block) == 0 {
-			return govwbft.GetMontBlancTransition(upgrade.GovContracts)
+			return govwbft.GetGovContractsTransition(upgrade.GovContracts)
 		} else if num.Cmp(upgrade.Block) < 0 {
 			break
 		}

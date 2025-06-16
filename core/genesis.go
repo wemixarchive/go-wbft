@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 	"math/big"
 	"strings"
 
@@ -643,8 +644,9 @@ func TestGenesisBlock() *Genesis {
 	}
 }
 
+// InjectContracts sets WBFT GovContracts to genesis
 func InjectContracts(genesis *Genesis, config *params.ChainConfig) error {
-	transition, err := qbft.GetMontBlancStateTransition(config, common.Big0)
+	transition, err := govwbft.GetGovContractsTransition(config.MontBlanc.GovContracts)
 	if err != nil {
 		return err
 	}

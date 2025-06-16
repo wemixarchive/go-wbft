@@ -31,7 +31,7 @@ func checkGovContractVersions(govContracts *params.GovContracts) error {
 	return nil
 }
 
-func GetMontBlancTransition(govContracts *params.GovContracts) (*params.StateTransition, error) {
+func GetGovContractsTransition(govContracts *params.GovContracts) (*params.StateTransition, error) {
 	st := &params.StateTransition{}
 
 	if govContracts.GovConfig != nil {
