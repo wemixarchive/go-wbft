@@ -31,53 +31,52 @@
       "wBFT": {
         "requestTimeoutSeconds": 2,
         "blockPeriodSeconds": 1,
-        "proposerPolicy": 0,
         "epochLength": 10,
         "blockReward": "0xde0b6b3a7640000",
-        "targetValidators": 0,
+        "proposerPolicy": 0,
+        "targetValidators": 1,
         "maxRequestTimeoutSeconds": null,
         "stabilizingStakersThreshold": 1,
         "useNCP": false
       },
       "init": {
         "validators": [
-          "0xa9999227819d1aabbdd8601a0ad0f99ed589aaa4"
+          "0x62a730ca988232a760fe8ad5c21baf4913f73522"
         ],
         "blsPublicKeys": [
-          "0x8bcd46d66e0376687134a70234d70f601faab468052b7b106f0e80854dfe7ee903be0fa380a5f8db302ecd22483d32f8"
-        ],
-        "govContracts": {
-          "govConfig": {
-            "address": "0x0000000000000000000000000000000000001000",
-            "version": "v1",
-            "params": {
-              "changeFeeDelay": "604800",
-              "feePrecision": "10000",
-              "maximumStaking": "100000000000000000000000000",
-              "minimumStaking": "10000000000000000000000000",
-              "unbondingPeriodDelegator": "259200",
-              "unbondingPeriodStaker": "604800"
-            }
-          },
-          "govStaking": {
-            "address": "0x0000000000000000000000000000000000001001",
-            "version": "v1",
-            "params": null
-          },
-          "govRewardeeImp": {
-            "address": "0x0000000000000000000000000000000000001002",
-            "version": "v1",
-            "params": null
-          },
-          "govNCP": null
-        }
+          "0x8ef46b0001a8572330a62109d48ebd3b209b0bc6941f12db5ea91bff28e8a686251ed59d4f7654f5e44e95072b54b502"
+        ]
       },
-      "upgrades": null
+      "govContracts": {
+        "govConfig": {
+          "address": "0x0000000000000000000000000000000000001000",
+          "version": "v1",
+          "params": {
+            "changeFeeDelay": "604800",
+            "feePrecision": "10000",
+            "maximumStaking": "100000000000000000000000000",
+            "minimumStaking": "10000000000000000000000000",
+            "unbondingPeriodDelegator": "259200",
+            "unbondingPeriodStaker": "604800"
+          }
+        },
+        "govStaking": {
+          "address": "0x0000000000000000000000000000000000001001",
+          "version": "v1",
+          "params": null
+        },
+        "govRewardeeImp": {
+          "address": "0x0000000000000000000000000000000000001002",
+          "version": "v1",
+          "params": null
+        },
+        "govNCP": null
+      }
     }
   },
   "nonce": "0x0",
   "timestamp": "0x0",
-  "extraData": "0xf85a808080c0c080c0c0f850dad994a9999227819d1aabbdd8601a0ad0f99ed589aaa4831cfde0c180f1b08bcd46d66e0376687134a70234d70f601faab468052b7b106f0e80854dfe7ee903be0fa380a5f8db302ecd22483d32f801",
+  "extraData": "0xf85a808080c0c080c0c0f850dad99462a730ca988232a760fe8ad5c21baf4913f73522831cfde0c180f1b08ef46b0001a8572330a62109d48ebd3b209b0bc6941f12db5ea91bff28e8a686251ed59d4f7654f5e44e95072b54b50201",
   "gasLimit": "0x23f3e20",
   "difficulty": "0x1",
   "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -145,6 +144,9 @@
     "5f552da00dfb4d3749d9e62dcee3c918855a86a0": {
       "balance": "0xc097ce7bc90715b34b9f1000000000"
     },
+    "62a730ca988232a760fe8ad5c21baf4913f73522": {
+      "balance": "0xc097ce7bc90715b34b9f1000000000"
+    },
     "654aa64f5fbefb84c270ec74211b81ca8c44a72e": {
       "balance": "0xc097ce7bc90715b34b9f1000000000"
     },
@@ -172,9 +174,6 @@
       },
       "balance": "0x1",
       "nonce": "0x1"
-    },
-    "a9999227819d1aabbdd8601a0ad0f99ed589aaa4": {
-      "balance": "0xc097ce7bc90715b34b9f1000000000"
     },
     "c7b99a164efd027a93f147376cc7da7c67c6bbe0": {
       "balance": "0xc097ce7bc90715b34b9f1000000000"

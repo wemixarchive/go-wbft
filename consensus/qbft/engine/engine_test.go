@@ -526,22 +526,23 @@ func TestEpochInfo(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = params.TestQBFTChainConfig
-			engine := NewEngine(&qbft.Config{
-				ProposerPolicy:              qbft.NewRoundRobinProposerPolicy(),
-				Epoch:                       3,
-				StabilizingStakersThreshold: c.chainConfig.MontBlanc.WBFT.StabilizingStakersThreshold,
-			}, common.Address{}, nil, nil)
+			qbftCfg := new(qbft.Config)
+			qbft.SetConfigFromChainConfig(qbftCfg, c.chainConfig)
+			qbftCfg.Epoch = 3
+
+			engine := NewEngine(qbftCfg, common.Address{}, nil, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 
 			db := rawdb.NewMemoryDatabase()
 			tdb := state.NewDatabase(db)
 			statedb, _ := state.New(types.EmptyRootHash, tdb, nil)
-			transition, _ := qbft.GetMontBlancTransition(c.chainConfig, parent.Number)
-			for _, c := range transition.Codes {
+
+			st, _ := qbft.GetGovContractsStateTransition(qbftCfg, parent.Number)
+			for _, c := range st.Codes {
 				statedb.SetCode(c.Address, hexutil.MustDecode(c.Code))
 			}
-			for _, s := range transition.States {
+			for _, s := range st.States {
 				statedb.SetState(s.Address, s.Key, s.Value)
 			}
 
@@ -829,6 +830,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			c.chainConfig = params.TestQBFTChainConfig
 			c.chainConfig.BriocheBlock = nil
 			c.chainConfig.MontBlanc.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(3000000))
+			tc.qbftConfig.BlockReward = c.chainConfig.MontBlanc.WBFT.BlockReward
 
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 			engine := NewEngine(tc.qbftConfig, common.Address{}, nil, nil)
@@ -861,8 +863,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 					Delegated:   big.NewInt(0),
 				}
 			}
-
-			blockReward := c.Config().MontBlanc.WBFT.GetBlockReward(h.Number)
+			blockReward := new(big.Int).Set((*big.Int)(tc.qbftConfig.GetConfig(h.Number).BlockReward))
 			origBlockReward := new(big.Int).Set(blockReward)
 			engine.calculateRewards(
 				c,
@@ -872,8 +873,8 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			)
 
 			// Check QBFT config intact
-			if c.Config().MontBlanc.WBFT.GetBlockReward(h.Number).Cmp(origBlockReward) != 0 {
-				t.Errorf("expected block reward config mismatch: have %v, want %v", c.Config().MontBlanc.WBFT.GetBlockReward(h.Number), origBlockReward)
+			if new(big.Int).Set((*big.Int)(tc.qbftConfig.GetConfig(h.Number).BlockReward)).Cmp(origBlockReward) != 0 {
+				t.Errorf("expected block reward config mismatch: have %v, want %v", new(big.Int).Set((*big.Int)(tc.qbftConfig.GetConfig(h.Number).BlockReward)), origBlockReward)
 			}
 
 			// Validate rewards
@@ -1065,7 +1066,7 @@ func TestIsEpochBlock(t *testing.T) {
 			qbft.Config{
 				Epoch: 100,
 				Transitions: []params.Transition{
-					{Block: new(big.Int).SetUint64(1101), EpochLength: 200},
+					{Block: new(big.Int).SetUint64(1101), WBFTConfig: &params.WBFTConfig{EpochLength: 200}},
 				},
 			},
 			new(big.Int).SetUint64(1100), // before transition
@@ -1081,7 +1082,7 @@ func TestIsEpochBlock(t *testing.T) {
 			qbft.Config{
 				Epoch: 100,
 				Transitions: []params.Transition{
-					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+					{Block: new(big.Int).SetUint64(1100), WBFTConfig: &params.WBFTConfig{EpochLength: 200}},
 				},
 			},
 			new(big.Int).SetUint64(1100), // on transition
@@ -1097,7 +1098,7 @@ func TestIsEpochBlock(t *testing.T) {
 			qbft.Config{
 				Epoch: 100,
 				Transitions: []params.Transition{
-					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
+					{Block: new(big.Int).SetUint64(1100), WBFTConfig: &params.WBFTConfig{EpochLength: 200}},
 				},
 			},
 			new(big.Int).SetUint64(1200),
@@ -1113,7 +1114,7 @@ func TestIsEpochBlock(t *testing.T) {
 			qbft.Config{
 				Epoch: 100,
 				Transitions: []params.Transition{
-					{Block: new(big.Int).SetUint64(950), EpochLength: 50},
+					{Block: new(big.Int).SetUint64(950), WBFTConfig: &params.WBFTConfig{EpochLength: 50}},
 				},
 			},
 			new(big.Int).SetUint64(1050),
@@ -1129,8 +1130,8 @@ func TestIsEpochBlock(t *testing.T) {
 			qbft.Config{
 				Epoch: 100,
 				Transitions: []params.Transition{
-					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
-					{Block: new(big.Int).SetUint64(1300), EpochLength: 100},
+					{Block: new(big.Int).SetUint64(1100), WBFTConfig: &params.WBFTConfig{EpochLength: 200}},
+					{Block: new(big.Int).SetUint64(1300), WBFTConfig: &params.WBFTConfig{EpochLength: 100}},
 				},
 			},
 			new(big.Int).SetUint64(1200),
@@ -1146,8 +1147,8 @@ func TestIsEpochBlock(t *testing.T) {
 			qbft.Config{
 				Epoch: 100,
 				Transitions: []params.Transition{
-					{Block: new(big.Int).SetUint64(1100), EpochLength: 200},
-					{Block: new(big.Int).SetUint64(1300), EpochLength: 50},
+					{Block: new(big.Int).SetUint64(1100), WBFTConfig: &params.WBFTConfig{EpochLength: 200}},
+					{Block: new(big.Int).SetUint64(1300), WBFTConfig: &params.WBFTConfig{EpochLength: 50}},
 				},
 			},
 			new(big.Int).SetUint64(1350),
@@ -1163,8 +1164,8 @@ func TestIsEpochBlock(t *testing.T) {
 			qbft.Config{
 				Epoch: 100,
 				Transitions: []params.Transition{
-					{Block: new(big.Int).SetUint64(1100), EpochLength: 10},
-					{Block: new(big.Int).SetUint64(1300), EpochLength: 50},
+					{Block: new(big.Int).SetUint64(1100), WBFTConfig: &params.WBFTConfig{EpochLength: 10}},
+					{Block: new(big.Int).SetUint64(1300), WBFTConfig: &params.WBFTConfig{EpochLength: 50}},
 				},
 			},
 			new(big.Int).SetUint64(1310),
