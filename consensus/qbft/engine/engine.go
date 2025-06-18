@@ -195,15 +195,6 @@ func (e *Engine) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return consensus.ErrFutureBlock
 	}
 
-	if _, err := types.ExtractQBFTExtra(header); err != nil {
-		return qbftcommon.ErrInvalidExtraDataFormat
-	}
-
-	// Ensure that the mix digest is zero as we don't have fork protection currently
-	//if header.MixDigest != types.IstanbulDigest {
-	//	return qbftcommon.ErrInvalidMixDigest
-	//}
-
 	// Ensure that the block doesn't contain any uncles which are meaningless in Istanbul
 	if header.UncleHash != nilUncleHash {
 		return qbftcommon.ErrInvalidUncleHash
@@ -293,18 +284,19 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return err
 	}
 
-	// Verify seals
-	if checkSeal {
-		if err := e.verifySeals(header, validators); err != nil {
-			return err
-		}
-	}
-
-	// verify extra RandaoMix and RandaoReveal
+	// extract the extra data from the header
 	currentExtra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
 		return fmt.Errorf("failed to extract QBFT extra from header: %w", err)
 	}
+
+	// Verify seals
+	if checkSeal {
+		if err := e.verifySeals(header, validators, currentExtra); err != nil {
+			return err
+		}
+	}
+
 	if err := e.checkSig(makeRandaoData(chain.Config(), header.Number), header.Coinbase, currentExtra.RandaoReveal); err != nil {
 		return fmt.Errorf("failed to verify randao reveal signature: %w", err)
 	}
@@ -318,7 +310,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		// if montBlanc == 0: montBlanc+1(== 1) has no prev seals;
 		// if montBlanc > 0: montBlanc+1 has prev seals;
 		// Verify prevPreparedSeals and prevCommittedSeals
-		if err := e.verifyPrevSeals(header, parent, prevValidators); err != nil {
+		if err := e.verifyPrevSeals(header, parent, prevValidators, currentExtra); err != nil {
 			return err
 		}
 	}
@@ -348,15 +340,10 @@ func (e *Engine) verifySigner(chain consensus.ChainHeaderReader, header *types.H
 }
 
 // verifyPrevSeals checks whether every prevPreparedSeals and prevCommittedSeals are signed by one of the parent's validators
-func (e *Engine) verifyPrevSeals(header *types.Header, parent *types.Header, prevValidators qbft.ValidatorSet) error {
+func (e *Engine) verifyPrevSeals(header *types.Header, parent *types.Header, prevValidators qbft.ValidatorSet, extra *types.QBFTExtra) error {
 	if parent.Number.Sign() == 0 {
 		// We don't need to verify prepared seals in the genesis block
 		return nil
-	}
-
-	extra, err := types.ExtractQBFTExtra(header)
-	if err != nil {
-		return err
 	}
 
 	prevPreparedSeal := extra.PrevPreparedSeal
@@ -383,17 +370,12 @@ func (e *Engine) verifyPrevSeals(header *types.Header, parent *types.Header, pre
 }
 
 // verifySeals checks whether every prepared seals and committed seals are signed by one of validators
-func (e *Engine) verifySeals(header *types.Header, validators qbft.ValidatorSet) error {
+func (e *Engine) verifySeals(header *types.Header, validators qbft.ValidatorSet, extra *types.QBFTExtra) error {
 	number := header.Number.Uint64()
 
 	if number == 0 {
 		// We don't need to verify committed seals in the genesis block
 		return nil
-	}
-
-	extra, err := types.ExtractQBFTExtra(header)
-	if err != nil {
-		return err
 	}
 
 	preparedSeal := extra.PreparedSeal
