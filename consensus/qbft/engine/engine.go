@@ -287,7 +287,7 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	// extract the extra data from the header
 	currentExtra, err := types.ExtractQBFTExtra(header)
 	if err != nil {
-		return fmt.Errorf("failed to extract QBFT extra from header: %w", err)
+		return qbftcommon.ErrInvalidExtraDataFormat
 	}
 
 	// Verify seals
