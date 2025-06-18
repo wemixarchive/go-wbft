@@ -213,6 +213,7 @@ type WBFTConfig struct {
 	BlockPeriodSeconds          uint64                `json:"blockPeriodSeconds"`               // Minimum time between two consecutive QBFT blocks’ timestamps in seconds
 	EpochLength                 uint64                `json:"epochLength"`                      // The duration during which a fixed validator set remains active
 	BlockReward                 *math.HexOrDecimal256 `json:"blockReward,omitempty"`            // Reward from start, works only on QBFT consensus protocol
+	AllowedFutureBlockTime      uint64                `json:"allowedFutureBlockTime,omitempty"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 	BlockRewardBeneficiary      *BeneficiaryInfo      `json:"blockRewardBeneficiary,omitempty"` // Reward beneficiaries
 	ProposerPolicy              *uint64               `json:"proposerPolicy"`                   // The policy for proposer selection
 	TargetValidators            *uint64               `json:"targetValidators"`                 // Target number of validators
