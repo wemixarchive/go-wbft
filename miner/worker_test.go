@@ -28,8 +28,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/consensus/qbft"
-	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
+	"github.com/ethereum/go-ethereum/consensus/wbft"
+	wbftBackend "github.com/ethereum/go-ethereum/consensus/wbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/txpool"
@@ -60,7 +60,7 @@ var (
 	ethashChainConfig *params.ChainConfig
 	cliqueChainConfig *params.ChainConfig
 	wbftChainConfig   *params.ChainConfig
-	wbftConfig        *qbft.Config
+	wbftConfig        *wbft.Config
 
 	// Test accounts
 	testBankKey, _  = crypto.GenerateKey()
@@ -101,16 +101,16 @@ func init() {
 		Epoch:  30000,
 	}
 	wbftChainConfig = new(params.ChainConfig)
-	*wbftChainConfig = *params.TestQBFTChainConfig
+	*wbftChainConfig = *params.TestWBFTChainConfig
 	wbftChainConfig.MontBlanc.Init.Validators = []common.Address{testBankAddress}
 	wbftChainConfig.MontBlanc.Init.BLSPublicKeys = []string{hexutil.Encode(testBlsKey.PublicKey().Marshal())}
 	wbftChainConfig.Ethash = nil
 
-	wbftConfig = new(qbft.Config)
+	wbftConfig = new(wbft.Config)
 	wbftConfig.BlockPeriod = wbftChainConfig.MontBlanc.WBFT.BlockPeriodSeconds
 	wbftConfig.RequestTimeout = wbftChainConfig.MontBlanc.WBFT.RequestTimeoutSeconds * 1000
 	wbftConfig.Epoch = wbftChainConfig.MontBlanc.WBFT.EpochLength
-	wbftConfig.ProposerPolicy = qbft.NewProposerPolicy(qbft.ProposerPolicyId(*wbftChainConfig.MontBlanc.WBFT.ProposerPolicy))
+	wbftConfig.ProposerPolicy = wbft.NewProposerPolicy(wbft.ProposerPolicyId(*wbftChainConfig.MontBlanc.WBFT.ProposerPolicy))
 	wbftConfig.BlockReward = wbftChainConfig.MontBlanc.WBFT.BlockReward
 	wbftConfig.BlockRewardBeneficiary = wbftChainConfig.MontBlanc.WBFT.BlockRewardBeneficiary
 	wbftConfig.TargetValidators = *wbftChainConfig.MontBlanc.WBFT.TargetValidators
@@ -158,11 +158,11 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 			return crypto.Sign(crypto.Keccak256(data), testBankKey)
 		})
 	case *ethash.Ethash:
-	case *qbftBackend.Backend:
+	case *wbftBackend.Backend:
 		gspec.Difficulty = new(big.Int).SetUint64(1)
 		testBankBlsKey, _ := bls.DeriveFromECDSA(testBankKey)
 		testBankBlsPubKey := testBankBlsKey.PublicKey()
-		sampleExtra := &types.QBFTExtra{
+		sampleExtra := &types.WBFTExtra{
 			VanityData: []byte("WEMIX MontBlanc chain block"),
 			Round:      0,
 			EpochInfo: &types.EpochInfo{
@@ -271,9 +271,9 @@ func TestEmptyWorkClique(t *testing.T) {
 
 func TestEmptyWorkWBFT(t *testing.T) {
 	t.Parallel()
-	config := qbft.DefaultConfig
+	config := wbft.DefaultConfig
 	config.BlockPeriod = 1
-	testEmptyWork(t, wbftChainConfig, qbftBackend.New(config, testBankKey, rawdb.NewMemoryDatabase()))
+	testEmptyWork(t, wbftChainConfig, wbftBackend.New(config, testBankKey, rawdb.NewMemoryDatabase()))
 }
 
 func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
@@ -427,7 +427,7 @@ func TestGetSealingWorkPostMerge(t *testing.T) {
 
 func TestGetSealingWorkWBFT(t *testing.T) {
 	t.Parallel()
-	testGetSealingWork(t, wbftChainConfig, qbftBackend.New(wbftConfig, testBankKey, rawdb.NewMemoryDatabase()))
+	testGetSealingWork(t, wbftChainConfig, wbftBackend.New(wbftConfig, testBankKey, rawdb.NewMemoryDatabase()))
 }
 
 func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
@@ -452,7 +452,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 			t.Logf("Invalid timestamp, want %d, get %d", timestamp, block.Time())
 		}
 		_, isClique := engine.(*clique.Clique)
-		_, isWbft := engine.(*qbftBackend.Backend)
+		_, isWbft := engine.(*wbftBackend.Backend)
 		if !isClique && !isWbft {
 			if len(block.Extra()) != 2 {
 				t.Error("Unexpected extra field")

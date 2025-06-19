@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/consensus/qbft"
+	"github.com/ethereum/go-ethereum/consensus/wbft"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -263,7 +263,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 			}
 
 			var err error
-			genesis.ExtraData, err = qbft.CreateInitialExtraData(genesis.Config.MontBlanc)
+			genesis.ExtraData, err = wbft.CreateInitialExtraData(genesis.Config.MontBlanc)
 			if err != nil {
 				return genesis.Config, common.Hash{}, err
 			}
@@ -294,7 +294,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 				return nil, common.Hash{}, fmt.Errorf("Invalid genesis config: %v", err)
 			}
 			var err error
-			genesis.ExtraData, err = qbft.CreateInitialExtraData(genesis.Config.MontBlanc)
+			genesis.ExtraData, err = wbft.CreateInitialExtraData(genesis.Config.MontBlanc)
 			if err != nil {
 				return genesis.Config, stored, err
 			}

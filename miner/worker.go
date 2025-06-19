@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 //
-// The "## Quorum QBFT" mark is code referenced from quorum/miner/worker.go (2024.07.25).
-// Modified and improved for the wemix development
 
 package miner
 
@@ -33,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
-	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
+	wbftBackend "github.com/ethereum/go-ethereum/consensus/wbft/backend"
 	"github.com/ethereum/go-ethereum/consensus/wemix"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -91,7 +89,7 @@ var (
 )
 
 var (
-	commitWorkTimer = metrics.NewRegisteredTimer("consensus/qbft/core/commitwork", nil)
+	commitWorkTimer = metrics.NewRegisteredTimer("consensus/wbft/core/commitwork", nil)
 )
 
 // environment is the worker's current environment and holds all
@@ -404,8 +402,8 @@ func (w *worker) readyToCommit(waitTime time.Duration, round *big.Int) {
 // start sets the running status as 1 and triggers new work submitting.
 func (w *worker) start() {
 	w.running.Store(true)
-	if qbftEngine, ok := w.engine.(*qbftBackend.Backend); ok {
-		qbftEngine.Start(w.chain, w.chain.CurrentFullBlock, rawdb.HasBadBlock, w.readyToCommit)
+	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
+		wbftEngine.Start(w.chain, w.chain.CurrentFullBlock, rawdb.HasBadBlock, w.readyToCommit)
 	} else if wemixEngine, ok := w.engine.(*wemix.MontBlancConsensus); ok {
 		wemixEngine.Start(w.chainConfig, w.chain, w.chain.CurrentFullBlock, w.eth.BlockChain().SubscribeChainHeadEvent, w.readyToCommit)
 	}
@@ -414,8 +412,8 @@ func (w *worker) start() {
 
 // stop sets the running status as 0.
 func (w *worker) stop() {
-	if qbftEngine, ok := w.engine.(*qbftBackend.Backend); ok {
-		qbftEngine.Stop()
+	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
+		wbftEngine.Stop()
 	} else if wemixEngine, ok := w.engine.(*wemix.MontBlancConsensus); ok {
 		wemixEngine.Stop()
 	}

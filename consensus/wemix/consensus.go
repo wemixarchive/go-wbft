@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/qbft"
-	qbftBackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
+	"github.com/ethereum/go-ethereum/consensus/wbft"
+	wbftBackend "github.com/ethereum/go-ethereum/consensus/wbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -22,12 +22,12 @@ import (
 
 type MontBlancConsensus struct {
 	legacy consensus.Engine
-	wbft   *qbftBackend.Backend
+	wbft   *wbftBackend.Backend
 	stopCh chan struct{}
 }
 
-func NewMontBlancEngine(legacyEngine consensus.Engine, config *qbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Engine {
-	wbft := qbftBackend.New(config, privateKey, db)
+func NewMontBlancEngine(legacyEngine consensus.Engine, config *wbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Engine {
+	wbft := wbftBackend.New(config, privateKey, db)
 
 	result := &MontBlancConsensus{
 		legacy: legacyEngine,

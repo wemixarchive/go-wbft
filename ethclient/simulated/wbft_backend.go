@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
-	qbftbackend "github.com/ethereum/go-ethereum/consensus/qbft/backend"
+	wbftBackend "github.com/ethereum/go-ethereum/consensus/wbft/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -51,7 +51,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 
 	ethConf := ethconfig.Defaults
 	ethConf.Genesis = &core.Genesis{
-		Config:     params.TestQBFTChainConfig,
+		Config:     params.TestWBFTChainConfig,
 		GasLimit:   ethconfig.Defaults.Miner.GasCeil,
 		Alloc:      alloc,
 		Difficulty: new(big.Int).SetUint64(1),
@@ -90,7 +90,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 }
 
 func genExtraData(validator common.Address, blsPubKey []byte) []byte {
-	sampleExtra := &types.QBFTExtra{
+	sampleExtra := &types.WBFTExtra{
 		VanityData: []byte("WEMIX MontBlanc chain block"),
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
@@ -126,14 +126,14 @@ func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
 	if err := stack.Start(); err != nil {
 		return nil, err
 	}
-	// Start Miner & QBFT Engine
+	// Start Miner & WBFT Engine
 	backend.StartMining()
-	qbftEngine := backend.Engine().(*qbftbackend.Backend)
-	backend.Miner().InjectSimApplierTo(qbftEngine)
-	if !qbftEngine.IsRunning() {
+	wbftEngine := backend.Engine().(*wbftBackend.Backend)
+	backend.Miner().InjectSimApplierTo(wbftEngine)
+	if !wbftEngine.IsRunning() {
 		ticker := time.NewTicker(0.1e9) // 0.1s
 		for range ticker.C {
-			if qbftEngine.IsRunning() {
+			if wbftEngine.IsRunning() {
 				ticker.Stop()
 				break
 			}
@@ -153,8 +153,8 @@ func (n *WbftBackend) Close() error {
 		n.client.Close()
 		n.client = WbftClient{}
 	}
-	if qbftEngine, ok := n.Engine().(*qbftbackend.Backend); ok {
-		if err := qbftEngine.Stop(); err != nil {
+	if wbftEngine, ok := n.Engine().(*wbftBackend.Backend); ok {
+		if err := wbftEngine.Stop(); err != nil {
 			return err
 		}
 	}

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/qbft"
+	"github.com/ethereum/go-ethereum/consensus/wbft"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -32,7 +32,7 @@ func combineGovContracts(source *params.GovContracts, target *params.GovContract
 	}
 }
 
-func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *qbft.Config, num *big.Int) {
+func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *wbft.Config, num *big.Int) {
 	number := num.Uint64()
 	if ss.adjustedBlockPeriod[number] > 0 {
 		config.Transitions = append(config.Transitions, params.Transition{

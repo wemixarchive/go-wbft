@@ -220,7 +220,7 @@ func initGenesis(ctx *cli.Context) error {
 		overrides.OverrideVerkle = &v
 	}
 
-	// Check sanity for QBFT.
+	// Check sanity for WBFT.
 	if genesis.Config.MontBlancEnabled() {
 		if err := genesis.Config.MontBlanc.CheckValidity(); err != nil {
 			utils.Fatalf("Invalid genesis config: %v", err)

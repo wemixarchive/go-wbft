@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 //
-// The "## Quorum QBFT" mark is code referenced from quorum/params/config.go (2024.07.25).
-// Modified and improved for the wemix development
 
 package params
 
@@ -531,10 +529,10 @@ var (
 		},
 	}
 
-	// TestQBFTChainConfig contains every protocol change (EIPs) introduced
+	// TestWBFTChainConfig contains every protocol change (EIPs) introduced
 	// and accepted by the Ethereum core developers for testing purposes
-	// and used for QBFT engine tests.
-	TestQBFTChainConfig = &ChainConfig{
+	// and used for WBFT engine tests.
+	TestWBFTChainConfig = &ChainConfig{
 		ChainID:                       big.NewInt(1111),
 		HomesteadBlock:                big.NewInt(0),
 		DAOForkBlock:                  nil,

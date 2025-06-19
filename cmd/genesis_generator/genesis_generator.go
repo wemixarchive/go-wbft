@@ -137,7 +137,7 @@ func (g *genesisGenerator) makeGenesis() {
 }
 
 func (g *genesisGenerator) wbftChainConfig() {
-	g.Genesis.Difficulty = types.QBFTDefaultDifficulty
+	g.Genesis.Difficulty = types.WBFTDefaultDifficulty
 	fmt.Println()
 	fmt.Println("Which accounts are allowed to seal? (mandatory at least one)")
 
