@@ -85,7 +85,7 @@ var (
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
-	errSkipMiningBeforeMontBlanc  = errors.New("skipping block preparation before MontBlanc hard fork")
+	errSkipMiningBeforeCroissant  = errors.New("skipping block preparation before Croissant hard fork")
 )
 
 var (
@@ -404,7 +404,7 @@ func (w *worker) start() {
 	w.running.Store(true)
 	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
 		wbftEngine.Start(w.chain, w.chain.CurrentFullBlock, rawdb.HasBadBlock, w.readyToCommit)
-	} else if wemixEngine, ok := w.engine.(*wemix.MontBlancConsensus); ok {
+	} else if wemixEngine, ok := w.engine.(*wemix.CroissantConsensus); ok {
 		wemixEngine.Start(w.chainConfig, w.chain, w.chain.CurrentFullBlock, w.eth.BlockChain().SubscribeChainHeadEvent, w.readyToCommit)
 	}
 	w.startCh <- struct{}{}
@@ -414,7 +414,7 @@ func (w *worker) start() {
 func (w *worker) stop() {
 	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
 		wbftEngine.Stop()
-	} else if wemixEngine, ok := w.engine.(*wemix.MontBlancConsensus); ok {
+	} else if wemixEngine, ok := w.engine.(*wemix.CroissantConsensus); ok {
 		wemixEngine.Stop()
 	}
 
@@ -463,7 +463,7 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 
 // newWorkLoop is a standalone goroutine to submit new sealing work upon received events.
 func (w *worker) newWorkLoop(recommit time.Duration) {
-	if w.chainConfig.MontBlanc == nil {
+	if w.chainConfig.Croissant == nil {
 		w.newWorkLoopOrigin(recommit)
 	} else {
 		w.newWorkLoopWBFT()
@@ -1123,10 +1123,10 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		header.ParentBeaconRoot = genParams.beaconRoot
 	}
 
-	if w.chainConfig.MontBlancBlock != nil && !w.chainConfig.IsMontBlanc(header.Number) {
-		// If we are not in the MontBlanc phase, we don't prepare a block
-		log.Info("Skipping block preparation before MontBlanc hard fork", "number", header.Number, "fork", w.chainConfig.MontBlancBlock)
-		return nil, errSkipMiningBeforeMontBlanc
+	if w.chainConfig.CroissantBlock != nil && !w.chainConfig.IsCroissant(header.Number) {
+		// If we are not in the Croissant phase, we don't prepare a block
+		log.Info("Skipping block preparation before Croissant hard fork", "number", header.Number, "fork", w.chainConfig.CroissantBlock)
+		return nil, errSkipMiningBeforeCroissant
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
@@ -1261,7 +1261,7 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 		coinbase:  coinbase,
 	})
 	if err != nil {
-		if !errors.Is(err, errSkipMiningBeforeMontBlanc) {
+		if !errors.Is(err, errSkipMiningBeforeCroissant) {
 			log.Error("Fail to prepare work", "err", err)
 		}
 		return

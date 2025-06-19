@@ -163,27 +163,27 @@ The existing miner worker is designed to be fit to the ethash algorithm. When a 
 - The WBFT engine waits for the block period before notifying the worker(In the existing IBFT, the block period was waited for when sealing the block).
 - When new work starts, the worker begins the process of preparing the block.
 
-### Mont Blanc hard fork
-WBFT is not only implemented to run a WBFT chain from genesis but is also designed and implemented to enable a hard fork from a legacy chain to the WBFT chain. This hard fork is named the `Mont Blanc` hard fork.
-You should define the Mont Blanc hard fork in genesis.json to run a WBFT chain. Two chain configs are added for Mont Blanc hard fork; `MontBlancBlock` and `montBlanc`.
-- `montBlancBlock`: Defines the block height at which the Mont Blanc hard fork occurs. You can set it to zero for the genesis block.
-- `montBlanc`: Defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `upgrades`.
+### Croissant hard fork
+WBFT is not only implemented to run a WBFT chain from genesis but is also designed and implemented to enable a hard fork from a legacy chain to the WBFT chain. This hard fork is named the `Croissant` hard fork.
+You should define the Croissant hard fork in genesis.json to run a WBFT chain. Two chain configs are added for Croissant hard fork; `croissantBlock` and `croissant`.
+- `croissantBlock`: Defines the block height at which the Croissant hard fork occurs. You can set it to zero for the genesis block.
+- `croissant`: Defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `upgrades`.
 
-Setting `montBlancBlock` to 0 triggers WBFT-related initialization in the genesis block when executing the `geth init` command. Conversely, if `montBlancBlock` is set to 1 or greater, WBFT-related initialization occurs when the Mont Blanc block is created and finalized.
-The Mont Blanc hard fork protocols are as follows:
-- WBFT validator nodes just imports blocks from legacy chain miners before Mont Blanc hard fork.
-- WBFT validator nodes supposes that legacy miners would stop block creation when it is time to create the Mont Blanc block (i.e., they create blocks up to just before the Mont Blanc hard fork).
-- WBFT validator nodes recognize the Mont Blanc hard fork and can obtain the validator set from the WBFT config when it is their turn to create this block.
+Setting `croissantBlock` to 0 triggers WBFT-related initialization in the genesis block when executing the `geth init` command. Conversely, if `croissantBlock` is set to 1 or greater, WBFT-related initialization occurs when the Croissant block is created and finalized.
+The Croissant hard fork protocols are as follows:
+- WBFT validator nodes just imports blocks from legacy chain miners before Croissant hard fork.
+- WBFT validator nodes supposes that legacy miners would stop block creation when it is time to create the Croissant block (i.e., they create blocks up to just before the Croissant hard fork).
+- WBFT validator nodes recognize the Croissant hard fork and can obtain the validator set from the WBFT config when it is their turn to create this block.
 - WBFT validator nodes can create blocks and proceed with consensus once they can obtain the validator set.
-- The Mont Blanc block is a special block. Validators that receive this block perform additional tasks to deploy and initialize the governance contracts.
-- The Mont Blanc block is the first epoch block of WBFT. Therefore, the first validator set is recorded.
-- The first epoch starts from the block after the Mont Blanc block, during which stakers start staking from zero.
+- The Croissant block is a special block. Validators that receive this block perform additional tasks to deploy and initialize the governance contracts.
+- The Croissant block is the first epoch block of WBFT. Therefore, the first validator set is recorded.
+- The first epoch starts from the block after the Croissant block, during which stakers start staking from zero.
 - If the number of stakers is equal to or greater than the minimum stakers during the first epoch, these stakers become validators from the next epoch.
 - If the number of stakers is less than the minimum stakers during the first epoch, the initial validator set is maintained.
 
 #### Compatibility with Ethereum hard forks
-- Mont Blanc hard fork includes all feature of the `London` hard fork and priors.
-- Mont Blanc hard fork includes new evm instructions of the `Shanghai` and `Cancun` hard forks.
+- Croissant hard fork includes all feature of the `London` hard fork and priors.
+- Croissant hard fork includes new evm instructions of the `Shanghai` and `Cancun` hard forks.
   - EIP-3855 (PUSH0 opcode)
   - EIP-3860 (Limit and meter initcode)
   - EIP-1153 (Transient Storage)
@@ -192,11 +192,11 @@ The Mont Blanc hard fork protocols are as follows:
   - EIP-4339 (PREVRANDAO opcode)
 
 ### Modified Structures
-The existing QBFT Config was revised by removing unnecessary fields and adding required ones, resulting in the following structure.
+The existing WBFT Config was revised by removing unnecessary fields and adding required ones, resulting in the following structure.
 If you want to use the WBFT consensus, you should use the following chain config in genesis.json.
 ```
-"montBlancBlock": 1000000,
-"montBlanc": {
+"croissantBlock": 1000000,
+"croissant": {
   "wBFT": {
     "requestTimeoutSeconds": 2,
     "blockPeriodSeconds": 1,
@@ -251,8 +251,8 @@ If you want to use the WBFT consensus, you should use the following chain config
   "upgrades": null
 }
 ```
-- `montBlancBlock` defines the block height at which the mont blanc hard fork occurs. You can set it to zero for the genesis block.
-- `montBlanc` defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `upgrades`.
+- `croissantBlock` defines the block height at which the mont blanc hard fork occurs. You can set it to zero for the genesis block.
+- `croissant` defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `upgrades`.
 - `wBFT` defines the WBFT consensus engine parameters:
 - `blockRewardBeneficiary` defines the address that will receive the block minting rewards consistently.
 - `targetValidators` should be less than or equals to `epochLength`.
@@ -306,7 +306,7 @@ Consequently:
 
 WEMIX 3.5 defines a hard fork from the existing WEMIX SPoA consensus to the WBFT consensus and adopts an intermediate consensus method with some features disabled for a safe transition to WBFT.
 
-#### MontBlanc hard fork
+#### Croissant hard fork
 
 WBFT is designed to record the first epoch information in the genesis block. However, since the WEMIX chain needs to transition from an already existing chain to a WBFT chain, exception rules for this are defined in the mont blanc hard fork. The following protocol applies to this hard fork:
 - WPoA validator nodes stop block creation when it is time to create the mont blanc block (i.e., they create blocks up to just before the mont blanc hard fork).
@@ -571,8 +571,8 @@ aware of and agree upon. This consists of a small JSON file (e.g. call it `genes
     "londonBlock": 0,
     "arrowGlacierBlock": 0,
     "grayGlacierBlock": 0,
-    "montBlancBlock": 0,
-    "montBlanc": {
+    "croissantBlock": 0,
+    "croissant": {
       "wBFT": {
         "requestTimeoutSeconds": 2,
         "blockPeriodSeconds": 1,

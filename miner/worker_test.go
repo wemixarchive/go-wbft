@@ -87,34 +87,34 @@ func init() {
 	ethashChainConfig = new(params.ChainConfig)
 	*ethashChainConfig = *params.TestChainConfig
 	ethashChainConfig.BriocheBlock = nil
-	ethashChainConfig.MontBlancBlock = nil
+	ethashChainConfig.CroissantBlock = nil
 	ethashChainConfig.Brioche = nil
-	ethashChainConfig.MontBlanc = nil
+	ethashChainConfig.Croissant = nil
 	cliqueChainConfig = new(params.ChainConfig)
 	*cliqueChainConfig = *params.TestChainConfig
 	cliqueChainConfig.BriocheBlock = nil
-	cliqueChainConfig.MontBlancBlock = nil
+	cliqueChainConfig.CroissantBlock = nil
 	cliqueChainConfig.Brioche = nil
-	cliqueChainConfig.MontBlanc = nil
+	cliqueChainConfig.Croissant = nil
 	cliqueChainConfig.Clique = &params.CliqueConfig{
 		Period: 10,
 		Epoch:  30000,
 	}
 	wbftChainConfig = new(params.ChainConfig)
 	*wbftChainConfig = *params.TestWBFTChainConfig
-	wbftChainConfig.MontBlanc.Init.Validators = []common.Address{testBankAddress}
-	wbftChainConfig.MontBlanc.Init.BLSPublicKeys = []string{hexutil.Encode(testBlsKey.PublicKey().Marshal())}
+	wbftChainConfig.Croissant.Init.Validators = []common.Address{testBankAddress}
+	wbftChainConfig.Croissant.Init.BLSPublicKeys = []string{hexutil.Encode(testBlsKey.PublicKey().Marshal())}
 	wbftChainConfig.Ethash = nil
 
 	wbftConfig = new(wbft.Config)
-	wbftConfig.BlockPeriod = wbftChainConfig.MontBlanc.WBFT.BlockPeriodSeconds
-	wbftConfig.RequestTimeout = wbftChainConfig.MontBlanc.WBFT.RequestTimeoutSeconds * 1000
-	wbftConfig.Epoch = wbftChainConfig.MontBlanc.WBFT.EpochLength
-	wbftConfig.ProposerPolicy = wbft.NewProposerPolicy(wbft.ProposerPolicyId(*wbftChainConfig.MontBlanc.WBFT.ProposerPolicy))
-	wbftConfig.BlockReward = wbftChainConfig.MontBlanc.WBFT.BlockReward
-	wbftConfig.BlockRewardBeneficiary = wbftChainConfig.MontBlanc.WBFT.BlockRewardBeneficiary
-	wbftConfig.TargetValidators = *wbftChainConfig.MontBlanc.WBFT.TargetValidators
-	wbftConfig.MaxRequestTimeoutSeconds = *wbftChainConfig.MontBlanc.WBFT.MaxRequestTimeoutSeconds
+	wbftConfig.BlockPeriod = wbftChainConfig.Croissant.WBFT.BlockPeriodSeconds
+	wbftConfig.RequestTimeout = wbftChainConfig.Croissant.WBFT.RequestTimeoutSeconds * 1000
+	wbftConfig.Epoch = wbftChainConfig.Croissant.WBFT.EpochLength
+	wbftConfig.ProposerPolicy = wbft.NewProposerPolicy(wbft.ProposerPolicyId(*wbftChainConfig.Croissant.WBFT.ProposerPolicy))
+	wbftConfig.BlockReward = wbftChainConfig.Croissant.WBFT.BlockReward
+	wbftConfig.BlockRewardBeneficiary = wbftChainConfig.Croissant.WBFT.BlockRewardBeneficiary
+	wbftConfig.TargetValidators = *wbftChainConfig.Croissant.WBFT.TargetValidators
+	wbftConfig.MaxRequestTimeoutSeconds = *wbftChainConfig.Croissant.WBFT.MaxRequestTimeoutSeconds
 
 	signer := types.LatestSigner(params.TestChainConfig)
 	tx1 := types.MustSignNewTx(testBankKey, signer, &types.AccessListTx{
@@ -163,7 +163,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 		testBankBlsKey, _ := bls.DeriveFromECDSA(testBankKey)
 		testBankBlsPubKey := testBankBlsKey.PublicKey()
 		sampleExtra := &types.WBFTExtra{
-			VanityData: []byte("WEMIX MontBlanc chain block"),
+			VanityData: []byte("WEMIX Croissant chain block"),
 			Round:      0,
 			EpochInfo: &types.EpochInfo{
 				Stakers: []*types.Staker{

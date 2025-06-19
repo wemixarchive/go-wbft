@@ -16,7 +16,7 @@ import (
 // SetConfigFromChainConfigForTest is a copy of ethconfig.SetConfigFromChainConfig
 // This function is used in test files to avoid cyclic import issues
 func SetConfigFromChainConfig(wbftCfg *Config, chainCfg *params.ChainConfig) error {
-	config := chainCfg.MontBlanc.WBFT
+	config := chainCfg.Croissant.WBFT
 	if config.RequestTimeoutSeconds != 0 {
 		wbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
 	}
@@ -47,7 +47,7 @@ func SetConfigFromChainConfig(wbftCfg *Config, chainCfg *params.ChainConfig) err
 
 	hfTransitionBlocks := make(map[*big.Int]bool)
 
-	//add hardforks that includes wbft config after montblanc here like :
+	//add hardforks that includes wbft config after croissant here like :
 	// transition := params.Transition{
 	// 	Block:      chainCfg.DalgonaBlock,
 	// 	WBFTConfig: chainCfg.Dalgona.WBFT,
@@ -74,8 +74,8 @@ func SetConfigFromChainConfig(wbftCfg *Config, chainCfg *params.ChainConfig) err
 		return wbftCfg.Transitions[i].Block.Cmp(wbftCfg.Transitions[j].Block) < 0
 	})
 
-	wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.MontBlancBlock, GovContracts: chainCfg.MontBlanc.GovContracts})
-	// add hardforks that includes govContracts after montblanc here like :
+	wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.CroissantBlock, GovContracts: chainCfg.Croissant.GovContracts})
+	// add hardforks that includes govContracts after croissant here like :
 	// wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.DalgonaBlock, GovContracts: chainCfg.Dalgona.GovContracts})
 	return nil
 }

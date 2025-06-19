@@ -98,7 +98,7 @@ func TestExtractToWBFTExtra(t *testing.T) {
 
 func TestGenerateExtra(t *testing.T) {
 	sampleExtra := &WBFTExtra{
-		VanityData: []byte("WEMIX MontBlanc chain block"),
+		VanityData: []byte("WEMIX Croissant chain block"),
 		EpochInfo: &EpochInfo{
 			Stakers: []*Staker{
 				{Addr: common.BytesToAddress(hexutil.MustDecode("0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697")), Diligence: DefaultDiligence},

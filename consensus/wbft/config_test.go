@@ -88,7 +88,7 @@ func (cw *chainConfigWrapper) addFakeHardFork(name string, blockNum *big.Int, wb
 
 // setConfigFromChainConfig is a test version of SetConfigFromChainConfig that works with fake hardForks
 func setConfigFromChainConfig(wbftCfg *Config, chainCfg *chainConfigWrapper) error {
-	config := chainCfg.MontBlanc.WBFT
+	config := chainCfg.Croissant.WBFT
 	if config.RequestTimeoutSeconds != 0 {
 		wbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
 	}
@@ -146,7 +146,7 @@ func setConfigFromChainConfig(wbftCfg *Config, chainCfg *chainConfigWrapper) err
 		return wbftCfg.Transitions[i].Block.Cmp(wbftCfg.Transitions[j].Block) < 0
 	})
 
-	wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.MontBlancBlock, GovContracts: chainCfg.MontBlanc.GovContracts})
+	wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.CroissantBlock, GovContracts: chainCfg.Croissant.GovContracts})
 	for _, hf := range chainCfg.fakeHardForks {
 		upgrade := params.Upgrade{
 			Block:        hf.blockNum,
@@ -328,7 +328,7 @@ func TestGetGovContracts(t *testing.T) {
 	)
 
 	setConfigFromChainConfig(wbftCfg, testConfig)
-	baseContracts := testConfig.MontBlanc.GovContracts
+	baseContracts := testConfig.Croissant.GovContracts
 
 	createExpectedGovContracts := func(baseConfig *params.GovContracts, modifications func(config *params.GovContracts)) params.GovContracts {
 		expected := *baseConfig

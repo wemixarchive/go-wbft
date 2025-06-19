@@ -61,9 +61,9 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 	blsKey, _ := bls.DeriveFromECDSA(nodeConf.P2P.PrivateKey)
 	blsPubKey := blsKey.PublicKey().Marshal()
 
-	ethConf.Genesis.Config.MontBlanc.Init.Validators = []common.Address{validator}
-	ethConf.Genesis.Config.MontBlanc.Init.BLSPublicKeys = []string{hexutil.Encode(blsPubKey)}
-	ethConf.Genesis.Config.MontBlanc.WBFT.AllowedFutureBlockTime = 3153600000 // disable time verification of a block ( == 100 years )
+	ethConf.Genesis.Config.Croissant.Init.Validators = []common.Address{validator}
+	ethConf.Genesis.Config.Croissant.Init.BLSPublicKeys = []string{hexutil.Encode(blsPubKey)}
+	ethConf.Genesis.Config.Croissant.WBFT.AllowedFutureBlockTime = 3153600000 // disable time verification of a block ( == 100 years )
 	ethConf.Genesis.ExtraData = genExtraData(validator, blsPubKey)            // simulated chain block
 	ethConf.SyncMode = downloader.FullSync
 	ethConf.Miner.GasPrice = big.NewInt(1)
@@ -91,7 +91,7 @@ func NewWbftBackend(alloc types.GenesisAlloc, options ...func(nodeConf *node.Con
 
 func genExtraData(validator common.Address, blsPubKey []byte) []byte {
 	sampleExtra := &types.WBFTExtra{
-		VanityData: []byte("WEMIX MontBlanc chain block"),
+		VanityData: []byte("WEMIX Croissant chain block"),
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: validator, Diligence: types.DefaultDiligence},
@@ -109,7 +109,7 @@ func genExtraData(validator common.Address, blsPubKey []byte) []byte {
 // newWithNode sets up a simulated backend on an existing node. The provided node
 // must not be started and will be started by this method.
 func newWbftWithNode(stack *node.Node, conf *eth.Config) (*WbftBackend, error) {
-	if err := conf.Genesis.Config.MontBlanc.CheckValidity(); err != nil {
+	if err := conf.Genesis.Config.Croissant.CheckValidity(); err != nil {
 		return nil, err
 	}
 	backend, err := eth.New(stack, conf)

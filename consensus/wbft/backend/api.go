@@ -302,7 +302,7 @@ func DecodeVanityData(vanity []byte) string {
 func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}, error) {
 	bNumber := big.NewInt(int64(number))
 
-	if !api.chain.Config().IsMontBlanc(bNumber) {
+	if !api.chain.Config().IsCroissant(bNumber) {
 		return nil, wbftcommon.ErrIsNotWBFTBlock
 	}
 

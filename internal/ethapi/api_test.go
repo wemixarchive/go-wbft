@@ -1831,7 +1831,7 @@ func TestRPCGetBlockOrHeader(t *testing.T) {
 func genExtraData(validatorPrvKey *ecdsa.PrivateKey) []byte {
 	blsKey, _ := bls.DeriveFromECDSA(validatorPrvKey)
 	sampleExtra := &types.WBFTExtra{
-		VanityData: []byte("WEMIX MontBlanc chain block"),
+		VanityData: []byte("WEMIX Croissant chain block"),
 		EpochInfo: &types.EpochInfo{
 			Stakers: []*types.Staker{
 				{Addr: crypto.PubkeyToAddress(validatorPrvKey.PublicKey), Diligence: types.DefaultDiligence},

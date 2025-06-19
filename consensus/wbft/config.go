@@ -150,7 +150,7 @@ func (c *Config) GetGovContracts(blockNumber *big.Int, chainConfig *params.Chain
 	} else {
 		// Normally unreachable since c.GovContractsUpgrades is set when wbft engine is created,
 		// but used in few tests where wbft.Config isn't properly initialized — fallback to Montblanc chain config.
-		gc = *chainConfig.MontBlanc.GovContracts
+		gc = *chainConfig.Croissant.GovContracts
 	}
 	return gc
 }
@@ -228,7 +228,7 @@ func GetGovContractsStateTransition(wbftCfg *Config, num *big.Int) (*params.Stat
 	return nil, nil
 }
 
-func CreateInitialExtraData(config *params.MontBlancConfig) ([]byte, error) {
+func CreateInitialExtraData(config *params.CroissantConfig) ([]byte, error) {
 	epochInfo, err := CreateInitialEpochInfo(config)
 	if err != nil {
 		return nil, err
@@ -246,7 +246,7 @@ func CreateInitialExtraData(config *params.MontBlancConfig) ([]byte, error) {
 	return extraDataBytes, nil
 }
 
-func CreateInitialEpochInfo(config *params.MontBlancConfig) (*types.EpochInfo, error) {
+func CreateInitialEpochInfo(config *params.CroissantConfig) (*types.EpochInfo, error) {
 	var (
 		stakers       []common.Address
 		blsPublicKeys []string
