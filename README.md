@@ -556,50 +556,33 @@ First, you'll need to create the genesis state of your networks, which all nodes
 aware of and agree upon. This consists of a small JSON file (e.g. call it `genesis.json`):
 ```json
 {
-  "alloc": {
-    "0x1F156128aB294eb32A23F9959fe68B93Cd06E8fa": {
-      "balance": "0x1a784379d99db42000000"
-    },
-    "0x7FA6952A064ddb6f036bfE79c0D7A4Bd0b971162": {
-      "balance": "0x1a784379d99db42000000"
-    },
-    "0xeBFdb096aBE35Fa3F3B6266eE845EB3e72515DF5": {
-      "balance": "0x1a784379d99db42000000"
-    },
-    "0xf4A091a1Fc39B247Aa45966A920660967065724B": {
-      "balance": "0x1a784379d99db42000000"
-    }
-  },
-  "coinbase": "0x1F156128aB294eb32A23F9959fe68B93Cd06E8fa",
   "config": {
-    "applepieBlock": 0,
-    "berlinBlock": 0,
-    "briocheBlock": 0,
-    "byzantiumBlock": 0,
     "chainId": 1111,
-    "constantinopleBlock": 0,
+    "homesteadBlock": 0,
     "eip150Block": 0,
     "eip155Block": 0,
     "eip158Block": 0,
-    "homesteadBlock": 0,
-    "istanbulBlock": 0,
-    "londonBlock": 0,
-    "montBlancBlock": 100,
-    "muirGlacierBlock": 0,
-    "pangyoBlock": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
     "petersburgBlock": 0,
-    "montBlancBlock": 100,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "berlinBlock": 0,
+    "londonBlock": 0,
+    "arrowGlacierBlock": 0,
+    "grayGlacierBlock": 0,
+    "montBlancBlock": 0,
     "montBlanc": {
       "wBFT": {
         "requestTimeoutSeconds": 2,
         "blockPeriodSeconds": 1,
-        "proposerPolicy": 0,
         "epochLength": 10,
         "blockReward": "0xde0b6b3a7640000",
-        "targetValidators": 0,
+        "proposerPolicy": 0,
+        "targetValidators": 1,
         "maxRequestTimeoutSeconds": null,
         "stabilizingStakersThreshold": 1,
-        "useNCP": true
+        "useNCP": false
       },
       "init": {
         "validators": [
@@ -619,8 +602,7 @@ aware of and agree upon. This consists of a small JSON file (e.g. call it `genes
             "maximumStaking": "100000000000000000000000000",
             "minimumStaking": "10000000000000000000000000",
             "unbondingPeriodDelegator": "259200",
-            "unbondingPeriodStaker": "604800",
-            "govCouncil": "0x0000000000000000000000000000000000001003"
+            "unbondingPeriodStaker": "604800"
           }
         },
         "govStaking": {
@@ -633,26 +615,29 @@ aware of and agree upon. This consists of a small JSON file (e.g. call it `genes
           "version": "v1",
           "params": null
         },
-        "govNCP": {
-          "address": "0x0000000000000000000000000000000000001003",
-          "version": "v1",
-          "params": {
-            "ncps": "0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697"
-          }
-        }
+        "govNCP": null
       }
     }
   },
+  "nonce": "0x0",
+  "timestamp": "0x68535fb8",
+  "extraData": "0x",
+  "gasLimit": "0x47b760",
   "difficulty": "0x1",
-  "extraData": "0x636861696e20666f72206c6f63616c20746573740a30783131326565393134663766333239643737376261333466663663303539346565363161366430366364353162643130636338323062616136613365613031313562663134303536393137343262643161306366343338616261626431396438323835623961656538356637353861643336643433306361346437353132336437",
-  "gasLimit": "105000000",
-  "minerNodeId": "0x0",
-  "minerNodeSig": "0x0",
-  "mixhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "nonce": "0x0000000000000042",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "alloc": {
+    "0xaa5faa65e9cc0f74a85b6fdfb5f6991f5c094697": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "number": "0x0",
+  "gasUsed": "0x0",
   "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "rewards": "0x",
-  "timestamp": "0x00"
+  "baseFeePerGas": null,
+  "fees": null,
+  "excessBlobGas": null,
+  "blobGasUsed": null
 }
 ```
 
