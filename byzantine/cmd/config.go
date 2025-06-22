@@ -40,7 +40,7 @@ func (c *ByzantineConfig) Validate() error {
 		}
 
 		// Validate attack type
-		validTypes := []string{"silent", "tampered", "fake", "omit", "roleSpoofed", "replay", "flood"}
+		validTypes := []string{"silent", "tamper", "fake", "omit", "roleSpoof", "replay", "flood"}
 		isValidType := false
 		for _, validType := range validTypes {
 			if attack.ConvertTypeToString() == validType {
@@ -126,6 +126,7 @@ func DefaultByzantineConfig() *ByzantineConfig {
 	return &ByzantineConfig{
 		Enabled:  true,
 		LogLevel: "info",
+		Attacks:  []types.AttackConfig{},
 	}
 }
 
@@ -221,3 +222,6 @@ func loadConfigFromFile(path string, config *ByzantineConfig) error {
 
 	return nil
 }
+
+// TODO:
+// 1. need parser for config file

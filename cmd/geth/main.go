@@ -47,7 +47,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	// byzantine
-	byzcmd "github.com/ethereum/go-ethereum/byzantine/cmd"
+	"github.com/ethereum/go-ethereum/byzantine"
 )
 
 const (
@@ -251,13 +251,13 @@ func init() {
 		consoleFlags,
 		debug.Flags,
 		metricsFlags,
-		// byzantine command flags
-		byzcmd.ByzantineCommandFlags(),
 	)
 	flags.AutoEnvVars(app.Flags, "GETH")
 
+	// byzantine command flags
+	byzantine.RegisterFlags(app)
 	// Register byzantine commands
-	byzcmd.RegisterByzantineCommands(app)
+	byzantine.RegisterByzantineCommands(app)
 
 	app.Before = func(ctx *cli.Context) error {
 		maxprocs.Set() // Automatically set GOMAXPROCS to match Linux container CPU quota.

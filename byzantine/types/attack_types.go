@@ -1,14 +1,9 @@
 package types
 
-// AttackStatus represents the status of an attack
-type AttackStatus string
-
-const (
-	AttackStatusPending  AttackStatus = "pending"
-	AttackStatusActive   AttackStatus = "active"
-	AttackStatusExecuted AttackStatus = "executed"
-	AttackStatusStopped  AttackStatus = "stopped"
-	AttackStatusFailed   AttackStatus = "failed"
+import (
+	"errors"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // AttackConfig represents generic attack configuration
@@ -32,6 +27,13 @@ type AttackConfig struct {
 	RepeatCount      int  `json:"repeatCount,omitempty"`
 	RandomDelay      bool `json:"randomDelay,omitempty"`
 	CoordinationMode bool `json:"coordinationMode,omitempty"`
+
+	// Target validators for the attack
+	Targets []string `json:"targets,omitempty"`
+
+	// Message-specific options
+	MessageCode uint64 `json:"messageCode,omitempty"`
+	Delay       uint64 `json:"delay,omitempty"`
 }
 
 func (ac *AttackConfig) ConvertTypeToString() string {
@@ -53,6 +55,49 @@ func (ac *AttackConfig) ConvertTypeToString() string {
 	}
 }
 
+// Validate validates a single attack configuration
+func (a *AttackConfig) Validate() error {
+	if a.Name == "" {
+		return errors.New("attack name is required")
+	}
+
+	if a.Type == "" {
+		return errors.New("attack type is required")
+	}
+
+	// Validate attack type
+	validTypes := map[string]bool{
+		"doublePrepare": true, "doubleCommit": true,
+		"silentProposer": true, "silentValidator": true,
+		"tamperedHeader": true, "fakeTransaction": true,
+		"messageFlood": true, "replayAttack": true,
+	}
+
+	if !validTypes[string(a.Type)] {
+		return fmt.Errorf("invalid attack type: %s", a.Type)
+	}
+
+	// Validate targets are valid addresses
+	for i, target := range a.Targets {
+		if !common.IsHexAddress(target) {
+			return fmt.Errorf("invalid target address[%d]: %s", i, target)
+		}
+	}
+
+	return nil
+}
+
+// GetTargetAddresses converts string targets to common.Address
+func (ac *AttackConfig) GetTargetAddresses() []common.Address {
+	addresses := make([]common.Address, 0, len(ac.Targets))
+	for _, target := range ac.Targets {
+		if common.IsHexAddress(target) {
+			addresses = append(addresses, common.HexToAddress(target))
+		}
+	}
+	return addresses
+}
+
 // AttackType represents different types of Byzantine attacks
 type AttackType string
 
@@ -72,6 +117,17 @@ const (
 	// Coordinated attack types
 	AttackTypeCoordinatedSilent AttackType = "coordinatedSilent"
 	AttackTypePartitionAttack   AttackType = "partitionAttack"
+)
+
+// AttackStatus represents the status of an attack
+type AttackStatus string
+
+const (
+	AttackStatusPending  AttackStatus = "pending"
+	AttackStatusActive   AttackStatus = "active"
+	AttackStatusExecuted AttackStatus = "executed"
+	AttackStatusStopped  AttackStatus = "stopped"
+	AttackStatusFailed   AttackStatus = "failed"
 )
 
 // AttackCategory represents attack categories

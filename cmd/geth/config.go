@@ -45,6 +45,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
+
+	// byzantine
+	"github.com/ethereum/go-ethereum/byzantine"
 )
 
 var (
@@ -183,6 +186,11 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	utils.SetupMetrics(&cfg.Metrics)
 
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// Register Byzantine service
+	if err := byzantine.Register(ctx, stack, backend, eth); err != nil {
+		utils.Fatalf("Failed to register Byzantine service: %v", err)
+	}
 
 	// Create gauge with geth system and build information
 	if eth != nil { // The 'eth' backend may be nil in light mode

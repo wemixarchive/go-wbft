@@ -1,0 +1,90 @@
+{
+  "enabled": true,
+  "logLevel": "debug",
+  "attacks": [
+    {
+      "name": "SilentProposer_Block100",
+      "type": "silent",
+      "enabled": true,
+      "sequence": 100,
+      "round": 0,
+      "params": {
+        "code": 1,
+        "direction": 1,
+        "targets": []
+      }
+    },
+    {
+      "name": "TamperHeader_Block200",
+      "type": "tamper",
+      "enabled": true,
+      "sequence": 200,
+      "round": 0,
+      "params": {
+        "code": "PrePrepare",
+        "tamperFields": [
+          {
+            "target": "Proposal.Header.Coinbase",
+            "value": "0x0000000000000000000000000000000000000000"
+          },
+          {
+            "target": "Proposal.Header.Time",
+            "value": 1234567890
+          }
+        ],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "FakeRoundChange_Block300",
+      "type": "fake",
+      "enabled": true,
+      "sequence": 300,
+      "round": 0,
+      "params": {
+        "code": "RoundChange",
+        "targets": []
+      }
+    },
+    {
+      "name": "OmitPrevSeal_Block400",
+      "type": "omit",
+      "enabled": false,
+      "sequence": 400,
+      "round": 0,
+      "params": {
+        "code": "PrePrepare",
+        "cmd": 1,
+        "cnt": 0,
+        "targets": []
+      }
+    },
+    {
+      "name": "SpoofProposer_Block500",
+      "type": "roleSpoof",
+      "enabled": false,
+      "sequence": 500,
+      "round": 0,
+      "params": {
+        "code": "PrePrepare",
+        "targets": []
+      }
+    },
+    {
+      "name": "ReplayCommit_Block600",
+      "type": "replay",
+      "enabled": false,
+      "sequence": 600,
+      "round": 0,
+      "params": {
+        "ori_sequence": 599,
+        "ori_round": 0,
+        "useOriginalView": false,
+        "code": "Commit",
+        "targets": []
+      }
+    }
+  ]
+}
