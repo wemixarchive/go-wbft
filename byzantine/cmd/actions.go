@@ -23,8 +23,7 @@ func byzantineList(ctx *cli.Context) error {
 		return err
 	}
 
-	// Format output nicely
-	return formatByzantineTests(result)
+	return printByzantineTests(result)
 }
 
 func byzantineStop(ctx *cli.Context) error {
@@ -184,8 +183,8 @@ func callByzantineAPI(ctx *cli.Context, method string, params map[string]interfa
 	return nil
 }
 
-// formatByzantineTests formats the Byzantine tests output nicely
-func formatByzantineTests(result interface{}) error {
+// printByzantineTests formats the Byzantine tests output nicely
+func printByzantineTests(result interface{}) error {
 	if result == nil {
 		fmt.Println("No Byzantine tests registered.")
 		return nil
