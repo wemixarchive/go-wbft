@@ -3,9 +3,10 @@ package api
 import (
 	"errors"
 	"fmt"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/log"
-	"sync"
 )
 
 // byzantineAPI implementation
@@ -35,6 +36,151 @@ func NewByzantineAPIWithManager(builder AttackBuilder, manager types.AttackManag
 	}
 }
 
+// ByzantineTests returns all registered Byzantine tests
+func (api *byzantineAPI) ByzantineTests() []types.AttackInfo {
+	attacks := api.manager.ListAttacks()
+	log.Warn("ByzantineTests called", "count", len(attacks))
+	return attacks
+}
+
+// StopByzantineTests stops Byzantine tests by UIDs
+func (api *byzantineAPI) StopByzantineTests(uids []uint64) error {
+	log.Info("StopByzantineTests called", "uids", uids)
+
+	for _, uid := range uids {
+		// TODO:
+		// should refactoring
+		if err := api.manager.Unregister(string(uid)); err != nil {
+			log.Error("Failed to stop Byzantine test", "uid", uid, "error", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SilentMessage configures a silent message attack
+func (api *byzantineAPI) SilentMessage(params types.SilentMessageParams) error {
+	log.Info("SilentMessage called",
+		"sequence", params.Sequence,
+		"round", params.Round,
+		"code", params.Code,
+		"direction", params.Direction)
+
+	return api.manager.ConfigureSilentMessage(
+		params.Sequence,
+		params.Round,
+		params.Code,
+		params.Direction,
+		params.Targets,
+	)
+}
+
+// SendTamperedMessage configures a tampered message attack
+func (api *byzantineAPI) SendTamperedMessage(params types.TamperedMessageParams) error {
+	log.Info("SendTamperedMessage called",
+		"sequence", params.Sequence,
+		"round", params.Round,
+		"code", params.Code)
+
+	// Convert TamperFields to types.TamperField
+	tamperFields := make([]types.TamperField, len(params.TamperFields))
+	for i, field := range params.TamperFields {
+		tamperFields[i] = types.TamperField{
+			Target: field.Target,
+			Value:  field.Value,
+		}
+	}
+
+	return api.manager.ConfigureTamperedMessage(types.TamperMessageParams{
+		Sequence:         params.Sequence,
+		Round:            params.Round,
+		Code:             params.Code,
+		TamperFields:     tamperFields,
+		WithValidMessage: params.WithValidMessage,
+		Delay:            params.Delay,
+		Targets:          params.Targets,
+	})
+}
+
+// SendFakeMessage configures a fake message attack
+func (api *byzantineAPI) SendFakeMessage(params types.FakeMessageParams) error {
+	log.Info("SendFakeMessage called",
+		"sequence", params.Sequence,
+		"round", params.Round,
+		"code", params.Code)
+
+	return api.manager.ConfigureFakeMessage(types.FakeMessageParams{
+		Sequence:    params.Sequence,
+		Round:       params.Round,
+		Code:        params.Code,
+		FakeMessage: params.FakeMessage,
+		Targets:     params.Targets,
+	})
+}
+
+// SendOmitMessage configures an omit message attack
+func (api *byzantineAPI) SendOmitMessage(params types.OmitMessageParams) error {
+	log.Info("SendOmitMessage called",
+		"sequence", params.Sequence,
+		"round", params.Round,
+		"code", params.Code,
+		"cmd", params.Cmd,
+		"cnt", params.Cnt)
+
+	return api.manager.ConfigureOmitMessage(types.OmitMessageParams{
+		Sequence: params.Sequence,
+		Round:    params.Round,
+		Code:     params.Code,
+		Cmd:      params.Cmd,
+		Cnt:      params.Cnt,
+		Targets:  params.Targets,
+	})
+}
+
+// SendRoleSpoofedMessage configures a role spoofing attack
+func (api *byzantineAPI) SendRoleSpoofedMessage(params types.RoleSpoofParams) error {
+	log.Info("SendRoleSpoofedMessage called",
+		"sequence", params.Sequence,
+		"round", params.Round,
+		"code", params.Code)
+
+	return api.manager.ConfigureRoleSpoofedMessage(types.RoleSpoofParams{
+		Sequence:    params.Sequence,
+		Round:       params.Round,
+		Code:        params.Code,
+		FakeMessage: params.FakeMessage,
+		Targets:     params.Targets,
+	})
+}
+
+// SendReplayMessage configures a replay attack
+func (api *byzantineAPI) SendReplayMessage(params types.ReplayMessageParams) error {
+	log.Info("SendReplayMessage called",
+		"oriSequence", params.OriSequence,
+		"oriRound", params.OriRound,
+		"sequence", params.Sequence,
+		"round", params.Round,
+		"code", params.Code,
+		"useOriginalView", params.UseOriginalView)
+
+	return api.manager.ConfigureReplayMessage(types.ReplayMessageParams{
+		OriSequence:     params.OriSequence,
+		OriRound:        params.OriRound,
+		Sequence:        params.Sequence,
+		Round:           params.Round,
+		UseOriginalView: params.UseOriginalView,
+		Code:            params.Code,
+		Targets:         params.Targets,
+	})
+}
+
+// UpgradeGovContract configures governance contract upgrade
+func (api *byzantineAPI) UpgradeGovContract() error {
+	log.Info("UpgradeGovContract called")
+	return nil
+}
+
 // ConfigureAttack configures a new attack
 func (api *byzantineAPI) ConfigureAttack(params AttackParams) (attackID string, err error) {
 	// Validate parameters
@@ -46,7 +192,7 @@ func (api *byzantineAPI) ConfigureAttack(params AttackParams) (attackID string, 
 	attack, err := api.builder.
 		WithType(params.Type).
 		WithTiming(params.Sequence, params.Round).
-		WithTargets(params.Target).
+		WithTargets(params.Targets).
 		WithOptions(params.Options).
 		Build()
 
@@ -109,7 +255,7 @@ func (api *byzantineAPI) ListAttacks() []types.AttackInfo {
 
 // validateParams validates attack parameters
 func (api *byzantineAPI) validateParams(params AttackParams) error {
-	if params.Type == 0 {
+	if params.Type == "" {
 		return errors.New("attack type is required")
 	}
 
@@ -119,148 +265,5 @@ func (api *byzantineAPI) validateParams(params AttackParams) error {
 
 	// Add more validation as needed
 
-	return nil
-}
-
-// ByzantineTests returns all registered Byzantine tests
-func (api *byzantineAPI) ByzantineTests() []types.AttackInfo {
-	attacks := api.manager.ListAttacks()
-	log.Warn("ByzantineTests called", "count", len(attacks))
-	return attacks
-}
-
-// StopByzantineTests stops Byzantine tests by UIDs
-func (api *byzantineAPI) StopByzantineTests(uids []uint64) error {
-	log.Info("StopByzantineTests called", "uids", uids)
-
-	for _, uid := range uids {
-		if err := api.manager.UnregisterAttack(uid); err != nil {
-			log.Error("Failed to stop Byzantine test", "uid", uid, "error", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-// SilentMessage configures a silent message attack
-func (api *byzantineAPI) SilentMessage(params SilentMessageParams) error {
-	log.Info("SilentMessage called",
-		"sequence", params.Sequence,
-		"round", params.Round,
-		"code", params.Code,
-		"direction", params.Direction)
-
-	return api.manager.ConfigureSilentMessage(
-		params.Sequence,
-		params.Round,
-		params.Code,
-		params.Direction,
-		params.Targets,
-	)
-}
-
-// SendTamperedMessage configures a tampered message attack
-func (api *byzantineAPI) SendTamperedMessage(params TamperedMessageParams) error {
-	log.Info("SendTamperedMessage called",
-		"sequence", params.Sequence,
-		"round", params.Round,
-		"code", params.Code)
-
-	// Convert TamperFields to types.TamperField
-	tamperFields := make([]types.TamperField, len(params.TamperFields))
-	for i, field := range params.TamperFields {
-		tamperFields[i] = types.TamperField{
-			Target: field.Target,
-			Value:  field.Value,
-		}
-	}
-
-	return api.manager.ConfigureTamperedMessage(types.TamperMessageParams{
-		Sequence:         params.Sequence,
-		Round:            params.Round,
-		Code:             params.Code,
-		TamperFields:     tamperFields,
-		WithValidMessage: params.WithValidMessage,
-		Delay:            params.Delay,
-		Targets:          params.Targets,
-	})
-}
-
-// SendFakeMessage configures a fake message attack
-func (api *byzantineAPI) SendFakeMessage(params FakeMessageParams) error {
-	log.Info("SendFakeMessage called",
-		"sequence", params.Sequence,
-		"round", params.Round,
-		"code", params.Code)
-
-	return api.manager.ConfigureFakeMessage(types.FakeMessageParams{
-		Sequence:    params.Sequence,
-		Round:       params.Round,
-		Code:        params.Code,
-		FakeMessage: params.FakeMessage,
-		Targets:     params.Targets,
-	})
-}
-
-// SendOmitMessage configures an omit message attack
-func (api *byzantineAPI) SendOmitMessage(params OmitMessageParams) error {
-	log.Info("SendOmitMessage called",
-		"sequence", params.Sequence,
-		"round", params.Round,
-		"code", params.Code,
-		"cmd", params.Cmd,
-		"cnt", params.Cnt)
-
-	return api.manager.ConfigureOmitMessage(types.OmitMessageParams{
-		Sequence: params.Sequence,
-		Round:    params.Round,
-		Code:     params.Code,
-		Cmd:      params.Cmd,
-		Cnt:      params.Cnt,
-		Targets:  params.Targets,
-	})
-}
-
-// SendRoleSpoofedMessage configures a role spoofing attack
-func (api *byzantineAPI) SendRoleSpoofedMessage(params RoleSpoofParams) error {
-	log.Info("SendRoleSpoofedMessage called",
-		"sequence", params.Sequence,
-		"round", params.Round,
-		"code", params.Code)
-
-	return api.manager.ConfigureRoleSpoofedMessage(types.RoleSpoofParams{
-		Sequence:    params.Sequence,
-		Round:       params.Round,
-		Code:        params.Code,
-		FakeMessage: params.FakeMessage,
-		Targets:     params.Targets,
-	})
-}
-
-// SendReplayMessage configures a replay attack
-func (api *byzantineAPI) SendReplayMessage(params ReplayMessageParams) error {
-	log.Info("SendReplayMessage called",
-		"oriSequence", params.OriSequence,
-		"oriRound", params.OriRound,
-		"sequence", params.Sequence,
-		"round", params.Round,
-		"code", params.Code,
-		"useOriginalView", params.UseOriginalView)
-
-	return api.manager.ConfigureReplayMessage(types.ReplayMessageParams{
-		OriSequence:     params.OriSequence,
-		OriRound:        params.OriRound,
-		Sequence:        params.Sequence,
-		Round:           params.Round,
-		UseOriginalView: params.UseOriginalView,
-		Code:            params.Code,
-		Targets:         params.Targets,
-	})
-}
-
-// UpgradeGovContract configures governance contract upgrade
-func (api *byzantineAPI) UpgradeGovContract() error {
-	log.Info("UpgradeGovContract called")
 	return nil
 }

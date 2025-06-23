@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
@@ -28,6 +29,7 @@ func NewAttackBuilder() types.AttackBuilder {
 
 // WithType sets the attack type
 func (b *attackBuilder) WithType(attackType types.AttackType) types.AttackBuilder {
+	log.Warn("type : ", attackType)
 	b.attackType = attackType
 	return b
 }
@@ -96,6 +98,18 @@ func (b *attackBuilder) Build() (types.Attack, error) {
 
 	// Create attack based on type
 	switch b.attackType {
+	case types.AttackTypeSilent:
+		return b.buildSilentProposerAttack()
+	case types.AttackTypeTamper:
+		return b.buildTamperAttack()
+	case types.AttackTypeFake:
+		return b.buildFakeAttack()
+	case types.AttackTypeOmit:
+		return b.buildOmitAttack()
+	case types.AttackTypeRoleSpoof:
+		return b.buildRoleASpoofAttack()
+	case types.AttackTypeReplay:
+		return b.buildReplayAttack()
 	case types.AttackTypeDoublePrepare:
 		return b.buildDoublePrepareAttack()
 	case types.AttackTypeDoubleCommit:
@@ -122,6 +136,30 @@ func (b *attackBuilder) Reset() types.AttackBuilder {
 	b.targets = nil
 	b.options = nil
 	return b
+}
+
+func (b *attackBuilder) buildSilentAttack() (types.Attack, error) {
+	return SilentAttackFactory(b.config)
+}
+
+func (b *attackBuilder) buildTamperAttack() (types.Attack, error) {
+	return TamperAttackFactory(b.config)
+}
+
+func (b *attackBuilder) buildFakeAttack() (types.Attack, error) {
+	return FakeAttackFactory(b.config)
+}
+
+func (b *attackBuilder) buildOmitAttack() (types.Attack, error) {
+	return OmitAttackFactory(b.config)
+}
+
+func (b *attackBuilder) buildRoleASpoofAttack() (types.Attack, error) {
+	return RoleSpoofAttackFactory(b.config)
+}
+
+func (b *attackBuilder) buildReplayAttack() (types.Attack, error) {
+	return ReplayAttackFactory(b.config)
 }
 
 // buildDoublePrepareAttack creates a double prepare attack
@@ -181,9 +219,9 @@ func (b *attackBuilder) buildSilentValidatorAttack() (types.Attack, error) {
 
 // buildTamperedHeaderAttack creates a tampered header attack
 func (b *attackBuilder) buildTamperedHeaderAttack() (types.Attack, error) {
-	tamperFields, ok := b.options["tamperFields"].([]TamperField)
+	tamperFields, ok := b.options["tamperFields"].([]types.TamperField)
 	if !ok {
-		tamperFields = []TamperField{}
+		tamperFields = []types.TamperField{}
 	}
 
 	return &tamperedHeaderAttack{
@@ -273,7 +311,7 @@ func (a *doublePrepareAttack) ShouldExecute(sequence, round uint64, msgCode uint
 	return a.sequence == sequence && a.round == round && msgCode == uint64(types.MessageCodePrepare)
 }
 
-func (a *doublePrepareAttack) Execute(ctx types.AttackContext) error {
+func (a *doublePrepareAttack) Execute(ctx *types.AttackContext) error {
 	// Implementation will be added when integrating with QBFT hooks
 	return nil
 }
@@ -294,7 +332,7 @@ func (a *doubleCommitAttack) ShouldExecute(sequence, round uint64, msgCode uint6
 	return a.sequence == sequence && a.round == round && msgCode == uint64(types.MessageCodeCommit)
 }
 
-func (a *doubleCommitAttack) Execute(ctx types.AttackContext) error {
+func (a *doubleCommitAttack) Execute(ctx *types.AttackContext) error {
 	// Implementation will be added when integrating with QBFT hooks
 	return nil
 }
@@ -315,7 +353,7 @@ func (a *silentProposerAttack) ShouldExecute(sequence, round uint64, msgCode uin
 	return a.sequence == sequence && a.round == round && msgCode == uint64(types.MessageCodePrePrepare)
 }
 
-func (a *silentProposerAttack) Execute(ctx types.AttackContext) error {
+func (a *silentProposerAttack) Execute(ctx *types.AttackContext) error {
 	// Implementation will be added when integrating with QBFT hooks
 	return nil
 }
@@ -337,14 +375,14 @@ func (a *silentValidatorAttack) ShouldExecute(sequence, round uint64, msgCode ui
 	return a.sequence == sequence && a.round == round && msgCode == a.messageCode
 }
 
-func (a *silentValidatorAttack) Execute(ctx types.AttackContext) error {
+func (a *silentValidatorAttack) Execute(ctx *types.AttackContext) error {
 	// Implementation will be added when integrating with QBFT hooks
 	return nil
 }
 
 type tamperedHeaderAttack struct {
 	baseAttack
-	tamperFields []TamperField
+	tamperFields []types.TamperField
 }
 
 func (a *tamperedHeaderAttack) ID() string {
@@ -359,7 +397,7 @@ func (a *tamperedHeaderAttack) ShouldExecute(sequence, round uint64, msgCode uin
 	return a.sequence == sequence && a.round == round && msgCode == uint64(types.MessageCodePrePrepare)
 }
 
-func (a *tamperedHeaderAttack) Execute(ctx types.AttackContext) error {
+func (a *tamperedHeaderAttack) Execute(ctx *types.AttackContext) error {
 	// Implementation will be added when integrating with QBFT hooks
 	return nil
 }
@@ -393,7 +431,7 @@ func (a *fakeTransactionAttack) ShouldExecute(sequence, round uint64, msgCode ui
 	return a.sequence == sequence && a.round == round && msgCode == uint64(types.MessageCodePrePrepare)
 }
 
-func (a *fakeTransactionAttack) Execute(ctx types.AttackContext) error {
+func (a *fakeTransactionAttack) Execute(ctx *types.AttackContext) error {
 	// Implementation will be added when integrating with QBFT hooks
 	return nil
 }

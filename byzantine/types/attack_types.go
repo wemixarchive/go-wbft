@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"time"
 )
 
 // AttackConfig represents generic attack configuration
@@ -167,11 +168,12 @@ const (
 type AttackStatus string
 
 const (
-	AttackStatusPending  AttackStatus = "pending"
-	AttackStatusActive   AttackStatus = "active"
-	AttackStatusExecuted AttackStatus = "executed"
-	AttackStatusStopped  AttackStatus = "stopped"
-	AttackStatusFailed   AttackStatus = "failed"
+	AttackStatusPending   AttackStatus = "pending"
+	AttackStatusActive    AttackStatus = "active"
+	AttackStatusExecuted  AttackStatus = "executed"
+	AttackStatusStopped   AttackStatus = "stopped"
+	AttackStatusFailed    AttackStatus = "failed"
+	AttackStatusCancelled AttackStatus = "cancelled"
 )
 
 // AttackCategory represents attack categories
@@ -211,14 +213,49 @@ type DataFilter struct {
 	Validators   []common.Address
 }
 
-// MessageCode defines QBFT message types
-type MessageCode uint64
+//// MessageCode defines QBFT message types
+//type MessageCode uint64
+//
+//const (
+//	MessageCodePrePrepare MessageCode = 1 << iota
+//	MessageCodePrepare
+//	MessageCodeCommit
+//	MessageCodeRoundChange
+//	MessageCodeRoundChangePrePrepare
+//	MessageCodePropagation
+//)
 
-const (
-	MessageCodePrePrepare MessageCode = 1 << iota
-	MessageCodePrepare
-	MessageCodeCommit
-	MessageCodeRoundChange
-	MessageCodeRoundChangePrePrepare
-	MessageCodePropagation
-)
+// TamperMessageParams for tampered message attacks
+type TamperMessageParams struct {
+	Sequence         uint64
+	Round            uint64
+	Code             string
+	TamperFields     []TamperField
+	WithValidMessage bool
+	Delay            uint64
+	Targets          []common.Address
+}
+
+// TamperField specifies a field to tamper and its new value
+type TamperField struct {
+	Target string      // e.g., "Proposal.Header.Coinbase"
+	Value  interface{} // New value for the field
+}
+
+// ConditionContext provides context for condition evaluation
+type ConditionContext struct {
+	Sequence    uint64
+	Round       uint64
+	MessageType string
+	Role        string
+	Validators  []common.Address
+	Self        common.Address
+}
+
+// AttackResult represents the result of an attack execution
+type AttackResult struct {
+	Success   bool
+	Error     error
+	Timestamp time.Time
+	Details   map[string]interface{}
+}
