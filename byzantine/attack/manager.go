@@ -3,14 +3,15 @@ package attack
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	"sync"
 )
 
 // EventCollector interface for data collection
-type EventCollector interface {
-	StartCollection(dataReqs []DataRequirement) error
-	StopCollection(attackID string) error
-}
+//type EventCollector interface {
+//	StartCollection(dataReqs []types.DataRequirement) error
+//	StopCollection(attackID string) error
+//}
 
 // AttackManager interface for managing attacks
 type AttackManager interface {
@@ -33,12 +34,12 @@ type attackInfo struct {
 // attackManager implements AttackManager interface
 type attackManager struct {
 	attacks   map[string]*attackInfo
-	collector EventCollector
+	collector types.EventCollector
 	mu        sync.RWMutex
 }
 
 // NewAttackManager creates a new attack manager
-func NewAttackManager(collector EventCollector) AttackManager {
+func NewAttackManager(collector types.EventCollector) AttackManager {
 	return &attackManager{
 		attacks:   make(map[string]*attackInfo),
 		collector: collector,
@@ -59,7 +60,7 @@ func (m *attackManager) Register(attack Attack) error {
 	if m.collector != nil {
 		dataReqs := attack.RequiresData()
 		if len(dataReqs) > 0 {
-			if err := m.collector.StartCollection(dataReqs); err != nil {
+			if err := m.collector.Start(dataReqs); err != nil {
 				return fmt.Errorf("failed to start data collection: %w", err)
 			}
 		}
@@ -86,7 +87,7 @@ func (m *attackManager) Unregister(attackID string) error {
 
 	// Stop data collection
 	if m.collector != nil {
-		if err := m.collector.StopCollection(attackID); err != nil {
+		if err := m.collector.Stop(attackID); err != nil {
 			// Log error but continue with unregistration
 			// In real implementation, proper logging would be added
 		}
@@ -185,7 +186,7 @@ func (m *attackManager) CleanupExecuted() int {
 	for _, id := range toRemove {
 		// Stop data collection
 		if m.collector != nil {
-			m.collector.StopCollection(id)
+			m.collector.Stop(id)
 		}
 		delete(m.attacks, id)
 	}

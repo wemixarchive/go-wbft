@@ -19,22 +19,25 @@
 // Package web3ext contains geth specific web3.js extensions.
 package web3ext
 
+import byzweb3ext "github.com/ethereum/go-ethereum/byzantine/web3ext"
+
 var Modules = map[string]string{
-	"admin":    AdminJs,
-	"clique":   CliqueJs,
-	"ethash":   EthashJs,
-	"debug":    DebugJs,
-	"eth":      EthJs,
-	"miner":    MinerJs,
-	"net":      NetJs,
-	"personal": PersonalJs,
-	"rpc":      RpcJs,
-	"txpool":   TxpoolJs,
-	"les":      LESJs,
-	"vflux":    VfluxJs,
-	"dev":      DevJs,
-	"wemix":    WemixJs,
-	"istanbul": Istanbul_JS,
+	"admin":     AdminJs,
+	"clique":    CliqueJs,
+	"ethash":    EthashJs,
+	"debug":     DebugJs,
+	"eth":       EthJs,
+	"miner":     MinerJs,
+	"net":       NetJs,
+	"personal":  PersonalJs,
+	"rpc":       RpcJs,
+	"txpool":    TxpoolJs,
+	"les":       LESJs,
+	"vflux":     VfluxJs,
+	"dev":       DevJs,
+	"wemix":     WemixJs,
+	"istanbul":  Istanbul_JS,
+	"byzantine": byzweb3ext.Byzantine_JS, // ## Byzantine Module
 }
 
 const CliqueJs = `

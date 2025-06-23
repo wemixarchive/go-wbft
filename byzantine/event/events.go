@@ -1,25 +1,17 @@
-package collector
+package event
 
 import (
 	"container/ring"
-	"github.com/ethereum/go-ethereum/byzantine/attack"
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	"sync"
 )
 
 // Import types from attack package (would be properly imported in real implementation)
 type (
-	DataRequirement = attack.DataRequirement
-	DataFilter      = attack.DataFilter
-	MessageCode     = attack.MessageCode
+	DataRequirement = types.DataRequirement
+	DataFilter      = types.DataFilter
+	MessageCode     = types.MessageCode
 )
-
-// EventCollector interface for collecting QBFT events
-type EventCollector interface {
-	StartCollection(dataReqs []DataRequirement) error
-	StopCollection(attackID string) error
-	GetHistoricalData(filter DataFilter) []CollectedData
-	GetStateHistory(sequence uint64) []StateTransition
-}
 
 // messageStore stores messages with a size limit
 type messageStore struct {
@@ -33,7 +25,7 @@ func newMessageStore(maxSize int) *messageStore {
 	}
 }
 
-func (s *messageStore) add(msg *QBFTMessage) {
+func (s *messageStore) add(msg *WBFTMessage) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -41,18 +33,18 @@ func (s *messageStore) add(msg *QBFTMessage) {
 	s.messages = s.messages.Next()
 }
 
-func (s *messageStore) getFiltered(filter DataFilter) []*QBFTMessage {
+func (s *messageStore) getFiltered(filter DataFilter) []*WBFTMessage {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []*QBFTMessage
+	var result []*WBFTMessage
 
 	s.messages.Do(func(v interface{}) {
 		if v == nil {
 			return
 		}
 
-		msg := v.(*QBFTMessage)
+		msg := v.(*WBFTMessage)
 
 		// Apply filters
 		if filter.FromSequence > 0 && msg.Sequence < filter.FromSequence {
@@ -98,24 +90,24 @@ func (s *messageStore) getFiltered(filter DataFilter) []*QBFTMessage {
 
 // stateStore stores state transitions
 type stateStore struct {
-	transitions map[uint64][]StateTransition
+	transitions map[uint64][]types.StateTransition
 	mu          sync.RWMutex
 }
 
 func newStateStore() *stateStore {
 	return &stateStore{
-		transitions: make(map[uint64][]StateTransition),
+		transitions: make(map[uint64][]types.StateTransition),
 	}
 }
 
-func (s *stateStore) add(transition StateTransition) {
+func (s *stateStore) add(transition types.StateTransition) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.transitions[transition.Sequence] = append(s.transitions[transition.Sequence], transition)
 }
 
-func (s *stateStore) get(sequence uint64) []StateTransition {
+func (s *stateStore) get(sequence uint64) []types.StateTransition {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -124,10 +116,10 @@ func (s *stateStore) get(sequence uint64) []StateTransition {
 
 // eventCollector implements EventCollector interface
 type eventCollector struct {
-	source       QBFTEventSource
+	source       WBFTEventSource
 	messageStore *messageStore
 	stateStore   *stateStore
-	eventChan    chan QBFTEvent
+	eventChan    chan WBFTEvent
 	stopChan     chan struct{}
 	wg           sync.WaitGroup
 	mu           sync.Mutex
@@ -135,18 +127,27 @@ type eventCollector struct {
 	dataReqs []DataRequirement
 }
 
-// NewEventCollector creates a new event collector
-func NewEventCollector(source QBFTEventSource) EventCollector {
+// NewEventCollector creates a new event event
+func NewEventCollector() types.EventCollector {
+	return &eventCollector{
+		stateStore: newStateStore(),
+		eventChan:  make(chan WBFTEvent, 1000),
+		stopChan:   make(chan struct{}),
+	}
+}
+
+// NewEventCollectorWithEvent creates a new event event
+func NewEventCollectorWithEvent(source WBFTEventSource) types.EventCollector {
 	return &eventCollector{
 		source:     source,
 		stateStore: newStateStore(),
-		eventChan:  make(chan QBFTEvent, 1000),
+		eventChan:  make(chan WBFTEvent, 1000),
 		stopChan:   make(chan struct{}),
 	}
 }
 
 // StartCollection starts collecting events based on data requirements
-func (c *eventCollector) StartCollection(dataReqs []DataRequirement) error {
+func (c *eventCollector) Start(dataReqs []DataRequirement) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -176,7 +177,7 @@ func (c *eventCollector) StartCollection(dataReqs []DataRequirement) error {
 }
 
 // StopCollection stops collecting events
-func (c *eventCollector) StopCollection(attackID string) error {
+func (c *eventCollector) Stop(attackID string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -209,7 +210,7 @@ func (c *eventCollector) processEvents() {
 }
 
 // handleEvent handles a single event
-func (c *eventCollector) handleEvent(event QBFTEvent) {
+func (c *eventCollector) handleEvent(event WBFTEvent) {
 	switch event.Type {
 	case EventTypeMessage:
 		if event.Message != nil {
@@ -229,7 +230,7 @@ func (c *eventCollector) handleEvent(event QBFTEvent) {
 		// Check if we should collect state changes
 		for _, req := range c.dataReqs {
 			if req.Type == "state" {
-				transition := StateTransition{
+				transition := types.StateTransition{
 					Sequence: event.Sequence,
 					Round:    event.Round,
 					OldState: event.OldState,
@@ -243,7 +244,7 @@ func (c *eventCollector) handleEvent(event QBFTEvent) {
 }
 
 // matchesFilter checks if a message matches the filter criteria
-func (c *eventCollector) matchesFilter(msg *QBFTMessage, filter DataFilter) bool {
+func (c *eventCollector) matchesFilter(msg *WBFTMessage, filter DataFilter) bool {
 	// Check sequence range
 	if filter.FromSequence > 0 && msg.Sequence < filter.FromSequence {
 		return false
@@ -284,12 +285,12 @@ func (c *eventCollector) matchesFilter(msg *QBFTMessage, filter DataFilter) bool
 }
 
 // GetHistoricalData retrieves historical data based on filter
-func (c *eventCollector) GetHistoricalData(filter DataFilter) []CollectedData {
+func (c *eventCollector) GetHistoricalData(filter DataFilter) []types.CollectedData {
 	messages := c.messageStore.getFiltered(filter)
 
-	result := make([]CollectedData, 0, len(messages))
+	result := make([]types.CollectedData, 0, len(messages))
 	for _, msg := range messages {
-		result = append(result, CollectedData{
+		result = append(result, types.CollectedData{
 			Type:     "message",
 			Sequence: msg.Sequence,
 			Round:    msg.Round,
@@ -301,6 +302,6 @@ func (c *eventCollector) GetHistoricalData(filter DataFilter) []CollectedData {
 }
 
 // GetStateHistory retrieves state transition history for a sequence
-func (c *eventCollector) GetStateHistory(sequence uint64) []StateTransition {
+func (c *eventCollector) GetStateHistory(sequence uint64) []types.StateTransition {
 	return c.stateStore.get(sequence)
 }

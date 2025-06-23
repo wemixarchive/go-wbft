@@ -3,10 +3,9 @@ package api
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/log"
 	"sync"
-
-	"github.com/ethereum/go-ethereum/byzantine"
 )
 
 // byzantineAPI implementation
@@ -14,13 +13,13 @@ type byzantineAPI struct {
 	builder AttackBuilder
 	attacks map[string]Attack
 	mu      sync.RWMutex
-	manager byzantine.AttackManager // Will be implemented in next step
+	manager types.AttackManager // Will be implemented in next step
 }
 
-var _ byzantine.ByzantineAPI = (*byzantineAPI)(nil)
+var _ types.ByzantineAPI = (*byzantineAPI)(nil)
 
 // NewByzantineAPI creates a new Byzantine API instance
-func NewByzantineAPI(builder AttackBuilder) byzantine.ByzantineAPI {
+func NewByzantineAPI(builder AttackBuilder) types.ByzantineAPI {
 	return &byzantineAPI{
 		builder: builder,
 		attacks: make(map[string]Attack),
@@ -28,7 +27,7 @@ func NewByzantineAPI(builder AttackBuilder) byzantine.ByzantineAPI {
 }
 
 // NewByzantineAPIWithManager creates a new Byzantine API instance with manager
-func NewByzantineAPIWithManager(builder AttackBuilder, manager byzantine.AttackManager) byzantine.ByzantineAPI {
+func NewByzantineAPIWithManager(builder AttackBuilder, manager types.AttackManager) types.ByzantineAPI {
 	return &byzantineAPI{
 		builder: builder,
 		attacks: make(map[string]Attack),
@@ -91,15 +90,15 @@ func (api *byzantineAPI) StopAttack(attackID string) error {
 }
 
 // ListAttacks returns list of configured attacks
-func (api *byzantineAPI) ListAttacks() []byzantine.AttackInfo {
+func (api *byzantineAPI) ListAttacks() []types.AttackInfo {
 	api.mu.RLock()
 	defer api.mu.RUnlock()
 
-	infos := make([]byzantine.AttackInfo, 0, len(api.attacks))
+	infos := make([]types.AttackInfo, 0, len(api.attacks))
 	for _, attack := range api.attacks {
 		// For now, return basic info
 		// TODO: Get detailed status from manager
-		infos = append(infos, byzantine.AttackInfo{
+		infos = append(infos, types.AttackInfo{
 			ID:     attack.ID(),
 			Status: "active",
 		})
@@ -124,7 +123,7 @@ func (api *byzantineAPI) validateParams(params AttackParams) error {
 }
 
 // ByzantineTests returns all registered Byzantine tests
-func (api *byzantineAPI) ByzantineTests() []byzantine.AttackInfo {
+func (api *byzantineAPI) ByzantineTests() []types.AttackInfo {
 	attacks := api.manager.ListAttacks()
 	log.Warn("ByzantineTests called", "count", len(attacks))
 	return attacks

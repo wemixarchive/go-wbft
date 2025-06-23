@@ -1,4 +1,4 @@
-package byzantine
+package hook
 
 import (
 	"github.com/ethereum/go-ethereum/core/types"

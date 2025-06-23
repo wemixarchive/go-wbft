@@ -12,17 +12,17 @@ import (
 
 	"github.com/ethereum/go-ethereum/byzantine/api"
 	"github.com/ethereum/go-ethereum/byzantine/attack"
-	"github.com/ethereum/go-ethereum/byzantine/collector"
+	"github.com/ethereum/go-ethereum/byzantine/event"
 )
 
-// Mock QBFTEventSource for integration testing
+// Mock WBFTEventSource for integration testing
 type MockQBFTEventSource struct {
 	mock.Mock
-	subscribers []chan<- collector.QBFTEvent
+	subscribers []chan<- event.WBFTEvent
 	mu          sync.Mutex
 }
 
-func (m *MockQBFTEventSource) Subscribe(ch chan<- collector.QBFTEvent) error {
+func (m *MockQBFTEventSource) Subscribe(ch chan<- event.WBFTEvent) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -31,7 +31,7 @@ func (m *MockQBFTEventSource) Subscribe(ch chan<- collector.QBFTEvent) error {
 	return args.Error(0)
 }
 
-func (m *MockQBFTEventSource) Unsubscribe(ch chan<- collector.QBFTEvent) error {
+func (m *MockQBFTEventSource) Unsubscribe(ch chan<- event.WBFTEvent) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -48,7 +48,7 @@ func (m *MockQBFTEventSource) Unsubscribe(ch chan<- collector.QBFTEvent) error {
 	return args.Error(0)
 }
 
-func (m *MockQBFTEventSource) BroadcastEvent(event collector.QBFTEvent) {
+func (m *MockQBFTEventSource) BroadcastEvent(event event.WBFTEvent) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -67,7 +67,7 @@ func TestIntegration_AttackConfigurationFlow(t *testing.T) {
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 	mockEventSource.On("Unsubscribe", mock.Anything).Return(nil)
 
-	eventCollector := collector.NewEventCollector(mockEventSource)
+	eventCollector := event.NewEventCollector(mockEventSource)
 	attackManager := attack.NewAttackManager(eventCollector)
 	attackBuilder := attack.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
@@ -108,7 +108,7 @@ func TestIntegration_AttackExecutionFlow(t *testing.T) {
 	mockEventSource := new(MockQBFTEventSource)
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 
-	eventCollector := collector.NewEventCollector(mockEventSource)
+	eventCollector := event.NewEventCollector(mockEventSource)
 	attackManager := attack.NewAttackManager(eventCollector)
 	attackBuilder := attack.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
@@ -163,7 +163,7 @@ func TestIntegration_EventCollectionFlow(t *testing.T) {
 	mockEventSource := new(MockQBFTEventSource)
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 
-	eventCollector := collector.NewEventCollector(mockEventSource)
+	eventCollector := event.NewEventCollector(mockEventSource)
 	attackManager := attack.NewAttackManager(eventCollector)
 	attackBuilder := attack.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
@@ -187,33 +187,33 @@ func TestIntegration_EventCollectionFlow(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Simulate QBFT events
-	events := []collector.QBFTEvent{
+	events := []event.WBFTEvent{
 		{
-			Type:     collector.EventTypeMessage,
+			Type:     event.EventTypeMessage,
 			Sequence: 95,
 			Round:    0,
-			Message: &collector.QBFTMessage{
+			Message: &event.WBFTMessage{
 				Code:     uint64(attack.MessageCodePrepare),
 				Sequence: 95,
 				Address:  common.HexToAddress("0x1111"),
 			},
 		},
 		{
-			Type:     collector.EventTypeMessage,
+			Type:     event.EventTypeMessage,
 			Sequence: 98,
 			Round:    0,
-			Message: &collector.QBFTMessage{
+			Message: &event.WBFTMessage{
 				Code:     uint64(attack.MessageCodeCommit),
 				Sequence: 98,
 				Address:  common.HexToAddress("0x2222"),
 			},
 		},
 		{
-			Type:     collector.EventTypeStateChange,
+			Type:     event.EventTypeStateChange,
 			Sequence: 99,
 			Round:    0,
-			OldState: collector.StateIdle,
-			NewState: collector.StatePreprepared,
+			OldState: event.StateIdle,
+			NewState: event.StatePreprepared,
 		},
 	}
 
@@ -239,7 +239,7 @@ func TestIntegration_EventCollectionFlow(t *testing.T) {
 	// Check state history
 	stateHistory := eventCollector.GetStateHistory(99)
 	assert.Len(t, stateHistory, 1)
-	assert.Equal(t, collector.StatePreprepared, stateHistory[0].NewState)
+	assert.Equal(t, event.StatePreprepared, stateHistory[0].NewState)
 }
 
 // Test: Attack lifecycle management
@@ -249,7 +249,7 @@ func TestIntegration_AttackLifecycle(t *testing.T) {
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 	mockEventSource.On("Unsubscribe", mock.Anything).Return(nil)
 
-	eventCollector := collector.NewEventCollector(mockEventSource)
+	eventCollector := event.NewEventCollector(mockEventSource)
 	attackManager := attack.NewAttackManager(eventCollector)
 	attackBuilder := attack.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
@@ -291,7 +291,7 @@ func TestIntegration_ConcurrentAttacks(t *testing.T) {
 	mockEventSource := new(MockQBFTEventSource)
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 
-	eventCollector := collector.NewEventCollector(mockEventSource)
+	eventCollector := event.NewEventCollector(mockEventSource)
 	attackManager := attack.NewAttackManager(eventCollector)
 	attackBuilder := attack.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
@@ -337,7 +337,7 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 	mockEventSource := new(MockQBFTEventSource)
 	mockEventSource.On("Subscribe", mock.Anything).Return(errors.New("subscription failed"))
 
-	eventCollector := collector.NewEventCollector(mockEventSource)
+	eventCollector := event.NewEventCollector(mockEventSource)
 	attackManager := attack.NewAttackManager(eventCollector)
 	attackBuilder := attack.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
