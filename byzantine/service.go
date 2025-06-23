@@ -2,6 +2,9 @@ package byzantine
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/byzantine/attack"
+	"github.com/ethereum/go-ethereum/byzantine/event"
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/node"
 	"sync"
 
@@ -21,8 +24,8 @@ type ByzantineService struct {
 	//manager *manager.ByzantineManager
 
 	// Components
-	attackManager  AttackManager
-	eventCollector EventCollector
+	attackManager  types.AttackManager
+	eventCollector types.EventCollector
 
 	// Service state
 	running   bool
@@ -59,11 +62,11 @@ func NewByzantineService(config *cmd.ByzantineConfig, backend ethapi.Backend, et
 
 // initialize sets up service components
 func (s *ByzantineService) initialize() error {
-	// Create event collector
-	s.eventCollector = NewEventCollector()
+	// Create event event
+	s.eventCollector = event.NewEventCollector()
 
 	// Create attack builder
-	builder := NewAttackBuilder()
+	builder := attack.NewAttackBuilder()
 
 	// Create attack manager
 	s.attackManager = NewAttackManager(s.eventCollector, builder)
@@ -106,10 +109,12 @@ func (s *ByzantineService) Start() error {
 	// Set log level
 	//log.Root().SetHandler(log.LvlFilterHandler(s.config.GetLogLevel(), log.Root().GetHandler()))
 
-	// Start event collector
-	if err := s.eventCollector.Start(); err != nil {
-		return fmt.Errorf("failed to start event collector: %w", err)
-	}
+	// Start event event
+	// TODO:
+	// should refactoring
+	//if err := s.eventCollector.Start(); err != nil {
+	//	return fmt.Errorf("failed to start event event: %w", err)
+	//}
 
 	// Start attack manager
 	if err := s.attackManager.Start(); err != nil {
@@ -146,7 +151,9 @@ func (s *ByzantineService) Stop() error {
 	}
 
 	if s.eventCollector != nil {
-		s.eventCollector.Stop()
+		// TODO:
+		// should refactoring
+		//s.eventCollector.Stop()
 	}
 
 	// Unregister hooks

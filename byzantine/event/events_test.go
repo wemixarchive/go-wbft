@@ -1,14 +1,13 @@
-package collector
+package event
 
 import (
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
-	"github.com/ethereum/go-ethereum/byzantine/attack"
 )
 
 // Mock QBFT event source
@@ -16,12 +15,12 @@ type MockQBFTEventSource struct {
 	mock.Mock
 }
 
-func (m *MockQBFTEventSource) Subscribe(ch chan<- QBFTEvent) error {
+func (m *MockQBFTEventSource) Subscribe(ch chan<- WBFTEvent) error {
 	args := m.Called(ch)
 	return args.Error(0)
 }
 
-func (m *MockQBFTEventSource) Unsubscribe(ch chan<- QBFTEvent) error {
+func (m *MockQBFTEventSource) Unsubscribe(ch chan<- WBFTEvent) error {
 	args := m.Called(ch)
 	return args.Error(0)
 }
@@ -30,7 +29,7 @@ func (m *MockQBFTEventSource) Unsubscribe(ch chan<- QBFTEvent) error {
 func TestEventCollector_StartCollection(t *testing.T) {
 	// Given
 	mockSource := new(MockQBFTEventSource)
-	collector := NewEventCollector(mockSource)
+	collector := NewEventCollectorWithEvent(mockSource)
 
 	dataReqs := []DataRequirement{
 		{
@@ -38,7 +37,7 @@ func TestEventCollector_StartCollection(t *testing.T) {
 			Filter: DataFilter{
 				FromSequence: 90,
 				ToSequence:   100,
-				MessageTypes: []uint64{uint64(attack.MessageCodePrepare), uint64(attack.MessageCodeCommit)},
+				MessageTypes: []uint64{uint64(types.MessageCodePrepare), uint64(types.MessageCodeCommit)},
 			},
 			MaxRecords: 100,
 		},
@@ -48,7 +47,7 @@ func TestEventCollector_StartCollection(t *testing.T) {
 	mockSource.On("Subscribe", mock.Anything).Return(nil)
 
 	// When
-	err := collector.StartCollection(dataReqs)
+	err := collector.Start(dataReqs)
 
 	// Then
 	assert.NoError(t, err)
@@ -59,7 +58,7 @@ func TestEventCollector_StartCollection(t *testing.T) {
 func TestEventCollector_StopCollection(t *testing.T) {
 	// Given
 	mockSource := new(MockQBFTEventSource)
-	collector := NewEventCollector(mockSource)
+	collector := NewEventCollectorWithEvent(mockSource)
 
 	// Start collection first
 	dataReqs := []DataRequirement{
@@ -73,10 +72,10 @@ func TestEventCollector_StopCollection(t *testing.T) {
 	mockSource.On("Subscribe", mock.Anything).Return(nil)
 	mockSource.On("Unsubscribe", mock.Anything).Return(nil)
 
-	collector.StartCollection(dataReqs)
+	collector.Start(dataReqs)
 
 	// When
-	err := collector.StopCollection("attack-123")
+	err := collector.Stop("attack-123")
 
 	// Then
 	assert.NoError(t, err)
@@ -87,12 +86,12 @@ func TestEventCollector_StopCollection(t *testing.T) {
 func TestEventCollector_CollectMessages(t *testing.T) {
 	// Given
 	mockSource := new(MockQBFTEventSource)
-	collector := NewEventCollector(mockSource)
+	collector := NewEventCollectorWithEvent(mockSource)
 
 	// Setup channel for events
-	var eventChannel chan<- QBFTEvent
+	var eventChannel chan<- WBFTEvent
 	mockSource.On("Subscribe", mock.Anything).Run(func(args mock.Arguments) {
-		eventChannel = args.Get(0).(chan<- QBFTEvent)
+		eventChannel = args.Get(0).(chan<- WBFTEvent)
 	}).Return(nil)
 
 	// Start collection
@@ -102,23 +101,23 @@ func TestEventCollector_CollectMessages(t *testing.T) {
 			Filter: DataFilter{
 				FromSequence: 95,
 				ToSequence:   105,
-				MessageTypes: []uint64{uint64(attack.MessageCodePrepare)},
+				MessageTypes: []uint64{uint64(types.MessageCodePrepare)},
 			},
 			MaxRecords: 10,
 		},
 	}
 
-	err := collector.StartCollection(dataReqs)
+	err := collector.Start(dataReqs)
 	assert.NoError(t, err)
 
 	// When - Send events
-	events := []QBFTEvent{
+	events := []WBFTEvent{
 		{
 			Type:     EventTypeMessage,
 			Sequence: 95,
 			Round:    0,
-			Message: &QBFTMessage{
-				Code:     uint64(attack.MessageCodePrepare),
+			Message: &WBFTMessage{
+				Code:     uint64(types.MessageCodePrepare),
 				Sequence: 95,
 				Round:    0,
 				Address:  common.HexToAddress("0x1234"),
@@ -128,8 +127,8 @@ func TestEventCollector_CollectMessages(t *testing.T) {
 			Type:     EventTypeMessage,
 			Sequence: 100,
 			Round:    0,
-			Message: &QBFTMessage{
-				Code:     uint64(attack.MessageCodePrepare),
+			Message: &WBFTMessage{
+				Code:     uint64(types.MessageCodePrepare),
 				Sequence: 100,
 				Round:    0,
 				Address:  common.HexToAddress("0x5678"),
@@ -139,8 +138,8 @@ func TestEventCollector_CollectMessages(t *testing.T) {
 			Type:     EventTypeMessage,
 			Sequence: 110, // Outside filter range
 			Round:    0,
-			Message: &QBFTMessage{
-				Code:     uint64(attack.MessageCodePrepare),
+			Message: &WBFTMessage{
+				Code:     uint64(types.MessageCodePrepare),
 				Sequence: 110,
 				Round:    0,
 			},
@@ -158,7 +157,7 @@ func TestEventCollector_CollectMessages(t *testing.T) {
 	filter := DataFilter{
 		FromSequence: 95,
 		ToSequence:   100,
-		MessageTypes: []uint64{uint64(attack.MessageCodePrepare)},
+		MessageTypes: []uint64{uint64(types.MessageCodePrepare)},
 	}
 
 	collected := collector.GetHistoricalData(filter)
@@ -173,12 +172,12 @@ func TestEventCollector_CollectMessages(t *testing.T) {
 func TestEventCollector_TrackStateChanges(t *testing.T) {
 	// Given
 	mockSource := new(MockQBFTEventSource)
-	collector := NewEventCollector(mockSource)
+	collector := NewEventCollectorWithEvent(mockSource)
 
 	// Setup for state tracking
-	var eventChannel chan<- QBFTEvent
+	var eventChannel chan<- WBFTEvent
 	mockSource.On("Subscribe", mock.Anything).Run(func(args mock.Arguments) {
-		eventChannel = args.Get(0).(chan<- QBFTEvent)
+		eventChannel = args.Get(0).(chan<- WBFTEvent)
 	}).Return(nil)
 
 	dataReqs := []DataRequirement{
@@ -189,30 +188,30 @@ func TestEventCollector_TrackStateChanges(t *testing.T) {
 		},
 	}
 
-	collector.StartCollection(dataReqs)
+	collector.Start(dataReqs)
 
 	// When - Send state change events
-	stateEvents := []QBFTEvent{
+	stateEvents := []WBFTEvent{
 		{
 			Type:     EventTypeStateChange,
 			Sequence: 100,
 			Round:    0,
-			OldState: StateIdle,
-			NewState: StatePreprepared,
+			OldState: types.StateIdle,
+			NewState: types.StatePreprepared,
 		},
 		{
 			Type:     EventTypeStateChange,
 			Sequence: 100,
 			Round:    0,
-			OldState: StatePreprepared,
-			NewState: StatePrepared,
+			OldState: types.StatePreprepared,
+			NewState: types.StatePrepared,
 		},
 		{
 			Type:     EventTypeStateChange,
 			Sequence: 100,
 			Round:    0,
-			OldState: StatePrepared,
-			NewState: StateCommitted,
+			OldState: types.StatePrepared,
+			NewState: types.StateCommitted,
 		},
 	}
 
@@ -228,20 +227,20 @@ func TestEventCollector_TrackStateChanges(t *testing.T) {
 	assert.Len(t, states, 3)
 
 	// Verify state transitions
-	assert.Equal(t, StateIdle, states[0].OldState)
-	assert.Equal(t, StatePreprepared, states[0].NewState)
-	assert.Equal(t, StateCommitted, states[2].NewState)
+	assert.Equal(t, types.StateIdle, states[0].OldState)
+	assert.Equal(t, types.StatePreprepared, states[0].NewState)
+	assert.Equal(t, types.StateCommitted, states[2].NewState)
 }
 
 // Test: Collector should respect max records limit
 func TestEventCollector_MaxRecordsLimit(t *testing.T) {
 	// Given
 	mockSource := new(MockQBFTEventSource)
-	collector := NewEventCollector(mockSource)
+	collector := NewEventCollectorWithEvent(mockSource)
 
-	var eventChannel chan<- QBFTEvent
+	var eventChannel chan<- WBFTEvent
 	mockSource.On("Subscribe", mock.Anything).Run(func(args mock.Arguments) {
-		eventChannel = args.Get(0).(chan<- QBFTEvent)
+		eventChannel = args.Get(0).(chan<- WBFTEvent)
 	}).Return(nil)
 
 	// Set low max records limit
@@ -249,22 +248,22 @@ func TestEventCollector_MaxRecordsLimit(t *testing.T) {
 		{
 			Type: "messages",
 			Filter: DataFilter{
-				MessageTypes: []uint64{uint64(attack.MessageCodePrepare)},
+				MessageTypes: []uint64{uint64(types.MessageCodePrepare)},
 			},
 			MaxRecords: 3,
 		},
 	}
 
-	collector.StartCollection(dataReqs)
+	collector.Start(dataReqs)
 
 	// When - Send more events than limit
 	for i := 0; i < 10; i++ {
-		eventChannel <- QBFTEvent{
+		eventChannel <- WBFTEvent{
 			Type:     EventTypeMessage,
 			Sequence: uint64(100 + i),
 			Round:    0,
-			Message: &QBFTMessage{
-				Code:     uint64(attack.MessageCodePrepare),
+			Message: &WBFTMessage{
+				Code:     uint64(types.MessageCodePrepare),
 				Sequence: uint64(100 + i),
 			},
 		}
@@ -275,7 +274,7 @@ func TestEventCollector_MaxRecordsLimit(t *testing.T) {
 
 	// Then - Should only keep latest records up to limit
 	filter := DataFilter{
-		MessageTypes: []uint64{uint64(attack.MessageCodePrepare)},
+		MessageTypes: []uint64{uint64(types.MessageCodePrepare)},
 	}
 
 	collected := collector.GetHistoricalData(filter)
@@ -291,11 +290,11 @@ func TestEventCollector_MaxRecordsLimit(t *testing.T) {
 func TestEventCollector_ConcurrentAccess(t *testing.T) {
 	// Given
 	mockSource := new(MockQBFTEventSource)
-	collector := NewEventCollector(mockSource)
+	collector := NewEventCollectorWithEvent(mockSource)
 
-	var eventChannel chan<- QBFTEvent
+	var eventChannel chan<- WBFTEvent
 	mockSource.On("Subscribe", mock.Anything).Run(func(args mock.Arguments) {
-		eventChannel = args.Get(0).(chan<- QBFTEvent)
+		eventChannel = args.Get(0).(chan<- WBFTEvent)
 	}).Return(nil)
 
 	dataReqs := []DataRequirement{
@@ -306,7 +305,7 @@ func TestEventCollector_ConcurrentAccess(t *testing.T) {
 		},
 	}
 
-	collector.StartCollection(dataReqs)
+	collector.Start(dataReqs)
 
 	// When - Concurrent operations
 	done := make(chan bool)
@@ -314,11 +313,11 @@ func TestEventCollector_ConcurrentAccess(t *testing.T) {
 	// Goroutine 1: Send events
 	go func() {
 		for i := 0; i < 50; i++ {
-			eventChannel <- QBFTEvent{
+			eventChannel <- WBFTEvent{
 				Type:     EventTypeMessage,
 				Sequence: uint64(100 + i),
-				Message: &QBFTMessage{
-					Code:     uint64(attack.MessageCodePrepare),
+				Message: &WBFTMessage{
+					Code:     uint64(types.MessageCodePrepare),
 					Sequence: uint64(100 + i),
 				},
 			}
@@ -359,14 +358,14 @@ func TestEventCollector_ConcurrentAccess(t *testing.T) {
 func TestEventCollector_DataFiltering(t *testing.T) {
 	// Given
 	mockSource := new(MockQBFTEventSource)
-	collector := NewEventCollector(mockSource)
+	collector := NewEventCollectorWithEvent(mockSource)
 
-	var eventChannel chan<- QBFTEvent
+	var eventChannel chan<- WBFTEvent
 	mockSource.On("Subscribe", mock.Anything).Run(func(args mock.Arguments) {
-		eventChannel = args.Get(0).(chan<- QBFTEvent)
+		eventChannel = args.Get(0).(chan<- WBFTEvent)
 	}).Return(nil)
 
-	collector.StartCollection([]DataRequirement{{
+	collector.Start([]DataRequirement{{
 		Type:       "messages",
 		Filter:     DataFilter{},
 		MaxRecords: 100,
@@ -381,11 +380,11 @@ func TestEventCollector_DataFiltering(t *testing.T) {
 
 	for seq := uint64(95); seq <= 105; seq++ {
 		for _, val := range validators {
-			for _, msgType := range []MessageCode{attack.MessageCodePrepare, attack.MessageCodeCommit} {
-				eventChannel <- QBFTEvent{
+			for _, msgType := range []MessageCode{types.MessageCodePrepare, types.MessageCodeCommit} {
+				eventChannel <- WBFTEvent{
 					Type:     EventTypeMessage,
 					Sequence: seq,
-					Message: &QBFTMessage{
+					Message: &WBFTMessage{
 						Code:     uint64(msgType),
 						Sequence: seq,
 						Address:  val,
@@ -414,7 +413,7 @@ func TestEventCollector_DataFiltering(t *testing.T) {
 		{
 			name: "Filter by message type",
 			filter: DataFilter{
-				MessageTypes: []uint64{uint64(attack.MessageCodePrepare)},
+				MessageTypes: []uint64{uint64(types.MessageCodePrepare)},
 			},
 			expected: 33, // 11 sequences * 3 validators
 		},
@@ -430,7 +429,7 @@ func TestEventCollector_DataFiltering(t *testing.T) {
 			filter: DataFilter{
 				FromSequence: 100,
 				ToSequence:   100,
-				MessageTypes: []uint64{uint64(attack.MessageCodeCommit)},
+				MessageTypes: []uint64{uint64(types.MessageCodeCommit)},
 				Validators:   []common.Address{validators[1]},
 			},
 			expected: 1,

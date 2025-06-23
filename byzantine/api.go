@@ -2,6 +2,7 @@ package byzantine
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 // ByzantineAPI provides RPC methods
@@ -15,7 +16,7 @@ func NewByzantineAPI(service *ByzantineService) *ByzAPI {
 }
 
 // ConfigureAttack configures a new attack via RPC
-func (api *ByzAPI) ConfigureAttack(params AttackParams) (string, error) {
+func (api *ByzAPI) ConfigureAttack(params types.AttackParams) (string, error) {
 	if api.service.attackManager == nil {
 		return "", fmt.Errorf("attack manager not initialized")
 	}
@@ -24,7 +25,7 @@ func (api *ByzAPI) ConfigureAttack(params AttackParams) (string, error) {
 }
 
 // ListAttacks returns all configured attacks
-func (api *ByzAPI) ListAttacks() ([]AttackInfo, error) {
+func (api *ByzAPI) ListAttacks() ([]types.AttackInfo, error) {
 	if api.service.attackManager == nil {
 		return nil, fmt.Errorf("attack manager not initialized")
 	}

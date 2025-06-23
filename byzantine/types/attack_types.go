@@ -98,6 +98,42 @@ func (ac *AttackConfig) GetTargetAddresses() []common.Address {
 	return addresses
 }
 
+// AttackParams contains parameters for configuring an attack
+type AttackParams struct {
+	Type     AttackType
+	Sequence uint64
+	Round    uint64
+	Targets  []common.Address
+	Options  map[string]interface{}
+}
+
+// AttackContext provides context for attack execution
+type AttackContext struct {
+	CurrentSequence uint64
+	CurrentRound    uint64
+	MessageCode     uint64
+}
+
+// AttackParams for API
+//type AttackParams struct {
+//	Type     string                 `json:"type"`
+//	Sequence uint64                 `json:"sequence"`
+//	Round    uint64                 `json:"round"`
+//	Targets  []common.Address       `json:"targets"`
+//	Options  map[string]interface{} `json:"options"`
+//}
+
+// AttackInfo for API responses
+type AttackInfo struct {
+	ID       string           `json:"id"`
+	Name     string           `json:"name"`
+	Type     AttackType       `json:"type"`
+	Sequence uint64           `json:"sequence"`
+	Round    uint64           `json:"round"`
+	Status   AttackStatus     `json:"status"`
+	Targets  []common.Address `json:"targets"`
+}
+
 // AttackType represents different types of Byzantine attacks
 type AttackType string
 
@@ -117,6 +153,14 @@ const (
 	// Coordinated attack types
 	AttackTypeCoordinatedSilent AttackType = "coordinatedSilent"
 	AttackTypePartitionAttack   AttackType = "partitionAttack"
+
+	// Advance attach type
+	AttackTypeDoublePrepare   AttackType = "doublePrepare"
+	AttackTypeDoubleCommit    AttackType = "doubleCommit"
+	AttackTypeSilentProposer  AttackType = "silentProposer"
+	AttackTypeSilentValidator AttackType = "silentValidator"
+	AttackTypeTamperedHeader  AttackType = "tamperedHeader"
+	AttackTypeFakeTransaction AttackType = "fakeTransaction"
 )
 
 // AttackStatus represents the status of an attack
@@ -150,4 +194,31 @@ const (
 	AttackSeverityMedium   AttackSeverity = "medium"
 	AttackSeverityHigh     AttackSeverity = "high"
 	AttackSeverityCritical AttackSeverity = "critical"
+)
+
+// DataRequirement specifies what data an attack needs
+type DataRequirement struct {
+	Type       string // "messages", "blocks", "state"
+	Filter     DataFilter
+	MaxRecords int
+}
+
+// DataFilter for querying historical data
+type DataFilter struct {
+	FromSequence uint64
+	ToSequence   uint64
+	MessageTypes []uint64
+	Validators   []common.Address
+}
+
+// MessageCode defines QBFT message types
+type MessageCode uint64
+
+const (
+	MessageCodePrePrepare MessageCode = 1 << iota
+	MessageCodePrepare
+	MessageCodeCommit
+	MessageCodeRoundChange
+	MessageCodeRoundChangePrePrepare
+	MessageCodePropagation
 )

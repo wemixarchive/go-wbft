@@ -11,8 +11,8 @@ import (
 
 // attackManager implements AttackManager interface
 type attackManager struct {
-	eventCollector EventCollector
-	builder        AttackBuilder
+	eventCollector types.EventCollector
+	builder        types.AttackBuilder
 
 	mu      sync.RWMutex
 	attacks map[string]*attackInstance
@@ -21,14 +21,14 @@ type attackManager struct {
 // attackInstance wraps an attack with metadata
 type attackInstance struct {
 	id     string
-	attack Attack
+	attack types.Attack
 	status types.AttackStatus
 }
 
-var _ AttackManager = (*attackManager)(nil)
+var _ types.AttackManager = (*attackManager)(nil)
 
 // NewAttackManager creates a new attack manager
-func NewAttackManager(collector EventCollector, builder AttackBuilder) AttackManager {
+func NewAttackManager(collector types.EventCollector, builder types.AttackBuilder) types.AttackManager {
 	return &attackManager{
 		eventCollector: collector,
 		builder:        builder,
@@ -66,28 +66,28 @@ func (m *attackManager) LoadAttack(cfg types.AttackConfig) error {
 		status: types.AttackStatusPending,
 	}
 
-	switch cfg.Type {
-	case types.AttackTypeSilent:
-		// TODO: Create silent attack implementation
-		attack = &baseAttack{
-			id:     fmt.Sprintf("%s-%s", cfg.Name, uuid.New().String()[:8]),
-			config: cfg,
-		}
-	case types.AttackTypeTamper:
-		// TODO: Create tamper attack implementation
-		attack = &baseAttack{
-			id:     fmt.Sprintf("%s-%s", cfg.Name, uuid.New().String()[:8]),
-			config: cfg,
-		}
-	case types.AttackTypeFake:
-		// TODO: Create fake attack implementation
-		attack = &baseAttack{
-			id:     fmt.Sprintf("%s-%s", cfg.Name, uuid.New().String()[:8]),
-			config: cfg,
-		}
-	default:
-		return fmt.Errorf("unsupported attack type: %s", cfg.ConvertTypeToString())
-	}
+	//switch cfg.Type {
+	//case types.AttackTypeSilent:
+	//	// TODO: Create silent attack implementation
+	//	attack = &attack2.baseAttack{
+	//		id:     fmt.Sprintf("%s-%s", cfg.Name, uuid.New().String()[:8]),
+	//		config: cfg,
+	//	}
+	//case types.AttackTypeTamper:
+	//	// TODO: Create tamper attack implementation
+	//	attack = &attack2.baseAttack{
+	//		id:     fmt.Sprintf("%s-%s", cfg.Name, uuid.New().String()[:8]),
+	//		config: cfg,
+	//	}
+	//case types.AttackTypeFake:
+	//	// TODO: Create fake attack implementation
+	//	attack = &attack2.baseAttack{
+	//		id:     fmt.Sprintf("%s-%s", cfg.Name, uuid.New().String()[:8]),
+	//		config: cfg,
+	//	}
+	//default:
+	//	return fmt.Errorf("unsupported attack type: %s", cfg.ConvertTypeToString())
+	//}
 
 	m.attacks[attack.ID()] = &attackInstance{
 		attack: attack,
@@ -100,7 +100,7 @@ func (m *attackManager) LoadAttack(cfg types.AttackConfig) error {
 
 // TODO:
 // should be refactored to use a proper attack factory
-func (m *attackManager) ConfigureAttack(params AttackParams) (string, error) {
+func (m *attackManager) ConfigureAttack(params types.AttackParams) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -129,16 +129,16 @@ func (m *attackManager) ConfigureAttack(params AttackParams) (string, error) {
 	return attack.ID(), nil
 }
 
-func (m *attackManager) ListAttacks() []AttackInfo {
+func (m *attackManager) ListAttacks() []types.AttackInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	infos := make([]AttackInfo, 0, len(m.attacks))
+	infos := make([]types.AttackInfo, 0, len(m.attacks))
 	for _, instance := range m.attacks {
 		attack := instance.attack
 		config := attack.Config()
 
-		infos = append(infos, AttackInfo{
+		infos = append(infos, types.AttackInfo{
 			ID:       attack.ID(),
 			Name:     config.Name,
 			Type:     config.Type,
@@ -167,11 +167,11 @@ func (m *attackManager) StopAttack(attackID string) error {
 	return nil
 }
 
-func (m *attackManager) GetAttacksToExecute(sequence, round uint64, msgCode uint64) []Attack {
+func (m *attackManager) GetAttacksToExecute(sequence, round uint64, msgCode uint64) []types.Attack {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var attacks []Attack
+	var attacks []types.Attack
 	for _, instance := range m.attacks {
 		if instance.status == types.AttackStatusActive &&
 			instance.attack.ShouldExecute(sequence, round, msgCode) {
