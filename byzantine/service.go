@@ -2,6 +2,7 @@ package byzantine
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/byzantine/api"
 	"github.com/ethereum/go-ethereum/byzantine/attack"
 	"github.com/ethereum/go-ethereum/byzantine/event"
 	"github.com/ethereum/go-ethereum/byzantine/types"
@@ -69,7 +70,7 @@ func (s *ByzantineService) initialize() error {
 	builder := attack.NewAttackBuilder()
 
 	// Create attack manager
-	s.attackManager = NewAttackManager(s.eventCollector, builder)
+	s.attackManager = attack.NewAttackManager(s.eventCollector, builder)
 
 	// Load attacks from configuration
 	for _, attackCfg := range s.config.Attacks {
@@ -173,7 +174,7 @@ func (s *ByzantineService) APIs() []rpc.API {
 	apis = append(apis, rpc.API{
 		Namespace:     "byzantine",
 		Version:       "1.0",
-		Service:       NewByzantineAPI(s),
+		Service:       api.NewByzantineAPIWithManager(s.Manager().Builder(), s.Manager()),
 		Public:        true,
 		Authenticated: false,
 	})
@@ -197,4 +198,8 @@ func (s *ByzantineService) registerConsensusHooks() {
 // unregisterConsensusHooks removes Byzantine hooks from the consensus engine
 func (s *ByzantineService) unregisterConsensusHooks() {
 	log.Debug("Unregistering consensus hooks")
+}
+
+func (s *ByzantineService) Manager() types.AttackManager {
+	return s.attackManager
 }
