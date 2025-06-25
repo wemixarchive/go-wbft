@@ -203,13 +203,13 @@ func printByzantineTests(result interface{}) error {
 
 			// Format as table
 			fmt.Printf("Registered Byzantine Tests (%d):\n", len(tests))
-			fmt.Printf("%-5s %-20s %-8s %-10s %-8s %-10s\n",
+			fmt.Printf("%-20s %-20s %-8s %-10s %-8s %-10s\n",
 				"UID", "Name", "Type", "Sequence", "Round", "Status")
-			fmt.Printf("%-5s %-20s %-8s %-10s %-8s %-10s\n",
+			fmt.Printf("%-20s %-20s %-8s %-10s %-8s %-10s\n",
 				"---", "----", "----", "--------", "-----", "------")
 
 			for _, test := range tests {
-				uid := getStringValue(test, "uid")
+				uid := getStringValue(test, "id")
 				name := getStringValue(test, "name")
 				testType := getStringValue(test, "type")
 				sequence := getStringValue(test, "sequence")
@@ -249,6 +249,9 @@ func getStringValue(m map[string]interface{}, key string) string {
 			return strconv.Itoa(v)
 		case int64:
 			return strconv.FormatInt(v, 10)
+		case uint:
+		case uint64:
+			return strconv.FormatUint(v, 10)
 		default:
 			return fmt.Sprintf("%v", v)
 		}

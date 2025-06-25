@@ -1,4 +1,4 @@
-package attack
+package attacks
 
 import (
 	"errors"
@@ -10,22 +10,22 @@ import (
 )
 
 var (
-	ErrAttackTypeExists   = errors.New("attack type already registered")
-	ErrAttackTypeNotFound = errors.New("attack type not found")
-	ErrInvalidAttackType  = errors.New("invalid attack type")
+	ErrAttackTypeExists   = errors.New("attacks type already registered")
+	ErrAttackTypeNotFound = errors.New("attacks type not found")
+	ErrInvalidAttackType  = errors.New("invalid attacks type")
 )
 
-// AttackFactory creates attack instances
-type AttackFactory func(config *types.AttackConfig) (types.Attack, error)
+// AttackFactory creates attacks instances
+type AttackFactory func(config types.AttackConfig) (types.Attack, error)
 
-// Registry manages attack type registration and creation
+// Registry manages attacks type registration and creation
 type Registry struct {
 	factories map[types.AttackType]AttackFactory
 	mu        sync.RWMutex
 	logger    log.Logger
 }
 
-// NewRegistry creates a new attack registry
+// NewRegistry creates a new attacks registry
 func NewRegistry(logger log.Logger) *Registry {
 	return &Registry{
 		factories: make(map[types.AttackType]AttackFactory),
@@ -33,7 +33,7 @@ func NewRegistry(logger log.Logger) *Registry {
 	}
 }
 
-// Register registers an attack factory
+// Register registers an attacks factory
 func (r *Registry) Register(attackType types.AttackType, factory AttackFactory) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -43,11 +43,11 @@ func (r *Registry) Register(attackType types.AttackType, factory AttackFactory) 
 	}
 
 	r.factories[attackType] = factory
-	r.logger.Info("Registered attack type", "type", attackType)
+	r.logger.Info("Registered attacks type", "type", attackType)
 	return nil
 }
 
-// Unregister removes an attack factory
+// Unregister removes an attacks factory
 func (r *Registry) Unregister(attackType types.AttackType) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -57,11 +57,11 @@ func (r *Registry) Unregister(attackType types.AttackType) error {
 	}
 
 	delete(r.factories, attackType)
-	r.logger.Info("Unregistered attack type", "type", attackType)
+	r.logger.Info("Unregistered attacks type", "type", attackType)
 	return nil
 }
 
-// CreateAttack creates an attack instance
+// CreateAttack creates an attacks instance
 func (r *Registry) CreateAttack(config *types.AttackConfig) (types.Attack, error) {
 	r.mu.RLock()
 	factory, exists := r.factories[config.Type]
@@ -71,12 +71,12 @@ func (r *Registry) CreateAttack(config *types.AttackConfig) (types.Attack, error
 		return nil, fmt.Errorf("%w: %s", ErrAttackTypeNotFound, config.Type)
 	}
 
-	attack, err := factory(config)
+	attack, err := factory(*config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create attack: %w", err)
+		return nil, fmt.Errorf("failed to create attacks: %w", err)
 	}
 
-	r.logger.Debug("Created attack instance",
+	r.logger.Debug("Created attacks instance",
 		"type", config.Type,
 		"name", config.Name,
 		"sequence", config.Sequence,
@@ -85,7 +85,7 @@ func (r *Registry) CreateAttack(config *types.AttackConfig) (types.Attack, error
 	return attack, nil
 }
 
-// GetRegisteredTypes returns all registered attack types
+// GetRegisteredTypes returns all registered attacks types
 func (r *Registry) GetRegisteredTypes() []types.AttackType {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -98,7 +98,7 @@ func (r *Registry) GetRegisteredTypes() []types.AttackType {
 	return types
 }
 
-// IsRegistered checks if an attack type is registered
+// IsRegistered checks if an attacks type is registered
 func (r *Registry) IsRegistered(attackType types.AttackType) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -107,42 +107,42 @@ func (r *Registry) IsRegistered(attackType types.AttackType) bool {
 	return exists
 }
 
-// Clear removes all registered attack types
+// Clear removes all registered attacks types
 func (r *Registry) Clear() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.factories = make(map[types.AttackType]AttackFactory)
-	r.logger.Info("Cleared attack registry")
+	r.logger.Info("Cleared attacks registry")
 }
 
-// DefaultRegistry is the global attack registry
+// DefaultRegistry is the global attacks registry
 var DefaultRegistry *Registry
 
 // InitDefaultRegistry initializes the default registry
 func InitDefaultRegistry(logger log.Logger) {
 	DefaultRegistry = NewRegistry(logger)
 
-	// Register built-in attack types
+	// Register built-in attacks types
 	registerBuiltinAttacks()
 }
 
-// registerBuiltinAttacks registers all built-in attack types
+// registerBuiltinAttacks registers all built-in attacks types
 func registerBuiltinAttacks() {
 	// Register SilentAttack
-	DefaultRegistry.Register(types.AttackTypeSilent, SilentAttackFactory)
+	DefaultRegistry.Register(types.AttackTypeSilentMessage, SilentAttackFactory)
 
 	// Register TamperAttack
-	DefaultRegistry.Register(types.AttackTypeTamper, TamperAttackFactory)
+	DefaultRegistry.Register(types.AttackTypeTamperedMessage, TamperAttackFactory)
 
 	// Register FakeAttack
-	DefaultRegistry.Register(types.AttackTypeFake, FakeAttackFactory)
+	DefaultRegistry.Register(types.AttackTypeFakeMessage, FakeAttackFactory)
 
 	// Register OmitAttack
-	DefaultRegistry.Register(types.AttackTypeOmit, OmitAttackFactory)
+	DefaultRegistry.Register(types.AttackTypeOmitMessage, OmitAttackFactory)
 
 	// Register RoleSpoofAttack
-	DefaultRegistry.Register(types.AttackTypeRoleSpoof, RoleSpoofAttackFactory)
+	DefaultRegistry.Register(types.AttackTypeRoleSpoofed, RoleSpoofAttackFactory)
 
 	// Register ReplayAttack
 	DefaultRegistry.Register(types.AttackTypeReplay, ReplayAttackFactory)

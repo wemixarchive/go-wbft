@@ -75,7 +75,7 @@ func TestEventCollector_StopCollection(t *testing.T) {
 	collector.Start(dataReqs)
 
 	// When
-	err := collector.Stop("attack-123")
+	err := collector.Stop("attacks-123")
 
 	// Then
 	assert.NoError(t, err)

@@ -62,7 +62,7 @@ func (m *MockAttack) RequiresData() []DataRequirement {
 	return args.Get(0).([]DataRequirement)
 }
 
-// Test: API should receive attack configuration request
+// Test: API should receive attacks configuration request
 func TestAPI_ConfigureAttack(t *testing.T) {
 	// Given
 	mockBuilder := new(MockAttackBuilder)
@@ -86,14 +86,14 @@ func TestAPI_ConfigureAttack(t *testing.T) {
 	mockBuilder.On("WithTargets", params.Target).Return(mockBuilder)
 	mockBuilder.On("WithOptions", params.Options).Return(mockBuilder)
 	mockBuilder.On("Build").Return(mockAttack, nil)
-	mockAttack.On("ID").Return("attack-123")
+	mockAttack.On("ID").Return("attacks-123")
 
 	// When
 	attackID, err := api.ConfigureAttack(params)
 
 	// Then
 	assert.NoError(t, err)
-	assert.Equal(t, "attack-123", attackID)
+	assert.Equal(t, "attacks-123", attackID)
 	mockBuilder.AssertExpectations(t)
 	mockAttack.AssertExpectations(t)
 }
@@ -131,7 +131,7 @@ func TestAPI_ConfigureAttack_InvalidParams(t *testing.T) {
 	mockBuilder := new(MockAttackBuilder)
 	api := NewByzantineAPI(mockBuilder)
 
-	// When - empty attack type
+	// When - empty attacks type
 	params := AttackParams{
 		Sequence: 100,
 		Round:    0,
@@ -141,6 +141,6 @@ func TestAPI_ConfigureAttack_InvalidParams(t *testing.T) {
 
 	// Then
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "attack type is required")
+	assert.Contains(t, err.Error(), "attacks type is required")
 	assert.Empty(t, attackID)
 }

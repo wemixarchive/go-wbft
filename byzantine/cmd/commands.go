@@ -23,7 +23,7 @@ var (
 	}
 	byzSilentCommand = &cli.Command{
 		Name:   "silent",
-		Usage:  "Configure silent message attack",
+		Usage:  "Configure silent message attacks",
 		Action: byzantineSilent,
 		Flags: append(byzantineAttackFlags(), []cli.Flag{
 			MessageCodeFlag,
@@ -32,7 +32,7 @@ var (
 	}
 	byzTamperCommand = &cli.Command{
 		Name:   "tamper",
-		Usage:  "Configure tampered message attack",
+		Usage:  "Configure tampered message attacks",
 		Action: byzantineTamper,
 		Flags: append(byzantineAttackFlags(), []cli.Flag{
 			MessageCodeFlag,
@@ -44,7 +44,7 @@ var (
 
 	byzFakeCommand = &cli.Command{
 		Name:   "fake",
-		Usage:  "Configure fake message attack",
+		Usage:  "Configure fake message attacks",
 		Action: byzantineFake,
 		Flags: append(byzantineAttackFlags(), []cli.Flag{
 			MessageCodeFlag,
@@ -53,7 +53,7 @@ var (
 	}
 	byzOmitCommand = &cli.Command{
 		Name:   "omit",
-		Usage:  "Configure omit message attack",
+		Usage:  "Configure omit message attacks",
 		Action: byzantineOmit,
 		Flags: append(byzantineAttackFlags(), []cli.Flag{
 			MessageCodeFlag,
@@ -64,7 +64,7 @@ var (
 
 	byzRoleSpoofCommand = &cli.Command{
 		Name:   "rolespoof",
-		Usage:  "Configure role spoofing attack",
+		Usage:  "Configure role spoofing attacks",
 		Action: byzantineRoleSpoof,
 		Flags: append(byzantineAttackFlags(), []cli.Flag{
 			MessageCodeFlag,
@@ -74,7 +74,7 @@ var (
 
 	byzReplayCommand = &cli.Command{
 		Name:   "replay",
-		Usage:  "Configure replay attack",
+		Usage:  "Configure replay attacks",
 		Action: byzantineReplay,
 		Flags: append(byzantineAttackFlags(), []cli.Flag{
 			OriginSeqFlag,
@@ -103,6 +103,6 @@ func ByzantineCommand() *cli.Command {
 		},
 		Description: `
 The byzantine command suite provides tools for simulating Byzantine faults in the QBFT consensus.
-These commands allow you to test the resilience of the consensus algorithm against various attack scenarios.`,
+These commands allow you to test the resilience of the consensus algorithm against various attacks scenarios.`,
 	}
 }

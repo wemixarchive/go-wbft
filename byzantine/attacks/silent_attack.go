@@ -1,0 +1,87 @@
+package attacks
+
+import (
+	"context"
+	"time"
+
+	"github.com/ethereum/go-ethereum/byzantine/registry"
+	"github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/common"
+)
+
+// SilentMessageAttack implements silent proposer attack
+type SilentMessageAttack struct {
+	*registry.BaseAttack
+	direction types.MessageDirection
+	targets   []common.Address
+}
+
+// NewSilentProposerAttack creates a new silent proposer attack
+func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, error) {
+	targets, err := registry.ParseTargets(config)
+	if err != nil {
+		return nil, err
+	}
+
+	direction := types.MessageDirection(registry.GetUint64Parameter(config, "direction", 1))
+
+	return &SilentMessageAttack{
+		BaseAttack: registry.NewBaseAttack(config),
+		direction:  direction,
+		targets:    targets,
+	}, nil
+}
+
+// CheckExecuteCondition checks if the attack should be executed
+func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
+	config := a.GetConfig()
+
+	// Check sequence and round
+	if event.Sequence != config.Sequence || event.Round != config.Round {
+		return false
+	}
+
+	// Check if this is a message event
+	_, ok := event.Data.(*types.MessageEvent)
+	if !ok {
+		return false
+	}
+
+	// Check if we should be silent for this message type
+	return event.Type == types.EventTypeMessageSent || event.Type == types.EventTypeMessageReceived
+}
+
+// Execute performs the silent proposer attack
+func (a *SilentMessageAttack) Execute(ctx context.Context, event types.Event) (*types.AttackResult, error) {
+	startTime := time.Now()
+
+	// For silent attack, we don't actually send anything
+	// Instead, we drop/ignore the message
+
+	result := &types.AttackResult{
+		UID:        a.GetUID(),
+		Success:    true,
+		ExecutedAt: time.Now(),
+		Duration:   time.Since(startTime),
+		Details: map[string]interface{}{
+			"action":    "message_dropped",
+			"direction": a.direction,
+			"targets":   len(a.targets),
+		},
+	}
+
+	return result, nil
+}
+
+// SilentAttackFactory creates silent attacks
+func SilentAttackFactory(config types.AttackConfig) (types.Attack, error) {
+	return NewSilentMessageAttack(config)
+}
+
+// Register the attack
+func init() {
+	err := registry.Register(types.AttackTypeSilentMessage, SilentAttackFactory)
+	if err != nil {
+		panic(err)
+	}
+}

@@ -1,135 +1,189 @@
 package types
 
 import (
+	"context"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
-	wbftmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// Service interface for Byzantine service
-type Service interface {
+// Attack represents the interface for all attack implementations
+type Attack interface {
+	// GetUID returns the unique identifier of the attack
+	GetUID() uint64
+
+	// GetType returns the type of the attack
+	GetType() AttackType
+
+	// CheckExecuteCondition checks if the attack should be executed
+	CheckExecuteCondition(ctx context.Context, event Event) bool
+
+	// Execute performs the attack
+	Execute(ctx context.Context, event Event) (*AttackResult, error)
+
+	// GetConfig returns the attack configuration
+	GetConfig() AttackConfig
+
+	// SetStatus updates the attack status
+	SetStatus(status AttackStatus)
+}
+
+// AttackManager manages all registered attacks
+type AttackManager interface {
+	// RegisterAttack registers a new attack
+	RegisterAttack(attack Attack) error
+
+	// UnregisterAttack removes an attack by UID
+	UnregisterAttack(uid uint64) error
+
+	// GetAttack retrieves an attack by UID
+	GetAttack(uid uint64) (Attack, error)
+
+	// ListAttacks returns all registered attacks
+	ListAttacks() []Attack
+
+	// ProcessEvent processes an event through all attacks
+	ProcessEvent(ctx context.Context, event Event) error
+
+	// GetActiveAttacks returns attacks in active status
+	GetActiveAttacks() []Attack
+}
+
+// MessageStorage handles message storage and retrieval
+type MessageStorage interface {
+	// Store stores a message
+	Store(message *StoredMessage) error
+
+	// GetByHash retrieves a message by hash
+	GetByHash(hash common.Hash) (*StoredMessage, error)
+
+	// GetBySequenceRound retrieves messages by sequence and round
+	GetBySequenceRound(sequence, round uint64) ([]*StoredMessage, error)
+
+	// GetRecentMessages retrieves recent messages
+	GetRecentMessages(limit int) ([]*StoredMessage, error)
+
+	// Prune removes old messages
+	Prune(before time.Time) error
+}
+
+// HistoryStorage handles attack history storage
+type HistoryStorage interface {
+	// SaveAttackConfig saves an attack configuration
+	SaveAttackConfig(config AttackConfig) error
+
+	// SaveAttackResult saves an attack result
+	SaveAttackResult(result AttackResult) error
+
+	// GetAttackHistory retrieves attack history by UID
+	GetAttackHistory(uid uint64) ([]AttackResult, error)
+
+	// GetAllHistory retrieves all attack history
+	GetAllHistory(limit int) ([]AttackResult, error)
+
+	// Clear clears all history
+	Clear() error
+}
+
+// EventPublisher publishes events
+type EventPublisher interface {
+	// Publish publishes an event
+	Publish(event Event) error
+
+	// Subscribe subscribes to events
+	Subscribe(eventType EventType, handler EventHandler) error
+
+	// Unsubscribe removes a subscription
+	Unsubscribe(eventType EventType, handler EventHandler) error
+}
+
+// EventHandler handles events
+type EventHandler func(event Event) error
+
+// HookAdapter provides hooks for consensus integration
+type HookAdapter interface {
+	// BeforeProposal is called before creating a proposal
+	BeforeProposal(ctx context.Context, sequence, round uint64) error
+
+	// AfterProposal is called after creating a proposal
+	AfterProposal(ctx context.Context, proposal *types.Block) error
+
+	// BeforePrepare is called before sending prepare message
+	BeforePrepare(ctx context.Context, message *QBFTMessage) error
+
+	// AfterPrepare is called after receiving prepare message
+	AfterPrepare(ctx context.Context, message *QBFTMessage) error
+
+	// BeforeCommit is called before sending commit message
+	BeforeCommit(ctx context.Context, message *QBFTMessage) error
+
+	// AfterCommit is called after receiving commit message
+	AfterCommit(ctx context.Context, message *QBFTMessage) error
+
+	// OnRoundChange is called on round change
+	OnRoundChange(ctx context.Context, sequence, round uint64) error
+
+	// OnMessageReceive is called when receiving any message
+	OnMessageReceive(ctx context.Context, message *QBFTMessage) error
+}
+
+// ByzantineService is the main service interface
+type ByzantineService interface {
 	// Start starts the service
 	Start() error
 
 	// Stop stops the service
 	Stop() error
 
-	// APIs returns RPC APIs
-	APIs() []rpc.API
+	// GetStatus returns the service status
+	GetStatus() ServiceStatus
+
+	// Configure configures the service
+	Configure(config ByzantineConfig) error
+
+	// GetMetrics returns service metrics
+	GetMetrics() Metrics
+
+	// RegisterAttack registers a new attack
+	RegisterAttack(config AttackConfig) (uint64, error)
+
+	// CancelAttack cancels an attack
+	CancelAttack(uid uint64) error
+
+	// ListAttacks lists all attacks
+	ListAttacks() []AttackConfig
+
+	// GetAttackHistory gets attack history
+	GetAttackHistory(uid uint64) ([]AttackResult, error)
+
+	// GetAttackManager gets attack manager
+	GetAttackManager() AttackManager
+
+	// GetMessageStorage gets message storage
+	GetMessageStorage() MessageStorage
+
+	// GetHistoryStorage gets history storage
+	GetHistoryStorage() HistoryStorage
 }
 
-type ByzantineAPI interface {
-	ByzantineTests() []AttackInfo
-	StopByzantineTests(uids []uint64) error
-	SilentMessage(params SilentMessageParams) error
-	SendTamperedMessage(params TamperedMessageParams) error
-	SendFakeMessage(params FakeMessageParams) error
-	SendRoleSpoofedMessage(params RoleSpoofParams) error
-	SendReplayMessage(params ReplayMessageParams) error
-	UpgradeGovContract() error
-	ConfigureAttack(params AttackParams) (attackID string, err error)
-	StopAttack(attackID string) error
-	ListAttacks() []AttackInfo
+// ServiceStatus represents the service status
+type ServiceStatus struct {
+	Running         bool       `json:"running"`
+	StartedAt       *time.Time `json:"started_at,omitempty"`
+	ActiveAttacks   int        `json:"active_attacks"`
+	ExecutedAttacks int        `json:"executed_attacks"`
+	FailedAttacks   int        `json:"failed_attacks"`
+	StoredMessages  int        `json:"stored_messages"`
 }
 
-// AttackManager interface for managing Byzantine attacks
-type AttackManager interface {
-	// LoadAttack loads an attack from configuration
-	LoadAttack(config AttackConfig) error
-	// ConfigureAttack configures a new attack via API
-	ConfigureAttack(params AttackParams) (string, error)
-	// ListAttacks returns all configured attacks
-	ListAttacks() []AttackInfo
-	// StopAttack stops a specific attack
-	StopAttack(attackID string) error
-	// GetAttacksToExecute returns attacks that should execute
-	GetAttacksToExecute(sequence, round uint64, msgCode uint64) []Attack
-	// Start starts the attack manager
-	Start() error
-	// Stop stops the attack manager
-	Stop() error
-
-	Register(attack Attack) error
-	Unregister(attackID string) error
-	GetAttack(attackID string) (Attack, bool)
-	GetAttackStatus(attackID string) AttackStatus
-	MarkExecuted(attackID string)
-	ListAllAttacks() []Attack
-	CleanupExecuted() int
-	Builder() AttackBuilder
-	ConfigureSilentMessage(sequence, round, code, direction uint64, targets []common.Address) error
-	ConfigureTamperedMessage(params TamperMessageParams) error
-	ConfigureFakeMessage(params FakeMessageParams) error
-	ConfigureOmitMessage(params OmitMessageParams) error
-	ConfigureRoleSpoofedMessage(params RoleSpoofParams) error
-	ConfigureReplayMessage(params ReplayMessageParams) error
-}
-
-// EventCollector interface for collecting consensus events
-type EventCollector interface {
-	// Start starts event collection
-	Start(dataReqs []DataRequirement) error
-	// Stop stops event collection
-	Stop(attackId string) error
-	GetHistoricalData(filter DataFilter) []CollectedData
-	GetStateHistory(sequence uint64) []StateTransition
-}
-
-// Attack interface for individual attacks
-type Attack interface {
-	ID() string
-	Config() AttackConfig
-	ShouldExecute(sequence, round uint64, msgCode uint64) bool
-	Execute(ctx *AttackContext) error
-	RequiresData() []DataRequirement // RequiresData indicates if the attack needs additional data
-}
-
-type AttackBuilder interface {
-	WithType(attackType AttackType) AttackBuilder
-	WithConfig(config AttackConfig) AttackBuilder
-	WithTiming(sequence, round uint64) AttackBuilder
-	WithTargets(targets []common.Address) AttackBuilder
-	WithOptions(options map[string]interface{}) AttackBuilder
-	Build() (Attack, error)
-	Reset() AttackBuilder
-}
-
-type Message interface {
-	// Basic properties
-	Code() MessageCode
-	Sequence() uint64
-	Round() uint64
-	From() common.Address
-	To() []common.Address
-
-	// Message content
-	Payload() []byte
-	Signature() []byte
-
-	// Validation
-	Validate() error
-	VerifySignature() error
-
-	// Encoding/decoding
-	Encode() ([]byte, error)
-	Decode([]byte) error
-
-	// Block reference
-	Block() *types.Block
-
-	// QBFT message conversion
-	QBFTMessage() wbftmessage.WBFTMessage
-
-	// Cloning
-	Clone() Message
-}
-
-// Condition represents a condition for attack execution
-type Condition interface {
-	// Evaluate returns true if the condition is satisfied
-	Evaluate(ctx *ConditionContext) bool
-
-	// String returns a human-readable description
-	String() string
+// Metrics represents service metrics
+type Metrics struct {
+	AttacksRegistered int64 `json:"attacks_registered"`
+	AttacksExecuted   int64 `json:"attacks_executed"`
+	AttacksFailed     int64 `json:"attacks_failed"`
+	MessagesStored    int64 `json:"messages_stored"`
+	EventsProcessed   int64 `json:"events_processed"`
+	StorageSize       int64 `json:"storage_size_bytes"`
+	Uptime            int64 `json:"uptime_seconds"`
 }
