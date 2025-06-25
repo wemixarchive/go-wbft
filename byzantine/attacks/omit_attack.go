@@ -19,6 +19,8 @@ type OmitMessageAttack struct {
 	targets     []common.Address
 }
 
+var _ (types.Attack) = (*OmitMessageAttack)(nil)
+
 // NewOmitMessageAttack creates a new omit message attack
 func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error) {
 	targets, err := registry.ParseTargets(config)

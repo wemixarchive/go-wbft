@@ -19,6 +19,8 @@ type TamperedMessageAttack struct {
 	targets          []common.Address
 }
 
+var _ (types.Attack) = (*TamperedMessageAttack)(nil)
+
 // NewTamperedMessageAttack creates a new tampered message attack
 func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack, error) {
 	targets, err := registry.ParseTargets(config)

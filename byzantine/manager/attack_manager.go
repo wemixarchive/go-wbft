@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // AttackManager implements the AttackManager interface
@@ -165,4 +166,60 @@ func (m *AttackManager) updateStatusMap(attack types.Attack, newStatus types.Att
 
 	// Update attack status
 	attack.SetStatus(newStatus)
+}
+
+// EvaluateAndExecuteAttacks evaluates all active attacks and executes them if conditions are met
+// Returns true if any attack indicates the message should be blocked
+func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event types.Event) (types.AttackDecision, error) {
+	activeAttacks := m.GetActiveAttacks()
+
+	// Process attacks sequentially to get immediate decision
+	for _, attack := range activeAttacks {
+		// Check if attack conditions are met
+		if !attack.CheckExecuteCondition(ctx, event) {
+			continue
+		}
+
+		// Execute the attack
+		result, err := attack.Execute(ctx, event)
+		if err != nil {
+			log.Error("Failed to execute attack",
+				"attack", attack.GetConfig().Name,
+				"error", err)
+			continue
+		}
+
+		// Update attack status
+		m.mu.Lock()
+		m.updateStatusMap(attack, types.AttackStatusExecuted)
+		m.mu.Unlock()
+
+		// Save result to history
+		if m.historyStorage != nil && result != nil {
+			_ = m.historyStorage.SaveAttackResult(*result)
+		}
+
+		// Check if this attack wants to block the message
+		if result != nil && result.BlockMessage {
+			return types.AttackDecision{
+				ShouldBlock: true,
+				AttackUID:   attack.GetUID(),
+				AttackType:  attack.GetType(),
+				Reason:      result.BlockReason,
+				Result:      result,
+			}, nil
+		}
+	}
+
+	// No attack blocked the message
+	return types.AttackDecision{
+		ShouldBlock: false,
+		Reason:      "No attack blocked the message",
+	}, nil
+}
+
+// ProcessEventAsync processes event asynchronously for non-blocking attacks
+func (m *AttackManager) ProcessEventAsync(ctx context.Context, event types.Event) error {
+	// For attacks that don't need immediate decision (logging, analysis, etc.)
+	return m.chainHandler.ProcessEvent(ctx, event)
 }

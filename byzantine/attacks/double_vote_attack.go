@@ -17,6 +17,8 @@ type DoubleVoteAttack struct {
 	withValidMessage bool
 }
 
+var _ (types.Attack) = (*DoubleVoteAttack)(nil)
+
 // NewDoubleVoteAttack creates a new double vote attack
 func NewDoubleVoteAttack(config types.AttackConfig) (*DoubleVoteAttack, error) {
 	targets, err := registry.ParseTargets(config)

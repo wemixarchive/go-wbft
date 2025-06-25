@@ -17,6 +17,8 @@ type FakeMessageAttack struct {
 	targets     []common.Address
 }
 
+var _ (types.Attack) = (*FakeMessageAttack)(nil)
+
 // NewFakeMessageAttack creates a new fake message attack
 func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error) {
 	targets, err := registry.ParseTargets(config)

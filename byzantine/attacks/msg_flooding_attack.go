@@ -21,6 +21,8 @@ type MessageFloodingAttack struct {
 	targets       []common.Address
 }
 
+var _ (types.Attack) = (*MessageFloodingAttack)(nil)
+
 // NewMessageFloodingAttack creates a new message flooding attack
 func NewMessageFloodingAttack(config types.AttackConfig) (*MessageFloodingAttack, error) {
 	targets, err := registry.ParseTargets(config)
