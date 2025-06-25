@@ -169,6 +169,9 @@ type ByzantineService interface {
 
 	// GetHistoryStorage gets history storage
 	GetHistoryStorage() HistoryStorage
+
+	// GetConsensusHook gets consensus hook
+	GetConsensusHook() ConsensusHook
 }
 
 // ServiceStatus represents the service status
