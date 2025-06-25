@@ -45,6 +45,8 @@ type ReplayAttack struct {
 	targets          []common.Address
 }
 
+var _ (types.Attack) = (*ReplayAttack)(nil)
+
 // NewReplayAttack creates a new replay attack
 func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
 	targets, err := registry.ParseTargets(config)

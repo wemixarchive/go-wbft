@@ -18,6 +18,8 @@ type RoleSpoofedAttack struct {
 	nodeAddress common.Address
 }
 
+var _ (types.Attack) = (*RoleSpoofedAttack)(nil)
+
 // NewRoleSpoofedAttack creates a new role spoofed attack
 func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error) {
 	targets, err := registry.ParseTargets(config)

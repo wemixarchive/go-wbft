@@ -39,6 +39,8 @@ type ByzantineService struct {
 
 	// Metrics
 	metrics atomic.Value // types.Metrics
+
+	consensusHook types.ConsensusHook
 }
 
 var _ node.Lifecycle = (*ByzantineService)(nil)
@@ -75,6 +77,8 @@ func NewByzantineService(config *types.ByzantineConfig) (*ByzantineService, erro
 
 	// Create hook adapter
 	service.hookAdapter = adapter.NewHookAdapter(service, eventPublisher, messageStorage)
+
+	service.consensusHook = NewConsensusHook(service.attackManager, service.eventPublisher)
 
 	// Initialize metrics
 	service.metrics.Store(types.Metrics{})
@@ -161,8 +165,8 @@ func (s *ByzantineService) GetStatus() types.ServiceStatus {
 	status := s.status
 
 	// Get attack counts
-	attacks := s.attackManager.ListAttacks()
-	for _, attack := range attacks {
+	attackList := s.attackManager.ListAttacks()
+	for _, attack := range attackList {
 		switch attack.GetConfig().Status {
 		case types.AttackStatusActive, types.AttackStatusPending:
 			status.ActiveAttacks++
@@ -238,10 +242,10 @@ func (s *ByzantineService) CancelAttack(uid uint64) error {
 
 // ListAttacks lists all attacks
 func (s *ByzantineService) ListAttacks() []types.AttackConfig {
-	attacks := s.attackManager.ListAttacks()
-	configs := make([]types.AttackConfig, len(attacks))
+	attackList := s.attackManager.ListAttacks()
+	configs := make([]types.AttackConfig, len(attackList))
 
-	for i, attack := range attacks {
+	for i, attack := range attackList {
 		configs[i] = attack.GetConfig()
 	}
 
@@ -276,7 +280,7 @@ func (s *ByzantineService) subscribeToEvents() {
 	}
 
 	for _, eventType := range eventTypes {
-		s.eventPublisher.Subscribe(eventType, func(event types.Event) error {
+		err := s.eventPublisher.Subscribe(eventType, func(event types.Event) error {
 			// Process event through attack manager
 			ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 			defer cancel()
@@ -293,6 +297,9 @@ func (s *ByzantineService) subscribeToEvents() {
 
 			return err
 		})
+		if err != nil {
+			log.Warn("Failed to subscribe to events: ", err)
+		}
 	}
 }
 
@@ -368,4 +375,9 @@ func (s *ByzantineService) GetMessageStorage() types.MessageStorage {
 // GetHistoryStorage returns the history storage (interface for API)
 func (s *ByzantineService) GetHistoryStorage() types.HistoryStorage {
 	return s.historyStorage
+}
+
+// GetConsensusHook returns the consensus hook for integration
+func (s *ByzantineService) GetConsensusHook() types.ConsensusHook {
+	return s.consensusHook
 }

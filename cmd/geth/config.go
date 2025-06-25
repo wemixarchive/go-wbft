@@ -20,6 +20,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/wbft/backend"
 	"os"
 	"reflect"
 	"runtime"
@@ -194,6 +196,10 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 	// Create gauge with geth system and build information
 	if eth != nil { // The 'eth' backend may be nil in light mode
+		if err := IntegrateByzantineWithConsensus(stack, eth.Engine()); err != nil {
+			log.Warn("Failed to integrate Byzantine with consensus", "err", err)
+		}
+
 		var protos []string
 		for _, p := range eth.Protocols() {
 			protos = append(protos, fmt.Sprintf("%v/%d", p.Name, p.Version))
@@ -405,6 +411,34 @@ func setAccountManagerBackends(conf *node.Config, am *accounts.Manager, keydir s
 			am.AddBackend(schub)
 		}
 	}
+
+	return nil
+}
+
+// IntegrateByzantineWithConsensus connects Byzantine module with consensus
+func IntegrateByzantineWithConsensus(stack *node.Node, consensusEngine consensus.Engine) error {
+	// Type assertion to WBFT backend
+	wbftBackend, ok := consensusEngine.(*backend.Backend)
+	if !ok {
+		log.Debug("Consensus is not WBFT, skipping Byzantine integration")
+		return nil
+	}
+
+	// Get Byzantine service from the node stack
+	var byzantineService *byzantine.ByzantineService
+	if err := stack.Service(&byzantineService); err != nil {
+		log.Debug("Byzantine service not found", "err", err)
+		return nil
+	}
+
+	// Connect Byzantine hook to consensus
+	hook := byzantineService.GetConsensusHook()
+	wbftBackend.SetByzantineHook(hook)
+
+	attacks := byzantineService.ListAttacks()
+	log.Info("Byzantine module integrated with consensus",
+		"total_attacks", len(attacks),
+		"active_attacks", byzantineService.GetStatus().ActiveAttacks)
 
 	return nil
 }

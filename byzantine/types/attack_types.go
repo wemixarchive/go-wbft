@@ -134,12 +134,23 @@ func (ac *AttackConfig) GetTargetAddresses() []common.Address {
 
 // AttackResult represents the result of an attacks execution
 type AttackResult struct {
-	UID        uint64        `json:"uid"`
-	Success    bool          `json:"success"`
-	Error      error         `json:"error,omitempty"`
-	Details    interface{}   `json:"details,omitempty"`
-	ExecutedAt time.Time     `json:"executed_at"`
-	Duration   time.Duration `json:"duration"`
+	UID          uint64        `json:"uid"`
+	Success      bool          `json:"success"`
+	Error        error         `json:"error,omitempty"`
+	Details      interface{}   `json:"details,omitempty"`
+	ExecutedAt   time.Time     `json:"executed_at"`
+	Duration     time.Duration `json:"duration"`
+	BlockMessage bool          `json:"block_message,omitempty"`
+	BlockReason  string        `json:"block_reason,omitempty"`
+}
+
+// AttackDecision represents the consolidated decision from attack evaluation
+type AttackDecision struct {
+	ShouldBlock bool
+	AttackUID   uint64
+	AttackType  AttackType
+	Reason      string
+	Result      *AttackResult
 }
 
 // AttackParams contains parameters for configuring an attacks

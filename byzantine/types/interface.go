@@ -48,6 +48,10 @@ type AttackManager interface {
 
 	// GetActiveAttacks returns attacks in active status
 	GetActiveAttacks() []Attack
+
+	EvaluateAndExecuteAttacks(ctx context.Context, event Event) (AttackDecision, error)
+
+	ProcessEventAsync(ctx context.Context, event Event) error
 }
 
 // MessageStorage handles message storage and retrieval
@@ -186,4 +190,15 @@ type Metrics struct {
 	EventsProcessed   int64 `json:"events_processed"`
 	StorageSize       int64 `json:"storage_size_bytes"`
 	Uptime            int64 `json:"uptime_seconds"`
+}
+
+// ConsensusHook represents consensus hook
+type ConsensusHook interface {
+	// BeforeBroadcast is called before broadcasting a message
+	// Returns true if the message should be sent, false to drop it
+	BeforeBroadcast(msgCode, sequence, round uint64, from common.Address) bool
+
+	// BeforeProcessMessage is called before processing a received message
+	// Returns true if the message should be processed, false to drop it
+	BeforeProcessMessage(msgCode, sequence, round uint64, from common.Address) bool
 }

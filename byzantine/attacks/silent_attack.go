@@ -2,6 +2,7 @@ package attacks
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
@@ -15,6 +16,8 @@ type SilentMessageAttack struct {
 	direction types.MessageDirection
 	targets   []common.Address
 }
+
+var _ (types.Attack) = (*SilentMessageAttack)(nil)
 
 // NewSilentProposerAttack creates a new silent proposer attack
 func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, error) {
@@ -55,18 +58,63 @@ func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event t
 func (a *SilentMessageAttack) Execute(ctx context.Context, event types.Event) (*types.AttackResult, error) {
 	startTime := time.Now()
 
+	msgEvent, ok := event.Data.(*types.MessageEvent)
+	if !ok {
+		return nil, fmt.Errorf("invalid event data type for silent attack")
+	}
+
+	shouldBlock := false
+	eventDirection := "send"
+	if dir, ok := event.Metadata["direction"].(string); ok {
+		eventDirection = dir
+	}
+
+	switch a.direction {
+	case 1: // Send only
+		shouldBlock = (eventDirection == "send")
+	case 2: // Receive only
+		shouldBlock = (eventDirection == "receive")
+	case 3: // Both
+		shouldBlock = true
+	}
+
+	// Check if target addresses match (if specified)
+	if shouldBlock && len(a.targets) > 0 {
+		found := false
+		for _, target := range a.targets {
+			if target == msgEvent.From {
+				found = true
+				break
+			}
+		}
+		shouldBlock = found
+	}
+
+	blockReason := ""
+	if shouldBlock {
+		blockReason = fmt.Sprintf("Silent attack: dropping %s message at sequence %d, round %d",
+			eventDirection, event.Sequence, event.Round)
+	}
+
 	// For silent attack, we don't actually send anything
 	// Instead, we drop/ignore the message
 
 	result := &types.AttackResult{
-		UID:        a.GetUID(),
-		Success:    true,
-		ExecutedAt: time.Now(),
-		Duration:   time.Since(startTime),
+		UID:          a.GetUID(),
+		Success:      true,
+		ExecutedAt:   time.Now(),
+		Duration:     time.Since(startTime),
+		BlockMessage: shouldBlock,
+		BlockReason:  blockReason,
 		Details: map[string]interface{}{
-			"action":    "message_dropped",
-			"direction": a.direction,
-			"targets":   len(a.targets),
+			"action":       "silent_attack_evaluated",
+			"blocked":      shouldBlock,
+			"event_type":   event.Type,
+			"sequence":     event.Sequence,
+			"round":        event.Round,
+			"message_type": msgEvent.MessageType,
+			"direction":    a.direction,
+			"targets":      len(a.targets),
 		},
 	}
 
