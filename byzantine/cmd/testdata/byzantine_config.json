@@ -6,6 +6,9 @@
       "name": "SilentProposer_Block100",
       "type": "silent",
       "enabled": true,
+      // sequence nubmer는 start, end
+      // 실제 attack에서 수행된 sequence 값과, 설정 sequence 값을 둘다 저장
+      // Attack은 한번만 수행
       "sequence": 100,
       "round": 0,
       "params": {

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/ethereum/go-ethereum/byzantine/api"
-	"github.com/ethereum/go-ethereum/byzantine/attack"
+	"github.com/ethereum/go-ethereum/byzantine/attacks"
 	"github.com/ethereum/go-ethereum/byzantine/event"
 )
 
@@ -60,7 +60,7 @@ func (m *MockQBFTEventSource) BroadcastEvent(event event.WBFTEvent) {
 	}
 }
 
-// Test: Full attack configuration flow
+// Test: Full attacks configuration flow
 func TestIntegration_AttackConfigurationFlow(t *testing.T) {
 	// Given - Setup all components
 	mockEventSource := new(MockQBFTEventSource)
@@ -68,11 +68,11 @@ func TestIntegration_AttackConfigurationFlow(t *testing.T) {
 	mockEventSource.On("Unsubscribe", mock.Anything).Return(nil)
 
 	eventCollector := event.NewEventCollector(mockEventSource)
-	attackManager := attack.NewAttackManager(eventCollector)
-	attackBuilder := attack.NewAttackBuilder()
+	attackManager := attacks.NewAttackManager(eventCollector)
+	attackBuilder := attacks.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
 
-	// When - Configure a double prepare attack
+	// When - Configure a double prepare attacks
 	params := api.AttackParams{
 		Type:     api.AttackTypeDoublePrepare,
 		Sequence: 100,
@@ -92,14 +92,14 @@ func TestIntegration_AttackConfigurationFlow(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, attackID)
 
-	// Verify attack is registered in manager
+	// Verify attacks is registered in manager
 	registeredAttack, exists := attackManager.GetAttack(attackID)
 	assert.True(t, exists)
 	assert.NotNil(t, registeredAttack)
 
-	// Verify attack properties
-	assert.True(t, registeredAttack.ShouldExecute(100, 0, uint64(attack.MessageCodePrepare)))
-	assert.False(t, registeredAttack.ShouldExecute(99, 0, uint64(attack.MessageCodePrepare)))
+	// Verify attacks properties
+	assert.True(t, registeredAttack.ShouldExecute(100, 0, uint64(attacks.MessageCodePrepare)))
+	assert.False(t, registeredAttack.ShouldExecute(99, 0, uint64(attacks.MessageCodePrepare)))
 }
 
 // Test: Attack execution based on QBFT events
@@ -109,8 +109,8 @@ func TestIntegration_AttackExecutionFlow(t *testing.T) {
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 
 	eventCollector := event.NewEventCollector(mockEventSource)
-	attackManager := attack.NewAttackManager(eventCollector)
-	attackBuilder := attack.NewAttackBuilder()
+	attackManager := attacks.NewAttackManager(eventCollector)
+	attackBuilder := attacks.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
 
 	// Configure multiple attacks
@@ -142,17 +142,17 @@ func TestIntegration_AttackExecutionFlow(t *testing.T) {
 	// When - Check which attacks should execute for different conditions
 
 	// Sequence 100, Round 0, Prepare message
-	prepareAttacks := attackManager.GetAttacksToExecute(100, 0, uint64(attack.MessageCodePrepare))
+	prepareAttacks := attackManager.GetAttacksToExecute(100, 0, uint64(attacks.MessageCodePrepare))
 	assert.Len(t, prepareAttacks, 1)
 	assert.Equal(t, attackIDs[0], prepareAttacks[0].ID())
 
 	// Sequence 100, Round 0, Commit message
-	commitAttacks := attackManager.GetAttacksToExecute(100, 0, uint64(attack.MessageCodeCommit))
+	commitAttacks := attackManager.GetAttacksToExecute(100, 0, uint64(attacks.MessageCodeCommit))
 	assert.Len(t, commitAttacks, 1)
 	assert.Equal(t, attackIDs[1], commitAttacks[0].ID())
 
 	// Sequence 101, Round 0, PrePrepare message
-	preprepareAttacks := attackManager.GetAttacksToExecute(101, 0, uint64(attack.MessageCodePrePrepare))
+	preprepareAttacks := attackManager.GetAttacksToExecute(101, 0, uint64(attacks.MessageCodePrePrepare))
 	assert.Len(t, preprepareAttacks, 1)
 	assert.Equal(t, attackIDs[2], preprepareAttacks[0].ID())
 }
@@ -164,17 +164,17 @@ func TestIntegration_EventCollectionFlow(t *testing.T) {
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 
 	eventCollector := event.NewEventCollector(mockEventSource)
-	attackManager := attack.NewAttackManager(eventCollector)
-	attackBuilder := attack.NewAttackBuilder()
+	attackManager := attacks.NewAttackManager(eventCollector)
+	attackBuilder := attacks.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
 
-	// Configure an attack that requires historical data
+	// Configure an attacks that requires historical data
 	params := api.AttackParams{
 		Type:     api.AttackTypeTamperedHeader,
 		Sequence: 100,
 		Round:    0,
 		Options: map[string]interface{}{
-			"tamperFields": []attack.TamperField{
+			"tamperFields": []attacks.TamperField{
 				{
 					Target: "Proposal.Header.Coinbase",
 					Value:  common.HexToAddress("0xdeadbeef"),
@@ -193,7 +193,7 @@ func TestIntegration_EventCollectionFlow(t *testing.T) {
 			Sequence: 95,
 			Round:    0,
 			Message: &event.WBFTMessage{
-				Code:     uint64(attack.MessageCodePrepare),
+				Code:     uint64(attacks.MessageCodePrepare),
 				Sequence: 95,
 				Address:  common.HexToAddress("0x1111"),
 			},
@@ -203,7 +203,7 @@ func TestIntegration_EventCollectionFlow(t *testing.T) {
 			Sequence: 98,
 			Round:    0,
 			Message: &event.WBFTMessage{
-				Code:     uint64(attack.MessageCodeCommit),
+				Code:     uint64(attacks.MessageCodeCommit),
 				Sequence: 98,
 				Address:  common.HexToAddress("0x2222"),
 			},
@@ -226,7 +226,7 @@ func TestIntegration_EventCollectionFlow(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// When - Query collected data
-	filter := attack.DataFilter{
+	filter := attacks.DataFilter{
 		FromSequence: 90,
 		ToSequence:   99,
 	}
@@ -250,11 +250,11 @@ func TestIntegration_AttackLifecycle(t *testing.T) {
 	mockEventSource.On("Unsubscribe", mock.Anything).Return(nil)
 
 	eventCollector := event.NewEventCollector(mockEventSource)
-	attackManager := attack.NewAttackManager(eventCollector)
-	attackBuilder := attack.NewAttackBuilder()
+	attackManager := attacks.NewAttackManager(eventCollector)
+	attackBuilder := attacks.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
 
-	// When - Configure attack
+	// When - Configure attacks
 	params := api.AttackParams{
 		Type:     api.AttackTypeDoublePrepare,
 		Sequence: 100,
@@ -264,19 +264,19 @@ func TestIntegration_AttackLifecycle(t *testing.T) {
 	attackID, err := byzantineAPI.ConfigureAttack(params)
 	assert.NoError(t, err)
 
-	// Verify attack is active
+	// Verify attacks is active
 	attacks := byzantineAPI.ListAttacks()
 	assert.Len(t, attacks, 1)
-	assert.Equal(t, attack.AttackStatusActive, attacks[0].Status)
+	assert.Equal(t, attacks.AttackStatusActive, attacks[0].Status)
 
-	// When - Execute attack (mark as executed)
+	// When - Execute attacks (mark as executed)
 	attackManager.MarkExecuted(attackID)
 
 	// Then - Status should be updated
 	status := attackManager.GetAttackStatus(attackID)
-	assert.Equal(t, attack.AttackStatusExecuted, status)
+	assert.Equal(t, attacks.AttackStatusExecuted, status)
 
-	// When - Stop attack
+	// When - Stop attacks
 	err = byzantineAPI.StopAttack(attackID)
 	assert.NoError(t, err)
 
@@ -292,8 +292,8 @@ func TestIntegration_ConcurrentAttacks(t *testing.T) {
 	mockEventSource.On("Subscribe", mock.Anything).Return(nil)
 
 	eventCollector := event.NewEventCollector(mockEventSource)
-	attackManager := attack.NewAttackManager(eventCollector)
-	attackBuilder := attack.NewAttackBuilder()
+	attackManager := attacks.NewAttackManager(eventCollector)
+	attackBuilder := attacks.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
 
 	// When - Configure multiple attacks concurrently
@@ -326,7 +326,7 @@ func TestIntegration_ConcurrentAttacks(t *testing.T) {
 	// Verify each can be found at its sequence
 	for i := 0; i < attackCount; i++ {
 		seq := uint64(100 + i)
-		seqAttacks := attackManager.GetAttacksToExecute(seq, 0, uint64(attack.MessageCodePrepare))
+		seqAttacks := attackManager.GetAttacksToExecute(seq, 0, uint64(attacks.MessageCodePrepare))
 		assert.Len(t, seqAttacks, 1)
 	}
 }
@@ -338,11 +338,11 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 	mockEventSource.On("Subscribe", mock.Anything).Return(errors.New("subscription failed"))
 
 	eventCollector := event.NewEventCollector(mockEventSource)
-	attackManager := attack.NewAttackManager(eventCollector)
-	attackBuilder := attack.NewAttackBuilder()
+	attackManager := attacks.NewAttackManager(eventCollector)
+	attackBuilder := attacks.NewAttackBuilder()
 	byzantineAPI := api.NewByzantineAPIWithManager(attackBuilder, attackManager)
 
-	// When - Try to configure attack with data requirements
+	// When - Try to configure attacks with data requirements
 	params := api.AttackParams{
 		Type:     api.AttackTypeTamperedHeader,
 		Sequence: 100,

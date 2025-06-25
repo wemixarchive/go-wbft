@@ -7,66 +7,99 @@ import (
 	"time"
 )
 
-// AttackConfig represents generic attack configuration
+// AttackType represents different types of Byzantine attacks
+type AttackType string
+
+const (
+	// Basic attacks types
+	AttackTypeDoubleVote      AttackType = AttackDoubleVote
+	AttackTypeSilentMessage   AttackType = AttackSilent
+	AttackTypeTamperedMessage AttackType = AttackTamper
+	AttackTypeFakeMessage     AttackType = AttackFake
+	AttackTypeOmitMessage     AttackType = AttackOmit
+	AttackTypeRoleSpoofed     AttackType = AttackRoleSpoof
+	AttackTypeReplay          AttackType = AttackReplay
+	AttackTypeMessageFlooding AttackType = AttackFlooding
+)
+
+// AttackStatus represents the status of an attacks
+type AttackStatus string
+
+const (
+	AttackStatusPending   AttackStatus = "pending"
+	AttackStatusActive    AttackStatus = "active"
+	AttackStatusExecuted  AttackStatus = "executed"
+	AttackStatusCompleted AttackStatus = "completed"
+	AttackStatusFailed    AttackStatus = "failed"
+	AttackStatusCancelled AttackStatus = "cancelled"
+)
+
+// AttackInfo represents attack information
+type AttackInfo struct {
+	UID        uint64                 `json:"uid"`
+	Name       string                 `json:"name"`
+	Type       AttackType             `json:"type"`
+	Enabled    bool                   `json:"enabled"`
+	Sequence   uint64                 `json:"sequence"`
+	Round      uint64                 `json:"round"`
+	Code       MessageCode            `json:"code,omitempty"`
+	Status     AttackStatus           `json:"status,omitempty"`
+	Targets    []common.Address       `json:"targets,omitempty"`
+	Parameters map[string]interface{} `json:"parameters,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
+	ExecutedAt *time.Time             `json:"executed_at,omitempty"`
+}
+
+// AttackConfig represents the configuration for an attack
 type AttackConfig struct {
-	// Identidy
-	UID      uint64         `json:"uid"`
-	Name     string         `json:"name"`
-	Type     AttackType     `json:"type"`
-	Category AttackCategory `json:"category,omitempty"`
-	Severity AttackSeverity `json:"severity,omitempty"`
-
-	// Execution parameters
-	Enabled  bool   `json:"enabled"`
-	Sequence uint64 `json:"sequence"`
-	Round    uint64 `json:"round"`
-
-	// Attack-specific parameters
-	Params map[string]interface{} `json:"params,omitempty"`
-
-	// Advanced options
-	RepeatCount      int  `json:"repeatCount,omitempty"`
-	RandomDelay      bool `json:"randomDelay,omitempty"`
-	CoordinationMode bool `json:"coordinationMode,omitempty"`
-
-	// Target validators for the attack
-	Targets []string `json:"targets,omitempty"`
-
-	// Message-specific options
-	MessageCode uint64 `json:"messageCode,omitempty"`
-	Delay       uint64 `json:"delay,omitempty"`
+	UID        uint64                 `json:"uid"`
+	Name       string                 `json:"name"`
+	Type       AttackType             `json:"type"`
+	Enabled    bool                   `json:"enabled"`
+	Sequence   uint64                 `json:"sequence"`
+	Round      uint64                 `json:"round"`
+	Code       MessageCode            `json:"code,omitempty"`
+	Status     AttackStatus           `json:"status,omitempty"`
+	Targets    []common.Address       `json:"targets,omitempty"`
+	Parameters map[string]interface{} `json:"parameters,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
+	ExecutedAt *time.Time             `json:"executed_at,omitempty"`
 }
 
 func (ac *AttackConfig) ConvertTypeToString() string {
 	switch ac.Type {
-	case AttackTypeSilent:
-		return "silent"
-	case AttackTypeTamper:
-		return "tamper"
-	case AttackTypeFake:
-		return "fake"
-	case AttackTypeOmit:
-		return "omit"
-	case AttackTypeRoleSpoof:
-		return "roleSpoof"
+	case AttackTypeDoubleVote:
+		return AttackDoubleVote
+	case AttackTypeSilentMessage:
+		return AttackSilent
+	case AttackTypeTamperedMessage:
+		return AttackTamper
+	case AttackTypeFakeMessage:
+		return AttackFake
+	case AttackTypeOmitMessage:
+		return AttackOmit
+	case AttackTypeRoleSpoofed:
+		return AttackRoleSpoof
 	case AttackTypeReplay:
-		return "replay"
+		return AttackReplay
+	case AttackTypeMessageFlooding:
+		return AttackFlooding
 	default:
 		return "unknown"
 	}
 }
 
-// Validate validates a single attack configuration
+// Validate validates a single attacks configuration
 func (a *AttackConfig) Validate() error {
 	if a.Name == "" {
-		return errors.New("attack name is required")
+		return errors.New("attacks name is required")
 	}
 
 	if a.Type == "" {
-		return errors.New("attack type is required")
+		return errors.New("attacks type is required")
 	}
 
-	// Validate attack type
+	// Validate attacks type
 	validTypes := map[string]bool{
 		"doublePrepare": true, "doubleCommit": true,
 		"silentProposer": true, "silentValidator": true,
@@ -75,15 +108,15 @@ func (a *AttackConfig) Validate() error {
 	}
 
 	if !validTypes[string(a.Type)] {
-		return fmt.Errorf("invalid attack type: %s", a.Type)
+		return fmt.Errorf("invalid attacks type: %s", a.Type)
 	}
 
 	// Validate targets are valid addresses
-	for i, target := range a.Targets {
-		if !common.IsHexAddress(target) {
-			return fmt.Errorf("invalid target address[%d]: %s", i, target)
-		}
-	}
+	//for i, target := range a.Targets {
+	//	if !common.IsHexAddress(target) {
+	//		return fmt.Errorf("invalid target address[%d]: %s", i, target)
+	//	}
+	//}
 
 	return nil
 }
@@ -91,15 +124,25 @@ func (a *AttackConfig) Validate() error {
 // GetTargetAddresses converts string targets to common.Address
 func (ac *AttackConfig) GetTargetAddresses() []common.Address {
 	addresses := make([]common.Address, 0, len(ac.Targets))
-	for _, target := range ac.Targets {
-		if common.IsHexAddress(target) {
-			addresses = append(addresses, common.HexToAddress(target))
-		}
-	}
+	//for _, target := range ac.Targets {
+	//	if common.IsHexAddress(target) {
+	//		addresses = append(addresses, common.HexToAddress(target))
+	//	}
+	//}
 	return addresses
 }
 
-// AttackParams contains parameters for configuring an attack
+// AttackResult represents the result of an attacks execution
+type AttackResult struct {
+	UID        uint64        `json:"uid"`
+	Success    bool          `json:"success"`
+	Error      error         `json:"error,omitempty"`
+	Details    interface{}   `json:"details,omitempty"`
+	ExecutedAt time.Time     `json:"executed_at"`
+	Duration   time.Duration `json:"duration"`
+}
+
+// AttackParams contains parameters for configuring an attacks
 type AttackParams struct {
 	Type     AttackType
 	Sequence uint64
@@ -108,75 +151,25 @@ type AttackParams struct {
 	Options  map[string]interface{}
 }
 
-// AttackContext provides context for attack execution
+// AttackContext provides context for attacks execution
 type AttackContext struct {
 	CurrentSequence uint64
 	CurrentRound    uint64
 	MessageCode     uint64
 }
 
-// AttackParams for API
-//type AttackParams struct {
-//	Type     string                 `json:"type"`
-//	Sequence uint64                 `json:"sequence"`
-//	Round    uint64                 `json:"round"`
-//	Targets  []common.Address       `json:"targets"`
-//	Options  map[string]interface{} `json:"options"`
+// AttackInfo for API responses
+//type AttackInfo struct {
+//	ID       string           `json:"id"`
+//	Name     string           `json:"name"`
+//	Type     AttackType       `json:"type"`
+//	Sequence uint64           `json:"sequence"`
+//	Round    uint64           `json:"round"`
+//	Status   AttackStatus     `json:"status"`
+//	Targets  []common.Address `json:"targets"`
 //}
 
-// AttackInfo for API responses
-type AttackInfo struct {
-	ID       string           `json:"id"`
-	Name     string           `json:"name"`
-	Type     AttackType       `json:"type"`
-	Sequence uint64           `json:"sequence"`
-	Round    uint64           `json:"round"`
-	Status   AttackStatus     `json:"status"`
-	Targets  []common.Address `json:"targets"`
-}
-
-// AttackType represents different types of Byzantine attacks
-type AttackType string
-
-const (
-	// Basic attack types
-	AttackTypeSilent    AttackType = "silent"
-	AttackTypeTamper    AttackType = "tamper"
-	AttackTypeFake      AttackType = "fake"
-	AttackTypeOmit      AttackType = "omit"
-	AttackTypeRoleSpoof AttackType = "roleSpoof"
-	AttackTypeReplay    AttackType = "replay"
-
-	// Advanced attack types
-	AttackTypeFlood   AttackType = "flood"
-	AttackTypeDiverge AttackType = "diverge"
-
-	// Coordinated attack types
-	AttackTypeCoordinatedSilent AttackType = "coordinatedSilent"
-	AttackTypePartitionAttack   AttackType = "partitionAttack"
-
-	// Advance attach type
-	AttackTypeDoublePrepare   AttackType = "doublePrepare"
-	AttackTypeDoubleCommit    AttackType = "doubleCommit"
-	AttackTypeSilentProposer  AttackType = "silentProposer"
-	AttackTypeSilentValidator AttackType = "silentValidator"
-	AttackTypeTamperedHeader  AttackType = "tamperedHeader"
-	AttackTypeFakeTransaction AttackType = "fakeTransaction"
-)
-
-// AttackStatus represents the status of an attack
-type AttackStatus string
-
-const (
-	AttackStatusPending   AttackStatus = "pending"
-	AttackStatusActive    AttackStatus = "active"
-	AttackStatusExecuted  AttackStatus = "executed"
-	AttackStatusStopped   AttackStatus = "stopped"
-	AttackStatusFailed    AttackStatus = "failed"
-	AttackStatusCancelled AttackStatus = "cancelled"
-)
-
-// AttackCategory represents attack categories
+// AttackCategory represents attacks categories
 type AttackCategory string
 
 const (
@@ -188,7 +181,7 @@ const (
 	AttackCategoryNetwork   AttackCategory = "network"
 )
 
-// AttackSeverity represents attack severity levels
+// AttackSeverity represents attacks severity levels
 type AttackSeverity string
 
 const (
@@ -198,7 +191,7 @@ const (
 	AttackSeverityCritical AttackSeverity = "critical"
 )
 
-// DataRequirement specifies what data an attack needs
+// DataRequirement specifies what data an attacks needs
 type DataRequirement struct {
 	Type       string // "messages", "blocks", "state"
 	Filter     DataFilter
@@ -213,18 +206,6 @@ type DataFilter struct {
 	Validators   []common.Address
 }
 
-//// MessageCode defines QBFT message types
-//type MessageCode uint64
-//
-//const (
-//	MessageCodePrePrepare MessageCode = 1 << iota
-//	MessageCodePrepare
-//	MessageCodeCommit
-//	MessageCodeRoundChange
-//	MessageCodeRoundChangePrePrepare
-//	MessageCodePropagation
-//)
-
 // TamperMessageParams for tampered message attacks
 type TamperMessageParams struct {
 	Sequence         uint64
@@ -236,10 +217,10 @@ type TamperMessageParams struct {
 	Targets          []common.Address
 }
 
-// TamperField specifies a field to tamper and its new value
+// TamperField represents a field to be tampered in a message
 type TamperField struct {
-	Target string      // e.g., "Proposal.Header.Coinbase"
-	Value  interface{} // New value for the field
+	Target string      `json:"target"` // e.g., "Proposal.Header.Coinbase"
+	Value  interface{} `json:"value"`  // New value for the field
 }
 
 // ConditionContext provides context for condition evaluation
@@ -250,12 +231,4 @@ type ConditionContext struct {
 	Role        string
 	Validators  []common.Address
 	Self        common.Address
-}
-
-// AttackResult represents the result of an attack execution
-type AttackResult struct {
-	Success   bool
-	Error     error
-	Timestamp time.Time
-	Details   map[string]interface{}
 }

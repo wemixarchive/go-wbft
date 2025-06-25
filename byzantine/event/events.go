@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// Import types from attack package (would be properly imported in real implementation)
+// Import types from attacks package (would be properly imported in real implementation)
 type (
 	DataRequirement = types.DataRequirement
 	DataFilter      = types.DataFilter
@@ -125,25 +125,6 @@ type eventCollector struct {
 	mu           sync.Mutex
 
 	dataReqs []DataRequirement
-}
-
-// NewEventCollector creates a new event event
-func NewEventCollector() types.EventCollector {
-	return &eventCollector{
-		stateStore: newStateStore(),
-		eventChan:  make(chan WBFTEvent, 1000),
-		stopChan:   make(chan struct{}),
-	}
-}
-
-// NewEventCollectorWithEvent creates a new event event
-func NewEventCollectorWithEvent(source WBFTEventSource) types.EventCollector {
-	return &eventCollector{
-		source:     source,
-		stateStore: newStateStore(),
-		eventChan:  make(chan WBFTEvent, 1000),
-		stopChan:   make(chan struct{}),
-	}
 }
 
 // StartCollection starts collecting events based on data requirements

@@ -2,7 +2,9 @@ package byzantine
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/byzantine/cmd"
+	"github.com/ethereum/go-ethereum/byzantine/service"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
@@ -11,14 +13,12 @@ import (
 )
 
 // Register registers Byzantine service using the provided config
-// This is called from cmd/geth/config.go after LoadByzantineConfig
 func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *eth.Ethereum) error {
 	// Load Byzantine configuration
 	config, err := cmd.LoadByzantineConfig(ctx, stack.Config())
 	if err != nil {
 		return fmt.Errorf("byzantine: failed to load configuration: %w", err)
 	}
-	log.Info("===[Byzantine]=== Byzantine config", "config", config)
 
 	// Skip registration if Byzantine is disabled
 	if !config.Enabled {
@@ -28,21 +28,23 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 
 	log.Info("Registering Byzantine module",
 		"enabled", config.Enabled,
-		"configFile", config.ConfigFile,
-		"logLevel", config.LogLevel,
-		"attacks", len(config.Attacks))
+		//"configFile", config.ConfigFile,
+		"attacks count", len(config.Attacks),
+		"attacks", config.Attacks,
+		"storage", config.StorageConfig,
+		"monitoring", config.Monitoring)
 
-	// Create and register Byzantine service
-	service, err := NewByzantineService(config, backend, eth)
+	// Create Byzantine service
+	byzantineService, err := service.NewByzantineService(config)
 	if err != nil {
 		return fmt.Errorf("byzantine: failed to create service: %w", err)
 	}
 
 	// Register service lifecycle
-	stack.RegisterLifecycle(service)
+	stack.RegisterLifecycle(byzantineService)
 
 	// Register APIs
-	apis := service.APIs()
+	apis := byzantineService.APIs()
 	if len(apis) > 0 {
 		stack.RegisterAPIs(apis)
 		log.Info("Byzantine APIs registered", "count", len(apis))
@@ -51,6 +53,48 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 	log.Info("Byzantine module registered successfully")
 	return nil
 }
+
+//// Register registers Byzantine service using the provided config
+//// This is called from cmd/geth/config.go after LoadByzantineConfig
+//func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *eth.Ethereum) error {
+//	// Load Byzantine configuration
+//	config, err := cmd.LoadByzantineConfig(ctx, stack.Config())
+//	if err != nil {
+//		return fmt.Errorf("byzantine: failed to load configuration: %w", err)
+//	}
+//	log.Info("===[Byzantine]=== Byzantine config", "config", config)
+//
+//	// Skip registration if Byzantine is disabled
+//	if !config.Enabled {
+//		log.Info("Byzantine module disabled")
+//		return nil
+//	}
+//
+//	log.Info("Registering Byzantine module",
+//		"enabled", config.Enabled,
+//		"configFile", config.ConfigFile,
+//		"logLevel", config.LogLevel,
+//		"attacks", len(config.Attacks))
+//
+//	// Create and register Byzantine service
+//	service, err := NewByzantineService(config, backend, eth)
+//	if err != nil {
+//		return fmt.Errorf("byzantine: failed to create service: %w", err)
+//	}
+//
+//	// Register service lifecycle
+//	stack.RegisterLifecycle(service)
+//
+//	// Register APIs
+//	apis := service.APIs()
+//	if len(apis) > 0 {
+//		stack.RegisterAPIs(apis)
+//		log.Info("Byzantine APIs registered", "count", len(apis))
+//	}
+//
+//	log.Info("Byzantine module registered successfully")
+//	return nil
+//}
 
 // RegisterFlags adds Byzantine-specific flags to the command
 func RegisterFlags(app *cli.App) {
