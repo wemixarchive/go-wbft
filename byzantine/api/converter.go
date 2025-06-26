@@ -11,26 +11,26 @@ import (
 func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessageParams, error) {
 	params := types.SilentMessageParams{}
 
-	if v, ok := raw["sequence"].(float64); ok {
-		params.Sequence = uint64(v)
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
 	} else {
-		return params, fmt.Errorf("invalid sequence")
+		return params, fmt.Errorf("sequence number is required")
 	}
 
-	if v, ok := raw["round"].(float64); ok {
-		params.Round = uint64(v)
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
 	} else {
-		return params, fmt.Errorf("invalid round")
+		return params, fmt.Errorf("round number is required")
 	}
 
-	if v, ok := raw["code"].(float64); ok {
-		params.Code = uint64(v)
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
 	} else {
-		return params, fmt.Errorf("invalid code")
+		return params, fmt.Errorf("code number is required")
 	}
 
-	if v, ok := raw["direction"].(float64); ok {
-		params.Direction = uint64(v)
+	if v, ok := raw["direction"].(uint64); ok {
+		params.Direction = v
 	} else {
 		return params, fmt.Errorf("invalid direction")
 	}
@@ -53,22 +53,22 @@ func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessa
 func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedMessageParams, error) {
 	params := types.TamperedMessageParams{}
 
-	if v, ok := raw["sequence"].(float64); ok {
-		params.Sequence = uint64(v)
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
 	} else {
-		return params, fmt.Errorf("invalid sequence")
+		return params, fmt.Errorf("sequence number is required")
 	}
 
-	if v, ok := raw["round"].(float64); ok {
-		params.Round = uint64(v)
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
 	} else {
-		return params, fmt.Errorf("invalid round")
+		return params, fmt.Errorf("round number is required")
 	}
 
-	if v, ok := raw["code"].(float64); ok {
-		params.Code = uint64(v)
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
 	} else {
-		return params, fmt.Errorf("invalid code")
+		return params, fmt.Errorf("code number is required")
 	}
 
 	// Convert tamper fields
@@ -90,8 +90,8 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 		params.WithValidMessage = v
 	}
 
-	if v, ok := raw["delay"].(float64); ok {
-		params.Delay = uint64(v)
+	if v, ok := raw["delay"].(uint64); ok {
+		params.Delay = v
 	}
 
 	// Convert targets
@@ -111,22 +111,22 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 func ConvertToFakeMessageParams(raw map[string]interface{}) (types.FakeMessageParams, error) {
 	params := types.FakeMessageParams{}
 
-	if v, ok := raw["sequence"].(float64); ok {
-		params.Sequence = uint64(v)
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
 	} else {
-		return params, fmt.Errorf("invalid sequence")
+		return params, fmt.Errorf("sequence number is required")
 	}
 
-	if v, ok := raw["round"].(float64); ok {
-		params.Round = uint64(v)
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
 	} else {
-		return params, fmt.Errorf("invalid round")
+		return params, fmt.Errorf("round number is required")
 	}
 
-	if v, ok := raw["code"].(float64); ok {
-		params.Code = uint64(v)
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
 	} else {
-		return params, fmt.Errorf("invalid code")
+		return params, fmt.Errorf("code number is required")
 	}
 
 	if v, ok := raw["fakeMessage"]; ok {
@@ -160,31 +160,31 @@ func ConvertToFakeMessageParams(raw map[string]interface{}) (types.FakeMessagePa
 func ConvertToOmitMessageParams(raw map[string]interface{}) (types.OmitMessageParams, error) {
 	params := types.OmitMessageParams{}
 
-	if v, ok := raw["sequence"].(float64); ok {
-		params.Sequence = uint64(v)
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
 	} else {
-		return params, fmt.Errorf("invalid sequence")
+		return params, fmt.Errorf("sequence number is required")
 	}
 
-	if v, ok := raw["round"].(float64); ok {
-		params.Round = uint64(v)
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
 	} else {
-		return params, fmt.Errorf("invalid round")
+		return params, fmt.Errorf("round number is required")
 	}
 
-	if v, ok := raw["code"].(float64); ok {
-		params.Code = uint64(v)
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
 	} else {
-		return params, fmt.Errorf("invalid code")
+		return params, fmt.Errorf("code number is required")
 	}
 
-	if v, ok := raw["cmd"].(float64); ok {
-		params.Cmd = uint64(v)
+	if v, ok := raw["cmd"].(uint64); ok {
+		params.Cmd = v
 	} else {
-		return params, fmt.Errorf("invalid cmd")
+		return params, fmt.Errorf("cmd is required")
 	}
 
-	if v, ok := raw["cnt"].(float64); ok {
+	if v, ok := raw["cnt"].(uint64); ok {
 		params.Cnt = uint64(v)
 	}
 
@@ -204,22 +204,22 @@ func ConvertToOmitMessageParams(raw map[string]interface{}) (types.OmitMessagePa
 func ConvertToRoleSpoofParams(raw map[string]interface{}) (types.RoleSpoofParams, error) {
 	params := types.RoleSpoofParams{}
 
-	if v, ok := raw["sequence"].(float64); ok {
-		params.Sequence = uint64(v)
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
 	} else {
-		return params, fmt.Errorf("invalid sequence")
+		return params, fmt.Errorf("sequence number is required")
 	}
 
-	if v, ok := raw["round"].(float64); ok {
-		params.Round = uint64(v)
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
 	} else {
-		return params, fmt.Errorf("invalid round")
+		return params, fmt.Errorf("round number is required")
 	}
 
-	if v, ok := raw["code"].(float64); ok {
-		params.Code = uint64(v)
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
 	} else {
-		return params, fmt.Errorf("invalid code")
+		return params, fmt.Errorf("code number is required")
 	}
 
 	if v, ok := raw["fakeMessage"]; ok {
@@ -249,26 +249,26 @@ func ConvertToRoleSpoofParams(raw map[string]interface{}) (types.RoleSpoofParams
 func ConvertToReplayMessageParams(raw map[string]interface{}) (types.ReplayMessageParams, error) {
 	params := types.ReplayMessageParams{}
 
-	if v, ok := raw["oriSequence"].(float64); ok {
-		params.OriSequence = uint64(v)
+	if v, ok := raw["oriSequence"].(uint64); ok {
+		params.OriSequence = v
 	} else {
 		return params, fmt.Errorf("invalid oriSequence")
 	}
 
-	if v, ok := raw["oriRound"].(float64); ok {
-		params.OriRound = uint64(v)
+	if v, ok := raw["oriRound"].(uint64); ok {
+		params.OriRound = v
 	} else {
 		return params, fmt.Errorf("invalid oriRound")
 	}
 
-	if v, ok := raw["sequence"].(float64); ok {
-		params.Sequence = uint64(v)
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
 	} else {
 		return params, fmt.Errorf("invalid sequence")
 	}
 
-	if v, ok := raw["round"].(float64); ok {
-		params.Round = uint64(v)
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
 	} else {
 		return params, fmt.Errorf("invalid round")
 	}
@@ -277,8 +277,8 @@ func ConvertToReplayMessageParams(raw map[string]interface{}) (types.ReplayMessa
 		params.UseOriginalView = v
 	}
 
-	if v, ok := raw["code"].(float64); ok {
-		params.Code = uint64(v)
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
 	} else {
 		return params, fmt.Errorf("invalid code")
 	}
