@@ -20,8 +20,8 @@ func TestByzantineService(t *testing.T) {
 		},
 	}
 
-	service, err := NewByzantineService(&config)
-	require.NoError(t, err)
+	service, serviceErr := NewByzantineService(&config)
+	require.NoError(t, serviceErr)
 
 	t.Run("Start and Stop", func(t *testing.T) {
 		// Start service
@@ -65,11 +65,12 @@ func TestByzantineService(t *testing.T) {
 		assert.Len(t, attacks, 1)
 		assert.Equal(t, uid, attacks[0].UID)
 		assert.Equal(t, types.AttackStatusPending, attacks[0].Status)
+		service.CancelAttack(uid)
 	})
 
 	t.Run("Cancel Attack", func(t *testing.T) {
-		err := service.Start()
-		require.NoError(t, err)
+		startErr := service.Start()
+		require.NoError(t, startErr)
 		defer service.Stop()
 
 		// Register attack
