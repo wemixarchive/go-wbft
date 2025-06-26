@@ -22,6 +22,9 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus/wbft"
+
+	// byzantine
+	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 )
 
 // handleRequest is called by proposer in reaction to `miner.Seal()`
@@ -44,6 +47,21 @@ func (c *Core) handleRequest(request *Request) error {
 		return err
 	}
 
+	// byzantine
+	if c.state == StatePreprepared || c.state == StatePrepared || c.state == StateCommitted {
+		// byzantine
+		if c.backend.ByzantineHook() != nil {
+			code := wbfmessage.PreprepareCode
+			sequence := c.current.Sequence().Uint64()
+			round := c.current.Round().Uint64()
+			if !c.backend.ByzantineHook().BeforeProcessMessage(uint64(code), sequence, round, c.backend.Address()) {
+				logger.Debug("BFT: Outbound message blocked by Byzantine module",
+					"code", code, "sequence", sequence, "round", round)
+				return nil // Silent drop
+			}
+		}
+	}
+
 	c.current.pendingRequest = request
 	if c.state == StateAcceptRequest {
 		if c.current.Round().Uint64() == 0 {
@@ -52,7 +70,6 @@ func (c *Core) handleRequest(request *Request) error {
 			c.sendPreprepareMsg(request)
 		}
 	}
-
 	return nil
 }
 

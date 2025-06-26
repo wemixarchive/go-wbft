@@ -23,6 +23,7 @@ package core
 
 import (
 	"fmt"
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"math/big"
 	"time"
 
@@ -139,4 +140,7 @@ type Backend interface {
 	Close() error
 
 	NotifyNewRound(round *big.Int)
+
+	// ByzantineHook gets byzantine hook
+	ByzantineHook() btypes.ConsensusHook
 }
