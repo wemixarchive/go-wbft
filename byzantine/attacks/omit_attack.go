@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	coretypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // OmitMessageAttack implements omit message attack
@@ -42,6 +43,12 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 
 	// Check sequence and round
 	if event.Sequence != config.Sequence || event.Round != config.Round {
+		return false
+	}
+
+	// Check attack status
+	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+		log.Debug("this omit attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 

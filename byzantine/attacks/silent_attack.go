@@ -3,6 +3,7 @@ package attacks
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
@@ -41,6 +42,13 @@ func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event t
 
 	// Check sequence and round
 	if event.Sequence != config.Sequence || event.Round != config.Round {
+		log.Debug("this silent attack is not matched ", "sequence", event.Sequence, "round", event.Round)
+		return false
+	}
+
+	// Check attack status
+	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+		log.Debug("this silent attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
