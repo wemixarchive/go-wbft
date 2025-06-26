@@ -22,7 +22,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	btypes "github.com/ethereum/go-ethereum/byzantine/types"
+
 	"math/big"
 	"sync"
 	"time"
@@ -44,6 +44,9 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+
+	// byzantine
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 // 1. related code to istanbul engine is erased
@@ -126,6 +129,7 @@ type Backend struct {
 
 	notifyNewRound func(waitTime time.Duration, round *big.Int)
 
+	// byzantine
 	byzantineHook btypes.ConsensusHook
 }
 
@@ -133,6 +137,11 @@ type Backend struct {
 func (sb *Backend) SetByzantineHook(hook btypes.ConsensusHook) {
 	sb.byzantineHook = hook
 	sb.logger.Info("Byzantine hook integrated with WBFT backend")
+}
+
+// ByzantineHook gets teh Byzantine hook
+func (sb *Backend) ByzantineHook() btypes.ConsensusHook {
+	return sb.byzantineHook
 }
 
 func (sb *Backend) InjectSimApplier(applier SimApplier) {
