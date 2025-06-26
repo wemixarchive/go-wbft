@@ -28,7 +28,7 @@ func NewConsensusHook(attackManager types.AttackManager, eventPublisher types.Ev
 // BeforeBroadcast is called before broadcasting a message
 func (h *ConsensusHookImpl) BeforeBroadcast(msgCode uint64, sequence, round uint64, from common.Address) bool {
 	ctx := context.Background()
-	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, "send")
+	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
 
 	// First, publish event for async processing (logging, monitoring, etc.)
 	go func() {
