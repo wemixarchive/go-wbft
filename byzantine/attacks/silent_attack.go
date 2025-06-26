@@ -79,9 +79,9 @@ func (a *SilentMessageAttack) Execute(ctx context.Context, event types.Event) (*
 
 	switch a.direction {
 	case 1: // Send only
-		shouldBlock = (eventDirection == "send")
+		shouldBlock = eventDirection == types.DirectionSend
 	case 2: // Receive only
-		shouldBlock = (eventDirection == "receive")
+		shouldBlock = eventDirection == types.DirectionReceive
 	case 3: // Both
 		shouldBlock = true
 	}

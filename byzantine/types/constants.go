@@ -45,3 +45,9 @@ const (
 	DefaultMaxConcurrentAttacks  = 100
 	DefaultMessageTimeout        = 30 // seconds
 )
+
+// Direction of event
+const (
+	DirectionSend    = "send"
+	DirectionReceive = "receive"
+)
