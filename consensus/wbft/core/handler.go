@@ -205,6 +205,20 @@ func (c *Core) handleEncodedMsg(code uint64, data []byte) error {
 		return err
 	}
 
+	// byzantine
+	if c.state == StatePreprepared || c.state == StatePrepared || c.state == StateCommitted {
+		// byzantine
+		if c.backend.ByzantineHook() != nil {
+			sequence := m.View().Sequence.Uint64()
+			round := m.View().Round.Uint64()
+			if !c.backend.ByzantineHook().BeforeProcessMessage(code, sequence, round, m.Source()) {
+				logger.Debug("BFT: Outbound message blocked by Byzantine module",
+					"code", code, "sequence", sequence, "round", round)
+				return nil // Silent drop
+			}
+		}
+	}
+
 	return c.handleDecodedMessage(m)
 }
 
