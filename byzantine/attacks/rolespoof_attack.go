@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // RoleSpoofedAttack implements role spoofed attack
@@ -62,6 +63,12 @@ func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event typ
 
 	// Check sequence and round
 	if event.Sequence != config.Sequence || event.Round != config.Round {
+		return false
+	}
+
+	// Check attack status
+	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+		log.Debug("this role spoofed attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
