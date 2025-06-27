@@ -105,6 +105,32 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode uint64, sequence, round
 	return true
 }
 
+// DoubleVote is called before broadcasting a message
+func (h *ConsensusHookImpl) DoubleVote(msgCode uint64, sequence, round uint64, from common.Address) bool {
+	ctx := context.Background()
+	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
+
+	// Then, evaluate attacks that need immediate decision
+	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
+	if err != nil {
+		log.Error("Failed to evaluate attacks", "err", err)
+		return true // On error, allow message to proceed
+	}
+
+	if decision.ShouldBlock {
+		log.Info("Byzantine: Blocking outbound message",
+			"attack_type", decision.AttackType,
+			"attack_uid", decision.AttackUID,
+			"reason", decision.Reason,
+			"msgCode", msgCode,
+			"sequence", sequence,
+			"round", round)
+		return false
+	}
+
+	return true
+}
+
 // createEvent creates an event from consensus data
 func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode uint64,
 	sequence, round uint64, from common.Address, direction string) types.Event {
