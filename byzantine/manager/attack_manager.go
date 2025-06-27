@@ -183,8 +183,13 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 		// Attack
 		if attack.GetType() == types.AttackTamper || attack.GetType() == types.AttackOmit {
 			log.Debug("this attack is Tamper or Omit")
+			// Update attack status
+			m.mu.Lock()
+			m.updateStatusMap(attack, types.AttackStatusExecuted)
+			m.mu.Unlock()
+
 			return types.AttackDecision{
-				ShouldBlock: false,
+				ShouldBlock: true,
 				Reason:      "No attack blocked the message",
 			}, nil
 		}
