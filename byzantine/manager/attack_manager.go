@@ -180,6 +180,15 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 			continue
 		}
 
+		// Attack
+		if attack.GetType() == types.AttackTamper || attack.GetType() == types.AttackOmit {
+			log.Debug("this attack is Tamper or Omit")
+			return types.AttackDecision{
+				ShouldBlock: false,
+				Reason:      "No attack blocked the message",
+			}, nil
+		}
+
 		// Execute the attack
 		result, err := attack.Execute(ctx, event)
 		if err != nil {

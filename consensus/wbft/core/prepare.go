@@ -48,6 +48,12 @@ func (c *Core) broadcastPrepare() {
 	prepare := wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
 	prepare.SetSource(c.Address())
 
+	if c.backend.ByzantineHook() != nil {
+		if !c.backend.ByzantineHook().BeforeBroadcast(prepare.Code(), sub.View.Sequence.Uint64(), sub.View.Round.Uint64(), c.backend.Address()) {
+			// Tamper Attack
+		}
+	}
+
 	// Sign Message
 	encodedPayload, err := prepare.EncodePayloadForSigning()
 	if err != nil {
