@@ -195,6 +195,10 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 			log.Error("Failed to execute attack",
 				"attack", attack.GetConfig().Name,
 				"error", err)
+			// Update attack status
+			m.mu.Lock()
+			m.updateStatusMap(attack, types.AttackStatusFailed)
+			m.mu.Unlock()
 			continue
 		}
 
