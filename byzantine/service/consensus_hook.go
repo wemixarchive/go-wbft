@@ -52,7 +52,7 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode uint64, sequence, round uint
 	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
 	if err != nil {
 		log.Error("Failed to evaluate attacks", "err", err)
-		return true // On error, allow message to proceed
+		return false // On error, allow message to proceed
 	}
 
 	if decision.ShouldAttack {
@@ -63,10 +63,10 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode uint64, sequence, round uint
 			"msgCode", msgCode,
 			"sequence", sequence,
 			"round", round)
-		return false
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BeforeProcessMessage is called before processing a received message
