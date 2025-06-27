@@ -204,4 +204,9 @@ type ConsensusHook interface {
 	// BeforeProcessMessage is called before processing a received message
 	// Returns true if the message should be processed, false to drop it
 	BeforeProcessMessage(msgCode, sequence, round uint64, from common.Address) bool
+
+	// DoubleVote is called before broadcasting a message.
+	// If it returns true, both a valid message and a tampered (invalid) message will be sent.
+	// Returns true to simulate a double vote, false to send only the original message.
+	DoubleVote(msgCode, sequence, round uint64, from common.Address) bool
 }

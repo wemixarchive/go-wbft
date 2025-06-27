@@ -21,9 +21,12 @@
 package core
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -49,8 +52,21 @@ func (c *Core) broadcastPrepare() {
 	prepare.SetSource(c.Address())
 
 	if c.backend.ByzantineHook() != nil {
-		if c.backend.ByzantineHook().BeforeBroadcast(prepare.Code(), sub.View.Sequence.Uint64(), sub.View.Round.Uint64(), c.backend.Address()) {
-			// Tamper Attack
+		if c.backend.ByzantineHook().DoubleVote(prepare.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64(), c.backend.Address()) {
+			// RLP-encode message
+			byzantine_payload, err := rlp.EncodeToBytes(&prepare)
+			if err != nil {
+				log.Error("[byzantine] QBFT: failed to encode PREPARE message", "err", err)
+				return
+			}
+
+			log.Info("[byzantine] QBFT: broadcast PREPARE message", "payload", hexutil.Encode(byzantine_payload))
+
+			// Broadcast RLP-encoded message
+			if err = c.backend.Broadcast(c.valSet, prepare.Code(), byzantine_payload); err != nil {
+				log.Error("[byzantine] QBFT: failed to broadcast PREPARE message", "err", err)
+			}
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 

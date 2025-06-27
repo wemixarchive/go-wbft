@@ -21,10 +21,13 @@
 package core
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -49,6 +52,25 @@ func (c *Core) broadcastCommit() {
 	commitSeal := c.backend.SignWithoutHashing(PrepareSeal(header, uint32(c.currentView().Round.Uint64()), SealTypeCommit))
 	commit := wbfmessage.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
 	commit.SetSource(c.Address())
+
+	if c.backend.ByzantineHook() != nil {
+		if c.backend.ByzantineHook().DoubleVote(commit.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64(), c.backend.Address()) {
+			// RLP-encode message
+			byzantine_payload, err := rlp.EncodeToBytes(&commit)
+			if err != nil {
+				log.Error("[byzantine] QBFT: failed to encode PREPARE message", "err", err)
+				return
+			}
+
+			log.Info("[byzantine] QBFT: broadcast PREPARE message", "payload", hexutil.Encode(byzantine_payload))
+
+			// Broadcast RLP-encoded message
+			if err = c.backend.Broadcast(c.valSet, commit.Code(), byzantine_payload); err != nil {
+				log.Error("[byzantine] QBFT: failed to broadcast PREPARE message", "err", err)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
 
 	// Sign Message
 	encodedPayload, err := commit.EncodePayloadForSigning()

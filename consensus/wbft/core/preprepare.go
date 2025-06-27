@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -64,6 +65,25 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			return
 		}
 		preprepare.SetSignature(signature)
+
+		if c.backend.ByzantineHook() != nil {
+			if c.backend.ByzantineHook().DoubleVote(preprepare.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64(), c.backend.Address()) {
+				// RLP-encode message
+				byzantine_payload, err := rlp.EncodeToBytes(&preprepare)
+				if err != nil {
+					log.Error("[byzantine] QBFT: failed to encode PRE-PREPARE message", "err", err)
+					return
+				}
+
+				log.Info("[byzantine] QBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(byzantine_payload))
+
+				// Broadcast RLP-encoded message
+				if err = c.backend.Broadcast(c.valSet, preprepare.Code(), byzantine_payload); err != nil {
+					log.Error("[byzantine] QBFT: failed to broadcast PRE-PREPARE message", "err", err)
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}
 
 		// Extend PRE-PREPARE message with ROUND-CHANGE justification
 		if request.RCMessages != nil {
