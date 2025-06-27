@@ -30,14 +30,23 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode uint64, sequence, round uint
 	ctx := context.Background()
 	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
 
-	// First, publish event for async processing (logging, monitoring, etc.)
-	go func() {
-		if err := h.eventPublisher.Publish(event); err != nil {
-			log.Error("Failed to publish broadcast event", "err", err)
-		}
-		// Also process async attacks
-		_ = h.attackManager.ProcessEventAsync(ctx, event)
-	}()
+	//if err := h.eventPublisher.Publish(event); err != nil {
+	//	log.Error("Failed to publish broadcast event", "err", err)
+	//}
+	// Also process async attacks
+	//err := h.attackManager.ProcessEventAsync(ctx, event)
+	//if err != nil {
+	//	log.Error("Failed to process broadcast event", "err", err)
+	//}
+	//
+	//// First, publish event for async processing (logging, monitoring, etc.)
+	//go func() {
+	//	if err := h.eventPublisher.Publish(event); err != nil {
+	//		log.Error("Failed to publish broadcast event", "err", err)
+	//	}
+	//	// Also process async attacks
+	//	_ = h.attackManager.ProcessEventAsync(ctx, event)
+	//}()
 
 	// Then, evaluate attacks that need immediate decision
 	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
