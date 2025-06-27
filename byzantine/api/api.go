@@ -19,7 +19,7 @@ func NewPublicByzantineAPI(service types.ByzantineService) *PublicByzantineAPI {
 
 // ByzantineTests returns all registered Byzantine tests
 // This matches the web3ext.js getter definition
-func (api *PublicByzantineAPI) ByzantineTests() ([]types.AttackInfo, error) {
+func (api *PublicByzantineAPI) ByzantineTests() ([]types.AttackConfig, error) {
 	return api.handler.GetByzantineTests()
 }
 

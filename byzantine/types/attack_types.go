@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
@@ -33,20 +34,43 @@ const (
 	AttackStatusCancelled AttackStatus = "cancelled"
 )
 
-// AttackInfo represents attack information
-type AttackInfo struct {
-	UID        uint64                 `json:"uid"`
-	Name       string                 `json:"name"`
-	Type       AttackType             `json:"type"`
-	Enabled    bool                   `json:"enabled"`
-	Sequence   uint64                 `json:"sequence"`
-	Round      uint64                 `json:"round"`
-	Code       MessageCode            `json:"code,omitempty"`
-	Status     AttackStatus           `json:"status,omitempty"`
-	Targets    []common.Address       `json:"targets,omitempty"`
-	Parameters map[string]interface{} `json:"parameters,omitempty"`
-	CreatedAt  time.Time              `json:"created_at"`
-	ExecutedAt *time.Time             `json:"executed_at,omitempty"`
+// StringToAttackType converts string to AttackType
+func StringToAttackType(s string) AttackType {
+	switch s {
+	case "silent":
+		return AttackTypeSilentMessage
+	case "tamper":
+		return AttackTypeTamperedMessage
+	case "fake":
+		return AttackTypeFakeMessage
+	case "omit":
+		return AttackTypeOmitMessage
+	case "roleSpoof":
+		return AttackTypeRoleSpoofed
+	case "replay":
+		return AttackTypeReplay
+	default:
+		return AttackType(s) // fallback
+	}
+}
+
+func AttachTypeToString(attackType AttackType) string {
+	switch attackType {
+	case AttackTypeSilentMessage:
+		return AttackSilent
+	case AttackTypeTamperedMessage:
+		return AttackTamper
+	case AttackTypeFakeMessage:
+		return AttackFake
+	case AttackTypeOmitMessage:
+		return AttackOmit
+	case AttackTypeRoleSpoofed:
+		return AttackRoleSpoof
+	case AttackTypeReplay:
+		return AttackReplay
+	default:
+		return "unknown"
+	}
 }
 
 // AttackConfig represents the configuration for an attack
@@ -65,23 +89,61 @@ type AttackConfig struct {
 	ExecutedAt *time.Time             `json:"executed_at,omitempty"`
 }
 
-func (ac *AttackConfig) ConvertTypeToString() string {
-	switch ac.Type {
-	case AttackTypeSilentMessage:
-		return AttackSilent
-	case AttackTypeTamperedMessage:
-		return AttackTamper
-	case AttackTypeFakeMessage:
-		return AttackFake
-	case AttackTypeOmitMessage:
-		return AttackOmit
-	case AttackTypeRoleSpoofed:
-		return AttackRoleSpoof
-	case AttackTypeReplay:
-		return AttackReplay
-	default:
-		return "unknown"
+// MarshalJSON implements custom JSON marshaling to ensure deep nested structures are properly serialized
+func (ac AttackConfig) MarshalJSON() ([]byte, error) {
+	type Alias AttackConfig
+	
+	var serializedParams interface{}
+	if ac.Parameters != nil {
+		serializedParams = ensureSerializable(ac.Parameters)
 	}
+
+	return json.Marshal(&struct {
+		*Alias
+		Parameters interface{} `json:"parameters,omitempty"`
+	}{
+		Alias:      (*Alias)(&ac),
+		Parameters: serializedParams,
+	})
+}
+
+func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
+	type Alias AttackConfig
+	aux := &struct {
+		Type string      `json:"type"`
+		Code interface{} `json:"code,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(ac),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	ac.Type = StringToAttackType(aux.Type)
+
+	if aux.Code != nil {
+		ac.Code = ParseMessageCode(aux.Code)
+	}
+
+	//if ac.Parameters != nil {
+	//	if paramMap, ok := ac.Parameters.(map[string]interface{}); ok {
+	//		if codeVal, exists := paramMap["code"]; exists && codeVal != nil {
+	//			ac.Code = ParseMessageCode(codeVal)
+	//		}
+	//
+	//		if targetsVal, exists := paramMap["targets"]; exists {
+	//			ac.Targets = ParseAddresses(targetsVal)
+	//		}
+	//	}
+	//}
+
+	if !ac.Enabled && aux.Alias.Enabled == false {
+		ac.Enabled = true
+	}
+
+	return nil
 }
 
 // Validate validates a single attacks configuration
@@ -127,6 +189,49 @@ func (ac *AttackConfig) GetTargetAddresses() []common.Address {
 	return addresses
 }
 
+func ensureSerializable(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		result := make(map[string]interface{})
+		for k, v := range val {
+			result[k] = ensureSerializable(v)
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, len(val))
+		for i, v := range val {
+			result[i] = ensureSerializable(v)
+		}
+		return result
+	default:
+		return val
+	}
+}
+
+// ParseAddresses parses addresses from various formats
+func ParseAddresses(val interface{}) []common.Address {
+	var addresses []common.Address
+
+	switch v := val.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if str, ok := item.(string); ok && common.IsHexAddress(str) {
+				addresses = append(addresses, common.HexToAddress(str))
+			}
+		}
+	case []string:
+		for _, str := range v {
+			if common.IsHexAddress(str) {
+				addresses = append(addresses, common.HexToAddress(str))
+			}
+		}
+	case []common.Address:
+		addresses = v
+	}
+
+	return addresses
+}
+
 // AttackResult represents the result of an attacks execution
 type AttackResult struct {
 	UID          uint64        `json:"uid"`
@@ -163,17 +268,6 @@ type AttackContext struct {
 	CurrentRound    uint64
 	MessageCode     uint64
 }
-
-// AttackInfo for API responses
-//type AttackInfo struct {
-//	ID       string           `json:"id"`
-//	Name     string           `json:"name"`
-//	Type     AttackType       `json:"type"`
-//	Sequence uint64           `json:"sequence"`
-//	Round    uint64           `json:"round"`
-//	Status   AttackStatus     `json:"status"`
-//	Targets  []common.Address `json:"targets"`
-//}
 
 // AttackCategory represents attacks categories
 type AttackCategory string

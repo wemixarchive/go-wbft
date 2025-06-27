@@ -26,7 +26,7 @@ type RegisterAttackResponse struct {
 
 // ListAttacksResponse represents a response to list attacks request
 type ListAttacksResponse struct {
-	Attacks []types.AttackInfo `json:"attacks"`
+	Attacks []types.AttackConfig `json:"attacks"`
 }
 
 // CancelAttackRequest represents a request to cancel attacks
