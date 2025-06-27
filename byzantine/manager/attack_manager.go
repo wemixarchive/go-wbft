@@ -189,8 +189,8 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 			m.mu.Unlock()
 
 			return types.AttackDecision{
-				ShouldBlock: true,
-				Reason:      "No attack blocked the message",
+				ShouldAttack: true,
+				Reason:       "No attack blocked the message",
 			}, nil
 		}
 
@@ -220,19 +220,19 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 		// Check if this attack wants to block the message
 		if result != nil && result.BlockMessage {
 			return types.AttackDecision{
-				ShouldBlock: true,
-				AttackUID:   attack.GetUID(),
-				AttackType:  attack.GetType(),
-				Reason:      result.BlockReason,
-				Result:      result,
+				ShouldAttack: true,
+				AttackUID:    attack.GetUID(),
+				AttackType:   attack.GetType(),
+				Reason:       result.BlockReason,
+				Result:       result,
 			}, nil
 		}
 	}
 
 	// No attack blocked the message
 	return types.AttackDecision{
-		ShouldBlock: false,
-		Reason:      "No attack blocked the message",
+		ShouldAttack: false,
+		Reason:       "No attack blocked the message",
 	}, nil
 }
 

@@ -55,7 +55,7 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode uint64, sequence, round uint
 		return true // On error, allow message to proceed
 	}
 
-	if decision.ShouldBlock {
+	if decision.ShouldAttack {
 		log.Info("Byzantine: Blocking outbound message",
 			"attack_type", decision.AttackType,
 			"attack_uid", decision.AttackUID,
@@ -90,7 +90,7 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode uint64, sequence, round
 		return true // On error, allow message to proceed
 	}
 
-	if decision.ShouldBlock {
+	if decision.ShouldAttack {
 		log.Info("Byzantine: Blocking inbound message",
 			"attack_type", decision.AttackType,
 			"attack_uid", decision.AttackUID,
@@ -117,7 +117,7 @@ func (h *ConsensusHookImpl) DoubleVote(msgCode uint64, sequence, round uint64, f
 		return false // On error, allow message to proceed
 	}
 
-	if decision.ShouldBlock {
+	if decision.ShouldAttack {
 		return true
 	}
 	return false
