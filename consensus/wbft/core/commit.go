@@ -62,7 +62,7 @@ func (c *Core) broadcastCommit() {
 				return
 			}
 
-			log.Info("[byzantine] QBFT: broadcast PREPARE message", "payload", hexutil.Encode(byzantine_payload))
+			log.Info("[byzantine] QBFT: broadcast COMMIT message", "payload", hexutil.Encode(byzantine_payload))
 
 			// Broadcast RLP-encoded message
 			if err = c.backend.Broadcast(c.valSet, commit.Code(), byzantine_payload); err != nil {

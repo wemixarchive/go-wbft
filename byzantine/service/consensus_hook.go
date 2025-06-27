@@ -74,14 +74,14 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode uint64, sequence, round
 	ctx := context.Background()
 	event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, from, types.DirectionReceive)
 
-	// First, publish event for async processing
-	go func() {
-		if err := h.eventPublisher.Publish(event); err != nil {
-			log.Error("Failed to publish receive event", "err", err)
-		}
-		// Also process async attacks
-		_ = h.attackManager.ProcessEventAsync(ctx, event)
-	}()
+	//// First, publish event for async processing
+	//go func() {
+	//	if err := h.eventPublisher.Publish(event); err != nil {
+	//		log.Error("Failed to publish receive event", "err", err)
+	//	}
+	//	// Also process async attacks
+	//	_ = h.attackManager.ProcessEventAsync(ctx, event)
+	//}()
 
 	// Then, evaluate attacks that need immediate decision
 	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
@@ -114,21 +114,13 @@ func (h *ConsensusHookImpl) DoubleVote(msgCode uint64, sequence, round uint64, f
 	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
 	if err != nil {
 		log.Error("Failed to evaluate attacks", "err", err)
-		return true // On error, allow message to proceed
+		return false // On error, allow message to proceed
 	}
 
 	if decision.ShouldBlock {
-		log.Info("Byzantine: Blocking outbound message",
-			"attack_type", decision.AttackType,
-			"attack_uid", decision.AttackUID,
-			"reason", decision.Reason,
-			"msgCode", msgCode,
-			"sequence", sequence,
-			"round", round)
-		return false
+		return true
 	}
-
-	return true
+	return false
 }
 
 // createEvent creates an event from consensus data
