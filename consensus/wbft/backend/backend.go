@@ -194,7 +194,7 @@ func (sb *Backend) Broadcast(valSet wbft.ValidatorSet, code uint64, payload []by
 			sequence, round = 0, 0
 		}
 
-		if !sb.byzantineHook.BeforeBroadcast(code, sequence, round, sb.address) {
+		if sb.byzantineHook.BeforeBroadcast(code, sequence, round, sb.address) {
 			sb.logger.Debug("BFT: Outbound message blocked by Byzantine module",
 				"code", code, "sequence", sequence, "round", round)
 			return nil // Silent drop
