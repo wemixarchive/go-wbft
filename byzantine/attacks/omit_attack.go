@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	coretypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // OmitMessageAttack implements omit message attack
@@ -48,7 +47,7 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 
 	// Check attack status
 	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
-		log.Debug("this omit attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
+		//log.Debug("this omit attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
@@ -190,6 +189,7 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 	}
 
 	// Normally would include justification, but we're omitting it
+	// TODO:
 	switch a.omitCommand {
 	case 1:
 		// Omit RoundChangeMessages (but might include PrepareMessages)
@@ -206,12 +206,14 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 
 // Helper functions to remove seals
 func (a *OmitMessageAttack) removePrepareSeal(block *coretypes.Block, count uint64) *coretypes.Block {
+	// TODO:
 	// Implementation would modify the block's extra data to remove prepare seals
 	// If count is 0, remove all; otherwise remove specified number
 	return block
 }
 
 func (a *OmitMessageAttack) removeCommitSeal(block *coretypes.Block, count uint64) *coretypes.Block {
+	// TODO:
 	// Implementation would modify the block's extra data to remove commit seals
 	// If count is 0, remove all; otherwise remove specified number
 	return block
@@ -219,16 +221,19 @@ func (a *OmitMessageAttack) removeCommitSeal(block *coretypes.Block, count uint6
 
 // sendMessage sends a message to targets
 func (a *OmitMessageAttack) sendMessage(content []byte, targets []common.Address) error {
+	// TODO:
 	// Implementation depends on actual network layer
 	return nil
 }
 
 // Serialization helpers (placeholders)
 func serializeProposal(proposal *coretypes.Block) []byte {
+	// TODO:
 	return []byte("serialized_proposal_with_omissions")
 }
 
 func serializeBlock(block *coretypes.Block) []byte {
+	// TODO:
 	return []byte("serialized_block_with_omissions")
 }
 
