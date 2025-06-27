@@ -23,6 +23,42 @@ const (
 	MessageCodePropagation                                   // 32
 )
 
+// ParseMessageCode parses various formats of message code
+func ParseMessageCode(val interface{}) MessageCode {
+	switch v := val.(type) {
+	case float64:
+		return MessageCode(uint64(v))
+	case int:
+		return MessageCode(v)
+	case uint64:
+		return MessageCode(v)
+	case string:
+		return ParseMessageCodeString(v)
+	default:
+		return 0
+	}
+}
+
+// ParseMessageCodeString converts string to MessageCode
+func ParseMessageCodeString(code string) MessageCode {
+	switch code {
+	case "PrePrepare":
+		return MessageCodePrePrepare
+	case "Prepare":
+		return MessageCodePrepare
+	case "Commit":
+		return MessageCodeCommit
+	case "RoundChange":
+		return MessageCodeRoundChange
+	case "RoundChangePrePrepare":
+		return MessageCodeRoundChangePrePrepare
+	case "Propagation":
+		return MessageCodePropagation
+	default:
+		return 0
+	}
+}
+
 // MessageDirection represents message direction
 type MessageDirection uint64
 

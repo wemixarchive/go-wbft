@@ -63,7 +63,7 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode uint64, sequence, round uint
 // BeforeProcessMessage is called before processing a received message
 func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode uint64, sequence, round uint64, from common.Address) bool {
 	ctx := context.Background()
-	event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, from, "receive")
+	event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, from, types.DirectionReceive)
 
 	// First, publish event for async processing
 	go func() {

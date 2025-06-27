@@ -27,22 +27,23 @@ func NewHandler(svc types.ByzantineService) *Handler {
 }
 
 // GetByzantineTests returns all registered Byzantine tests
-func (h *Handler) GetByzantineTests() ([]types.AttackInfo, error) {
+func (h *Handler) GetByzantineTests() ([]types.AttackConfig, error) {
 	attacks := h.service.ListAttacks()
 
 	// Convert to AttackInfo format
-	infos := make([]types.AttackInfo, len(attacks))
+	infos := make([]types.AttackConfig, len(attacks))
 	for i, attack := range attacks {
-		infos[i] = types.AttackInfo{
-			UID:       attack.UID,
-			Name:      attack.Name,
-			Type:      attack.Type,
-			Sequence:  attack.Sequence,
-			Round:     attack.Round,
-			Code:      attack.Code,
-			Status:    attack.Status,
-			CreatedAt: attack.CreatedAt,
-			Targets:   attack.Targets,
+		infos[i] = types.AttackConfig{
+			UID:        attack.UID,
+			Name:       attack.Name,
+			Type:       attack.Type,
+			Sequence:   attack.Sequence,
+			Round:      attack.Round,
+			Code:       attack.Code,
+			Status:     attack.Status,
+			CreatedAt:  attack.CreatedAt,
+			Targets:    attack.Targets,
+			Parameters: attack.Parameters,
 			//FakeMessage:      h.getFakeMessageFromOptions(attack.Options),
 			//WithValidMessage: h.getWithValidMessageFromOptions(attack.Options),
 		}
@@ -115,6 +116,14 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		return fmt.Errorf("invalid parameters: %w", err)
 	}
 
+	tamperFieldsMaps := make([]map[string]interface{}, len(params.TamperFields))
+	for i, field := range params.TamperFields {
+		tamperFieldsMaps[i] = map[string]interface{}{
+			"target": field.Target,
+			"value":  field.Value,
+		}
+	}
+
 	// Create attack configuration
 	config := types.AttackConfig{
 		Name:     fmt.Sprintf("tampered_%d_%d", params.Sequence, params.Round),
@@ -124,9 +133,10 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		Code:     types.MessageCode(params.Code),
 		Targets:  params.Targets,
 		Parameters: map[string]interface{}{
-			"tamperFields":     params.TamperFields,
+			"tamperFields":     tamperFieldsMaps,
 			"withValidMessage": params.WithValidMessage,
 			"delay":            params.Delay,
+			"code":             params.Code,
 		},
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
