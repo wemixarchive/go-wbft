@@ -92,7 +92,7 @@ type AttackConfig struct {
 // MarshalJSON implements custom JSON marshaling to ensure deep nested structures are properly serialized
 func (ac AttackConfig) MarshalJSON() ([]byte, error) {
 	type Alias AttackConfig
-	
+
 	var serializedParams interface{}
 	if ac.Parameters != nil {
 		serializedParams = ensureSerializable(ac.Parameters)
@@ -246,11 +246,11 @@ type AttackResult struct {
 
 // AttackDecision represents the consolidated decision from attack evaluation
 type AttackDecision struct {
-	ShouldBlock bool
-	AttackUID   uint64
-	AttackType  AttackType
-	Reason      string
-	Result      *AttackResult
+	ShouldAttack bool
+	AttackUID    uint64
+	AttackType   AttackType
+	Reason       string
+	Result       *AttackResult
 }
 
 // AttackParams contains parameters for configuring an attacks
