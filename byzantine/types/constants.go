@@ -4,14 +4,14 @@ import wbftmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 
 // AttackType by string
 const (
-	AttackDoubleVote = "double_vote"
-	AttackSilent     = "silent"
-	AttackTamper     = "tamper"
-	AttackFake       = "fake"
-	AttackOmit       = "omit"
-	AttackRoleSpoof  = "roleSpoof"
-	AttackReplay     = "replay"
-	AttackFlooding   = "flooding"
+	//AttackDoubleVote = "double_vote"
+	AttackSilent    = "silent"
+	AttackTamper    = "tamper"
+	AttackFake      = "fake"
+	AttackOmit      = "omit"
+	AttackRoleSpoof = "roleSpoof"
+	AttackReplay    = "replay"
+	//AttackFlooding   = "flooding"
 )
 
 // QBFT Message coes mapping

@@ -31,7 +31,6 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 
 	log.Info("Registering Byzantine module",
 		"enabled", config.Enabled,
-		//"configFile", config.ConfigFile,
 		"attacks count", len(config.Attacks),
 		"attacks", config.Attacks,
 		"storage", config.StorageConfig,
@@ -80,7 +79,6 @@ func IntegrateByzantineWithConsensus(service types.ByzantineService, consensusEn
 	// Type assertion to WBFT backend
 	wbftBackend, ok := consensusEngine.(*backend.Backend)
 	if ok {
-		// 직접 byzantineService 사용
 		hook := service.GetConsensusHook()
 		wbftBackend.SetByzantineHook(hook)
 

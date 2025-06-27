@@ -64,6 +64,7 @@ func NewByzantineService(config *types.ByzantineConfig) (*ByzantineService, erro
 
 	attackManager := manager.NewAttackManager(attackRegistry, historyStorage)
 	eventPublisher := adapter.NewEventObserver()
+	configLoader := NewConfigLoader()
 
 	service := &ByzantineService{
 		config:         *config,
@@ -72,7 +73,7 @@ func NewByzantineService(config *types.ByzantineConfig) (*ByzantineService, erro
 		historyStorage: historyStorage,
 		eventPublisher: eventPublisher,
 		attackRegistry: attackRegistry,
-		configLoader:   NewConfigLoader(),
+		configLoader:   configLoader,
 	}
 
 	// Create hook adapter
@@ -82,9 +83,6 @@ func NewByzantineService(config *types.ByzantineConfig) (*ByzantineService, erro
 
 	// Initialize metrics
 	service.metrics.Store(types.Metrics{})
-
-	// Subscribe to events
-	service.subscribeToEvents()
 
 	// Set storage provider for replay attack
 	provider := &storageProviderImpl{

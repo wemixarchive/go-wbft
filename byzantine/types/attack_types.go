@@ -12,14 +12,13 @@ type AttackType string
 
 const (
 	// Basic attacks types
-	AttackTypeDoubleVote      AttackType = AttackDoubleVote
+
 	AttackTypeSilentMessage   AttackType = AttackSilent
 	AttackTypeTamperedMessage AttackType = AttackTamper
 	AttackTypeFakeMessage     AttackType = AttackFake
 	AttackTypeOmitMessage     AttackType = AttackOmit
 	AttackTypeRoleSpoofed     AttackType = AttackRoleSpoof
 	AttackTypeReplay          AttackType = AttackReplay
-	AttackTypeMessageFlooding AttackType = AttackFlooding
 )
 
 // AttackStatus represents the status of an attacks
@@ -68,8 +67,6 @@ type AttackConfig struct {
 
 func (ac *AttackConfig) ConvertTypeToString() string {
 	switch ac.Type {
-	case AttackTypeDoubleVote:
-		return AttackDoubleVote
 	case AttackTypeSilentMessage:
 		return AttackSilent
 	case AttackTypeTamperedMessage:
@@ -82,8 +79,6 @@ func (ac *AttackConfig) ConvertTypeToString() string {
 		return AttackRoleSpoof
 	case AttackTypeReplay:
 		return AttackReplay
-	case AttackTypeMessageFlooding:
-		return AttackFlooding
 	default:
 		return "unknown"
 	}
