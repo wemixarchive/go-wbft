@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // FakeMessageAttack implements fake message attack
@@ -59,7 +58,7 @@ func (a *FakeMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 
 	// Check attack status
 	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
-		log.Debug("this fake attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
+		//log.Debug("this fake attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
