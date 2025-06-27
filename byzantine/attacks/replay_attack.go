@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // StorageProvider provides access to message storage
@@ -90,7 +89,7 @@ func (a *ReplayAttack) CheckExecuteCondition(ctx context.Context, event types.Ev
 
 	// Check attack status
 	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
-		log.Debug("this replay attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
+		//log.Debug("this replay attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 

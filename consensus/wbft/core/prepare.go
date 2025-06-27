@@ -49,7 +49,7 @@ func (c *Core) broadcastPrepare() {
 	prepare.SetSource(c.Address())
 
 	if c.backend.ByzantineHook() != nil {
-		if !c.backend.ByzantineHook().BeforeBroadcast(prepare.Code(), sub.View.Sequence.Uint64(), sub.View.Round.Uint64(), c.backend.Address()) {
+		if c.backend.ByzantineHook().BeforeBroadcast(prepare.Code(), sub.View.Sequence.Uint64(), sub.View.Round.Uint64(), c.backend.Address()) {
 			// Tamper Attack
 		}
 	}
