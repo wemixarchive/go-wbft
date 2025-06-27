@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.14;
+pragma solidity ^0.8.14;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {IGovCouncil} from "./IGovCouncil.sol";
+import { IGovCouncil } from "./IGovCouncil.sol";
 
 contract GovNCP is IGovCouncil {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -123,9 +123,11 @@ contract GovNCP is IGovCouncil {
     function changeNCP(address _ncp) external onlyNCP {
         require(!__ncpList.contains(_ncp), "ncp already exists");
 
-        if ((__proposals[currentProposalID].state != ProposalState.None) &&
+        if (
+            (__proposals[currentProposalID].state != ProposalState.None) &&
             (__proposals[currentProposalID].proposalType == ProposalType.NCPAdd) &&
-            (__proposals[currentProposalID].endTime >= block.timestamp)) {
+            (__proposals[currentProposalID].endTime >= block.timestamp)
+        ) {
             require(__proposals[currentProposalID].newNCP != _ncp, "cannot change the ncp to an address that is proposed as the new ncp");
         }
         __ncpList.remove(msg.sender);
