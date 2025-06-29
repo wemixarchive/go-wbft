@@ -1,9 +1,32 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
+
+// ConsensusContext - Consensus context for QBFT messages
+type ConsensusContext struct {
+	MessageType  AttackType
+	MessageCode  MessageCode
+	Sequence     uint64
+	Round        uint64
+	From         common.Address
+	Block        *types.Block     // for block-related attacks
+	Seals        [][]byte         // for seal manipulation
+	MessageData  interface{}      // flexible data container
+	Validators   []common.Address // current validator set
+	ProposerAddr common.Address   // current proposer
+
+	// Additional metadata
+	Direction   string
+	IsProposer  bool
+	BlockNumber uint64
+	Timestamp   time.Time
+}
 
 // Proposal - PrePrepare 메시지의 블록 제안
 type Proposal struct {

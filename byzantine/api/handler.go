@@ -54,7 +54,7 @@ func (h *Handler) GetByzantineTests() ([]types.AttackConfig, error) {
 }
 
 // StopByzantineTests stops Byzantine tests by UIDs
-func (h *Handler) StopByzantineTests(uids []uint64) error {
+func (h *Handler) StopByzantineTests(uids []string) error {
 	var lastErr error
 	successCount := 0
 

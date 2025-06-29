@@ -1,0 +1,115 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "silent_attack",
+      "type": "silent",
+      "enabled": true,
+      "sequence": 2,
+      "round": 0,
+      "code": 1,
+      "parameters": {
+        "direction": 3
+      }
+    },
+    {
+      "name": "doublevotepreprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence": 5,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "doublevotepreprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence": 6,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "doublevotepreprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence": 7,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "doublevotepreprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence": 8,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "doublevoteprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence": 9,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "doublevotecommit",
+      "type": "tamper",
+      "enabled": true,
+      "sequence": 10,
+      "round": 0,
+      "parameters": {
+        "code": 4,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    }
+  ],
+  "storage": {
+    "message_retention": "24h",
+    "history_retention": "168h",
+    "max_storage_size": 1073741824,
+    "prune_interval": "1h"
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics_port": 9090,
+    "log_level": "info",
+    "alert_thresholds": {
+      "failed_attacks": 10,
+      "storage_size_mb": 1000
+    }
+  }
+}

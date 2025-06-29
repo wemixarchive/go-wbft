@@ -8,25 +8,73 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// ByzantineService is the main service interface
+type ByzantineService interface {
+	// Start starts the service
+	Start() error
+
+	// Stop stops the service
+	Stop() error
+
+	// Configure configures the service
+	Configure(config *ByzantineConfig) error
+
+	// RegisterAttack registers a new attack
+	RegisterAttack(config AttackConfig) (string, error)
+
+	// CancelAttack cancels an attack
+	CancelAttack(uid string) error
+
+	// ListAttacks lists all attacks
+	ListAttacks() []AttackConfig
+
+	// GetStatus returns the service status
+	GetStatus() ServiceStatus
+
+	// GetMetrics returns service metrics
+	GetMetrics() Metrics
+
+	// GetAttackHistory gets attack history
+	GetAttackHistory(uid string) ([]AttackResult, error)
+
+	// GetAttackManager gets attack manager
+	GetAttackManager() AttackManager
+
+	// GetMessageStorage gets message storage
+	GetMessageStorage() MessageStorage
+
+	// GetHistoryStorage gets history storage
+	GetHistoryStorage() HistoryStorage
+
+	// GetConsensusHook gets consensus hook
+	GetConsensusHook() ConsensusHook
+}
+
 // Attack represents the interface for all attack implementations
 type Attack interface {
-	// GetUID returns the unique identifier of the attack
-	GetUID() uint64
-
-	// GetType returns the type of the attack
-	GetType() AttackType
-
 	// CheckExecuteCondition checks if the attack should be executed
 	CheckExecuteCondition(ctx context.Context, event Event) bool
 
 	// Execute performs the attack
 	Execute(ctx context.Context, event Event) (*AttackResult, error)
 
+	// SetStatus updates the attack status
+	SetStatus(status AttackStatus)
+
+	// SetConfig updates the attack configuration
+	SetConfig(config AttackConfig)
+
+	// GetUID returns the unique identifier of the attack
+	GetUID() string
+
+	// GetType returns the type of the attack
+	GetType() AttackType
+
 	// GetConfig returns the attack configuration
 	GetConfig() AttackConfig
 
-	// SetStatus updates the attack status
-	SetStatus(status AttackStatus)
+	// GetStatus returns the current status of the attack
+	GetStatus() AttackStatus
 }
 
 // AttackManager manages all registered attacks
@@ -35,23 +83,37 @@ type AttackManager interface {
 	RegisterAttack(attack Attack) error
 
 	// UnregisterAttack removes an attack by UID
-	UnregisterAttack(uid uint64) error
-
-	// GetAttack retrieves an attack by UID
-	GetAttack(uid uint64) (Attack, error)
-
-	// ListAttacks returns all registered attacks
-	ListAttacks() []Attack
+	UnregisterAttack(uid string) error
 
 	// ProcessEvent processes an event through all attacks
 	ProcessEvent(ctx context.Context, event Event) error
 
+	// ProcessEventAsync processes an event asynchronously through all attacks
+	ProcessEventAsync(ctx context.Context, event Event) error
+
+	// UpdateStatusMap updates the status of an attack in the internal map
+	UpdateStatusMap(attack Attack, newStatus AttackStatus)
+
+	// GetAttack retrieves an attack by UID
+	GetAttack(uid string) (Attack, error)
+
+	// GetAttackByUID retrieves an attack by its unique identifier
+	GetAttackByUID(uid string) (Attack, bool)
+
+	// GetAttacksByCondition retrieves attacks matching the given condition
+	GetAttacksByCondition(attackType AttackType, code MessageCode, sequence, round uint64) []Attack
+
+	// ListAttacks returns all registered attacks
+	ListAttacks() []Attack
+
 	// GetActiveAttacks returns attacks in active status
 	GetActiveAttacks() []Attack
 
+	// EvaluateAndExecuteAttacks evaluates and executes attacks based on the event
 	EvaluateAndExecuteAttacks(ctx context.Context, event Event) (AttackDecision, error)
 
-	ProcessEventAsync(ctx context.Context, event Event) error
+	// GetUIDGenerator returns the UID generator
+	GetUIDGenerator() UIDGenerator
 }
 
 // MessageStorage handles message storage and retrieval
@@ -81,7 +143,7 @@ type HistoryStorage interface {
 	SaveAttackResult(result AttackResult) error
 
 	// GetAttackHistory retrieves attack history by UID
-	GetAttackHistory(uid uint64) ([]AttackResult, error)
+	GetAttackHistory(uid string) ([]AttackResult, error)
 
 	// GetAllHistory retrieves all attack history
 	GetAllHistory(limit int) ([]AttackResult, error)
@@ -113,16 +175,16 @@ type HookAdapter interface {
 	// AfterProposal is called after creating a proposal
 	AfterProposal(ctx context.Context, proposal *types.Block) error
 
-	// BeforePrepare is called before sending prepare message
+	// BeforePrepare is called before sending a prepare message
 	BeforePrepare(ctx context.Context, message *QBFTMessage) error
 
-	// AfterPrepare is called after receiving prepare message
+	// AfterPrepare is called after receiving a prepare message
 	AfterPrepare(ctx context.Context, message *QBFTMessage) error
 
-	// BeforeCommit is called before sending commit message
+	// BeforeCommit is called before sending a commit message
 	BeforeCommit(ctx context.Context, message *QBFTMessage) error
 
-	// AfterCommit is called after receiving commit message
+	// AfterCommit is called after receiving a commit message
 	AfterCommit(ctx context.Context, message *QBFTMessage) error
 
 	// OnRoundChange is called on round change
@@ -130,48 +192,6 @@ type HookAdapter interface {
 
 	// OnMessageReceive is called when receiving any message
 	OnMessageReceive(ctx context.Context, message *QBFTMessage) error
-}
-
-// ByzantineService is the main service interface
-type ByzantineService interface {
-	// Start starts the service
-	Start() error
-
-	// Stop stops the service
-	Stop() error
-
-	// GetStatus returns the service status
-	GetStatus() ServiceStatus
-
-	// Configure configures the service
-	Configure(config ByzantineConfig) error
-
-	// GetMetrics returns service metrics
-	GetMetrics() Metrics
-
-	// RegisterAttack registers a new attack
-	RegisterAttack(config AttackConfig) (uint64, error)
-
-	// CancelAttack cancels an attack
-	CancelAttack(uid uint64) error
-
-	// ListAttacks lists all attacks
-	ListAttacks() []AttackConfig
-
-	// GetAttackHistory gets attack history
-	GetAttackHistory(uid uint64) ([]AttackResult, error)
-
-	// GetAttackManager gets attack manager
-	GetAttackManager() AttackManager
-
-	// GetMessageStorage gets message storage
-	GetMessageStorage() MessageStorage
-
-	// GetHistoryStorage gets history storage
-	GetHistoryStorage() HistoryStorage
-
-	// GetConsensusHook gets consensus hook
-	GetConsensusHook() ConsensusHook
 }
 
 // ServiceStatus represents the service status
@@ -195,13 +215,22 @@ type Metrics struct {
 	Uptime            int64 `json:"uptime_seconds"`
 }
 
+// UIDGenerator Format: "attackType-Code-Sequence-Round"
+type UIDGenerator interface {
+	Generate(attackType AttackType, code MessageCode, sequence, round uint64) string
+	Parse(uid string) (AttackType, MessageCode, uint64, uint64, error)
+}
+
 // ConsensusHook represents consensus hook
 type ConsensusHook interface {
+	// CheckAttackCondition checks if any attack condition is met
+	CheckAttackCondition(ctx ConsensusContext) bool
+
 	// BeforeBroadcast is called before broadcasting a message
 	// Returns true if the message should be sent, false to drop it
 	BeforeBroadcast(msgCode, sequence, round uint64, from common.Address) bool
 
-	// BeforeProcessMessage is called before processing a received message
+	// BeforeProcessMessage is called before processing, a received message
 	// Returns true if the message should be processed, false to drop it
 	BeforeProcessMessage(msgCode, sequence, round uint64, from common.Address) bool
 
@@ -209,4 +238,10 @@ type ConsensusHook interface {
 	// If it returns true, both a valid message and a tampered (invalid) message will be sent.
 	// Returns true to simulate a double vote, false to send only the original message.
 	DoubleVote(msgCode, sequence, round uint64, from common.Address) bool
+}
+
+// AttackParamsParser defines an interface for parsing and validating attack parameters
+type AttackParamsParser interface {
+	Parse(raw map[string]interface{}) (interface{}, error)
+	Validate(params interface{}) error
 }

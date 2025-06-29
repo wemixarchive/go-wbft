@@ -54,12 +54,12 @@ func (r *AttackRegistry) GetRegisteredTypes() []types.AttackType {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	types := make([]types.AttackType, 0, len(r.factories))
+	registeredTypeList := make([]types.AttackType, 0, len(r.factories))
 	for attackType := range r.factories {
-		types = append(types, attackType)
+		registeredTypeList = append(registeredTypeList, attackType)
 	}
 
-	return types
+	return registeredTypeList
 }
 
 // DefaultRegistry is the global attack registry
@@ -72,5 +72,9 @@ func Register(attackType types.AttackType, factory AttackFactory) error {
 
 // CreateAttack creates an attack instance using the default registry
 func CreateAttack(config types.AttackConfig) (types.Attack, error) {
+	return DefaultRegistry.CreateAttack(config)
+}
+
+func CreateAttackWithParam(config types.AttackConfig, params *types.SilentAttackParams) (types.Attack, error) {
 	return DefaultRegistry.CreateAttack(config)
 }

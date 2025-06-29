@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/byzantine/service"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,24 +38,29 @@ func DefaultByzantineConfig() *types.ByzantineConfig {
 func LoadByzantineConfig(ctx *cli.Context, nodeConfig *node.Config) (*types.ByzantineConfig, error) {
 	config := DefaultByzantineConfig()
 
+	if ctx.IsSet(ByzantineEnabledFlag.Name) {
+		config.Enabled = ctx.Bool(ByzantineEnabledFlag.Name)
+		return config, fmt.Errorf("[byzantine] Byzantine is disabled")
+	}
+
 	// First load from config file if specified
 	if ctx.IsSet(ByzantineConfigFileFlag.Name) {
 		configFile := ctx.String(ByzantineConfigFileFlag.Name)
 		if configFile != "" {
 			configPath := resolveConfigPath(configFile, nodeConfig.DataDir)
 
-			if err := loadConfigFromFile(configPath, config); err != nil {
-				return nil, fmt.Errorf("failed to load Byzantine config from '%s': %v\n"+
+			configLoader := service.NewConfigLoader()
+			parsedConfig, err := configLoader.LoadConfig(configPath)
+			if err != nil {
+				return nil, fmt.Errorf("[byzantine] failed to load Byzantine config from '%s': %v\n"+
 					"Hint: For relative paths, files are searched in:\n"+
 					"  1. Current working directory\n"+
 					"  2. Geth data directory (%s)", configPath, err, nodeConfig.DataDir)
 			}
+			//if err := loadConfigFromFile(configPath, config); err != nil {
+			//}
+			return parsedConfig, nil
 		}
-	}
-
-	// Then override with command line flags
-	if ctx.IsSet(ByzantineEnabledFlag.Name) {
-		config.Enabled = ctx.Bool(ByzantineEnabledFlag.Name)
 	}
 
 	// Apply defaults for zero values

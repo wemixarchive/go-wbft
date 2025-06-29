@@ -22,7 +22,7 @@ type StorageConfig struct {
 	PruneInterval    time.Duration `json:"prune_interval"`
 }
 
-// UnmarshalJSON implements custom JSON unmarshaling for StorageConfig
+// UnmarshalJSON implements custom JSON unmarshalling for StorageConfig
 func (s *StorageConfig) UnmarshalJSON(data []byte) error {
 	// Define a temporary struct with string fields
 	var temp struct {

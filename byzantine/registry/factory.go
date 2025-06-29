@@ -1,47 +1,73 @@
 package registry
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // BaseAttack provides common functionality for all attacks
 type BaseAttack struct {
+	uid    uint64
 	config types.AttackConfig
+	status types.AttackStatus
 	mu     sync.RWMutex
 }
 
 // NewBaseAttack creates a new base attack
 func NewBaseAttack(config types.AttackConfig) *BaseAttack {
+	// Generate numeric UID if not set
+	uid := uint64(0)
+
 	return &BaseAttack{
+		uid:    uid,
 		config: config,
+		status: types.AttackStatusPending,
 	}
 }
 
-// GetUID returns the unique identifier
-func (a *BaseAttack) GetUID() uint64 {
-	return a.config.UID
-}
-
-// GetType returns the attack type
-func (a *BaseAttack) GetType() types.AttackType {
-	return a.config.Type
+// SetConfig updates the attack configuration
+func (b *BaseAttack) SetConfig(config types.AttackConfig) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.config = config
 }
 
 // GetConfig returns the attack configuration
-func (a *BaseAttack) GetConfig() types.AttackConfig {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.config
+func (b *BaseAttack) GetConfig() types.AttackConfig {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.config
+}
+
+// GetUID returns the unique identifier
+func (b *BaseAttack) GetUID() string {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	return b.config.UID
+}
+
+// GetType returns the attack type
+func (b *BaseAttack) GetType() types.AttackType {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.config.Type
+}
+
+func (b *BaseAttack) GetStatus() types.AttackStatus {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.config.Status
 }
 
 // SetStatus updates the attack status
-func (a *BaseAttack) SetStatus(status types.AttackStatus) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.config.Status = status
+func (b *BaseAttack) SetStatus(status types.AttackStatus) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.status = status
+	b.config.Status = status
 }
 
 // ParseTargets parses target addresses from config
@@ -86,4 +112,21 @@ func GetUint64Parameter(config types.AttackConfig, key string, defaultValue uint
 	default:
 		return defaultValue
 	}
+}
+
+type EnhancedBaseAttack struct {
+	config       types.AttackConfig
+	uidGenerator types.UIDGenerator
+	params       interface{}
+	mu           sync.RWMutex
+}
+
+func (a *EnhancedBaseAttack) GetParams() interface{} {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.params
+}
+
+func (a *EnhancedBaseAttack) GetIndexKey() string {
+	return a.config.UID
 }
