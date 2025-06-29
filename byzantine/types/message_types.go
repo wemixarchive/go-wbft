@@ -23,24 +23,33 @@ const (
 	MessageCodePropagation                                   // 32
 )
 
+// MessageCodeToQBFT Byzantine message code to QBFT code mapping
+var MessageCodeToQBFT = map[MessageCode]uint64{
+	MessageCodePrePrepare:            QBFTPrePrepareCode,
+	MessageCodePrepare:               QBFTPrepareCode,
+	MessageCodeCommit:                QBFTCommitCode,
+	MessageCodeRoundChange:           QBFTRoundChangeCode,
+	MessageCodeRoundChangePrePrepare: QBFTPrePrepareCode, // Special case
+}
+
 // ParseMessageCode parses various formats of message code
 func ParseMessageCode(val interface{}) MessageCode {
 	switch v := val.(type) {
 	case float64:
 		return MessageCode(uint64(v))
 	case int:
-		return MessageCode(v)
+		return MessageCode(uint64(v))
 	case uint64:
 		return MessageCode(v)
 	case string:
-		return ParseMessageCodeString(v)
+		return ParseStringToMessageCode(v)
 	default:
 		return 0
 	}
 }
 
-// ParseMessageCodeString converts string to MessageCode
-func ParseMessageCodeString(code string) MessageCode {
+// ParseStringToMessageCode converts string to MessageCode
+func ParseStringToMessageCode(code string) MessageCode {
 	switch code {
 	case "PrePrepare":
 		return MessageCodePrePrepare

@@ -24,7 +24,7 @@ func (api *PublicByzantineAPI) ByzantineTests() ([]types.AttackConfig, error) {
 }
 
 // StopByzantineTests stops Byzantine tests by UIDs
-func (api *PublicByzantineAPI) StopByzantineTests(uids []uint64) error {
+func (api *PublicByzantineAPI) StopByzantineTests(uids []string) error {
 	log.Info("[Byzantine API] StopByzantineTests called", "uids", uids)
 	return api.handler.StopByzantineTests(uids)
 }

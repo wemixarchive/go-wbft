@@ -16,6 +16,9 @@ type SilentMessageAttack struct {
 	*registry.BaseAttack
 	direction types.MessageDirection
 	targets   []common.Address
+
+	//*registry.EnhancedBaseAttack
+	//params *types.SilentAttackParams
 }
 
 var _ (types.Attack) = (*SilentMessageAttack)(nil)

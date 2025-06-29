@@ -43,9 +43,7 @@ func (h *ChainHandler) ProcessEvent(ctx context.Context, event types.Event) erro
 					errors <- err
 
 					// Update status to failed
-					h.manager.mu.Lock()
-					h.manager.updateStatusMap(attack, types.AttackStatusFailed)
-					h.manager.mu.Unlock()
+					h.manager.UpdateStatusMap(attack, types.AttackStatusFailed)
 
 					// Save failure result
 					if result == nil {
@@ -59,9 +57,7 @@ func (h *ChainHandler) ProcessEvent(ctx context.Context, event types.Event) erro
 					}
 				} else {
 					// Update status to executed
-					h.manager.mu.Lock()
-					h.manager.updateStatusMap(attack, types.AttackStatusExecuted)
-					h.manager.mu.Unlock()
+					h.manager.UpdateStatusMap(attack, types.AttackStatusExecuted)
 				}
 
 				// Save result to history

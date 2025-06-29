@@ -10,16 +10,16 @@ import (
 // InMemoryHistoryStorage implements HistoryStorage interface using in-memory storage
 type InMemoryHistoryStorage struct {
 	mu      sync.RWMutex
-	configs map[uint64]types.AttackConfig
-	results map[uint64][]types.AttackResult
+	configs map[string]types.AttackConfig
+	results map[string][]types.AttackResult
 	config  types.StorageConfig
 }
 
 // NewInMemoryHistoryStorage creates a new in-memory history storage
 func NewInMemoryHistoryStorage(config types.StorageConfig) *InMemoryHistoryStorage {
 	return &InMemoryHistoryStorage{
-		configs: make(map[uint64]types.AttackConfig),
-		results: make(map[uint64][]types.AttackResult),
+		configs: make(map[string]types.AttackConfig),
+		results: make(map[string][]types.AttackResult),
 		config:  config,
 	}
 }
@@ -43,7 +43,7 @@ func (s *InMemoryHistoryStorage) SaveAttackResult(result types.AttackResult) err
 }
 
 // GetAttackHistory retrieves attack history by UID
-func (s *InMemoryHistoryStorage) GetAttackHistory(uid uint64) ([]types.AttackResult, error) {
+func (s *InMemoryHistoryStorage) GetAttackHistory(uid string) ([]types.AttackResult, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -85,8 +85,8 @@ func (s *InMemoryHistoryStorage) Clear() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.configs = make(map[uint64]types.AttackConfig)
-	s.results = make(map[uint64][]types.AttackResult)
+	s.configs = make(map[string]types.AttackConfig)
+	s.results = make(map[string][]types.AttackResult)
 
 	return nil
 }
@@ -97,8 +97,8 @@ func (s *InMemoryHistoryStorage) Export() ([]byte, error) {
 	defer s.mu.RUnlock()
 
 	data := struct {
-		Configs map[uint64]types.AttackConfig   `json:"configs"`
-		Results map[uint64][]types.AttackResult `json:"results"`
+		Configs map[string]types.AttackConfig   `json:"configs"`
+		Results map[string][]types.AttackResult `json:"results"`
 	}{
 		Configs: s.configs,
 		Results: s.results,
