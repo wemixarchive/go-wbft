@@ -67,19 +67,6 @@ func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
 		targets:         params.Targets,
 	}
 	return attack, nil
-
-	//targets, err := registry.ParseTargets(config)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//return &ReplayAttack{
-	//	BaseAttack:       registry.NewBaseAttack(config),
-	//	originalSequence: registry.GetUint64Parameter(config, "originalSequence", 0),
-	//	originalRound:    registry.GetUint64Parameter(config, "originalRound", 0),
-	//	useOriginalView:  registry.GetBoolParameter(config, "useOriginalView", false),
-	//	targets:          targets,
-	//}, nil
 }
 
 // getMessageStorage gets message storage from provider

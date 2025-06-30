@@ -41,40 +41,6 @@ func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack
 		targets:          params.Targets,
 	}
 	return attack, nil
-
-	//targets, err := registry.ParseTargets(config)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//// Parse tamper fields
-	//tamperFieldsRaw, ok := config.Parameters["tamperFields"].([]interface{})
-	//if !ok {
-	//	return nil, fmt.Errorf("tamperFields parameter required")
-	//}
-	//
-	//tamperFields := make([]types.TamperField, len(tamperFieldsRaw))
-	//for i, field := range tamperFieldsRaw {
-	//	fieldMap, ok := field.(map[string]interface{})
-	//	if !ok {
-	//		return nil, fmt.Errorf("invalid tamper field format")
-	//	}
-	//
-	//	tamperFields[i] = types.TamperField{
-	//		Target: fieldMap["target"].(string),
-	//		Value:  fieldMap["value"],
-	//	}
-	//}
-	//
-	//delay := time.Duration(registry.GetUint64Parameter(config, "delay", 0)) * time.Millisecond
-	//
-	//return &TamperedMessageAttack{
-	//	BaseAttack:       registry.NewBaseAttack(config),
-	//	tamperFields:     tamperFields,
-	//	withValidMessage: registry.GetBoolParameter(config, "withValidMessage", false),
-	//	delay:            delay,
-	//	targets:          targets,
-	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed

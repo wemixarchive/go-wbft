@@ -37,31 +37,6 @@ func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error)
 		targets:     params.Targets,
 	}
 	return attack, nil
-	//
-	//targets, err := registry.ParseTargets(config)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//// Get fake message from parameters
-	//var fakeMessage []byte
-	//if msgParam, exists := config.Parameters["fakeMessage"]; exists {
-	//	switch v := msgParam.(type) {
-	//	case []byte:
-	//		fakeMessage = v
-	//	case string:
-	//		fakeMessage = []byte(v)
-	//	default:
-	//		// If not provided, we'll generate it during execution
-	//		fakeMessage = nil
-	//	}
-	//}
-	//
-	//return &FakeMessageAttack{
-	//	BaseAttack:  registry.NewBaseAttack(config),
-	//	fakeMessage: fakeMessage,
-	//	targets:     targets,
-	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed
