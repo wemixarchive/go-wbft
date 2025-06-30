@@ -80,8 +80,8 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	defer m.mu.Unlock()
 
 	config := attack.GetConfig()
-	log.Info("[byzantine] attack manager ", "attack", attack)
-	log.Info("[byzantine] attack manager ", "config", config)
+	//log.Info("[byzantine] attack manager ", "attack", attack)
+	//log.Info("[byzantine] attack manager ", "config", config)
 
 	// Generate standardized UID
 	uid := m.uidGenerator.Generate(
@@ -120,7 +120,7 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 		}
 	}
 
-	log.Info("Attack registered with UID-based lookup",
+	log.Info("[byzantine] Attack registered with UID-based lookup",
 		"uid", uid,
 		"type", config.Type,
 		"code", config.Code,
@@ -311,7 +311,7 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 	direction := event.Metadata["direction"].(string)
 
 	// Try each applicable attack type
-	applicableTypes := m.getApplicableAttackTypes(msgEvent.MessageType, direction)
+	applicableTypes := m.getApplicableAttackTypes(msgEvent.MessageCode, direction)
 
 	for _, attackType := range applicableTypes {
 		// Generate UID for direct lookup

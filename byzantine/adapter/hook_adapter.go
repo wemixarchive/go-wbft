@@ -70,7 +70,7 @@ func (h *HookAdapter) BeforePrepare(ctx context.Context, message *btypes.QBFTMes
 		Round:     message.Round,
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
-			MessageType: btypes.MessageCodePrepare,
+			MessageCode: btypes.MessageCodePrepare,
 			From:        message.Address,
 			Content:     message.Signature,
 			Hash:        message.Hash,
@@ -101,7 +101,7 @@ func (h *HookAdapter) AfterPrepare(ctx context.Context, message *btypes.QBFTMess
 		Round:     message.Round,
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
-			MessageType: btypes.MessageCodePrepare,
+			MessageCode: btypes.MessageCodePrepare,
 			From:        message.Address,
 			Content:     message.Signature,
 			Hash:        message.Hash,
@@ -122,7 +122,7 @@ func (h *HookAdapter) BeforeCommit(ctx context.Context, message *btypes.QBFTMess
 		Round:     message.Round,
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
-			MessageType: btypes.MessageCodeCommit,
+			MessageCode: btypes.MessageCodeCommit,
 			From:        message.Address,
 			Content:     message.CommittedSeal,
 			Hash:        message.Hash,
@@ -153,7 +153,7 @@ func (h *HookAdapter) AfterCommit(ctx context.Context, message *btypes.QBFTMessa
 		Round:     message.Round,
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
-			MessageType: btypes.MessageCodeCommit,
+			MessageCode: btypes.MessageCodeCommit,
 			From:        message.Address,
 			Content:     message.CommittedSeal,
 			Hash:        message.Hash,
@@ -199,7 +199,7 @@ func (h *HookAdapter) OnMessageReceive(ctx context.Context, message *btypes.QBFT
 		Round:     message.Round,
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
-			MessageType: message.Code,
+			MessageCode: message.Code,
 			From:        message.Address,
 			Hash:        message.Hash,
 		},
