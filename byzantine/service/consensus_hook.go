@@ -87,7 +87,7 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 
 	// NEW: Generate UIDs for all possible attack types that could apply
 	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionSend)
-	log.Info("[byzantine] applicable attack type", "attack type", attackTypes)
+	//log.Info("[byzantine] applicable attack type", "attack type", attackTypes)
 
 	// Check each attack type
 	for _, attackType := range attackTypes {
