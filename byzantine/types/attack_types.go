@@ -106,44 +106,45 @@ func (ac AttackConfig) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
-	type Alias AttackConfig
-	aux := &struct {
-		Type string      `json:"type"`
-		Code interface{} `json:"code,omitempty"`
-		*Alias
-	}{
-		Alias: (*Alias)(ac),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	ac.Type = StringToAttackType(aux.Type)
-
-	if aux.Code != nil {
-		ac.Code = ParseMessageCode(aux.Code)
-	}
-
-	//if ac.Parameters != nil {
-	//	if paramMap, ok := ac.Parameters.(map[string]interface{}); ok {
-	//		if codeVal, exists := paramMap["code"]; exists && codeVal != nil {
-	//			ac.Code = ParseMessageCode(codeVal)
-	//		}
-	//
-	//		if targetsVal, exists := paramMap["targets"]; exists {
-	//			ac.Targets = ParseAddresses(targetsVal)
-	//		}
-	//	}
-	//}
-
-	if !ac.Enabled && aux.Alias.Enabled == false {
-		ac.Enabled = true
-	}
-
-	return nil
-}
+//
+//func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
+//	type Alias AttackConfig
+//	aux := &struct {
+//		Type string      `json:"type"`
+//		Code interface{} `json:"code,omitempty"`
+//		*Alias
+//	}{
+//		Alias: (*Alias)(ac),
+//	}
+//
+//	if err := json.Unmarshal(data, &aux); err != nil {
+//		return err
+//	}
+//
+//	ac.Type = StringToAttackType(aux.Type)
+//
+//	if aux.Code != nil {
+//		ac.Code = ParseMessageCode(aux.Code)
+//	}
+//
+//	//if ac.Parameters != nil {
+//	//	if paramMap, ok := ac.Parameters.(map[string]interface{}); ok {
+//	//		if codeVal, exists := paramMap["code"]; exists && codeVal != nil {
+//	//			ac.Code = ParseMessageCode(codeVal)
+//	//		}
+//	//
+//	//		if targetsVal, exists := paramMap["targets"]; exists {
+//	//			ac.Targets = ParseAddresses(targetsVal)
+//	//		}
+//	//	}
+//	//}
+//
+//	if !ac.Enabled && aux.Alias.Enabled == false {
+//		ac.Enabled = true
+//	}
+//
+//	return nil
+//}
 
 // GetSilentParams returns parsed parameters for silent attack
 func (ac *AttackConfig) GetSilentParams() (*SilentAttackParams, error) {

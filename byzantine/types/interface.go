@@ -101,7 +101,7 @@ type AttackManager interface {
 	GetAttackByUID(uid string) (Attack, bool)
 
 	// GetAttacksByCondition retrieves attacks matching the given condition
-	GetAttacksByCondition(attackType AttackType, code MessageCode, sequence, round uint64) []Attack
+	GetAttacksByCondition(attackType AttackType, sequence, round uint64) []Attack
 
 	// ListAttacks returns all registered attacks
 	ListAttacks() []Attack
@@ -217,8 +217,8 @@ type Metrics struct {
 
 // UIDGenerator Format: "attackType-Code-Sequence-Round"
 type UIDGenerator interface {
-	Generate(attackType AttackType, code MessageCode, sequence, round uint64) string
-	Parse(uid string) (AttackType, MessageCode, uint64, uint64, error)
+	Generate(attackType AttackType, sequence, round uint64) string
+	Parse(uid string) (AttackType, uint64, uint64, error)
 }
 
 // ConsensusHook represents consensus hook

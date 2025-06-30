@@ -7,17 +7,23 @@ import (
 
 // SilentAttackParams handles parsing for silent attack parameters
 type SilentAttackParams struct {
+	Code      MessageCode
 	Direction uint64
 	Targets   []common.Address
 }
 
 func (p *SilentAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &SilentAttackParams{}
+	params.Code = ParseMessageCode(raw["code"])
 
 	if direction, ok := raw["direction"].(float64); ok {
 		params.Direction = uint64(direction)
 	} else if direction, ok := raw["direction"].(int); ok {
 		params.Direction = uint64(direction)
+	} else if direction, ok := raw["direction"].(uint); ok {
+		params.Direction = uint64(direction)
+	} else if direction, ok := raw["direction"].(uint64); ok {
+		params.Direction = direction
 	}
 
 	params.Targets = parseTargets(raw["targets"])
@@ -35,11 +41,16 @@ func (p *SilentAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid direction: %d (must be 0-3)", silentParams.Direction)
 	}
 
+	if !ValidateMessageCode(silentParams.Code) {
+		return fmt.Errorf("invalid message code: %d", silentParams.Code)
+	}
+
 	return nil
 }
 
 // TamperAttackParams handles parsing for tamper attack parameters
 type TamperAttackParams struct {
+	Code             MessageCode
 	TamperFields     []TamperField
 	WithValidMessage bool
 	Delay            uint64
@@ -54,6 +65,8 @@ type TamperField struct {
 
 func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &TamperAttackParams{}
+
+	params.Code = ParseMessageCode(raw["code"])
 
 	// Parse tamperFields
 	if tamperFields, ok := raw["tamperFields"].([]interface{}); ok {
@@ -77,6 +90,10 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 		params.Delay = uint64(delay)
 	} else if delay, ok := raw["delay"].(int); ok {
 		params.Delay = uint64(delay)
+	} else if delay, ok := raw["delay"].(int64); ok {
+		params.Delay = uint64(delay)
+	} else if delay, ok := raw["delay"].(uint64); ok {
+		params.Delay = delay
 	}
 
 	params.Targets = parseTargets(raw["targets"])
@@ -100,17 +117,24 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 		}
 	}
 
+	if !ValidateMessageCode(tamperParams.Code) {
+		return fmt.Errorf("invalid message code: %d", tamperParams.Code)
+	}
+
 	return nil
 }
 
 // FakeAttackParams handles parsing for fake attack parameters
 type FakeAttackParams struct {
+	Code        MessageCode
 	FakeMessage []byte
 	Targets     []common.Address
 }
 
 func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &FakeAttackParams{}
+
+	params.Code = ParseMessageCode(raw["code"])
 
 	if fakeMsg, ok := raw["fakeMessage"].(string); ok {
 		params.FakeMessage = []byte(fakeMsg)
@@ -124,9 +148,13 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 }
 
 func (p *FakeAttackParams) Validate(params interface{}) error {
-	_, ok := params.(*FakeAttackParams)
+	fakeParams, ok := params.(*FakeAttackParams)
 	if !ok {
 		return fmt.Errorf("invalid parameter type")
+	}
+
+	if !ValidateMessageCode(fakeParams.Code) {
+		return fmt.Errorf("invalid message code: %d", fakeParams.Code)
 	}
 
 	// FakeMessage can be empty as it might be generated later
@@ -135,6 +163,7 @@ func (p *FakeAttackParams) Validate(params interface{}) error {
 
 // OmitAttackParams handles parsing for omit attack parameters
 type OmitAttackParams struct {
+	Code    MessageCode
 	Cmd     uint64
 	Cnt     uint64
 	Targets []common.Address
@@ -142,6 +171,8 @@ type OmitAttackParams struct {
 
 func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &OmitAttackParams{}
+
+	params.Code = ParseMessageCode(raw["code"])
 
 	if cmd, ok := raw["cmd"].(float64); ok {
 		params.Cmd = uint64(cmd)
@@ -161,9 +192,13 @@ func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 }
 
 func (p *OmitAttackParams) Validate(params interface{}) error {
-	_, ok := params.(*OmitAttackParams)
+	omitParams, ok := params.(*OmitAttackParams)
 	if !ok {
 		return fmt.Errorf("invalid parameter type")
+	}
+
+	if !ValidateMessageCode(omitParams.Code) {
+		return fmt.Errorf("invalid message code: %d", omitParams.Code)
 	}
 
 	// Cmd and Cnt can be 0
@@ -172,12 +207,15 @@ func (p *OmitAttackParams) Validate(params interface{}) error {
 
 // RoleSpoofAttackParams handles parsing for role spoof attack parameters
 type RoleSpoofAttackParams struct {
+	Code        MessageCode
 	FakeMessage []byte
 	Targets     []common.Address
 }
 
 func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &RoleSpoofAttackParams{}
+
+	params.Code = ParseMessageCode(raw["code"])
 
 	if fakeMsg, ok := raw["fakeMessage"].(string); ok {
 		params.FakeMessage = []byte(fakeMsg)
@@ -191,9 +229,13 @@ func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, 
 }
 
 func (p *RoleSpoofAttackParams) Validate(params interface{}) error {
-	_, ok := params.(*RoleSpoofAttackParams)
+	roleSpoofParams, ok := params.(*RoleSpoofAttackParams)
 	if !ok {
 		return fmt.Errorf("invalid parameter type")
+	}
+
+	if !ValidateMessageCode(roleSpoofParams.Code) {
+		return fmt.Errorf("invalid message code: %d", roleSpoofParams.Code)
 	}
 
 	// FakeMessage can be empty
@@ -202,6 +244,7 @@ func (p *RoleSpoofAttackParams) Validate(params interface{}) error {
 
 // ReplayAttackParams handles parsing for replay attack parameters
 type ReplayAttackParams struct {
+	Code            MessageCode
 	OriSequence     uint64
 	OriRound        uint64
 	UseOriginalView bool
@@ -210,6 +253,8 @@ type ReplayAttackParams struct {
 
 func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &ReplayAttackParams{}
+
+	params.Code = ParseMessageCode(raw["code"])
 
 	if oriSeq, ok := raw["ori_sequence"].(float64); ok {
 		params.OriSequence = uint64(oriSeq)
@@ -240,6 +285,10 @@ func (p *ReplayAttackParams) Validate(params interface{}) error {
 
 	if replayParams.OriSequence == 0 {
 		return fmt.Errorf("original sequence must be specified")
+	}
+
+	if !ValidateMessageCode(replayParams.Code) {
+		return fmt.Errorf("invalid message code: %d", replayParams.Code)
 	}
 
 	return nil

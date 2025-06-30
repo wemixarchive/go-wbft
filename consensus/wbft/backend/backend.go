@@ -136,7 +136,7 @@ type Backend struct {
 // SetByzantineHook sets the Byzantine hook
 func (sb *Backend) SetByzantineHook(hook btypes.ConsensusHook) {
 	sb.byzantineHook = hook
-	sb.logger.Info("Byzantine hook integrated with WBFT backend")
+	sb.logger.Info("[byzantine] Byzantine hook integrated with WBFT backend")
 }
 
 // ByzantineHook gets teh Byzantine hook
@@ -195,7 +195,7 @@ func (sb *Backend) Broadcast(valSet wbft.ValidatorSet, code uint64, payload []by
 		}
 
 		if sb.byzantineHook.BeforeBroadcast(code, sequence, round, sb.address) {
-			sb.logger.Debug("BFT: Outbound message blocked by Byzantine module",
+			sb.logger.Debug("[byzantine] BFT: Outbound message blocked by Byzantine module",
 				"code", code, "sequence", sequence, "round", round)
 			return nil // Silent drop
 		}

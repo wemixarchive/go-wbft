@@ -57,8 +57,6 @@ func LoadByzantineConfig(ctx *cli.Context, nodeConfig *node.Config) (*types.Byza
 					"  1. Current working directory\n"+
 					"  2. Geth data directory (%s)", configPath, err, nodeConfig.DataDir)
 			}
-			//if err := loadConfigFromFile(configPath, config); err != nil {
-			//}
 			return parsedConfig, nil
 		}
 	}

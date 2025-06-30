@@ -14,6 +14,7 @@ import (
 // SilentMessageAttack implements silent proposer attack
 type SilentMessageAttack struct {
 	*registry.BaseAttack
+	code      types.MessageCode
 	direction types.MessageDirection
 	targets   []common.Address
 }
@@ -31,9 +32,11 @@ func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, er
 	}
 
 	params := parsedParams.(*types.SilentAttackParams)
+	//log.Info("[byzantine] silent attack config : ", "params", params)
 
 	attack := &SilentMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
+		code:       params.Code,
 		direction:  types.MessageDirection(params.Direction),
 		targets:    params.Targets,
 	}
