@@ -40,18 +40,6 @@ func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error)
 		targets:    params.Targets,
 	}
 	return attack, nil
-
-	//targets, err := registry.ParseTargets(config)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//return &OmitMessageAttack{
-	//	BaseAttack:  registry.NewBaseAttack(config),
-	//	omitCommand: registry.GetUint64Parameter(config, "cmd", 0),
-	//	omitCount:   registry.GetUint64Parameter(config, "cnt", 0),
-	//	targets:     targets,
-	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed

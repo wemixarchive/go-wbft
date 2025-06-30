@@ -39,39 +39,6 @@ func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error)
 		//nodeAddress: params.nodeAddress,
 	}
 	return attack, nil
-	//
-	//targets, err := registry.ParseTargets(config)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//// Get fake message from parameters
-	//var fakeMessage []byte
-	//if msgParam, exists := config.Parameters["fakeMessage"]; exists {
-	//	switch v := msgParam.(type) {
-	//	case []byte:
-	//		fakeMessage = v
-	//	case string:
-	//		fakeMessage = []byte(v)
-	//	default:
-	//		fakeMessage = nil
-	//	}
-	//}
-	//
-	//// Get node address from config
-	//nodeAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
-	//if addrParam, exists := config.Parameters["nodeAddress"]; exists {
-	//	if addr, ok := addrParam.(string); ok {
-	//		nodeAddress = common.HexToAddress(addr)
-	//	}
-	//}
-	//
-	//return &RoleSpoofedAttack{
-	//	BaseAttack:  registry.NewBaseAttack(config),
-	//	fakeMessage: fakeMessage,
-	//	targets:     targets,
-	//	nodeAddress: nodeAddress,
-	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed
