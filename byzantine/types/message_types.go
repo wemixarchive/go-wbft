@@ -127,6 +127,8 @@ const (
 	TamperProposalHeaderMixDigest   TamperTarget = "Proposal.Header.MixDigest"
 	TamperProposalHeaderNonce       TamperTarget = "Proposal.Header.Nonce"
 
+	TamperDigest TamperTarget = "Digest"
+
 	// Transaction targets
 	TamperTransactionSign    TamperTarget = "Transaction.Sign"
 	TamperTransactionBalance TamperTarget = "Transaction.Balance"

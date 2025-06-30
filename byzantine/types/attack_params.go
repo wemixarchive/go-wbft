@@ -1,7 +1,12 @@
 package types
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -59,8 +64,68 @@ type TamperAttackParams struct {
 
 // TamperField represents a field to be tampered with in a message
 type TamperField struct {
-	Target string      `json:"target"` // e.g., "Proposal.Header.Coinbase"
-	Value  interface{} `json:"value"`  // New value for the field
+	Target TamperTarget `json:"target"` // e.g., "Proposal.Header.Coinbase"
+	Value  interface{}  `json:"value"`  // New value for the field
+}
+
+// ValueToUint64 converts the Value field to uint64 if possible
+func (tf *TamperField) ValueToUint64() (uint64, error) {
+	switch v := tf.Value.(type) {
+	case float64:
+		return uint64(v), nil
+	case int:
+		return uint64(v), nil
+	case int64:
+		return uint64(v), nil
+	case uint64:
+		return v, nil
+	case string:
+		parsed, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse string to uint64: %w", err)
+		}
+		return parsed, nil
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse json.Number to int64: %w", err)
+		}
+		return uint64(parsed), nil
+	default:
+		return 0, fmt.Errorf("unsupported type for uint64 conversion: %T", v)
+	}
+}
+
+// ValueToHash converts the Value field to common.Hash if possible
+func (tf *TamperField) ValueToHash() (common.Hash, error) {
+	switch v := tf.Value.(type) {
+	case string:
+		// Accepts "0x..." or raw hex
+		str := strings.TrimPrefix(v, "0x")
+		bytes, err := hex.DecodeString(str)
+		if err != nil {
+			return common.Hash{}, fmt.Errorf("invalid hex string for Hash: %w", err)
+		}
+		if len(bytes) != 32 {
+			return common.Hash{}, fmt.Errorf("invalid hash length: expected 32 bytes, got %d", len(bytes))
+		}
+		return common.BytesToHash(bytes), nil
+
+	case []byte:
+		if len(v) != 32 {
+			return common.Hash{}, fmt.Errorf("invalid byte slice length for Hash: %d", len(v))
+		}
+		return common.BytesToHash(v), nil
+
+	case [32]byte:
+		return common.BytesToHash(v[:]), nil
+
+	case common.Hash:
+		return v, nil
+
+	default:
+		return common.Hash{}, fmt.Errorf("unsupported type for Hash conversion: %T", v)
+	}
 }
 
 func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -69,16 +134,26 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 	params.Code = ParseMessageCode(raw["code"])
 
 	// Parse tamperFields
-	if tamperFields, ok := raw["tamperFields"].([]interface{}); ok {
-		params.TamperFields = make([]TamperField, 0, len(tamperFields))
-		for _, field := range tamperFields {
-			if fieldMap, ok := field.(map[string]interface{}); ok {
-				tamperField := TamperField{
-					Target: fmt.Sprintf("%v", fieldMap["target"]),
-					Value:  fieldMap["value"],
-				}
-				params.TamperFields = append(params.TamperFields, tamperField)
+	if rawFields, ok := raw["tamperFields"].([]interface{}); ok {
+		params.TamperFields = make([]TamperField, 0, len(rawFields))
+
+		for _, f := range rawFields {
+			fieldMap, ok := f.(map[string]interface{})
+			if !ok {
+				continue
 			}
+
+			// Parse 'target'
+			targetStr, ok := fieldMap["target"].(string)
+			if !ok {
+				continue // or log.Warn: invalid target
+			}
+
+			tf := TamperField{
+				Target: TamperTarget(targetStr),
+				Value:  fieldMap["value"],
+			}
+			params.TamperFields = append(params.TamperFields, tf)
 		}
 	}
 

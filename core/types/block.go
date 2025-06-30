@@ -385,6 +385,8 @@ func (b *Block) Header() *Header {
 	return CopyHeader(b.header)
 }
 
+func (b *Block) SetNumber(num uint64) { b.header.Number = new(big.Int).SetUint64(num) }
+
 // Header value accessors. These do copy!
 
 func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }

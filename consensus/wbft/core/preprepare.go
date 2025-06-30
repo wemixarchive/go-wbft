@@ -23,6 +23,7 @@ package core
 import (
 	"time"
 
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
@@ -48,10 +49,36 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+
 		// Creates PRE-PREPARE message
 		curView := c.currentView()
 		preprepare := wbfmessage.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
 		preprepare.SetSource(c.Address())
+
+		if hook := c.backend.ByzantineHook(); hook != nil {
+			// Check if DoubleVote attack should be triggered
+			if ok, config := hook.DoubleVote(
+				preprepare.Code(),
+				c.current.Sequence().Uint64(),
+				c.current.Round().Uint64(),
+				c.backend.Address(),
+			); ok {
+				// Retrieve tamper parameters
+				params, err := config.GetTamperParams()
+				if err != nil {
+					log.Error("[byzantine] Failed to get tamper parameters")
+					return
+				}
+				if c.sendByzantinePreprepareMsg(request, params) {
+
+					if !params.WithValidMessage {
+						return // skip the normal message
+					}
+					// Wait for the configured delay
+					time.Sleep(time.Duration(params.Delay) * time.Millisecond)
+				}
+			}
+		}
 
 		// Sign payload
 		encodedPayload, err := preprepare.EncodePayloadForSigning()
@@ -65,25 +92,6 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			return
 		}
 		preprepare.SetSignature(signature)
-
-		if c.backend.ByzantineHook() != nil {
-			if c.backend.ByzantineHook().DoubleVote(preprepare.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64(), c.backend.Address()) {
-				// RLP-encode message
-				byzantine_payload, err := rlp.EncodeToBytes(&preprepare)
-				if err != nil {
-					log.Error("[byzantine] QBFT: failed to encode PRE-PREPARE message", "err", err)
-					return
-				}
-
-				log.Info("[byzantine] QBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(byzantine_payload))
-
-				// Broadcast RLP-encoded message
-				if err = c.backend.Broadcast(c.valSet, preprepare.Code(), byzantine_payload); err != nil {
-					log.Error("[byzantine] QBFT: failed to broadcast PRE-PREPARE message", "err", err)
-				}
-				time.Sleep(10 * time.Millisecond)
-			}
-		}
 
 		// Extend PRE-PREPARE message with ROUND-CHANGE justification
 		if request.RCMessages != nil {
@@ -121,6 +129,80 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		// Set the preprepareSent to the current round
 		c.current.preprepareSent = curView.Round
 	}
+}
+
+func (c *Core) sendByzantinePreprepareMsg(request *Request, params *types.TamperAttackParams) bool {
+	logger := c.currentLogger(true, nil)
+
+	// Creates PRE-PREPARE message
+	curView := c.currentView()
+	preprepare := wbfmessage.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
+	preprepare.SetSource(c.Address())
+
+	for _, field := range params.TamperFields {
+		// Implementation depends on actual message structure
+		// This is just a placeholder
+		switch field.Target {
+		case types.TamperProposalHeaderNumber:
+			val, err := field.ValueToUint64()
+			if err != nil {
+				withMsg(logger, preprepare).Error("[Byzantine] Conversion failed", "err", err)
+				return false
+			} else {
+				preprepare.Proposal.SetNumber(val)
+			}
+		}
+	}
+
+	// Sign payload
+	encodedPayload, err := preprepare.EncodePayloadForSigning()
+	if err != nil {
+		withMsg(logger, preprepare).Error("[Byzantine] WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
+		return false
+	}
+	signature, err := c.backend.Sign(encodedPayload)
+	if err != nil {
+		withMsg(logger, preprepare).Error("[Byzantine] WBFT: failed to sign PRE-PREPARE message", "err", err)
+		return false
+	}
+	preprepare.SetSignature(signature)
+
+	// Extend PRE-PREPARE message with ROUND-CHANGE justification
+	if request.RCMessages != nil {
+		preprepare.JustificationRoundChanges = make([]*wbfmessage.SignedRoundChangePayload, 0)
+		for _, m := range request.RCMessages.Values() {
+			preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+			withMsg(logger, preprepare).Trace("[Byzantine] WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+		}
+		withMsg(logger, preprepare).Trace("[Byzantine] WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+	}
+
+	// Extend PRE-PREPARE message with PREPARE justification
+	if request.PrepareMessages != nil {
+		preprepare.JustificationPrepares = request.PrepareMessages
+		withMsg(logger, preprepare).Trace("[Byzantine] WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+	}
+
+	// RLP-encode message
+	payload, err := rlp.EncodeToBytes(&preprepare)
+	if err != nil {
+		withMsg(logger, preprepare).Error("[Byzantine] WBFT: failed to encode PRE-PREPARE message", "err", err)
+		return false
+	}
+
+	logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
+
+	logger.Info("[Byzantine] WBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
+
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
+		logger.Error("[Byzantine] WBFT: failed to broadcast PRE-PREPARE message", "err", err)
+		return false
+	}
+
+	// Set the preprepareSent to the current round
+	c.current.preprepareSent = curView.Round
+	return true
 }
 
 // handlePreprepareMsg is called when receiving a PRE-PREPARE message from the proposer

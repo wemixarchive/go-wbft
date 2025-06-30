@@ -23,6 +23,7 @@ package core
 import (
 	"time"
 
+	byzantineTypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,22 +52,28 @@ func (c *Core) broadcastPrepare() {
 	prepare := wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
 	prepare.SetSource(c.Address())
 
-	if c.backend.ByzantineHook() != nil {
-		if c.backend.ByzantineHook().DoubleVote(prepare.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64(), c.backend.Address()) {
-			// RLP-encode message
-			byzantine_payload, err := rlp.EncodeToBytes(&prepare)
+	if hook := c.backend.ByzantineHook(); hook != nil {
+		// Check if DoubleVote attack should be triggered
+		if ok, config := hook.DoubleVote(
+			prepare.Code(),
+			c.current.Sequence().Uint64(),
+			c.current.Round().Uint64(),
+			c.backend.Address(),
+		); ok {
+			// Retrieve tamper parameters
+			params, err := config.GetTamperParams()
 			if err != nil {
-				log.Error("[byzantine] QBFT: failed to encode PREPARE message", "err", err)
+				log.Error("[byzantine] Failed to get tamper parameters")
 				return
 			}
+			if c.broadcastByzantinePrepare(params) {
 
-			log.Info("[byzantine] QBFT: broadcast PREPARE message", "payload", hexutil.Encode(byzantine_payload))
-
-			// Broadcast RLP-encoded message
-			if err = c.backend.Broadcast(c.valSet, prepare.Code(), byzantine_payload); err != nil {
-				log.Error("[byzantine] QBFT: failed to broadcast PREPARE message", "err", err)
+				if !params.WithValidMessage {
+					return // skip the normal message
+				}
+				// Wait for the configured delay
+				time.Sleep(time.Duration(params.Delay) * time.Millisecond)
 			}
-			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
@@ -97,6 +104,68 @@ func (c *Core) broadcastPrepare() {
 		withMsg(logger, prepare).Error("WBFT: failed to broadcast PREPARE message", "err", err)
 		return
 	}
+}
+
+func (c *Core) broadcastByzantinePrepare(params *byzantineTypes.TamperAttackParams) bool {
+	logger := c.currentLogger(true, nil)
+
+	// Create PREPARE message from the current proposal
+	sub := c.current.Subject()
+
+	var header *types.Header
+	if block, ok := c.current.Proposal().(*types.Block); ok {
+		header = block.Header()
+	}
+
+	// Create Prepare Seal
+	prepareSeal := c.backend.SignWithoutHashing(PrepareSeal(header, uint32(c.currentView().Round.Uint64()), SealTypePrepare))
+	prepare := wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
+	prepare.SetSource(c.Address())
+
+	for _, field := range params.TamperFields {
+		// Implementation depends on actual message structure
+		// This is just a placeholder
+		switch field.Target {
+		case byzantineTypes.TamperDigest:
+			val, err := field.ValueToHash()
+			if err != nil {
+				withMsg(logger, prepare).Error("[Byzantine] Conversion failed", "err", err)
+				return false
+			} else {
+				prepare.Digest = val
+			}
+		}
+	}
+
+	// Sign Message
+	encodedPayload, err := prepare.EncodePayloadForSigning()
+	if err != nil {
+		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to encode payload of PREPARE message", "err", err)
+		return false
+	}
+	signature, err := c.backend.Sign(encodedPayload)
+	if err != nil {
+		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to sign PREPARE message", "err", err)
+		return false
+	}
+	prepare.SetSignature(signature)
+
+	// RLP-encode message
+	payload, err := rlp.EncodeToBytes(&prepare)
+	if err != nil {
+		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to encode PREPARE message", "err", err)
+		return false
+	}
+
+	withMsg(logger, prepare).Info("[Byzantine] WBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
+
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
+		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to broadcast PREPARE message", "err", err)
+		return false
+	}
+
+	return true
 }
 
 // handlePrepareMsg is called when receiving a PREPARE message

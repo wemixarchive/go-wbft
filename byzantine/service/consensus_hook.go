@@ -238,7 +238,7 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 }
 
 // DoubleVote is called before broadcasting a message
-func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from common.Address) bool {
+func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from common.Address) (bool, types.AttackConfig) {
 	ctx := context.Background()
 	//byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 
@@ -266,7 +266,7 @@ func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from com
 				// Publish event asynchronously
 				//go h.publishEvent(event)
 
-				return true
+				return true, config
 			}
 		}
 	}
@@ -276,14 +276,14 @@ func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from com
 	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
 	if err != nil {
 		log.Error("Failed to evaluate attacks for double vote", "error", err)
-		return false
+		return false, types.AttackConfig{}
 	}
 
 	if decision.ShouldAttack && decision.AttackType == types.AttackTypeTamperedMessage {
-		return true
+		return true, types.AttackConfig{}
 	}
 
-	return false
+	return false, types.AttackConfig{}
 }
 
 // Helper methods
