@@ -23,39 +23,58 @@ var _ (types.Attack) = (*TamperedMessageAttack)(nil)
 
 // NewTamperedMessageAttack creates a new tampered message attack
 func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack, error) {
-	targets, err := registry.ParseTargets(config)
+	paramRegistry := registry.NewParameterParserRegistry()
+
+	// Parse parameters for the specific attack type
+	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	// Parse tamper fields
-	tamperFieldsRaw, ok := config.Parameters["tamperFields"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("tamperFields parameter required")
-	}
+	params := parsedParams.(*types.TamperAttackParams)
 
-	tamperFields := make([]types.TamperField, len(tamperFieldsRaw))
-	for i, field := range tamperFieldsRaw {
-		fieldMap, ok := field.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("invalid tamper field format")
-		}
-
-		tamperFields[i] = types.TamperField{
-			Target: fieldMap["target"].(string),
-			Value:  fieldMap["value"],
-		}
-	}
-
-	delay := time.Duration(registry.GetUint64Parameter(config, "delay", 0)) * time.Millisecond
-
-	return &TamperedMessageAttack{
+	attack := &TamperedMessageAttack{
 		BaseAttack:       registry.NewBaseAttack(config),
-		tamperFields:     tamperFields,
-		withValidMessage: registry.GetBoolParameter(config, "withValidMessage", false),
-		delay:            delay,
-		targets:          targets,
-	}, nil
+		tamperFields:     params.TamperFields,
+		withValidMessage: params.WithValidMessage,
+		delay:            time.Duration(int64(params.Delay)),
+		targets:          params.Targets,
+	}
+	return attack, nil
+
+	//targets, err := registry.ParseTargets(config)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//// Parse tamper fields
+	//tamperFieldsRaw, ok := config.Parameters["tamperFields"].([]interface{})
+	//if !ok {
+	//	return nil, fmt.Errorf("tamperFields parameter required")
+	//}
+	//
+	//tamperFields := make([]types.TamperField, len(tamperFieldsRaw))
+	//for i, field := range tamperFieldsRaw {
+	//	fieldMap, ok := field.(map[string]interface{})
+	//	if !ok {
+	//		return nil, fmt.Errorf("invalid tamper field format")
+	//	}
+	//
+	//	tamperFields[i] = types.TamperField{
+	//		Target: fieldMap["target"].(string),
+	//		Value:  fieldMap["value"],
+	//	}
+	//}
+	//
+	//delay := time.Duration(registry.GetUint64Parameter(config, "delay", 0)) * time.Millisecond
+	//
+	//return &TamperedMessageAttack{
+	//	BaseAttack:       registry.NewBaseAttack(config),
+	//	tamperFields:     tamperFields,
+	//	withValidMessage: registry.GetBoolParameter(config, "withValidMessage", false),
+	//	delay:            delay,
+	//	targets:          targets,
+	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed
@@ -78,7 +97,7 @@ func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event
 	if !ok {
 		return false
 	}
-	
+
 	// Check if this is the right message type to attack
 	if event.Type == types.EventTypeMessageSent {
 		return true

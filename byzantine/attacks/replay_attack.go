@@ -39,28 +39,47 @@ func GetStorageProvider() StorageProvider {
 // ReplayAttack implements replay attack
 type ReplayAttack struct {
 	*registry.BaseAttack
-	originalSequence uint64
-	originalRound    uint64
-	useOriginalView  bool
-	targets          []common.Address
+	oriSequence     uint64
+	oriRound        uint64
+	useOriginalView bool
+	targets         []common.Address
 }
 
 var _ (types.Attack) = (*ReplayAttack)(nil)
 
 // NewReplayAttack creates a new replay attack
 func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
-	targets, err := registry.ParseTargets(config)
+	paramRegistry := registry.NewParameterParserRegistry()
+
+	// Parse parameters for the specific attack type
+	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	return &ReplayAttack{
-		BaseAttack:       registry.NewBaseAttack(config),
-		originalSequence: registry.GetUint64Parameter(config, "originalSequence", 0),
-		originalRound:    registry.GetUint64Parameter(config, "originalRound", 0),
-		useOriginalView:  registry.GetBoolParameter(config, "useOriginalView", false),
-		targets:          targets,
-	}, nil
+	params := parsedParams.(*types.ReplayAttackParams)
+
+	attack := &ReplayAttack{
+		BaseAttack:      registry.NewBaseAttack(config),
+		oriSequence:     params.OriSequence,
+		oriRound:        params.OriRound,
+		useOriginalView: params.UseOriginalView,
+		targets:         params.Targets,
+	}
+	return attack, nil
+
+	//targets, err := registry.ParseTargets(config)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//return &ReplayAttack{
+	//	BaseAttack:       registry.NewBaseAttack(config),
+	//	originalSequence: registry.GetUint64Parameter(config, "originalSequence", 0),
+	//	originalRound:    registry.GetUint64Parameter(config, "originalRound", 0),
+	//	useOriginalView:  registry.GetBoolParameter(config, "useOriginalView", false),
+	//	targets:          targets,
+	//}, nil
 }
 
 // getMessageStorage gets message storage from provider
@@ -119,7 +138,7 @@ func (a *ReplayAttack) Execute(ctx context.Context, event types.Event) (*types.A
 	}
 
 	// Retrieve original message from storage
-	messages, err := messageStorage.GetBySequenceRound(a.originalSequence, a.originalRound)
+	messages, err := messageStorage.GetBySequenceRound(a.oriSequence, a.oriRound)
 	if err != nil {
 		return &types.AttackResult{
 			UID:        a.GetUID(),
@@ -131,7 +150,7 @@ func (a *ReplayAttack) Execute(ctx context.Context, event types.Event) (*types.A
 	}
 
 	if len(messages) == 0 {
-		err := fmt.Errorf("no messages found for sequence %d round %d", a.originalSequence, a.originalRound)
+		err := fmt.Errorf("no messages found for sequence %d round %d", a.oriSequence, a.oriRound)
 		return &types.AttackResult{
 			UID:        a.GetUID(),
 			Success:    false,
@@ -183,8 +202,8 @@ func (a *ReplayAttack) Execute(ctx context.Context, event types.Event) (*types.A
 		ExecutedAt: time.Now(),
 		Duration:   time.Since(startTime),
 		Details: map[string]interface{}{
-			"original_sequence": a.originalSequence,
-			"original_round":    a.originalRound,
+			"original_sequence": a.oriSequence,
+			"original_round":    a.oriRound,
 			"replayed_to":       fmt.Sprintf("seq:%d,round:%d", event.Sequence, event.Round),
 			"use_original_view": a.useOriginalView,
 			"message_type":      messageToReplay.Message.Code,

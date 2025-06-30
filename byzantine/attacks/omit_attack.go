@@ -14,26 +14,44 @@ import (
 // OmitMessageAttack implements omit message attack
 type OmitMessageAttack struct {
 	*registry.BaseAttack
-	omitCommand uint64
-	omitCount   uint64
-	targets     []common.Address
+	cmd     uint64
+	cnt     uint64
+	targets []common.Address
 }
 
 var _ (types.Attack) = (*OmitMessageAttack)(nil)
 
 // NewOmitMessageAttack creates a new omit message attack
 func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error) {
-	targets, err := registry.ParseTargets(config)
+	paramRegistry := registry.NewParameterParserRegistry()
+
+	// Parse parameters for the specific attack type
+	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	return &OmitMessageAttack{
-		BaseAttack:  registry.NewBaseAttack(config),
-		omitCommand: registry.GetUint64Parameter(config, "cmd", 0),
-		omitCount:   registry.GetUint64Parameter(config, "cnt", 0),
-		targets:     targets,
-	}, nil
+	params := parsedParams.(*types.OmitAttackParams)
+
+	attack := &OmitMessageAttack{
+		BaseAttack: registry.NewBaseAttack(config),
+		cmd:        params.Cmd,
+		cnt:        params.Cnt,
+		targets:    params.Targets,
+	}
+	return attack, nil
+
+	//targets, err := registry.ParseTargets(config)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//return &OmitMessageAttack{
+	//	BaseAttack:  registry.NewBaseAttack(config),
+	//	omitCommand: registry.GetUint64Parameter(config, "cmd", 0),
+	//	omitCount:   registry.GetUint64Parameter(config, "cnt", 0),
+	//	targets:     targets,
+	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed
@@ -94,8 +112,8 @@ func (a *OmitMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 		Duration:   time.Since(startTime),
 		Details: map[string]interface{}{
 			"message_type": config.Code,
-			"omit_command": a.omitCommand,
-			"omit_count":   a.omitCount,
+			"omit_command": a.cmd,
+			"omit_count":   a.cnt,
 			"targets":      len(a.targets),
 			"action":       "omitted_message_sent",
 		},
@@ -130,17 +148,17 @@ func (a *OmitMessageAttack) omitPrePrepareFields(event types.Event) ([]byte, err
 	// Create a proposal with omitted seals
 	proposal := blockEvent.Block
 
-	switch a.omitCommand {
+	switch a.cmd {
 	case 1:
 		// Omit prepare seals
 		// Remove prepare seals from extra data
-		proposal = a.removePrepareSeal(proposal, a.omitCount)
+		proposal = a.removePrepareSeal(proposal, a.cnt)
 	case 2:
 		// Omit commit seals
 		// Remove commit seals from extra data
-		proposal = a.removeCommitSeal(proposal, a.omitCount)
+		proposal = a.removeCommitSeal(proposal, a.cnt)
 	default:
-		return nil, fmt.Errorf("invalid omit command: %d", a.omitCommand)
+		return nil, fmt.Errorf("invalid omit command: %d", a.cmd)
 	}
 
 	// Serialize the modified proposal
@@ -160,15 +178,15 @@ func (a *OmitMessageAttack) omitPropagationFields(event types.Event) ([]byte, er
 
 	block := blockEvent.Block
 
-	switch a.omitCommand {
+	switch a.cmd {
 	case 1:
 		// Omit current prepare seals
-		block = a.removePrepareSeal(block, a.omitCount)
+		block = a.removePrepareSeal(block, a.cnt)
 	case 2:
 		// Omit current commit seals
-		block = a.removeCommitSeal(block, a.omitCount)
+		block = a.removeCommitSeal(block, a.cnt)
 	default:
-		return nil, fmt.Errorf("invalid omit command: %d", a.omitCommand)
+		return nil, fmt.Errorf("invalid omit command: %d", a.cmd)
 	}
 
 	return serializeBlock(block), nil
@@ -190,7 +208,7 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 
 	// Normally would include justification, but we're omitting it
 	// TODO:
-	switch a.omitCommand {
+	switch a.cmd {
 	case 1:
 		// Omit RoundChangeMessages (but might include PrepareMessages)
 		// This creates an unjustified PrePrepare after round change
@@ -198,7 +216,7 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 		// Omit PrepareMessages (but might include RoundChangeMessages)
 		// This creates a PrePrepare without proper prepare justification
 	default:
-		return nil, fmt.Errorf("invalid omit command: %d", a.omitCommand)
+		return nil, fmt.Errorf("invalid omit command: %d", a.cmd)
 	}
 
 	return serializeQBFTMessage(message), nil
