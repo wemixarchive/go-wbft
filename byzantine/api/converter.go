@@ -73,19 +73,26 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 
 	// Convert tamper fields
 	if v, ok := raw["tamperFields"].([]interface{}); ok {
-		params.TamperFields = make([]types.TamperField, len(v))
+		params.TamperFields = make([]types.TamperField, 0, len(v))
+
 		for i, field := range v {
-			if fieldMap, ok := field.(map[string]interface{}); ok {
-				if target, ok := fieldMap["target"].(string); ok {
-					params.TamperFields[i].Target = target
-				}
-				params.TamperFields[i].Value = fieldMap["value"]
-			} else {
+			fieldMap, ok := field.(map[string]interface{})
+			if !ok {
 				return params, fmt.Errorf("invalid tamper field at index %d", i)
 			}
+
+			targetStr, ok := fieldMap["target"].(string)
+			if !ok {
+				return params, fmt.Errorf("missing or invalid target at index %d", i)
+			}
+
+			tamperField := types.TamperField{
+				Target: types.TamperTarget(targetStr),
+				Value:  fieldMap["value"],
+			}
+			params.TamperFields = append(params.TamperFields, tamperField)
 		}
 	}
-
 	if v, ok := raw["withValidMessage"].(bool); ok {
 		params.WithValidMessage = v
 	}

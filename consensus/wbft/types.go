@@ -39,6 +39,7 @@ import (
 type Proposal interface {
 	// Number retrieves the sequence number of this proposal.
 	Number() *big.Int
+	SetNumber(num uint64)
 
 	// Hash retrieves the hash of this proposal.
 	Hash() common.Hash
