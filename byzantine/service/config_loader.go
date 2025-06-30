@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"io"
 	"os"
 	"time"
@@ -13,14 +14,14 @@ import (
 
 // ConfigLoader loads Byzantine configuration
 type ConfigLoader struct {
-	paramRegistry *types.ParameterParserRegistry
+	paramRegistry *registry.ParameterParserRegistry
 	uidGenerator  types.UIDGenerator
 }
 
 // NewConfigLoader creates a new config loader
 func NewConfigLoader() *ConfigLoader {
 	return &ConfigLoader{
-		paramRegistry: types.NewParameterParserRegistry(),
+		paramRegistry: registry.NewParameterParserRegistry(),
 		uidGenerator:  types.NewUIDGenerator(),
 	}
 }

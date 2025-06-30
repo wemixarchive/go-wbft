@@ -32,7 +32,7 @@ type ByzantineService struct {
 	eventPublisher types.EventPublisher
 	hookAdapter    types.HookAdapter
 	attackRegistry *registry.AttackRegistry
-	paramRegistry  *types.ParameterParserRegistry
+	paramRegistry  *registry.ParameterParserRegistry
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -230,20 +230,20 @@ func (s *ByzantineService) RegisterAttack(config types.AttackConfig) (string, er
 	config.CreatedAt = time.Now()
 
 	// Create attack instance with type-specific parameters
-	attack, err := createAttackWithParsedParams(config, s.attackRegistry)
-	if err != nil {
-		log.Error("Failed to create attack", "name", config.Name, "error", err)
-		return "", fmt.Errorf("failed to create attack: %w", err)
-	}
-
-	// Create attack instance
-	//attack, err := s.attackRegistry.CreateAttack(config)
+	//attack, err := createAttackWithParsedParams(config, s.attackRegistry)
 	//if err != nil {
+	//	log.Error("Failed to create attack", "name", config.Name, "error", err)
 	//	return "", fmt.Errorf("failed to create attack: %w", err)
 	//}
 
+	// Create attack instance
+	attack, err := s.attackRegistry.CreateAttack(config)
+	if err != nil {
+		return "", fmt.Errorf("failed to create attack: %w", err)
+	}
+
 	// Register with manager
-	if err := s.attackManager.RegisterAttack(attack); err != nil {
+	if err = s.attackManager.RegisterAttack(attack); err != nil {
 		log.Error("Failed to register attack", "name", config.Name, "error", err)
 		return "", fmt.Errorf("failed to register attack: %w", err)
 	}
@@ -406,145 +406,146 @@ func (s *ByzantineService) GetConsensusHook() types.ConsensusHook {
 	return s.consensusHook
 }
 
-// createAttackWithParsedParams creates an attack instance with properly parsed parameters
-func createAttackWithParsedParams(config types.AttackConfig, registry *registry.AttackRegistry) (types.Attack, error) {
-	// Get parameter parser
-	paramRegistry := types.NewParameterParserRegistry()
-
-	// Parse parameters for the specific attack type
-	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
-
-	// Create attack instance based on type with parsed parameters
-	switch config.Type {
-	case types.AttackTypeSilentMessage:
-		params := parsedParams.(*types.SilentAttackParams)
-		return createSilentAttack(config, params, registry)
-
-	case types.AttackTypeTamperedMessage:
-		params := parsedParams.(*types.TamperAttackParams)
-		return createTamperAttack(config, params, registry)
-
-	case types.AttackTypeFakeMessage:
-		params := parsedParams.(*types.FakeAttackParams)
-		return createFakeAttack(config, params, registry)
-
-	case types.AttackTypeOmitMessage:
-		params := parsedParams.(*types.OmitAttackParams)
-		return createOmitAttack(config, params, registry)
-
-	case types.AttackTypeRoleSpoofed:
-		params := parsedParams.(*types.RoleSpoofAttackParams)
-		return createRoleSpoofAttack(config, params, registry)
-
-	case types.AttackTypeReplay:
-		params := parsedParams.(*types.ReplayAttackParams)
-		return createReplayAttack(config, params, registry)
-
-	default:
-		return nil, fmt.Errorf("unknown attack type: %s", config.Type)
-	}
-}
-
-// Example attack creation functions (to be implemented in actual attacks)
-func createSilentAttack(config types.AttackConfig, params *types.SilentAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
-	// Create attack with parsed parameters
-	attack := &attacks.SilentMessageAttack{
-		BaseAttack: registry.NewBaseAttack(config),
-		direction:  types.MessageDirection(params.Direction),
-		targets:    params.Targets,
-	}
-	return attack, nil
-}
-
-func createTamperAttack(config types.AttackConfig, params *types.TamperAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
-	attack := &TamperAttack{
-		BaseAttack:       types.NewBaseAttack(config),
-		tamperFields:     params.TamperFields,
-		withValidMessage: params.WithValidMessage,
-		delay:            params.Delay,
-		targets:          params.Targets,
-	}
-	return attack, nil
-}
-
-func createFakeAttack(config types.AttackConfig, params *types.FakeAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
-	attack := &FakeAttack{
-		BaseAttack:  types.NewBaseAttack(config),
-		fakeMessage: params.FakeMessage,
-		targets:     params.Targets,
-	}
-	return attack, nil
-}
-
-func createOmitAttack(config types.AttackConfig, params *types.OmitAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
-	attack := &OmitAttack{
-		BaseAttack: types.NewBaseAttack(config),
-		cmd:        params.Cmd,
-		cnt:        params.Cnt,
-		targets:    params.Targets,
-	}
-	return attack, nil
-}
-
-func createRoleSpoofAttack(config types.AttackConfig, params *types.RoleSpoofAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
-	attack := &RoleSpoofAttack{
-		BaseAttack:  types.NewBaseAttack(config),
-		fakeMessage: params.FakeMessage,
-		targets:     params.Targets,
-	}
-	return attack, nil
-}
-
-func createReplayAttack(config types.AttackConfig, params *types.ReplayAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
-	attack := &ReplayAttack{
-		BaseAttack:      types.NewBaseAttack(config),
-		oriSequence:     params.OriSequence,
-		oriRound:        params.OriRound,
-		useOriginalView: params.UseOriginalView,
-		targets:         params.Targets,
-	}
-	return attack, nil
-}
+//
+//// createAttackWithParsedParams creates an attack instance with properly parsed parameters
+//func createAttackWithParsedParams(config types.AttackConfig, registry *registry.AttackRegistry) (types.Attack, error) {
+//	// Get parameter parser
+//	paramRegistry := registry.NewParameterParserRegistry()
+//
+//	// Parse parameters for the specific attack type
+//	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to parse parameters: %w", err)
+//	}
+//
+//	// Create attack instance based on type with parsed parameters
+//	switch config.Type {
+//	case types.AttackTypeSilentMessage:
+//		params := parsedParams.(*types.SilentAttackParams)
+//		return createSilentAttack(config, params, registry)
+//
+//	case types.AttackTypeTamperedMessage:
+//		params := parsedParams.(*types.TamperAttackParams)
+//		return createTamperAttack(config, params, registry)
+//
+//	case types.AttackTypeFakeMessage:
+//		params := parsedParams.(*types.FakeAttackParams)
+//		return createFakeAttack(config, params, registry)
+//
+//	case types.AttackTypeOmitMessage:
+//		params := parsedParams.(*types.OmitAttackParams)
+//		return createOmitAttack(config, params, registry)
+//
+//	case types.AttackTypeRoleSpoofed:
+//		params := parsedParams.(*types.RoleSpoofAttackParams)
+//		return createRoleSpoofAttack(config, params, registry)
+//
+//	case types.AttackTypeReplay:
+//		params := parsedParams.(*types.ReplayAttackParams)
+//		return createReplayAttack(config, params, registry)
+//
+//	default:
+//		return nil, fmt.Errorf("unknown attack type: %s", config.Type)
+//	}
+//}
+//
+//// Example attack creation functions (to be implemented in actual attacks)
+//func createSilentAttack(config types.AttackConfig, params *types.SilentAttackParams, attackRegistry *registry.AttackRegistry) (types.Attack, error) {
+//	// Create attack with parsed parameters
+//	attack := &attacks.SilentMessageAttack{
+//		BaseAttack: types.NewBaseAttack(config),
+//		direction:  types.MessageDirection(params.Direction),
+//		targets:    params.Targets,
+//	}
+//	return attack, nil
+//}
+//
+//func createTamperAttack(config types.AttackConfig, params *types.TamperAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
+//	attack := &TamperAttack{
+//		BaseAttack:       types.NewBaseAttack(config),
+//		tamperFields:     params.TamperFields,
+//		withValidMessage: params.WithValidMessage,
+//		delay:            params.Delay,
+//		targets:          params.Targets,
+//	}
+//	return attack, nil
+//}
+//
+//func createFakeAttack(config types.AttackConfig, params *types.FakeAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
+//	attack := &FakeAttack{
+//		BaseAttack:  types.NewBaseAttack(config),
+//		fakeMessage: params.FakeMessage,
+//		targets:     params.Targets,
+//	}
+//	return attack, nil
+//}
+//
+//func createOmitAttack(config types.AttackConfig, params *types.OmitAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
+//	attack := &OmitAttack{
+//		BaseAttack: types.NewBaseAttack(config),
+//		cmd:        params.Cmd,
+//		cnt:        params.Cnt,
+//		targets:    params.Targets,
+//	}
+//	return attack, nil
+//}
+//
+//func createRoleSpoofAttack(config types.AttackConfig, params *types.RoleSpoofAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
+//	attack := &RoleSpoofAttack{
+//		BaseAttack:  types.NewBaseAttack(config),
+//		fakeMessage: params.FakeMessage,
+//		targets:     params.Targets,
+//	}
+//	return attack, nil
+//}
+//
+//func createReplayAttack(config types.AttackConfig, params *types.ReplayAttackParams, registry *registry.AttackRegistry) (types.Attack, error) {
+//	attack := &ReplayAttack{
+//		BaseAttack:      types.NewBaseAttack(config),
+//		oriSequence:     params.OriSequence,
+//		oriRound:        params.OriRound,
+//		useOriginalView: params.UseOriginalView,
+//		targets:         params.Targets,
+//	}
+//	return attack, nil
+//}
 
 // Migration helper for existing code
-func MigrateToImprovedConfig(oldConfigPath string) error {
-	// 1. Load with improved loader
-	loader := NewConfigLoader()
-	config, err := loader.LoadConfig(oldConfigPath)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	// 2. Validate all attacks
-	for i, attack := range config.Attacks {
-		log.Info("Validating attack configuration",
-			"index", i,
-			"name", attack.Name,
-			"uid", attack.UID,
-			"type", attack.Type)
-
-		// Ensure parameters are properly parsed
-		paramRegistry := types.NewParameterParserRegistry()
-		_, err := paramRegistry.ParseParameters(attack.Type, attack.Parameters)
-		if err != nil {
-			log.Error("Attack parameter validation failed",
-				"name", attack.Name,
-				"error", err)
-		}
-	}
-
-	// 3. Save validated config
-	newPath := oldConfigPath + ".validated"
-	if err := loader.SaveConfig(config, newPath); err != nil {
-		return fmt.Errorf("failed to save validated config: %w", err)
-	}
-
-	log.Info("Configuration migrated successfully",
-		"original", oldConfigPath,
-		"validated", newPath)
-
-	return nil
-}
+//func MigrateToImprovedConfig(oldConfigPath string) error {
+//	// 1. Load with improved loader
+//	loader := NewConfigLoader()
+//	config, err := loader.LoadConfig(oldConfigPath)
+//	if err != nil {
+//		return fmt.Errorf("failed to load config: %w", err)
+//	}
+//
+//	// 2. Validate all attacks
+//	for i, attack := range config.Attacks {
+//		log.Info("Validating attack configuration",
+//			"index", i,
+//			"name", attack.Name,
+//			"uid", attack.UID,
+//			"type", attack.Type)
+//
+//		// Ensure parameters are properly parsed
+//		paramRegistry := registry.NewParameterParserRegistry()
+//		_, err := paramRegistry.ParseParameters(attack.Type, attack.Parameters)
+//		if err != nil {
+//			log.Error("Attack parameter validation failed",
+//				"name", attack.Name,
+//				"error", err)
+//		}
+//	}
+//
+//	// 3. Save validated config
+//	newPath := oldConfigPath + ".validated"
+//	if err := loader.SaveConfig(config, newPath); err != nil {
+//		return fmt.Errorf("failed to save validated config: %w", err)
+//	}
+//
+//	log.Info("Configuration migrated successfully",
+//		"original", oldConfigPath,
+//		"validated", newPath)
+//
+//	return nil
+//}

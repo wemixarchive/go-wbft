@@ -22,38 +22,56 @@ var _ (types.Attack) = (*RoleSpoofedAttack)(nil)
 
 // NewRoleSpoofedAttack creates a new role spoofed attack
 func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error) {
-	targets, err := registry.ParseTargets(config)
+	paramRegistry := registry.NewParameterParserRegistry()
+
+	// Parse parameters for the specific attack type
+	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	// Get fake message from parameters
-	var fakeMessage []byte
-	if msgParam, exists := config.Parameters["fakeMessage"]; exists {
-		switch v := msgParam.(type) {
-		case []byte:
-			fakeMessage = v
-		case string:
-			fakeMessage = []byte(v)
-		default:
-			fakeMessage = nil
-		}
-	}
+	params := parsedParams.(*types.RoleSpoofAttackParams)
 
-	// Get node address from config
-	nodeAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
-	if addrParam, exists := config.Parameters["nodeAddress"]; exists {
-		if addr, ok := addrParam.(string); ok {
-			nodeAddress = common.HexToAddress(addr)
-		}
-	}
-
-	return &RoleSpoofedAttack{
+	attack := &RoleSpoofedAttack{
 		BaseAttack:  registry.NewBaseAttack(config),
-		fakeMessage: fakeMessage,
-		targets:     targets,
-		nodeAddress: nodeAddress,
-	}, nil
+		fakeMessage: params.FakeMessage,
+		targets:     params.Targets,
+		//nodeAddress: params.nodeAddress,
+	}
+	return attack, nil
+	//
+	//targets, err := registry.ParseTargets(config)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//// Get fake message from parameters
+	//var fakeMessage []byte
+	//if msgParam, exists := config.Parameters["fakeMessage"]; exists {
+	//	switch v := msgParam.(type) {
+	//	case []byte:
+	//		fakeMessage = v
+	//	case string:
+	//		fakeMessage = []byte(v)
+	//	default:
+	//		fakeMessage = nil
+	//	}
+	//}
+	//
+	//// Get node address from config
+	//nodeAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
+	//if addrParam, exists := config.Parameters["nodeAddress"]; exists {
+	//	if addr, ok := addrParam.(string); ok {
+	//		nodeAddress = common.HexToAddress(addr)
+	//	}
+	//}
+	//
+	//return &RoleSpoofedAttack{
+	//	BaseAttack:  registry.NewBaseAttack(config),
+	//	fakeMessage: fakeMessage,
+	//	targets:     targets,
+	//	nodeAddress: nodeAddress,
+	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed

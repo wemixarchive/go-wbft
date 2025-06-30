@@ -16,27 +16,29 @@ type SilentMessageAttack struct {
 	*registry.BaseAttack
 	direction types.MessageDirection
 	targets   []common.Address
-
-	//*registry.EnhancedBaseAttack
-	//params *types.SilentAttackParams
 }
 
 var _ (types.Attack) = (*SilentMessageAttack)(nil)
 
 // NewSilentProposerAttack creates a new silent proposer attack
 func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, error) {
-	targets, err := registry.ParseTargets(config)
+	paramRegistry := registry.NewParameterParserRegistry()
+
+	// Parse parameters for the specific attack type
+	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	direction := types.MessageDirection(registry.GetUint64Parameter(config, "direction", 1))
+	params := parsedParams.(*types.SilentAttackParams)
 
-	return &SilentMessageAttack{
+	attack := &SilentMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
-		direction:  direction,
-		targets:    targets,
-	}, nil
+		direction:  types.MessageDirection(params.Direction),
+		targets:    params.Targets,
+	}
+
+	return attack, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed

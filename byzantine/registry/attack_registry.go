@@ -74,7 +74,3 @@ func Register(attackType types.AttackType, factory AttackFactory) error {
 func CreateAttack(config types.AttackConfig) (types.Attack, error) {
 	return DefaultRegistry.CreateAttack(config)
 }
-
-func CreateAttackWithParam(config types.AttackConfig, params *types.SilentAttackParams) (types.Attack, error) {
-	return DefaultRegistry.CreateAttack(config)
-}

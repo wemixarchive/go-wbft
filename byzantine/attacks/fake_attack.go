@@ -21,30 +21,47 @@ var _ (types.Attack) = (*FakeMessageAttack)(nil)
 
 // NewFakeMessageAttack creates a new fake message attack
 func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error) {
-	targets, err := registry.ParseTargets(config)
+	paramRegistry := registry.NewParameterParserRegistry()
+
+	// Parse parameters for the specific attack type
+	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	// Get fake message from parameters
-	var fakeMessage []byte
-	if msgParam, exists := config.Parameters["fakeMessage"]; exists {
-		switch v := msgParam.(type) {
-		case []byte:
-			fakeMessage = v
-		case string:
-			fakeMessage = []byte(v)
-		default:
-			// If not provided, we'll generate it during execution
-			fakeMessage = nil
-		}
-	}
+	params := parsedParams.(*types.FakeAttackParams)
 
-	return &FakeMessageAttack{
+	attack := &FakeMessageAttack{
 		BaseAttack:  registry.NewBaseAttack(config),
-		fakeMessage: fakeMessage,
-		targets:     targets,
-	}, nil
+		fakeMessage: params.FakeMessage,
+		targets:     params.Targets,
+	}
+	return attack, nil
+	//
+	//targets, err := registry.ParseTargets(config)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//// Get fake message from parameters
+	//var fakeMessage []byte
+	//if msgParam, exists := config.Parameters["fakeMessage"]; exists {
+	//	switch v := msgParam.(type) {
+	//	case []byte:
+	//		fakeMessage = v
+	//	case string:
+	//		fakeMessage = []byte(v)
+	//	default:
+	//		// If not provided, we'll generate it during execution
+	//		fakeMessage = nil
+	//	}
+	//}
+	//
+	//return &FakeMessageAttack{
+	//	BaseAttack:  registry.NewBaseAttack(config),
+	//	fakeMessage: fakeMessage,
+	//	targets:     targets,
+	//}, nil
 }
 
 // CheckExecuteCondition checks if the attack should be executed
