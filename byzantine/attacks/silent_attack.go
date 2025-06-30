@@ -61,9 +61,13 @@ func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event t
 	}
 
 	// Check if this is a message event
-	_, ok := event.Data.(*types.MessageEvent)
+	data, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return false
+	}
+
+	if data.MessageCode == config.Parameters["code"] {
+		return true
 	}
 
 	// Check if we should be silent for this message type
@@ -128,7 +132,7 @@ func (a *SilentMessageAttack) Execute(ctx context.Context, event types.Event) (*
 			"event_type":   event.Type,
 			"sequence":     event.Sequence,
 			"round":        event.Round,
-			"message_type": msgEvent.MessageType,
+			"message_type": msgEvent.MessageCode,
 			"direction":    a.direction,
 			"targets":      len(a.targets),
 		},

@@ -411,7 +411,7 @@ func TestEvaluateAndExecuteAttacks(t *testing.T) {
 		Sequence: 100,
 		Round:    0,
 		Data: &types.MessageEvent{
-			MessageType: types.MessageCodePrePrepare,
+			MessageCode: types.MessageCodePrePrepare,
 			From:        common.HexToAddress("0x1234"),
 		},
 		Metadata: map[string]interface{}{

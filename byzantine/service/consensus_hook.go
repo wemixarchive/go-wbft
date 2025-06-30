@@ -81,7 +81,9 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 
 	// Map consensus message code to Byzantine message code
 	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
-	log.Info("[byzantine] BeforeBroadcast", "code", byzantineCode)
+	// TODO:
+	// 1. check MessageCodeRoundChangePrePrepare
+	// 2. check MessageCodePropagation
 
 	// NEW: Generate UIDs for all possible attack types that could apply
 	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionSend)
@@ -90,18 +92,19 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 	// Check each attack type
 	for _, attackType := range attackTypes {
 		uid := h.uidGenerator.Generate(attackType, sequence, round)
-		log.Info("[byzantine] BeforeBroadcast", "uid", uid)
 
 		// lookup
 		attack, exists := h.attackManager.GetAttackByUID(uid)
 		if !exists {
 			continue
 		}
-		log.Info("[byzantine] exist attack : ", "uid", uid)
+		log.Info("[byzantine] will do attack : ", "uid", uid)
 
 		// Check if attack is eligible
 		config := attack.GetConfig()
+		log.Info("[byzantine] attack config ", "config", config)
 		if !h.isAttackEligible(config) {
+			log.Info("[byzantine] already attacked ", "status ", config.Status)
 			continue
 		}
 
@@ -431,7 +434,7 @@ func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode uint6
 		Round:     round,
 		Timestamp: time.Now(),
 		Data: &types.MessageEvent{
-			MessageType: byzantineCode,
+			MessageCode: byzantineCode,
 			From:        from,
 		},
 		Metadata: map[string]interface{}{

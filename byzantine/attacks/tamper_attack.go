@@ -69,7 +69,7 @@ func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event
 		return true
 	}
 
-	return messageEvent.MessageType&config.Code != 0
+	return messageEvent.MessageCode&config.Code != 0
 }
 
 // Execute performs the tampered message attack
