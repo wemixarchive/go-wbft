@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // AttackType represents different types of Byzantine attacks
@@ -151,10 +152,13 @@ func (ac *AttackConfig) GetSilentParams() (*SilentAttackParams, error) {
 	if ac.Type != AttackTypeSilentMessage {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeSilentMessage, ac.Type)
 	}
-	params, ok := ac.ParsedParameters.(*SilentAttackParams)
-	if !ok {
-		return nil, errors.New("parameters not properly parsed")
+
+	params := &SilentAttackParams{
+		Code:      ac.Parameters["code"].(MessageCode),
+		Direction: ac.Parameters["direction"].(uint64),
+		Targets:   ac.Parameters["target"].([]common.Address),
 	}
+
 	return params, nil
 }
 
@@ -163,10 +167,15 @@ func (ac *AttackConfig) GetTamperParams() (*TamperAttackParams, error) {
 	if ac.Type != AttackTypeTamperedMessage {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeTamperedMessage, ac.Type)
 	}
-	params, ok := ac.ParsedParameters.(*TamperAttackParams)
-	if !ok {
-		return nil, errors.New("parameters not properly parsed")
+
+	tamperParam := TamperAttackParams{}
+	parsedParams, err := tamperParam.Parse(ac.Parameters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
+
+	params := parsedParams.(*TamperAttackParams)
+
 	return params, nil
 }
 
