@@ -108,7 +108,6 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 		Enabled    bool                   `json:"enabled"`
 		Sequence   uint64                 `json:"sequence"`
 		Round      uint64                 `json:"round"`
-		Code       interface{}            `json:"code,omitempty"`
 		Parameters map[string]interface{} `json:"parameters,omitempty"`
 	}
 
@@ -127,16 +126,11 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 		CreatedAt: time.Now(),
 	}
 
-	// Parse code if present
-	if basicConfig.Code != nil {
-		config.Code = types.ParseMessageCode(basicConfig.Code)
-	}
-
 	// Store raw parameters for potential debugging
 	config.Parameters = basicConfig.Parameters
 
 	// Generate UID based on type, code, sequence, and round
-	config.UID = cl.uidGenerator.Generate(config.Type, config.Code, config.Sequence, config.Round)
+	config.UID = cl.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
 
 	// Parse type-specific parameters
 	if basicConfig.Parameters != nil {
@@ -174,12 +168,14 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parse
 	switch attackType {
 	case types.AttackTypeSilentMessage:
 		if params, ok := parsedParams.(*types.SilentAttackParams); ok {
+			result["code"] = params.Code
 			result["direction"] = params.Direction
 			result["targets"] = params.Targets
 		}
 
 	case types.AttackTypeTamperedMessage:
 		if params, ok := parsedParams.(*types.TamperAttackParams); ok {
+			result["code"] = params.Code
 			tamperFields := make([]map[string]interface{}, len(params.TamperFields))
 			for i, field := range params.TamperFields {
 				tamperFields[i] = map[string]interface{}{
@@ -195,6 +191,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parse
 
 	case types.AttackTypeFakeMessage:
 		if params, ok := parsedParams.(*types.FakeAttackParams); ok {
+			result["code"] = params.Code
 			if len(params.FakeMessage) > 0 {
 				result["fakeMessage"] = string(params.FakeMessage)
 			}
@@ -203,6 +200,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parse
 
 	case types.AttackTypeOmitMessage:
 		if params, ok := parsedParams.(*types.OmitAttackParams); ok {
+			result["code"] = params.Code
 			result["cmd"] = params.Cmd
 			result["cnt"] = params.Cnt
 			result["targets"] = params.Targets
@@ -210,6 +208,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parse
 
 	case types.AttackTypeRoleSpoofed:
 		if params, ok := parsedParams.(*types.RoleSpoofAttackParams); ok {
+			result["code"] = params.Code
 			if len(params.FakeMessage) > 0 {
 				result["fakeMessage"] = string(params.FakeMessage)
 			}
@@ -218,6 +217,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parse
 
 	case types.AttackTypeReplay:
 		if params, ok := parsedParams.(*types.ReplayAttackParams); ok {
+			result["code"] = params.Code
 			result["ori_sequence"] = params.OriSequence
 			result["ori_round"] = params.OriRound
 			result["useOriginalView"] = params.UseOriginalView
@@ -273,7 +273,7 @@ func (cl *ConfigLoader) validateAttackConfig(config *types.AttackConfig) error {
 	}
 
 	// Verify UID matches expected format
-	expectedUID := cl.uidGenerator.Generate(config.Type, config.Code, config.Sequence, config.Round)
+	expectedUID := cl.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
 	if config.UID != expectedUID {
 		return fmt.Errorf("UID mismatch: got %s, expected %s", config.UID, expectedUID)
 	}

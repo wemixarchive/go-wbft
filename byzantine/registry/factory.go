@@ -9,7 +9,7 @@ import (
 
 // BaseAttack provides common functionality for all attacks
 type BaseAttack struct {
-	uid    uint64
+	uid    string
 	config types.AttackConfig
 	status types.AttackStatus
 	mu     sync.RWMutex
@@ -17,13 +17,10 @@ type BaseAttack struct {
 
 // NewBaseAttack creates a new base attack
 func NewBaseAttack(config types.AttackConfig) *BaseAttack {
-	// Generate numeric UID if not set
-	uid := uint64(0)
-
 	return &BaseAttack{
-		uid:    uid,
+		uid:    config.UID,
 		config: config,
-		status: types.AttackStatusPending,
+		status: config.Status,
 	}
 }
 
@@ -112,21 +109,4 @@ func GetUint64Parameter(config types.AttackConfig, key string, defaultValue uint
 	default:
 		return defaultValue
 	}
-}
-
-type EnhancedBaseAttack struct {
-	config       types.AttackConfig
-	uidGenerator types.UIDGenerator
-	params       interface{}
-	mu           sync.RWMutex
-}
-
-func (a *EnhancedBaseAttack) GetParams() interface{} {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.params
-}
-
-func (a *EnhancedBaseAttack) GetIndexKey() string {
-	return a.config.UID
 }

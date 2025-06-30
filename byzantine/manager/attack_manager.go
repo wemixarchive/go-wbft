@@ -3,11 +3,12 @@ package manager
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/log"
-	"sync"
-	"time"
 )
 
 // AttackManager implements the AttackManager interface
@@ -53,16 +54,6 @@ func NewAttackManager(registry *registry.AttackRegistry, historyStorage types.Hi
 		uidGenerator:   types.NewUIDGenerator(),
 		registry:       registry,
 		historyStorage: historyStorage,
-
-		//attacks:         make(map[uint64]types.Attack),
-		//attacks: make(map[string]types.Attack),
-		//attacksByStatus: make(map[types.AttackStatus]map[uint64]types.Attack),
-		//attacksByStatus: make(map[types.AttackStatus]map[string]types.Attack),
-		//attacksByUID:    make(map[string]types.Attack),
-		//attackIndex:     make(map[string][]string),
-		//uidGenerator:    types.NewUIDGenerator(),
-		//registry:        registry,
-		//historyStorage:  historyStorage,
 	}
 
 	// Initialize status maps
@@ -75,8 +66,6 @@ func NewAttackManager(registry *registry.AttackRegistry, historyStorage types.Hi
 		types.AttackStatusCancelled,
 	} {
 		manager.uidsByStatus[status] = make(map[string]bool)
-		//manager.attacksByStatus[status] = make(map[uint64]types.Attack)
-		//manager.attacksByStatus[status] = make(map[string]types.Attack)
 	}
 
 	// Create chain handler
@@ -91,11 +80,12 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	defer m.mu.Unlock()
 
 	config := attack.GetConfig()
+	log.Info("[byzantine] attack manager ", "attack", attack)
+	log.Info("[byzantine] attack manager ", "config", config)
 
 	// Generate standardized UID
 	uid := m.uidGenerator.Generate(
 		config.Type,
-		config.Code,
 		config.Sequence,
 		config.Round,
 	)
@@ -150,12 +140,12 @@ func (m *AttackManager) GetAttackByUID(uid string) (types.Attack, bool) {
 }
 
 // GetAttacksByCondition retrieves attacks matching the given condition
-func (m *AttackManager) GetAttacksByCondition(attackType types.AttackType, code types.MessageCode, sequence, round uint64) []types.Attack {
+func (m *AttackManager) GetAttacksByCondition(attackType types.AttackType, sequence, round uint64) []types.Attack {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	// Generate lookup UID
-	lookupUID := m.uidGenerator.Generate(attackType, code, sequence, round)
+	lookupUID := m.uidGenerator.Generate(attackType, sequence, round)
 	if attack, exists := m.GetAttackByUID(lookupUID); exists {
 		// Check if the attack is eligible
 		if m.isAttackEligible(attack) {
@@ -165,7 +155,7 @@ func (m *AttackManager) GetAttacksByCondition(attackType types.AttackType, code 
 
 	// If no lookup found, check pattern index for wildcard
 	var matches []types.Attack
-	patterns := m.generateLookupPatterns(attackType, code, sequence, round)
+	patterns := m.generateLookupPatterns(attackType, sequence, round)
 
 	for _, pattern := range patterns {
 		if uids, exists := m.patternIndex[pattern]; exists {
@@ -181,14 +171,14 @@ func (m *AttackManager) GetAttacksByCondition(attackType types.AttackType, code 
 }
 
 // generateLookupPatterns generates possible UID patterns for wildcard matching
-func (m *AttackManager) generateLookupPatterns(attackType types.AttackType, code types.MessageCode, sequence, round uint64) []string {
+func (m *AttackManager) generateLookupPatterns(attackType types.AttackType, sequence, round uint64) []string {
 	patterns := []string{
 		// Exact match
-		m.uidGenerator.Generate(attackType, code, sequence, round),
+		m.uidGenerator.Generate(attackType, sequence, round),
 		// Wildcard round (attacks that apply to all rounds)
-		fmt.Sprintf("%s-%d-%d-*", types.AttachTypeToString(attackType), code, sequence),
+		fmt.Sprintf("%s-%d-*", types.AttachTypeToString(attackType), sequence),
 		// Wildcard sequence and round (attacks that apply globally)
-		fmt.Sprintf("%s-%d-*-*", types.AttachTypeToString(attackType), code),
+		fmt.Sprintf("%s-*-*", types.AttachTypeToString(attackType)),
 	}
 	return patterns
 }
@@ -293,6 +283,7 @@ func (m *AttackManager) UpdateStatusMap(attack types.Attack, newStatus types.Att
 
 	// Update attack status
 	attack.SetStatus(newStatus)
+	m.attacksByUID[uid] = attack
 
 	// Update metrics
 	if (oldStatus == types.AttackStatusPending || oldStatus == types.AttackStatusActive) &&
@@ -324,7 +315,7 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 
 	for _, attackType := range applicableTypes {
 		// Generate UID for direct lookup
-		uid := m.uidGenerator.Generate(attackType, msgEvent.MessageType, event.Sequence, event.Round)
+		uid := m.uidGenerator.Generate(attackType, event.Sequence, event.Round)
 
 		if attack, exists := m.GetAttackByUID(uid); exists {
 			if !m.isAttackEligible(attack) {
@@ -399,7 +390,7 @@ func (m *AttackManager) updateStatusTracking(uid string, newStatus, oldStatus ty
 // updatePatternIndex updates the pattern index for wildcard matching
 func (m *AttackManager) updatePatternIndex(uid string, config types.AttackConfig) {
 	// Index exact pattern
-	exactPattern := m.uidGenerator.Generate(config.Type, config.Code, config.Sequence, config.Round)
+	exactPattern := m.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
 	m.patternIndex[exactPattern] = append(m.patternIndex[exactPattern], uid)
 
 	// Index wildcard patterns for flexible matching
@@ -417,9 +408,9 @@ func (m *AttackManager) updatePatternIndex(uid string, config types.AttackConfig
 // removeFromPatternIndex removes UID from pattern index
 func (m *AttackManager) removeFromPatternIndex(uid string, config types.AttackConfig) {
 	patterns := []string{
-		m.uidGenerator.Generate(config.Type, config.Code, config.Sequence, config.Round),
-		fmt.Sprintf("%s-%d-%d-*", types.AttachTypeToString(config.Type), config.Code, config.Sequence),
-		fmt.Sprintf("%s-%d-*-*", types.AttachTypeToString(config.Type), config.Code),
+		m.uidGenerator.Generate(config.Type, config.Sequence, config.Round),
+		fmt.Sprintf("%s-%d-*", types.AttachTypeToString(config.Type), config.Sequence),
+		fmt.Sprintf("%s-*-*", types.AttachTypeToString(config.Type)),
 	}
 
 	for _, pattern := range patterns {
@@ -516,45 +507,3 @@ func (m *AttackManager) executeAttack(ctx context.Context, attack types.Attack, 
 
 	return result, nil
 }
-
-///////////////////////////////
-
-// GenerateUID generates a new unique ID
-//func (m *AttackManager) GenerateUID(attackType types.AttackType, code types.MessageCode, sequence, round uint64) string {
-//	return types.NewUIDGenerator().Generate(attackType, code, sequence, round)
-//}
-//
-//// updateAttackIndex updates the index for fast condition-based lookup
-//func (m *AttackManager) updateAttackIndex(uid string, config types.AttackConfig) {
-//	// Index by exact match
-//	exactKey := m.uidGenerator.Generate(config.Type, config.Code, config.Sequence, config.Round)
-//	m.attackIndex[exactKey] = append(m.attackIndex[exactKey], uid)
-//
-//	// Index by type-code-sequence (for attacks that apply to all rounds)
-//	sequenceKey := fmt.Sprintf("%s-%d-%d-*", types.AttachTypeToString(config.Type), config.Code, config.Sequence)
-//	m.attackIndex[sequenceKey] = append(m.attackIndex[sequenceKey], uid)
-//
-//	// Index by type-code (for global attacks)
-//	globalKey := fmt.Sprintf("%s-%d-*-*", types.AttachTypeToString(config.Type), config.Code)
-//	m.attackIndex[globalKey] = append(m.attackIndex[globalKey], uid)
-//}
-//
-//// removeFromIndex removes attack from the condition index
-//func (m *AttackManager) removeFromIndex(uid string, config types.AttackConfig) {
-//	patterns := m.generateLookupPatterns(config.Type, config.Code, config.Sequence, config.Round)
-//	for _, pattern := range patterns {
-//		if uids, exists := m.attackIndex[pattern]; exists {
-//			// Remove uid from the list
-//			for i, u := range uids {
-//				if u == uid {
-//					m.attackIndex[pattern] = append(uids[:i], uids[i+1:]...)
-//					break
-//				}
-//			}
-//			// Clean up empty entries
-//			if len(m.attackIndex[pattern]) == 0 {
-//				delete(m.attackIndex, pattern)
-//			}
-//		}
-//	}
-//}

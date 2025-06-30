@@ -298,6 +298,7 @@ func (s *ByzantineService) subscribeToEvents() {
 
 // loadAttacksFromConfig loads attacks from configuration
 func (s *ByzantineService) loadAttacksFromConfig() error {
+	log.Info("[byzantine] Loading byzantine configuration", "cnt", len(s.config.Attacks))
 	for _, attackConfig := range s.config.Attacks {
 		if _, err := s.RegisterAttack(attackConfig); err != nil {
 			return fmt.Errorf("failed to register attack %s: %w", attackConfig.Name, err)

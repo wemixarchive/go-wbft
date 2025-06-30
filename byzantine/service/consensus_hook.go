@@ -36,19 +36,18 @@ func (h *ConsensusHookImpl) CheckAttackCondition(ctx types.ConsensusContext) boo
 	// generate uid
 	uid := h.uidGenerator.Generate(
 		ctx.MessageType,
-		ctx.MessageCode,
 		ctx.Sequence,
 		ctx.Round,
 	)
 
-	log.Debug("[Byzantine] Checking attack condition with UID", "uid", uid)
+	log.Debug("[byzantine] Checking attack condition with UID", "uid", uid)
 
 	if attack, exists := h.attackManager.GetAttackByUID(uid); exists {
 		config := attack.GetConfig()
 
 		// Check if attack is eligible
 		if h.isAttackEligible(config) {
-			log.Info("[Byzantine] Attack condition met",
+			log.Info("[byzantine] Attack condition met",
 				"uid", uid,
 				"name", config.Name,
 				"type", config.Type,
@@ -80,39 +79,25 @@ func (h *ConsensusHookImpl) CheckAttackCondition(ctx types.ConsensusContext) boo
 func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, from common.Address) bool {
 	ctx := context.Background()
 
-	//if err := h.eventPublisher.Publish(event); err != nil {
-	//	log.Error("Failed to publish broadcast event", "err", err)
-	//}
-	// Also process async attacks
-	//err := h.attackManager.ProcessEventAsync(ctx, event)
-	//if err != nil {
-	//	log.Error("Failed to process broadcast event", "err", err)
-	//}
-	//
-	//// First, publish event for async processing (logging, monitoring, etc.)
-	//go func() {
-	//	if err := h.eventPublisher.Publish(event); err != nil {
-	//		log.Error("Failed to publish broadcast event", "err", err)
-	//	}
-	//	// Also process async attacks
-	//	_ = h.attackManager.ProcessEventAsync(ctx, event)
-	//}()
-
 	// Map consensus message code to Byzantine message code
 	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
+	log.Info("[byzantine] BeforeBroadcast", "code", byzantineCode)
 
 	// NEW: Generate UIDs for all possible attack types that could apply
 	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionSend)
+	log.Info("[byzantine] applicable attack type", "attack type", attackTypes)
 
 	// Check each attack type
 	for _, attackType := range attackTypes {
-		uid := h.uidGenerator.Generate(attackType, byzantineCode, sequence, round)
+		uid := h.uidGenerator.Generate(attackType, sequence, round)
+		log.Info("[byzantine] BeforeBroadcast", "uid", uid)
 
-		// O(1) lookup
+		// lookup
 		attack, exists := h.attackManager.GetAttackByUID(uid)
 		if !exists {
 			continue
 		}
+		log.Info("[byzantine] exist attack : ", "uid", uid)
 
 		// Check if attack is eligible
 		config := attack.GetConfig()
@@ -130,7 +115,7 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 
 		// For silent attacks, we can immediately decide to block
 		if attackType == types.AttackTypeSilentMessage {
-			log.Info("[Byzantine] Blocking outbound message (O(1) lookup)",
+			log.Info("[byzantine] Blocking outbound message lookup",
 				"attack_uid", uid,
 				"attack_type", attackType,
 				"msgCode", msgCode,
@@ -141,7 +126,7 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 			h.attackManager.UpdateStatusMap(attack, types.AttackStatusExecuted)
 
 			// Publish event asynchronously for monitoring
-			go h.publishEvent(event)
+			//go h.publishEvent(event)
 
 			return true // Block the message
 		}
@@ -150,13 +135,13 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 		if h.shouldExecuteAttack(attackType, types.DirectionSend) {
 			decision := h.evaluateAttack(ctx, attack, event)
 			if decision.ShouldAttack {
-				log.Info("[Byzantine] Attack execution decision",
+				log.Info("[byzantine] Attack execution decision",
 					"attack_uid", uid,
 					"attack_type", attackType,
 					"block", decision.ShouldAttack)
 
 				// Publish event asynchronously
-				go h.publishEvent(event)
+				//go h.publishEvent(event)
 
 				return decision.ShouldAttack
 			}
@@ -164,10 +149,10 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 	}
 
 	// Create general event for monitoring/logging
-	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
+	//event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
 
 	// Publish event asynchronously
-	go h.publishEvent(event)
+	//go h.publishEvent(event)
 
 	return false
 }
@@ -180,11 +165,11 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 	// Get applicable attack types for receiving messages
 	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionReceive)
 
-	// Check each attack type with O(1) lookup
+	// Check each attack type with lookup
 	for _, attackType := range attackTypes {
-		uid := h.uidGenerator.Generate(attackType, byzantineCode, sequence, round)
+		uid := h.uidGenerator.Generate(attackType, sequence, round)
 
-		// O(1) lookup
+		// lookup
 		attack, exists := h.attackManager.GetAttackByUID(uid)
 		if !exists {
 			continue
@@ -206,7 +191,7 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 
 		// For silent attacks on receive
 		if attackType == types.AttackTypeSilentMessage {
-			log.Info("[Byzantine] Blocking inbound message (O(1) lookup)",
+			log.Info("[byzantine] Blocking inbound message",
 				"attack_uid", uid,
 				"attack_type", attackType,
 				"msgCode", msgCode,
@@ -218,7 +203,7 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 			h.attackManager.UpdateStatusMap(attack, types.AttackStatusExecuted)
 
 			// Publish event asynchronously
-			go h.publishEvent(event)
+			//go h.publishEvent(event)
 
 			return false // Block the message (return false for receive)
 		}
@@ -227,13 +212,13 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 		if h.shouldExecuteAttack(attackType, types.DirectionReceive) {
 			decision := h.evaluateAttack(ctx, attack, event)
 			if decision.ShouldAttack {
-				log.Info("[Byzantine] Blocking inbound message",
+				log.Info("[byzantine] Blocking inbound message",
 					"attack_uid", uid,
 					"attack_type", attackType,
 					"reason", decision.Reason)
 
 				// Publish event asynchronously
-				go h.publishEvent(event)
+				//go h.publishEvent(event)
 
 				return false // Block inbound message
 			}
@@ -241,10 +226,10 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 	}
 
 	// Create event for monitoring
-	event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, from, types.DirectionReceive)
+	//event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, from, types.DirectionReceive)
 
 	// Publish event asynchronously
-	go h.publishEvent(event)
+	//go h.publishEvent(event)
 
 	return true // Allow processing
 }
@@ -252,10 +237,10 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 // DoubleVote is called before broadcasting a message
 func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from common.Address) bool {
 	ctx := context.Background()
-	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
+	//byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 
-	// Direct O(1) lookup for tamper attack
-	uid := h.uidGenerator.Generate(types.AttackTypeTamperedMessage, byzantineCode, sequence, round)
+	// Direct lookup for tamper attack
+	uid := h.uidGenerator.Generate(types.AttackTypeTamperedMessage, sequence, round)
 
 	attack, exists := h.attackManager.GetAttackByUID(uid)
 	if exists {
@@ -266,7 +251,7 @@ func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from com
 
 			// Check execution condition
 			if attack.CheckExecuteCondition(ctx, event) {
-				log.Info("[Byzantine] Double vote attack triggered (O(1) lookup)",
+				log.Info("[byzantine] Double vote attack triggered",
 					"attack_uid", uid,
 					"msgCode", msgCode,
 					"sequence", sequence,
@@ -276,7 +261,7 @@ func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from com
 				h.attackManager.UpdateStatusMap(attack, types.AttackStatusExecuted)
 
 				// Publish event asynchronously
-				go h.publishEvent(event)
+				//go h.publishEvent(event)
 
 				return true
 			}
@@ -461,7 +446,7 @@ func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode uint6
 func (h *ConsensusHookImpl) publishEvent(event types.Event) {
 	if h.eventPublisher != nil {
 		if err := h.eventPublisher.Publish(event); err != nil {
-			log.Error("[Byzantine] Failed to publish event",
+			log.Error("[byzantine] Failed to publish event",
 				"type", event.Type,
 				"sequence", event.Sequence,
 				"round", event.Round,
@@ -473,7 +458,7 @@ func (h *ConsensusHookImpl) publishEvent(event types.Event) {
 	if h.attackManager != nil {
 		ctx := context.Background()
 		if err := h.attackManager.ProcessEventAsync(ctx, event); err != nil {
-			log.Error("[Byzantine] Failed to process event asynchronously", "error", err)
+			log.Error("[byzantine] Failed to process event asynchronously", "error", err)
 		}
 	}
 }

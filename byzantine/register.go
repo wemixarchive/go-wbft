@@ -49,7 +49,7 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 	apis := byzantineService.APIs()
 	if len(apis) > 0 {
 		stack.RegisterAPIs(apis)
-		log.Info("Byzantine APIs registered", "count", len(apis))
+		log.Info("[byzantine] Byzantine APIs registered", "count", len(apis))
 	}
 
 	log.Info("[byzantine] Byzantine module registered successfully")

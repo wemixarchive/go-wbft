@@ -43,6 +43,8 @@ func ParseMessageCode(val interface{}) MessageCode {
 		return MessageCode(v)
 	case string:
 		return ParseStringToMessageCode(v)
+	case MessageCode:
+		return v
 	default:
 		return 0
 	}
@@ -65,6 +67,15 @@ func ParseStringToMessageCode(code string) MessageCode {
 		return MessageCodePropagation
 	default:
 		return 0
+	}
+}
+
+func ValidateMessageCode(code MessageCode) bool {
+	switch code {
+	case MessageCodePrePrepare, MessageCodePrepare, MessageCodeCommit, MessageCodeRoundChange, MessageCodeRoundChangePrePrepare, MessageCodePropagation:
+		return true
+	default:
+		return false
 	}
 }
 
