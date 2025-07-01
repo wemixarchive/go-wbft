@@ -23,7 +23,7 @@ package core
 import (
 	"time"
 
-	byzantineTypes "github.com/ethereum/go-ethereum/byzantine/types"
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -55,7 +55,7 @@ func (c *Core) broadcastPrepare() {
 	if hook := c.backend.ByzantineHook(); hook != nil {
 		// Check if DoubleVote attack should be triggered
 		if config := hook.DoubleVote(
-			byzantineTypes.AttackTypeTamperedMessage,
+			btypes.AttackTypeTamperedMessage,
 			prepare.Code(),
 			c.current.Sequence().Uint64(),
 			c.current.Round().Uint64(),
@@ -106,7 +106,7 @@ func (c *Core) broadcastPrepare() {
 	}
 }
 
-func (c *Core) broadcastByzantinePrepare(params *byzantineTypes.TamperAttackParams) bool {
+func (c *Core) broadcastByzantinePrepare(params *btypes.TamperAttackParams) bool {
 	logger := c.currentLogger(true, nil)
 
 	// Create PREPARE message from the current proposal
@@ -126,7 +126,7 @@ func (c *Core) broadcastByzantinePrepare(params *byzantineTypes.TamperAttackPara
 		// Implementation depends on actual message structure
 		// This is just a placeholder
 		switch field.Target {
-		case byzantineTypes.TamperDigest:
+		case btypes.TamperDigest:
 			val, err := field.ValueToHash()
 			if err != nil {
 				withMsg(logger, prepare).Error("[Byzantine] Conversion failed", "err", err)

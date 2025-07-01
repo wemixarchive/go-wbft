@@ -23,7 +23,7 @@ package core
 import (
 	"time"
 
-	byzantineTypes "github.com/ethereum/go-ethereum/byzantine/types"
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
@@ -57,7 +57,7 @@ func (c *Core) broadcastCommit() {
 	if hook := c.backend.ByzantineHook(); hook != nil {
 		// Check if DoubleVote attack should be triggered
 		if config := hook.DoubleVote(
-			byzantineTypes.AttackTypeTamperedMessage,
+			btypes.AttackTypeTamperedMessage,
 			commit.Code(),
 			c.current.Sequence().Uint64(),
 			c.current.Round().Uint64(),
@@ -109,7 +109,7 @@ func (c *Core) broadcastCommit() {
 	}
 }
 
-func (c *Core) broadcastByzantineCommit(params *byzantineTypes.TamperAttackParams) bool {
+func (c *Core) broadcastByzantineCommit(params *btypes.TamperAttackParams) bool {
 	var err error
 
 	logger := c.currentLogger(true, nil)
@@ -130,7 +130,7 @@ func (c *Core) broadcastByzantineCommit(params *byzantineTypes.TamperAttackParam
 		// Implementation depends on actual message structure
 		// This is just a placeholder
 		switch field.Target {
-		case byzantineTypes.TamperDigest:
+		case btypes.TamperDigest:
 			val, err := field.ValueToHash()
 			if err != nil {
 				withMsg(logger, commit).Error("[Byzantine] Conversion failed", "err", err)
@@ -144,13 +144,13 @@ func (c *Core) broadcastByzantineCommit(params *byzantineTypes.TamperAttackParam
 	// Sign Message
 	encodedPayload, err := commit.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, commit).Error("WBFT: failed to encode payload of COMMIT message", "err", err)
+		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to encode payload of COMMIT message", "err", err)
 		return false
 	}
 
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, commit).Error("WBFT: failed to sign COMMIT message", "err", err)
+		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to sign COMMIT message", "err", err)
 		return false
 	}
 	commit.SetSignature(signature)
@@ -158,15 +158,15 @@ func (c *Core) broadcastByzantineCommit(params *byzantineTypes.TamperAttackParam
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&commit)
 	if err != nil {
-		withMsg(logger, commit).Error("WBFT: failed to encode COMMIT message", "err", err)
+		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to encode COMMIT message", "err", err)
 		return false
 	}
 
-	withMsg(logger, commit).Info("WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
+	withMsg(logger, commit).Info("[Byzantine] WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
 
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
-		withMsg(logger, commit).Error("WBFT: failed to broadcast COMMIT message", "err", err)
+		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to broadcast COMMIT message", "err", err)
 		return false
 	}
 	return true

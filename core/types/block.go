@@ -274,6 +274,26 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 	return b
 }
 
+// DeepCopy creates a deep copy of a block.
+func (b *Block) DeepCopy() *Block {
+	if b == nil {
+		return nil
+	}
+	copied := &Block{
+		header:       CopyHeader(b.header),
+		transactions: make(Transactions, len(b.transactions)),
+		uncles:       make([]*Header, len(b.uncles)),
+		withdrawals:  make(Withdrawals, len(b.withdrawals)),
+	}
+	copy(copied.transactions, b.transactions)
+	for i, u := range b.uncles {
+		copied.uncles[i] = CopyHeader(u)
+	}
+	copy(copied.withdrawals, b.withdrawals)
+
+	return copied
+}
+
 // NewBlockWithWithdrawals creates a new block with withdrawals. The input data is copied,
 // changes to header and to the field values will not affect the block.
 //
