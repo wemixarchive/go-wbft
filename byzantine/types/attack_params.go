@@ -133,27 +133,18 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 
 	params.Code = ParseMessageCode(raw["code"])
 
-	// Parse tamperFields
-	if rawFields, ok := raw["tamperFields"].([]interface{}); ok {
-		params.TamperFields = make([]TamperField, 0, len(rawFields))
-
-		for _, f := range rawFields {
-			fieldMap, ok := f.(map[string]interface{})
-			if !ok {
-				continue
+	// Parse tamperFieldsAdd commentMore actions
+	if tamperFields, ok := raw["tamperFields"].([]interface{}); ok {
+		params.TamperFields = make([]TamperField, 0, len(tamperFields))
+		for _, field := range tamperFields {
+			if fieldMap, ok := field.(map[string]interface{}); ok {
+				tamperTargetStr := fmt.Sprintf("%v", fieldMap["target"])
+				tamperField := TamperField{
+					Target: TamperTarget(tamperTargetStr),
+					Value:  fieldMap["value"],
+				}
+				params.TamperFields = append(params.TamperFields, tamperField)
 			}
-
-			// Parse 'target'
-			targetStr, ok := fieldMap["target"].(string)
-			if !ok {
-				continue // or log.Warn: invalid target
-			}
-
-			tf := TamperField{
-				Target: TamperTarget(targetStr),
-				Value:  fieldMap["value"],
-			}
-			params.TamperFields = append(params.TamperFields, tf)
 		}
 	}
 

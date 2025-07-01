@@ -80,7 +80,6 @@ type AttackConfig struct {
 	Enabled          bool                   `json:"enabled"`
 	Sequence         uint64                 `json:"sequence"`
 	Round            uint64                 `json:"round"`
-	Code             MessageCode            `json:"code,omitempty"`
 	Status           AttackStatus           `json:"status,omitempty"`
 	Targets          []common.Address       `json:"targets,omitempty"`
 	Parameters       map[string]interface{} `json:"parameters,omitempty"`
@@ -107,46 +106,6 @@ func (ac AttackConfig) MarshalJSON() ([]byte, error) {
 	})
 }
 
-//
-//func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
-//	type Alias AttackConfig
-//	aux := &struct {
-//		Type string      `json:"type"`
-//		Code interface{} `json:"code,omitempty"`
-//		*Alias
-//	}{
-//		Alias: (*Alias)(ac),
-//	}
-//
-//	if err := json.Unmarshal(data, &aux); err != nil {
-//		return err
-//	}
-//
-//	ac.Type = StringToAttackType(aux.Type)
-//
-//	if aux.Code != nil {
-//		ac.Code = ParseMessageCode(aux.Code)
-//	}
-//
-//	//if ac.Parameters != nil {
-//	//	if paramMap, ok := ac.Parameters.(map[string]interface{}); ok {
-//	//		if codeVal, exists := paramMap["code"]; exists && codeVal != nil {
-//	//			ac.Code = ParseMessageCode(codeVal)
-//	//		}
-//	//
-//	//		if targetsVal, exists := paramMap["targets"]; exists {
-//	//			ac.Targets = ParseAddresses(targetsVal)
-//	//		}
-//	//	}
-//	//}
-//
-//	if !ac.Enabled && aux.Alias.Enabled == false {
-//		ac.Enabled = true
-//	}
-//
-//	return nil
-//}
-
 // GetSilentParams returns parsed parameters for silent attack
 func (ac *AttackConfig) GetSilentParams() (*SilentAttackParams, error) {
 	if ac.Type != AttackTypeSilentMessage {
@@ -168,13 +127,7 @@ func (ac *AttackConfig) GetTamperParams() (*TamperAttackParams, error) {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeTamperedMessage, ac.Type)
 	}
 
-	tamperParam := TamperAttackParams{}
-	parsedParams, err := tamperParam.Parse(ac.Parameters)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
-
-	params := parsedParams.(*TamperAttackParams)
+	params := ac.ParsedParameters.(*TamperAttackParams)
 
 	return params, nil
 }

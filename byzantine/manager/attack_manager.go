@@ -120,13 +120,6 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 		}
 	}
 
-	log.Info("[byzantine] Attack registered with UID-based lookup",
-		"uid", uid,
-		"type", config.Type,
-		"code", config.Code,
-		"sequence", config.Sequence,
-		"round", config.Round)
-
 	return nil
 }
 
@@ -396,12 +389,12 @@ func (m *AttackManager) updatePatternIndex(uid string, config types.AttackConfig
 	// Index wildcard patterns for flexible matching
 	// Pattern for any round: "type-code-sequence-*"
 	anyRoundPattern := fmt.Sprintf("%s-%d-%d-*",
-		types.AttachTypeToString(config.Type), config.Code, config.Sequence)
+		types.AttachTypeToString(config.Type), config.Parameters["code"], config.Sequence)
 	m.patternIndex[anyRoundPattern] = append(m.patternIndex[anyRoundPattern], uid)
 
 	// Pattern for any sequence and round: "type-code-*-*"
 	globalPattern := fmt.Sprintf("%s-%d-*-*",
-		types.AttachTypeToString(config.Type), config.Code)
+		types.AttachTypeToString(config.Type), config.Parameters["code"])
 	m.patternIndex[globalPattern] = append(m.patternIndex[globalPattern], uid)
 }
 

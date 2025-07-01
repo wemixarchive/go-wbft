@@ -98,18 +98,15 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 		if !exists {
 			continue
 		}
-		log.Info("[byzantine] will do attack : ", "uid", uid)
 
 		// Check if attack is eligible
 		config := attack.GetConfig()
-		log.Info("[byzantine] attack config ", "config", config)
 		if !h.isAttackEligible(config) {
-			log.Info("[byzantine] already attacked ", "status ", config.Status)
 			continue
 		}
 
 		// Create event for condition checking
-		event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
+		event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
 
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, event) {
@@ -185,7 +182,7 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 		}
 
 		// Create event
-		event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, from, types.DirectionReceive)
+		event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, types.DirectionReceive)
 
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, event) {
@@ -238,25 +235,26 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 }
 
 // DoubleVote is called before broadcasting a message
-func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from common.Address) (bool, types.AttackConfig) {
+func (h *ConsensusHookImpl) DoubleVote(attackType types.AttackType, msgCode, sequence, round uint64) types.AttackConfig {
 	ctx := context.Background()
 	//byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 
 	// Direct lookup for tamper attack
-	uid := h.uidGenerator.Generate(types.AttackTypeTamperedMessage, sequence, round)
+	uid := h.uidGenerator.Generate(attackType, sequence, round)
 
 	attack, exists := h.attackManager.GetAttackByUID(uid)
 	if exists {
 		config := attack.GetConfig()
 		if h.isAttackEligible(config) {
 			// Create event
-			event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
+			event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
 
 			// Check execution condition
 			if attack.CheckExecuteCondition(ctx, event) {
 				log.Info("[byzantine] Double vote attack triggered",
 					"attack_uid", uid,
 					"msgCode", msgCode,
+					"code", config.Parameters["code"],
 					"sequence", sequence,
 					"round", round)
 
@@ -266,24 +264,24 @@ func (h *ConsensusHookImpl) DoubleVote(msgCode, sequence, round uint64, from com
 				// Publish event asynchronously
 				//go h.publishEvent(event)
 
-				return true, config
+				return config
 			}
 		}
 	}
 
 	// Fallback to general evaluation if needed
-	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
+	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
 	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
 	if err != nil {
 		log.Error("Failed to evaluate attacks for double vote", "error", err)
-		return false, types.AttackConfig{}
+		return types.AttackConfig{}
 	}
 
 	if decision.ShouldAttack && decision.AttackType == types.AttackTypeTamperedMessage {
-		return true, types.AttackConfig{}
+		return types.AttackConfig{}
 	}
 
-	return false, types.AttackConfig{}
+	return types.AttackConfig{}
 }
 
 // Helper methods
@@ -424,7 +422,7 @@ func (h *ConsensusHookImpl) generateWildcardPatterns(ctx types.ConsensusContext)
 
 // createEvent creates an event from consensus data
 func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode uint64,
-	sequence, round uint64, from common.Address, direction string) types.Event {
+	sequence, round uint64, direction string) types.Event {
 
 	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 
@@ -435,7 +433,6 @@ func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode uint6
 		Timestamp: time.Now(),
 		Data: &types.MessageEvent{
 			MessageCode: byzantineCode,
-			From:        from,
 		},
 		Metadata: map[string]interface{}{
 			"hook":           "ConsensusHook",

@@ -306,7 +306,8 @@ func (s *ByzantineService) loadAttacksFromConfig() error {
 		log.Info("Attack registered successfully",
 			"name", attackConfig.Name,
 			"uid", attackConfig.UID,
-			"type", attackConfig.Type)
+			"type", attackConfig.Type,
+			"code", attackConfig.Parameters["code"])
 	}
 	return nil
 }

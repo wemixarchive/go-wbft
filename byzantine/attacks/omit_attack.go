@@ -71,7 +71,7 @@ func (a *OmitMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 	config := a.GetConfig()
 
 	// Determine what to omit based on message code and command
-	omittedMessage, err := a.createOmittedMessage(config.Code, event)
+	omittedMessage, err := a.createOmittedMessage(config.Parameters["code"].(types.MessageCode), event)
 	if err != nil {
 		return &types.AttackResult{
 			UID:        a.GetUID(),
@@ -99,7 +99,7 @@ func (a *OmitMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 		ExecutedAt: time.Now(),
 		Duration:   time.Since(startTime),
 		Details: map[string]interface{}{
-			"message_type": config.Code,
+			"message_code": config.Parameters["code"],
 			"omit_command": a.cmd,
 			"omit_count":   a.cnt,
 			"targets":      len(a.targets),

@@ -237,7 +237,7 @@ type ConsensusHook interface {
 	// DoubleVote is called before broadcasting a message.
 	// If it returns true, both a valid message and a tampered (invalid) message will be sent.
 	// Returns true to simulate a double vote, false to send only the original message.
-	DoubleVote(msgCode, sequence, round uint64, from common.Address) (bool, AttackConfig)
+	DoubleVote(attachType AttackType, msgCode, sequence, round uint64) AttackConfig
 }
 
 // AttackParamsParser defines an interface for parsing and validating attack parameters

@@ -71,7 +71,7 @@ func (a *RoleSpoofedAttack) Execute(ctx context.Context, event types.Event) (*ty
 	config := a.GetConfig()
 
 	// Generate spoofed message based on message type
-	spoofedMessage, spoofedRole, err := a.createSpoofedMessage(config.Code, event)
+	spoofedMessage, spoofedRole, err := a.createSpoofedMessage(config.Parameters["code"].(types.MessageCode), event)
 	if err != nil {
 		return &types.AttackResult{
 			UID:        a.GetUID(),
@@ -99,7 +99,7 @@ func (a *RoleSpoofedAttack) Execute(ctx context.Context, event types.Event) (*ty
 		ExecutedAt: time.Now(),
 		Duration:   time.Since(startTime),
 		Details: map[string]interface{}{
-			"message_type": config.Code,
+			"message_code": config.Parameters["code"],
 			"spoofed_role": spoofedRole,
 			"targets":      len(a.targets),
 			"action":       "role_spoofed_message_sent",
