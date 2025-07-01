@@ -75,7 +75,7 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 	} else {
 		// Generate fake message based on message type
 		var err error
-		messageToSend, err = a.generateFakeMessage(config.Code, event)
+		messageToSend, err = a.generateFakeMessage(config.Parameters["code"].(types.MessageCode), event)
 		if err != nil {
 			return &types.AttackResult{
 				UID:        a.GetUID(),
@@ -104,7 +104,7 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 		ExecutedAt: time.Now(),
 		Duration:   time.Since(startTime),
 		Details: map[string]interface{}{
-			"message_type":      config.Code,
+			"message_code":      config.Parameters["code"],
 			"fake_message_size": len(messageToSend),
 			"targets":           len(a.targets),
 			"action":            "fake_message_sent",

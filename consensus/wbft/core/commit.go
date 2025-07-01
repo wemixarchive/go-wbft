@@ -56,12 +56,12 @@ func (c *Core) broadcastCommit() {
 
 	if hook := c.backend.ByzantineHook(); hook != nil {
 		// Check if DoubleVote attack should be triggered
-		if ok, config := hook.DoubleVote(
+		if config := hook.DoubleVote(
+			byzantineTypes.AttackTypeTamperedMessage,
 			commit.Code(),
 			c.current.Sequence().Uint64(),
 			c.current.Round().Uint64(),
-			c.backend.Address(),
-		); ok {
+		); config.Name != "" {
 			// Retrieve tamper parameters
 			params, err := config.GetTamperParams()
 			if err != nil {

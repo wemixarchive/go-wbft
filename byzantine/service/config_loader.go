@@ -143,6 +143,7 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 		// However, since we're using the existing AttackConfig, we need to
 		// ensure parameters are properly structured
 		config.Parameters = cl.restructureParameters(config.Type, parsedParams)
+		config.ParsedParameters = parsedParams
 	}
 
 	// Validate individual attack config
@@ -156,7 +157,8 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 		"uid", config.UID,
 		"sequence", config.Sequence,
 		"round", config.Round,
-		"code", config.Code)
+		"code", config.Parameters["code"],
+		"parameters", config.Parameters)
 
 	return config, nil
 }

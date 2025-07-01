@@ -71,7 +71,6 @@ func (h *HookAdapter) BeforePrepare(ctx context.Context, message *btypes.QBFTMes
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
 			MessageCode: btypes.MessageCodePrepare,
-			From:        message.Address,
 			Content:     message.Signature,
 			Hash:        message.Hash,
 		},
@@ -102,7 +101,6 @@ func (h *HookAdapter) AfterPrepare(ctx context.Context, message *btypes.QBFTMess
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
 			MessageCode: btypes.MessageCodePrepare,
-			From:        message.Address,
 			Content:     message.Signature,
 			Hash:        message.Hash,
 		},
@@ -123,7 +121,6 @@ func (h *HookAdapter) BeforeCommit(ctx context.Context, message *btypes.QBFTMess
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
 			MessageCode: btypes.MessageCodeCommit,
-			From:        message.Address,
 			Content:     message.CommittedSeal,
 			Hash:        message.Hash,
 		},
@@ -154,7 +151,6 @@ func (h *HookAdapter) AfterCommit(ctx context.Context, message *btypes.QBFTMessa
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
 			MessageCode: btypes.MessageCodeCommit,
-			From:        message.Address,
 			Content:     message.CommittedSeal,
 			Hash:        message.Hash,
 		},
@@ -200,7 +196,6 @@ func (h *HookAdapter) OnMessageReceive(ctx context.Context, message *btypes.QBFT
 		Timestamp: time.Now(),
 		Data: &btypes.MessageEvent{
 			MessageCode: message.Code,
-			From:        message.Address,
 			Hash:        message.Hash,
 		},
 		Metadata: map[string]interface{}{

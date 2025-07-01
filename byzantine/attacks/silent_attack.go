@@ -99,16 +99,16 @@ func (a *SilentMessageAttack) Execute(ctx context.Context, event types.Event) (*
 	}
 
 	// Check if target addresses match (if specified)
-	if shouldBlock && len(a.targets) > 0 {
-		found := false
-		for _, target := range a.targets {
-			if target == msgEvent.From {
-				found = true
-				break
-			}
-		}
-		shouldBlock = found
-	}
+	//if shouldBlock && len(a.targets) > 0 {
+	//	found := false
+	//	//for _, target := range a.targets {
+	//	//	//if target == msgEvent.From {
+	//	//	//	found = true
+	//	//	//	break
+	//	//	//}
+	//	//}
+	//	shouldBlock = found
+	//}
 
 	blockReason := ""
 	if shouldBlock {

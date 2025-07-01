@@ -68,12 +68,7 @@ func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event
 		return true
 	}
 
-	// Check if this is the right message type to attack
-	if event.Type == types.EventTypeMessageSent {
-		return true
-	}
-
-	return messageEvent.MessageCode&config.Code != 0
+	return messageEvent.MessageCode&config.Parameters["code"].(types.MessageCode) != 0
 }
 
 // Execute performs the tampered message attack

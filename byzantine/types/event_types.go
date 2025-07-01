@@ -34,7 +34,6 @@ type Event struct {
 // MessageEvent represents a message-related event
 type MessageEvent struct {
 	MessageCode MessageCode      `json:"message_code"`
-	From        common.Address   `json:"from"`
 	To          []common.Address `json:"to,omitempty"`
 	Content     []byte           `json:"content"`
 	Hash        common.Hash      `json:"hash"`

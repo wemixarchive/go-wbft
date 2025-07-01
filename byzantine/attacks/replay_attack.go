@@ -148,7 +148,7 @@ func (a *ReplayAttack) Execute(ctx context.Context, event types.Event) (*types.A
 	}
 
 	// Select the best message to replay based on message type
-	messageToReplay := a.selectBestMessage(messages, a.GetConfig().Code)
+	messageToReplay := a.selectBestMessage(messages, a.GetConfig().Parameters["code"].(types.MessageCode))
 	if messageToReplay == nil {
 		err := fmt.Errorf("no suitable message found for replay")
 		return &types.AttackResult{

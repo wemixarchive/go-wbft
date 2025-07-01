@@ -7,9 +7,10 @@
       "enabled": false,
       "sequence": 200,
       "round": 0,
-      "code": 1,
       "parameters": {
-        "direction": 3
+        "code": 1,
+        "direction": 3,
+        "target": []
       }
     },
     {
@@ -18,9 +19,10 @@
       "enabled": false,
       "sequence": 400,
       "round": 0,
-      "code": 1,
       "parameters": {
-        "direction": 3
+        "code": 1,
+        "direction": 3,
+        "target": []
       }
     },
     {
@@ -29,9 +31,13 @@
       "enabled": true,
       "sequence": 200,
       "round": 0,
-      "code": 1,
       "parameters": {
+        "code": 1,
         "tamperFields": [
+          {
+            "target":"Digest",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          },
           {
             "target": "Proposal.Header.Coinbase",
             "value": "0x0000000000000000000000000000000000000000"
@@ -52,8 +58,9 @@
       "enabled": true,
       "sequence": 300,
       "round": 0,
-      "code": 8,
       "parameters": {
+        "code": 8,
+        "fakeMessage": "",
         "targets": []
       }
     },
@@ -63,8 +70,8 @@
       "enabled": false,
       "sequence": 400,
       "round": 0,
-      "code": 2,
       "parameters": {
+        "code": 2,
         "cmd": 1,
         "cnt": 0,
         "targets": []
@@ -76,8 +83,9 @@
       "enabled": false,
       "sequence": 500,
       "round": 0,
-      "code": 2,
       "parameters": {
+        "code": 2,
+        "fakeMessage": "",
         "targets": []
       }
     },
@@ -87,8 +95,8 @@
       "enabled": false,
       "sequence": 600,
       "round": 0,
-      "code": 4,
       "parameters": {
+        "code": 4,
         "ori_sequence": 599,
         "ori_round": 0,
         "useOriginalView": false,
