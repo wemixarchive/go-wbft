@@ -69,12 +69,12 @@ func (b *BaseAttack) SetStatus(status types.AttackStatus) {
 
 // ParseTargets parses target addresses from config
 func ParseTargets(config types.AttackConfig) ([]common.Address, error) {
-	if len(config.Targets) == 0 {
+	if len(config.Parameters["targets"].([]common.Address)) == 0 {
 		return nil, nil
 	}
 
-	targets := make([]common.Address, len(config.Targets))
-	copy(targets, config.Targets)
+	targets := make([]common.Address, len(config.Parameters["targets"].([]common.Address)))
+	copy(targets, config.Parameters["targets"].([]common.Address))
 
 	return targets, nil
 }

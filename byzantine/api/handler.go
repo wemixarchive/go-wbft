@@ -34,14 +34,14 @@ func (h *Handler) GetByzantineTests() ([]types.AttackConfig, error) {
 	infos := make([]types.AttackConfig, len(attacks))
 	for i, attack := range attacks {
 		infos[i] = types.AttackConfig{
-			UID:        attack.UID,
-			Name:       attack.Name,
-			Type:       attack.Type,
-			Enabled:    attack.Enabled,
-			Sequence:   attack.Sequence,
-			Round:      attack.Round,
-			Status:     attack.Status,
-			Targets:    attack.Targets,
+			UID:      attack.UID,
+			Name:     attack.Name,
+			Type:     attack.Type,
+			Enabled:  attack.Enabled,
+			Sequence: attack.Sequence,
+			Round:    attack.Round,
+			Status:   attack.Status,
+			//Targets:    attack.Targets,
 			Parameters: attack.Parameters,
 			CreatedAt:  attack.CreatedAt,
 			//FakeMessage:      h.getFakeMessageFromOptions(attack.Options),
@@ -95,7 +95,7 @@ func (h *Handler) RegisterSilentMessage(params types.SilentMessageParams) error 
 			"direction": params.Direction,
 			"targets":   params.Targets,
 		},
-		Targets:   params.Targets,
+		//Targets:   params.Targets,
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
 	}
@@ -131,7 +131,7 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		Type:     types.AttackTypeTamperedMessage,
 		Sequence: params.Sequence,
 		Round:    params.Round,
-		Targets:  params.Targets,
+		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":             params.Code,
 			"tamperFields":     tamperFieldsMaps,
@@ -166,7 +166,7 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 		Type:     types.AttackTypeFakeMessage,
 		Sequence: params.Sequence,
 		Round:    params.Round,
-		Targets:  params.Targets,
+		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":        params.Code,
 			"fakeMessage": params.FakeMessage,
@@ -199,7 +199,7 @@ func (h *Handler) RegisterOmitMessage(params types.OmitMessageParams) error {
 		Type:     types.AttackTypeOmitMessage,
 		Sequence: params.Sequence,
 		Round:    params.Round,
-		Targets:  params.Targets,
+		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":    params.Code,
 			"cmd":     params.Cmd,
@@ -233,7 +233,7 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 		Type:     types.AttackTypeRoleSpoofed,
 		Sequence: params.Sequence,
 		Round:    params.Round,
-		Targets:  params.Targets,
+		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":        params.Code,
 			"fakeMessage": params.FakeMessage,
@@ -266,7 +266,7 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 		Type:     types.AttackTypeReplay,
 		Sequence: params.Sequence,
 		Round:    params.Round,
-		Targets:  params.Targets,
+		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":            params.Code,
 			"oriSequence":     params.OriSequence,

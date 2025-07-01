@@ -74,14 +74,14 @@ func AttachTypeToString(attackType AttackType) string {
 
 // AttackConfig represents the configuration for an attack
 type AttackConfig struct {
-	UID              string                 `json:"uid"`
-	Name             string                 `json:"name"`
-	Type             AttackType             `json:"type"`
-	Enabled          bool                   `json:"enabled"`
-	Sequence         uint64                 `json:"sequence"`
-	Round            uint64                 `json:"round"`
-	Status           AttackStatus           `json:"status,omitempty"`
-	Targets          []common.Address       `json:"targets,omitempty"`
+	UID      string       `json:"uid"`
+	Name     string       `json:"name"`
+	Type     AttackType   `json:"type"`
+	Enabled  bool         `json:"enabled"`
+	Sequence uint64       `json:"sequence"`
+	Round    uint64       `json:"round"`
+	Status   AttackStatus `json:"status,omitempty"`
+	//Targets          []common.Address       `json:"targets,omitempty"`
 	Parameters       map[string]interface{} `json:"parameters,omitempty"`
 	ParsedParameters interface{}            `json:"-"`
 	CreatedAt        time.Time              `json:"created_at"`
@@ -89,7 +89,7 @@ type AttackConfig struct {
 }
 
 // MarshalJSON implements custom JSON marshaling to ensure deep nes ted structures are properly serialized
-func (ac AttackConfig) MarshalJSON() ([]byte, error) {
+func (ac *AttackConfig) MarshalJSON() ([]byte, error) {
 	type Alias AttackConfig
 
 	var serializedParams interface{}
@@ -101,7 +101,7 @@ func (ac AttackConfig) MarshalJSON() ([]byte, error) {
 		*Alias
 		Parameters interface{} `json:"parameters,omitempty"`
 	}{
-		Alias:      (*Alias)(&ac),
+		Alias:      (*Alias)(ac),
 		Parameters: serializedParams,
 	})
 }
@@ -243,6 +243,15 @@ func (ac *AttackConfig) Validate() error {
 	}
 }
 
+// GetTargetAddresses converts string targets to common.Address
+func (ac *AttackConfig) GetTargetAddresses() []common.Address {
+	addresses := make([]common.Address, 0, len(ac.Parameters["targets"].([]common.Address)))
+	for _, target := range ac.Parameters["targets"].([]common.Address) {
+		addresses = append(addresses, target)
+	}
+	return addresses
+}
+
 // Parameter validation functions
 func validateSilentParams(params *SilentAttackParams) error {
 	if params.Direction > 3 {
@@ -295,49 +304,6 @@ func validateTargets(targets []common.Address) error {
 		}
 	}
 	return nil
-}
-
-// Validate validates a single attacks configuration
-//func (a *AttackConfig) Validate() error {
-//	if a.Name == "" {
-//		return errors.New("attacks name is required")
-//	}
-//
-//	if a.Type == "" {
-//		return errors.New("attacks type is required")
-//	}
-//
-//	// Validate attacks type
-//	validTypes := map[string]bool{
-//		"doublePrepare": true, "doubleCommit": true,
-//		"silentProposer": true, "silentValidator": true,
-//		"tamperedHeader": true, "fakeTransaction": true,
-//		"messageFlood": true, "replayAttack": true,
-//	}
-//
-//	if !validTypes[string(a.Type)] {
-//		return fmt.Errorf("invalid attacks type: %s", a.Type)
-//	}
-//
-//	// Validate targets are valid addresses
-//	//for i, target := range a.Targets {
-//	//	if !common.IsHexAddress(target) {
-//	//		return fmt.Errorf("invalid target address[%d]: %s", i, target)
-//	//	}
-//	//}
-//
-//	return nil
-//}
-
-// GetTargetAddresses converts string targets to common.Address
-func (ac *AttackConfig) GetTargetAddresses() []common.Address {
-	addresses := make([]common.Address, 0, len(ac.Targets))
-	//for _, target := range ac.Targets {
-	//	if common.IsHexAddress(target) {
-	//		addresses = append(addresses, common.HexToAddress(target))
-	//	}
-	//}
-	return addresses
 }
 
 func ensureSerializable(v interface{}) interface{} {
@@ -409,51 +375,4 @@ type AttackContext struct {
 	CurrentSequence uint64
 	CurrentRound    uint64
 	MessageCode     uint64
-}
-
-// AttackCategory represents attacks categories
-type AttackCategory string
-
-const (
-	AttackCategorySafety    AttackCategory = "safety"
-	AttackCategoryLiveness  AttackCategory = "liveness"
-	AttackCategoryIntegrity AttackCategory = "integrity"
-	AttackCategoryRole      AttackCategory = "role"
-	AttackCategoryReplay    AttackCategory = "replay"
-	AttackCategoryNetwork   AttackCategory = "network"
-)
-
-// AttackSeverity represents attacks severity levels
-type AttackSeverity string
-
-const (
-	AttackSeverityLow      AttackSeverity = "low"
-	AttackSeverityMedium   AttackSeverity = "medium"
-	AttackSeverityHigh     AttackSeverity = "high"
-	AttackSeverityCritical AttackSeverity = "critical"
-)
-
-// DataRequirement specifies what data attacks need
-type DataRequirement struct {
-	Type       string // "messages", "blocks", "state"
-	Filter     DataFilter
-	MaxRecords int
-}
-
-// DataFilter for querying historical data
-type DataFilter struct {
-	FromSequence uint64
-	ToSequence   uint64
-	MessageTypes []uint64
-	Validators   []common.Address
-}
-
-// ConditionContext provides context for condition evaluation
-type ConditionContext struct {
-	Sequence    uint64
-	Round       uint64
-	MessageType string
-	Role        string
-	Validators  []common.Address
-	Self        common.Address
 }
