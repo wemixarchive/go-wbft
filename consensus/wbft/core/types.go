@@ -23,9 +23,10 @@ package core
 
 import (
 	"fmt"
-	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"math/big"
 	"time"
+
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/wbft"

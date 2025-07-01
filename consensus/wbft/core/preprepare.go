@@ -21,16 +21,16 @@
 package core
 
 import (
+	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	byzantineTypes "github.com/ethereum/go-ethereum/byzantine/types"
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 // sendPreprepareMsg is called either
@@ -60,7 +60,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		if hook := c.backend.ByzantineHook(); hook != nil {
 			// Check if DoubleVote attack should be triggered
 			if config := hook.DoubleVote(
-				byzantineTypes.AttackTypeTamperedMessage,
+				btypes.AttackTypeTamperedMessage,
 				preprepare.Code(),
 				c.current.Sequence().Uint64(),
 				c.current.Round().Uint64(),
@@ -74,6 +74,8 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 				if c.sendByzantinePreprepareMsg(request, params) {
 
 					if !params.WithValidMessage {
+						// Set the preprepareSent to the current round
+						c.current.preprepareSent = curView.Round
 						return // skip the normal message
 					}
 					// Wait for the configured delay
@@ -133,25 +135,31 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 	}
 }
 
-func (c *Core) sendByzantinePreprepareMsg(request *Request, params *types.TamperAttackParams) bool {
+func (c *Core) sendByzantinePreprepareMsg(request *Request, params *btypes.TamperAttackParams) bool {
 	logger := c.currentLogger(true, nil)
 
 	// Creates PRE-PREPARE message
 	curView := c.currentView()
-	preprepare := wbfmessage.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
+
+	sequence := new(big.Int).Set(curView.Sequence)
+	round := new(big.Int).Set(curView.Round)
+
+	proposal := request.Proposal.DeepCopy()
+
+	preprepare := wbfmessage.NewPreprepare(sequence, round, proposal)
 	preprepare.SetSource(c.Address())
 
 	for _, field := range params.TamperFields {
 		// Implementation depends on actual message structure
 		// This is just a placeholder
 		switch field.Target {
-		case types.TamperProposalHeaderNumber:
+		case btypes.TamperProposalHeaderNumber:
 			val, err := field.ValueToUint64()
 			if err != nil {
 				withMsg(logger, preprepare).Error("[Byzantine] Conversion failed", "err", err)
 				return false
 			} else {
-				preprepare.Proposal.SetNumber(val)
+				proposal.SetNumber(val)
 			}
 		}
 	}
@@ -201,9 +209,6 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, params *types.Tamper
 		logger.Error("[Byzantine] WBFT: failed to broadcast PRE-PREPARE message", "err", err)
 		return false
 	}
-
-	// Set the preprepareSent to the current round
-	c.current.preprepareSent = curView.Round
 	return true
 }
 
