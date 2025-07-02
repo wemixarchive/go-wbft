@@ -75,6 +75,12 @@ type Attack interface {
 
 	// GetStatus returns the current status of the attack
 	GetStatus() AttackStatus
+
+	// UpdateParameters updates attack parameters
+	UpdateParameters(params map[string]interface{}) error
+
+	// CanExecute checks if attack can be executed at given sequence
+	CanExecute(sequence uint64) bool
 }
 
 // AttackManager manages all registered attacks
@@ -114,6 +120,18 @@ type AttackManager interface {
 
 	// GetUIDGenerator returns the UID generator
 	GetUIDGenerator() UIDGenerator
+
+	// GetAttacksBySequenceRange retrieves attacks that match the given sequence
+	GetAttacksBySequenceRange(attackType AttackType, sequence, round uint64) []Attack
+
+	// FindAttackForExecution finds an attack that can be executed at given sequence/round
+	FindAttackForExecution(attackType AttackType, sequence, round uint64) (Attack, bool)
+	
+	// FindExecutableAttack finds an executable attack based on type, sequence, round, and message code
+	FindExecutableAttack(attackType AttackType, sequence, round uint64, msgCode MessageCode) (Attack, bool)
+
+	// MarkAttackExecuted updates attack execution state
+	MarkAttackExecuted(uid string, sequence uint64) error
 }
 
 // MessageStorage handles message storage and retrieval
@@ -217,8 +235,14 @@ type Metrics struct {
 
 // UIDGenerator Format: "attackType-Code-Sequence-Round"
 type UIDGenerator interface {
+	// Generate with 3 parameters for backward compatibility
 	Generate(attackType AttackType, sequence, round uint64) string
+	// GenerateWithRange with 4 parameters for range support
+	GenerateWithRange(attackType AttackType, sequenceStart, sequenceEnd, round uint64) string
+	GenerateForLookup(attackType AttackType, sequence, round uint64) []string
 	Parse(uid string) (AttackType, uint64, uint64, error)
+	ParseRange(uid string) (AttackType, uint64, uint64, uint64, error)
+	IsWildcard(uid string) bool
 }
 
 // ConsensusHook represents consensus hook
@@ -228,11 +252,11 @@ type ConsensusHook interface {
 
 	// BeforeBroadcast is called before broadcasting a message
 	// Returns true if the message should be sent, false to drop it
-	BeforeBroadcast(msgCode, sequence, round uint64, from common.Address) bool
+	BeforeBroadcast(msgCode, sequence, round uint64) AttackConfig
 
 	// BeforeProcessMessage is called before processing, a received message
 	// Returns true if the message should be processed, false to drop it
-	BeforeProcessMessage(msgCode, sequence, round uint64, from common.Address) bool
+	BeforeProcessMessage(msgCode, sequence, round uint64) AttackConfig
 
 	// DoubleVote is called before broadcasting a message.
 	// If it returns true, both a valid message and a tampered (invalid) message will be sent.
@@ -245,10 +269,27 @@ type ConsensusHook interface {
 	// Only attacks that are enabled, match the given message code, and
 	// satisfy runtime execution conditions will be included.
 	GetExecutableAttacks(msgCode, sequence, round uint64) map[AttackType]*ExecutableAttack
+	ShouldExecuteAttack(attackType AttackType, msgCode, sequence, round uint64) (*AttackConfig, bool)
+	GetAttackConfig(attackType AttackType, sequence, round uint64) (*AttackConfig, error)
+	MarkAttackExecuted(uid string, sequence uint64) error
+	
+	// BeforeBlockCommit is called before committing a block
+	// Allows modification of seals for omit attack
+	BeforeBlockCommit(block interface{}, preparedSeals, committedSeals []interface{}) ([]interface{}, []interface{}, error)
 }
 
 // AttackParamsParser defines an interface for parsing and validating attack parameters
 type AttackParamsParser interface {
 	Parse(raw map[string]interface{}) (interface{}, error)
+	ParseJSON(data []byte) (interface{}, error)
 	Validate(params interface{}) error
+}
+
+type AttackExecutionContext struct {
+	Config           AttackConfig
+	CurrentSequence  uint64
+	CurrentRound     uint64
+	MessageCode      MessageCode
+	ExecutionCount   uint64
+	IsFirstExecution bool
 }

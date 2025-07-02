@@ -88,8 +88,13 @@ func (a *ReplayAttack) getMessageStorage() (types.MessageStorage, error) {
 func (a *ReplayAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
 
-	// Check sequence and round
-	if event.Sequence != config.Sequence || event.Round != config.Round {
+	// Check if sequence is in range
+	if !config.IsInSequenceRange(event.Sequence) {
+		return false
+	}
+	
+	// Check round (0 means any round)
+	if config.Round != 0 && event.Round != config.Round {
 		return false
 	}
 
@@ -104,8 +109,29 @@ func (a *ReplayAttack) CheckExecuteCondition(ctx context.Context, event types.Ev
 		return false
 	}
 
-	// Check if this is the right event type
-	return event.Type == types.EventTypeMessageSent
+	// Check message type
+	messageEvent, ok := event.Data.(*types.MessageEvent)
+	if !ok {
+		return false
+	}
+
+	// Use ParsedParameters first
+	if params, ok := config.ParsedParameters.(*types.ReplayAttackParams); ok {
+		return messageEvent.MessageCode == params.Code
+	}
+
+	// Fallback to Parameters map
+	var attackCode types.MessageCode
+	switch v := config.Parameters["code"].(type) {
+	case float64:
+		attackCode = types.MessageCode(v)
+	case int:
+		attackCode = types.MessageCode(v)
+	default:
+		return false
+	}
+
+	return messageEvent.MessageCode == attackCode
 }
 
 // Execute performs the replay attack

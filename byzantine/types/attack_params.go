@@ -12,27 +12,61 @@ import (
 
 // SilentAttackParams handles parsing for silent attack parameters
 type SilentAttackParams struct {
-	Code      MessageCode
-	Direction uint64
-	Targets   []common.Address
+	Code      MessageCode      `json:"code"`
+	Direction uint64           `json:"direction"`
+	Targets   []common.Address `json:"targets,omitempty"`
+}
+
+func (p *SilentAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias SilentAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	p.Targets = make([]common.Address, 0, len(aux.Targets))
+	for _, addr := range aux.Targets {
+		if common.IsHexAddress(addr) {
+			p.Targets = append(p.Targets, common.HexToAddress(addr))
+		}
+	}
+
+	return nil
 }
 
 func (p *SilentAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &SilentAttackParams{}
 	params.Code = ParseMessageCode(raw["code"])
 
-	if direction, ok := raw["direction"].(float64); ok {
-		params.Direction = uint64(direction)
-	} else if direction, ok := raw["direction"].(int); ok {
-		params.Direction = uint64(direction)
-	} else if direction, ok := raw["direction"].(uint); ok {
-		params.Direction = uint64(direction)
-	} else if direction, ok := raw["direction"].(uint64); ok {
-		params.Direction = direction
+	switch v := raw["direction"].(type) {
+	case float64:
+		params.Direction = uint64(v)
+	case int:
+		params.Direction = uint64(v)
+	case uint:
+		params.Direction = uint64(v)
+	case uint64:
+		params.Direction = v
+	default:
+		params.Direction = 0
 	}
 
 	params.Targets = parseTargets(raw["targets"])
 
+	return params, nil
+}
+
+func (p *SilentAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &SilentAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
 	return params, nil
 }
 
@@ -42,12 +76,12 @@ func (p *SilentAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid parameter type")
 	}
 
-	if silentParams.Direction > 3 {
-		return fmt.Errorf("invalid direction: %d (must be 0-3)", silentParams.Direction)
-	}
-
 	if !ValidateMessageCode(silentParams.Code) {
 		return fmt.Errorf("invalid message code: %d", silentParams.Code)
+	}
+
+	if silentParams.Direction > 3 {
+		return fmt.Errorf("invalid direction: %d (must be 0-3)", silentParams.Direction)
 	}
 
 	return nil
@@ -55,11 +89,11 @@ func (p *SilentAttackParams) Validate(params interface{}) error {
 
 // TamperAttackParams handles parsing for tamper attack parameters
 type TamperAttackParams struct {
-	Code             MessageCode
-	TamperFields     []TamperField
-	WithValidMessage bool
-	Delay            uint64
-	Targets          []common.Address
+	Code             MessageCode      `json:"code"`
+	TamperFields     []TamperField    `json:"tamperFields"`
+	WithValidMessage bool             `json:"withValidMessage"`
+	Delay            uint64           `json:"delay"`
+	Targets          []common.Address `json:"targets,omitempty"`
 }
 
 // TamperField represents a field to be tampered with in a message
@@ -128,6 +162,29 @@ func (tf *TamperField) ValueToHash() (common.Hash, error) {
 	}
 }
 
+func (p *TamperAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias TamperAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	p.Targets = make([]common.Address, 0, len(aux.Targets))
+	for _, addr := range aux.Targets {
+		if common.IsHexAddress(addr) {
+			p.Targets = append(p.Targets, common.HexToAddress(addr))
+		}
+	}
+
+	return nil
+}
+
 func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
 	params := &TamperAttackParams{}
 
@@ -152,14 +209,17 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 		params.WithValidMessage = withValid
 	}
 
-	if delay, ok := raw["delay"].(float64); ok {
-		params.Delay = uint64(delay)
-	} else if delay, ok := raw["delay"].(int); ok {
-		params.Delay = uint64(delay)
-	} else if delay, ok := raw["delay"].(int64); ok {
-		params.Delay = uint64(delay)
-	} else if delay, ok := raw["delay"].(uint64); ok {
-		params.Delay = delay
+	switch v := raw["delay"].(type) {
+	case float64:
+		params.Delay = uint64(v)
+	case int:
+		params.Delay = uint64(v)
+	case uint:
+		params.Delay = uint64(v)
+	case uint64:
+		params.Delay = v
+	default:
+		params.Delay = 0
 	}
 
 	params.Targets = parseTargets(raw["targets"])
@@ -167,10 +227,22 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 	return params, nil
 }
 
+func (p *TamperAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &TamperAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
+
 func (p *TamperAttackParams) Validate(params interface{}) error {
 	tamperParams, ok := params.(*TamperAttackParams)
 	if !ok {
 		return fmt.Errorf("invalid parameter type")
+	}
+
+	if !ValidateMessageCode(tamperParams.Code) {
+		return fmt.Errorf("invalid message code: %d", tamperParams.Code)
 	}
 
 	if len(tamperParams.TamperFields) == 0 && !tamperParams.WithValidMessage {
@@ -181,10 +253,22 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 		if field.Target == "" {
 			return fmt.Errorf("tamperField[%d] target is empty", i)
 		}
-	}
 
-	if !ValidateMessageCode(tamperParams.Code) {
-		return fmt.Errorf("invalid message code: %d", tamperParams.Code)
+		// Check if field.Value is a hex string and validate its length
+		if strValue, ok := field.Value.(string); ok {
+			// Remove 0x prefix if present
+			hexStr := strings.TrimPrefix(strValue, "0x")
+
+			// Check if it's a valid hex string
+			if _, err := hex.DecodeString(hexStr); err != nil {
+				return fmt.Errorf("tamperField[%d] value is not a valid hex string: %v", i, err)
+			}
+
+			// Check if it's 32 bytes (64 hex characters)
+			if len(hexStr) != 64 {
+				return fmt.Errorf("tamperField[%d] value must be 32 bytes (64 hex characters), got %d", i, len(hexStr)/2)
+			}
+		}
 	}
 
 	return nil
@@ -192,9 +276,32 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 
 // FakeAttackParams handles parsing for fake attack parameters
 type FakeAttackParams struct {
-	Code        MessageCode
-	FakeMessage []byte
-	Targets     []common.Address
+	Code        MessageCode      `json:"code"`
+	FakeMessage []byte           `json:"fakeMessage,omitempty"`
+	Targets     []common.Address `json:"targets,omitempty"`
+}
+
+func (p *FakeAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias FakeAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	p.Targets = make([]common.Address, 0, len(aux.Targets))
+	for _, addr := range aux.Targets {
+		if common.IsHexAddress(addr) {
+			p.Targets = append(p.Targets, common.HexToAddress(addr))
+		}
+	}
+
+	return nil
 }
 
 func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -210,6 +317,14 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 
 	params.Targets = parseTargets(raw["targets"])
 
+	return params, nil
+}
+
+func (p *FakeAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &FakeAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
 	return params, nil
 }
 
@@ -229,10 +344,33 @@ func (p *FakeAttackParams) Validate(params interface{}) error {
 
 // OmitAttackParams handles parsing for omit attack parameters
 type OmitAttackParams struct {
-	Code    MessageCode
-	Cmd     uint64
-	Cnt     uint64
-	Targets []common.Address
+	Code    MessageCode      `json:"code"`
+	Cmd     uint64           `json:"cmd"`
+	Cnt     uint64           `json:"cnt"`
+	Targets []common.Address `json:"targets,omitempty"`
+}
+
+func (p *OmitAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias OmitAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	p.Targets = make([]common.Address, 0, len(aux.Targets))
+	for _, addr := range aux.Targets {
+		if common.IsHexAddress(addr) {
+			p.Targets = append(p.Targets, common.HexToAddress(addr))
+		}
+	}
+
+	return nil
 }
 
 func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -240,20 +378,42 @@ func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 
 	params.Code = ParseMessageCode(raw["code"])
 
-	if cmd, ok := raw["cmd"].(float64); ok {
-		params.Cmd = uint64(cmd)
-	} else if cmd, ok := raw["cmd"].(int); ok {
-		params.Cmd = uint64(cmd)
+	switch v := raw["cmd"].(type) {
+	case float64:
+		params.Cmd = uint64(v)
+	case int:
+		params.Cmd = uint64(v)
+	case uint:
+		params.Cmd = uint64(v)
+	case uint64:
+		params.Cmd = v
+	default:
+		params.Cmd = 0
 	}
 
-	if cnt, ok := raw["cnt"].(float64); ok {
-		params.Cnt = uint64(cnt)
-	} else if cnt, ok := raw["cnt"].(int); ok {
-		params.Cnt = uint64(cnt)
+	switch v := raw["cnt"].(type) {
+	case float64:
+		params.Cnt = uint64(v)
+	case int:
+		params.Cnt = uint64(v)
+	case uint:
+		params.Cnt = uint64(v)
+	case uint64:
+		params.Cnt = v
+	default:
+		params.Cnt = 0
 	}
 
 	params.Targets = parseTargets(raw["targets"])
 
+	return params, nil
+}
+
+func (p *OmitAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &OmitAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
 	return params, nil
 }
 
@@ -273,9 +433,32 @@ func (p *OmitAttackParams) Validate(params interface{}) error {
 
 // RoleSpoofAttackParams handles parsing for role spoof attack parameters
 type RoleSpoofAttackParams struct {
-	Code        MessageCode
-	FakeMessage []byte
-	Targets     []common.Address
+	Code        MessageCode      `json:"code"`
+	FakeMessage []byte           `json:"fakeMessage,omitempty"`
+	Targets     []common.Address `json:"targets,omitempty"`
+}
+
+func (p *RoleSpoofAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias RoleSpoofAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	p.Targets = make([]common.Address, 0, len(aux.Targets))
+	for _, addr := range aux.Targets {
+		if common.IsHexAddress(addr) {
+			p.Targets = append(p.Targets, common.HexToAddress(addr))
+		}
+	}
+
+	return nil
 }
 
 func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -291,6 +474,14 @@ func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, 
 
 	params.Targets = parseTargets(raw["targets"])
 
+	return params, nil
+}
+
+func (p *RoleSpoofAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &RoleSpoofAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
 	return params, nil
 }
 
@@ -310,11 +501,34 @@ func (p *RoleSpoofAttackParams) Validate(params interface{}) error {
 
 // ReplayAttackParams handles parsing for replay attack parameters
 type ReplayAttackParams struct {
-	Code            MessageCode
-	OriSequence     uint64
-	OriRound        uint64
-	UseOriginalView bool
-	Targets         []common.Address
+	Code            MessageCode      `json:"code"`
+	OriSequence     uint64           `json:"ori_sequence"`
+	OriRound        uint64           `json:"ori_round"`
+	UseOriginalView bool             `json:"useOriginalView"`
+	Targets         []common.Address `json:"targets,omitempty"`
+}
+
+func (p *ReplayAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias ReplayAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	p.Targets = make([]common.Address, 0, len(aux.Targets))
+	for _, addr := range aux.Targets {
+		if common.IsHexAddress(addr) {
+			p.Targets = append(p.Targets, common.HexToAddress(addr))
+		}
+	}
+
+	return nil
 }
 
 func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -322,16 +536,30 @@ func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 
 	params.Code = ParseMessageCode(raw["code"])
 
-	if oriSeq, ok := raw["ori_sequence"].(float64); ok {
-		params.OriSequence = uint64(oriSeq)
-	} else if oriSeq, ok := raw["ori_sequence"].(int); ok {
-		params.OriSequence = uint64(oriSeq)
+	switch v := raw["ori_sequence"].(type) {
+	case float64:
+		params.OriSequence = uint64(v)
+	case int:
+		params.OriSequence = uint64(v)
+	case uint:
+		params.OriSequence = uint64(v)
+	case uint64:
+		params.OriSequence = v
+	default:
+		params.OriSequence = 0
 	}
 
-	if oriRound, ok := raw["ori_round"].(float64); ok {
-		params.OriRound = uint64(oriRound)
-	} else if oriRound, ok := raw["ori_round"].(int); ok {
-		params.OriRound = uint64(oriRound)
+	switch v := raw["ori_round"].(type) {
+	case float64:
+		params.OriRound = uint64(v)
+	case int:
+		params.OriRound = uint64(v)
+	case uint:
+		params.OriRound = uint64(v)
+	case uint64:
+		params.OriRound = v
+	default:
+		params.OriRound = 0
 	}
 
 	if useOrigView, ok := raw["useOriginalView"].(bool); ok {
@@ -340,6 +568,14 @@ func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 
 	params.Targets = parseTargets(raw["targets"])
 
+	return params, nil
+}
+
+func (p *ReplayAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &ReplayAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
 	return params, nil
 }
 

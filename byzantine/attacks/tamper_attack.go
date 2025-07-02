@@ -47,8 +47,13 @@ func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack
 func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
 
-	// Check sequence and round
-	if event.Sequence != config.Sequence || event.Round != config.Round {
+	// Check if sequence is in range
+	if !config.IsInSequenceRange(event.Sequence) {
+		return false
+	}
+	
+	// Check round (0 means any round)
+	if config.Round != 0 && event.Round != config.Round {
 		return false
 	}
 
@@ -64,11 +69,23 @@ func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event
 		return false
 	}
 
-	if messageEvent.MessageCode == config.Parameters["code"] {
-		return true
+	// Use ParsedParameters first
+	if params, ok := config.ParsedParameters.(*types.TamperAttackParams); ok {
+		return messageEvent.MessageCode == params.Code
 	}
 
-	return messageEvent.MessageCode&config.Parameters["code"].(types.MessageCode) != 0
+	// Fallback to Parameters map
+	var attackCode types.MessageCode
+	switch v := config.Parameters["code"].(type) {
+	case float64:
+		attackCode = types.MessageCode(v)
+	case int:
+		attackCode = types.MessageCode(v)
+	default:
+		return false
+	}
+
+	return messageEvent.MessageCode == attackCode
 }
 
 // Execute performs the tampered message attack

@@ -5,8 +5,10 @@
       "name": "silent_attack_1",
       "type": "silent",
       "enabled": false,
-      "sequence": 200,
+      "sequence_start": 10,
+      "sequence_end": 20,
       "round": 0,
+      "max_executions": 5,
       "parameters": {
         "code": 1,
         "direction": 3,
@@ -71,7 +73,7 @@
       "sequence": 400,
       "round": 0,
       "parameters": {
-        "code": 2,
+        "code": 1,
         "cmd": 1,
         "cnt": 0,
         "targets": []

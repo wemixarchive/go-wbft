@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -15,6 +16,7 @@ type ConsensusHookImpl struct {
 	attackManager  types.AttackManager
 	eventPublisher types.EventPublisher
 	uidGenerator   types.UIDGenerator
+	paramRegistry  *registry.ParameterParserRegistry
 
 	// Cache for attack type mapping to improve performance
 	attackTypeCache map[string][]types.AttackType
@@ -28,6 +30,7 @@ func NewConsensusHook(attackManager types.AttackManager, eventPublisher types.Ev
 		attackManager:   attackManager,
 		eventPublisher:  eventPublisher,
 		uidGenerator:    types.NewUIDGenerator(),
+		paramRegistry:   registry.NewParameterParserRegistry(),
 		attackTypeCache: make(map[string][]types.AttackType),
 	}
 }
@@ -77,7 +80,7 @@ func (h *ConsensusHookImpl) CheckAttackCondition(ctx types.ConsensusContext) boo
 }
 
 // BeforeBroadcast is called before broadcasting a message
-func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, from common.Address) bool {
+func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64) types.AttackConfig {
 	ctx := context.Background()
 
 	// Map consensus message code to Byzantine message code
@@ -86,50 +89,80 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 	// 1. check MessageCodeRoundChangePrePrepare
 	// 2. check MessageCodePropagation
 
-	// NEW: Generate UIDs for all possible attack types that could apply
+	// Get applicable attack types for this message
 	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionSend)
-	//log.Info("[byzantine] applicable attack type", "attack type", attackTypes)
 
 	// Check each attack type
 	for _, attackType := range attackTypes {
-		uid := h.uidGenerator.Generate(attackType, sequence, round)
-
-		// lookup
-		attack, exists := h.attackManager.GetAttackByUID(uid)
-		if !exists {
+		// Use new FindExecutableAttack method with message code
+		attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
+		if !found {
 			continue
 		}
 
-		// Check if attack is eligible
 		config := attack.GetConfig()
-		if !h.isAttackEligible(config) {
-			continue
-		}
 
 		// Create event for condition checking
 		event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
 
-		// Check execution condition
+		// Check attack-specific execution condition
 		if !attack.CheckExecuteCondition(ctx, event) {
+			//log.Debug("[byzantine] Attack condition not met",
+			//	"uid", config.UID,
+			//	"type", attackType,
+			//	"sequence", sequence,
+			//	"msgCode", msgCode,
+			//	"byzantineCode", byzantineCode)
 			continue
 		}
 
-		// For silent attacks, we can immediately decide to block
+		// Special handling for silent attacks
 		if attackType == types.AttackTypeSilentMessage {
-			log.Info("[byzantine] Blocking outbound message lookup",
-				"attack_uid", uid,
+			log.Debug("[byzantine]", "direction", config.Parameters["direction"])
+			if !(config.Parameters["direction"] == 1 || config.Parameters["direction"] == 3) {
+				return types.AttackConfig{}
+			}
+
+			log.Info("[byzantine] Blocking outbound message",
+				"attack_uid", config.UID,
 				"attack_type", attackType,
 				"msgCode", msgCode,
+				"byzantineCode", byzantineCode,
 				"sequence", sequence,
-				"round", round)
+				"round", round,
+				"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+				"execution_count", config.ExecutionCount+1,
+				"max_executions", config.MaxExecutions)
 
-			// Update attack status
-			h.attackManager.UpdateStatusMap(attack, types.AttackStatusExecuted)
+			// Update execution state
+			if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
+				log.Error("[byzantine] Failed to mark attack executed", "error", err)
+			}
 
 			// Publish event asynchronously for monitoring
 			//go h.publishEvent(event)
 
-			return true // Block the message
+			return config // Block the message
+		}
+
+		// Double vote attacks (tamper)
+		if attackType == types.AttackTypeTamperedMessage {
+			log.Info("[byzantine] Double vote attack triggered",
+				"attack_uid", config.UID,
+				"msgCode", msgCode,
+				"byzantineCode", byzantineCode,
+				"sequence", sequence,
+				"round", round,
+				"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+				"execution_count", config.ExecutionCount+1,
+				"max_executions", config.MaxExecutions)
+
+			// Update execution state
+			if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
+				log.Error("[byzantine] Failed to mark attack executed", "error", err)
+			}
+
+			return config
 		}
 
 		// For other attack types that might need execution
@@ -137,14 +170,21 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 			decision := h.evaluateAttack(ctx, attack, event)
 			if decision.ShouldAttack {
 				log.Info("[byzantine] Attack execution decision",
-					"attack_uid", uid,
+					"attack_uid", config.UID,
 					"attack_type", attackType,
-					"block", decision.ShouldAttack)
+					"msgCode", msgCode,
+					"byzantineCode", byzantineCode,
+					"sequence", sequence,
+					"round", round,
+					"execution_count", config.ExecutionCount+1,
+					"max_executions", config.MaxExecutions)
 
-				// Publish event asynchronously
-				//go h.publishEvent(event)
+				// Update execution state
+				if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
+					log.Error("[byzantine] Failed to mark attack executed", "error", err)
+				}
 
-				return decision.ShouldAttack
+				return config
 			}
 		}
 	}
@@ -155,11 +195,11 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64, fro
 	// Publish event asynchronously
 	//go h.publishEvent(event)
 
-	return false
+	return types.AttackConfig{}
 }
 
 // BeforeProcessMessage is called before processing a received message
-func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64, from common.Address) bool {
+func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64) types.AttackConfig {
 	ctx := context.Background()
 	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 
@@ -168,11 +208,9 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 
 	// Check each attack type with lookup
 	for _, attackType := range attackTypes {
-		uid := h.uidGenerator.Generate(attackType, sequence, round)
-
-		// lookup
-		attack, exists := h.attackManager.GetAttackByUID(uid)
-		if !exists {
+		// Use new FindExecutableAttack method with message code
+		attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
+		if !found {
 			continue
 		}
 
@@ -190,40 +228,53 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 			continue
 		}
 
-		// For silent attacks on receive
-		if attackType == types.AttackTypeSilentMessage {
+		switch attackType {
+		case types.AttackTypeSilentMessage:
+			if !(config.Parameters["direction"] == 2 || config.Parameters["direction"] == 3) {
+				return types.AttackConfig{}
+			}
 			log.Info("[byzantine] Blocking inbound message",
-				"attack_uid", uid,
+				"attack_uid", config.UID,
 				"attack_type", attackType,
 				"msgCode", msgCode,
 				"sequence", sequence,
-				"round", round,
-				"from", from)
+				"round", round)
 
-			// Update attack status
-			h.attackManager.UpdateStatusMap(attack, types.AttackStatusExecuted)
+			// Mark attack as executed
+			h.attackManager.MarkAttackExecuted(config.UID,
+				sequence)
 
 			// Publish event asynchronously
 			//go h.publishEvent(event)
 
-			return false // Block the message (return false for receive)
+			return config // Block inbound message
+		case types.AttackTypeOmitMessage:
+		case types.AttackTypeTamperedMessage:
+		case types.AttackTypeFakeMessage:
+		case types.AttackTypeRoleSpoofed:
+		case types.AttackTypeReplay:
+		default:
+			log.Error("[byzantine] unknown attack type", "attackType", attackType)
+			return types.AttackConfig{}
 		}
 
 		// Evaluate other attack types
-		if h.shouldExecuteAttack(attackType, types.DirectionReceive) {
-			decision := h.evaluateAttack(ctx, attack, event)
-			if decision.ShouldAttack {
-				log.Info("[byzantine] Blocking inbound message",
-					"attack_uid", uid,
-					"attack_type", attackType,
-					"reason", decision.Reason)
-
-				// Publish event asynchronously
-				//go h.publishEvent(event)
-
-				return false // Block inbound message
-			}
-		}
+		//if h.shouldExecuteAttack(attackType, types.DirectionReceive) {
+		//	decision := h.evaluateAttack(ctx, attack, event)
+		//	if decision.ShouldAttack {
+		//		log.Info("[byzantine] Blocking inbound message",
+		//			"attack_uid", config.UID,
+		//			"attack_type", attackType,
+		//			"reason", decision.Reason)
+		//
+		//		h.attackManager.MarkAttackExecuted(config.UID, sequence)
+		//
+		//		// Publish event asynchronously
+		//		//go h.publishEvent(event)
+		//
+		//		return config
+		//	}
+		//}
 	}
 
 	// Create event for monitoring
@@ -232,56 +283,41 @@ func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64
 	// Publish event asynchronously
 	//go h.publishEvent(event)
 
-	return true // Allow processing
+	return types.AttackConfig{}
 }
 
 // DoubleVote is called before broadcasting a message
 func (h *ConsensusHookImpl) DoubleVote(attackType types.AttackType, msgCode, sequence, round uint64) types.AttackConfig {
 	ctx := context.Background()
-	//byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
+	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 
-	// Direct lookup for tamper attack
-	uid := h.uidGenerator.Generate(attackType, sequence, round)
-
-	attack, exists := h.attackManager.GetAttackByUID(uid)
-	if exists {
+	// Use new FindExecutableAttack method with message code
+	attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
+	if found {
 		config := attack.GetConfig()
-		if h.isAttackEligible(config) {
-			// Create event
-			event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
+		event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
 
-			// Check execution condition
-			if attack.CheckExecuteCondition(ctx, event) {
-				log.Info("[byzantine] Double vote attack triggered",
-					"attack_uid", uid,
-					"msgCode", msgCode,
-					"code", config.Parameters["code"],
-					"sequence", sequence,
-					"round", round)
+		if attack.CheckExecuteCondition(ctx, event) {
+			log.Info("[byzantine] Double vote attack triggered",
+				"attack_uid", config.UID,
+				"msgCode", msgCode,
+				"byzantineCode", byzantineCode,
+				"sequence", sequence,
+				"round", round,
+				"execution_count", config.ExecutionCount+1,
+				"max_executions", config.MaxExecutions)
 
-				// Update attack status
-				h.attackManager.UpdateStatusMap(attack, types.AttackStatusExecuted)
-
-				// Publish event asynchronously
-				//go h.publishEvent(event)
-
-				return config
+			// Update execution state
+			if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
+				log.Error("[byzantine] Failed to mark attack executed", "error", err)
 			}
+
+			// Publish event asynchronously
+			//go h.publishEvent(event)
+
+			return config
 		}
 	}
-
-	// Fallback to general evaluation if needed
-	event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
-	decision, err := h.attackManager.EvaluateAndExecuteAttacks(ctx, event)
-	if err != nil {
-		log.Error("Failed to evaluate attacks for double vote", "error", err)
-		return types.AttackConfig{}
-	}
-
-	if decision.ShouldAttack && decision.AttackType == types.AttackTypeTamperedMessage {
-		return types.AttackConfig{}
-	}
-
 	return types.AttackConfig{}
 }
 
@@ -461,6 +497,46 @@ func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode
 	return false
 }
 
+// ShouldExecuteAttack API for consensus to check if attack should be executed
+func (h *ConsensusHookImpl) ShouldExecuteAttack(attackType types.AttackType, msgCode, sequence, round uint64) (*types.AttackConfig, bool) {
+	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
+
+	attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
+	if !found {
+		return nil, false
+	}
+
+	config := attack.GetConfig()
+	return &config, true
+}
+
+// GetAttackConfig implements new interface method
+func (h *ConsensusHookImpl) GetAttackConfig(attackType types.AttackType, sequence, round uint64) (*types.AttackConfig, error) {
+	attack, found := h.attackManager.FindAttackForExecution(attackType, sequence, round)
+	if !found {
+		return nil, fmt.Errorf("no executable attack found for type %s at seq %d round %d", attackType, sequence, round)
+	}
+
+	config := attack.GetConfig()
+
+	if config.ParsedParameters == nil && h.paramRegistry != nil {
+		parser, exists := h.paramRegistry.GetParser(config.Type)
+		if exists {
+			parsed, _ := parser.Parse(config.Parameters)
+			config.ParsedParameters = parsed
+		}
+	}
+
+	configCopy := config
+	return &configCopy, nil
+}
+
+// MarkAttackExecuted implements new interface method
+func (h *ConsensusHookImpl) MarkAttackExecuted(uid string,
+	sequence uint64) error {
+	return h.attackManager.MarkAttackExecuted(uid, sequence)
+}
+
 // Helper methods
 
 // mapConsensusCodeToByzantine maps consensus message code to Byzantine message code
@@ -588,7 +664,7 @@ func (h *ConsensusHookImpl) evaluateAttack(ctx context.Context, attack types.Att
 func (h *ConsensusHookImpl) generateWildcardPatterns(ctx types.ConsensusContext) []string {
 	// For now, we'll generate basic wildcard patterns
 	// This can be extended based on requirements
-	typeStr := types.AttachTypeToString(ctx.MessageType)
+	typeStr := types.AttackTypeToString(ctx.MessageType)
 	return []string{
 		// Any round for same sequence
 		typeStr + "-" + string(ctx.MessageCode) + "-" + string(ctx.Sequence) + "-*",
@@ -638,4 +714,119 @@ func (h *ConsensusHookImpl) publishEvent(event types.Event) {
 			log.Error("[byzantine] Failed to process event asynchronously", "error", err)
 		}
 	}
+}
+
+func (h *ConsensusHookImpl) isAttackApplicable(config types.AttackConfig, msgCode types.MessageCode) bool {
+	// Check if attack has code parameter
+	if codeParam, ok := config.Parameters["code"]; ok {
+		// Safe type conversion for code parameter
+		var attackCode types.MessageCode
+		switch v := codeParam.(type) {
+		case float64:
+			attackCode = types.MessageCode(v)
+		case int:
+			attackCode = types.MessageCode(v)
+		case types.MessageCode:
+			attackCode = v
+		default:
+			return false
+		}
+
+		// Check if code matches
+		if attackCode != msgCode {
+			return false
+		}
+	}
+
+	return true
+}
+
+// BeforeBlockCommit is called before committing a block
+// Allows modification of seals for omit attack
+func (h *ConsensusHookImpl) BeforeBlockCommit(block interface{}, preparedSeals, committedSeals []interface{}) ([]interface{}, []interface{}, error) {
+	// Extract block number from interface
+	var blockNumber uint64
+	var round uint64
+
+	// Type assertion for block
+	if proposal, ok := block.(interface{ Number() *big.Int }); ok {
+		blockNumber = proposal.Number().Uint64()
+	}
+
+	// Try to find omit attack for propagation
+	// Note: Using MessageCodePropagation (32) for block propagation/commit phase
+	attack, found := h.attackManager.FindExecutableAttack(
+		types.AttackTypeOmitMessage,
+		blockNumber,
+		round,
+		types.MessageCodePropagation, // 32
+	)
+
+	if !found {
+		// No omit attack, return original seals
+		return preparedSeals, committedSeals, nil
+	}
+
+	config := attack.GetConfig()
+
+	// Log attack detection
+	log.Info("[byzantine] Detected omit attack for block commit",
+		"attack_uid", config.UID,
+		"block_number", blockNumber,
+		"prepared_seals", len(preparedSeals),
+		"committed_seals", len(committedSeals))
+
+	// Check if this is an omit attack for propagation
+	if config.ParsedParameters != nil {
+		params, ok := config.ParsedParameters.(*types.OmitAttackParams)
+		if !ok {
+			return preparedSeals, committedSeals, nil
+		}
+
+		originalPreparedCount := len(preparedSeals)
+		originalCommittedCount := len(committedSeals)
+
+		// Apply omit based on cmd
+		switch params.Cmd {
+		case 1: // Omit prepare seals
+			preparedSeals = h.omitSeals(preparedSeals, params.Cnt)
+			log.Info("[byzantine] Omitted prepare seals before block commit",
+				"attack_uid", config.UID,
+				"original_count", originalPreparedCount,
+				"remaining_count", len(preparedSeals),
+				"cnt", params.Cnt)
+		case 2: // Omit commit seals
+			committedSeals = h.omitSeals(committedSeals, params.Cnt)
+			log.Info("[byzantine] Omitted commit seals before block commit",
+				"attack_uid", config.UID,
+				"original_count", originalCommittedCount,
+				"remaining_count", len(committedSeals),
+				"cnt", params.Cnt)
+		}
+
+		// Mark attack as executed
+		h.attackManager.MarkAttackExecuted(config.UID, blockNumber)
+	}
+
+	return preparedSeals, committedSeals, nil
+}
+
+// Helper function to omit seals
+func (h *ConsensusHookImpl) omitSeals(seals []interface{}, cnt uint64) []interface{} {
+	if len(seals) == 0 {
+		return seals
+	}
+
+	if cnt == 0 {
+		// Omit all
+		return []interface{}{}
+	}
+
+	if int(cnt) >= len(seals) {
+		// Omit all if count exceeds available seals
+		return []interface{}{}
+	}
+
+	// Return seals with first 'cnt' items omitted
+	return seals[cnt:]
 }

@@ -1,0 +1,69 @@
+{
+  "enabled": true,
+  "description": "여러 omit attack을 조합한 복합 공격 시나리오",
+  "attacks": [
+    {
+      "name": "phase1_omit_prepare",
+      "type": "omitMessage",
+      "sequence_start": 100,
+      "sequence_end": 105,
+      "round": 0,
+      "code": 1,
+      "enabled": true,
+      "max_executions": 5,
+      "parameters": {
+        "code": 1,
+        "cmd": 1,
+        "cnt": 2,
+        "targets": []
+      }
+    },
+    {
+      "name": "phase2_omit_commit",
+      "type": "omitMessage",
+      "sequence_start": 106,
+      "sequence_end": 110,
+      "round": 0,
+      "code": 1,
+      "enabled": true,
+      "max_executions": 4,
+      "parameters": {
+        "code": 1,
+        "cmd": 2,
+        "cnt": 3,
+        "targets": []
+      }
+    },
+    {
+      "name": "phase3_omit_propagation",
+      "type": "omitMessage",
+      "sequence_start": 111,
+      "sequence_end": 115,
+      "round": 0,
+      "code": 32,
+      "enabled": true,
+      "max_executions": 3,
+      "parameters": {
+        "code": 32,
+        "cmd": 2,
+        "cnt": 0,
+        "targets": []
+      }
+    },
+    {
+      "name": "combined_with_silent",
+      "type": "silentMessage",
+      "sequence_start": 100,
+      "sequence_end": 115,
+      "round": 0,
+      "code": 2,
+      "enabled": true,
+      "max_executions": 10,
+      "parameters": {
+        "code": 2,
+        "direction": 1,
+        "targets": []
+      }
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/byzantine/types"
@@ -65,6 +66,29 @@ func (b *BaseAttack) SetStatus(status types.AttackStatus) {
 	defer b.mu.Unlock()
 	b.status = status
 	b.config.Status = status
+}
+
+// UpdateParameters updates attack parameters
+func (b *BaseAttack) UpdateParameters(params map[string]interface{}) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	
+	if params == nil {
+		return errors.New("parameters cannot be nil")
+	}
+	
+	b.config.Parameters = params
+	// ParsedParameters should be handled by specific attack implementations
+	
+	return nil
+}
+
+// CanExecute checks if attack can be executed at given sequence
+func (b *BaseAttack) CanExecute(sequence uint64) bool {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	
+	return b.config.IsInSequenceRange(sequence) && b.config.CanExecute()
 }
 
 // ParseTargets parses target addresses from config
