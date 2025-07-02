@@ -187,36 +187,36 @@ func (sb *Backend) Broadcast(valSet wbft.ValidatorSet, code uint64, payload []by
 	// 1. Byzantine module이 SilentAttack이 셋업되어있는지, direction이 1혹은 3이고, 현재 Attack을 수행할 상태인지 체크
 	// 2. 1번 조건이 충족하면, 메시지를 전송하지 않도록 스킵
 	// Check with Byzantine module before broadcasting
-	if sb.byzantineHook != nil {
-		sequence, round, err := extractViewFromPayload(code, payload)
-		if err != nil {
-			sb.logger.Error("Failed to extract view from message", "err", err)
-			sequence, round = 0, 0
-		}
-
-		config := sb.byzantineHook.BeforeBroadcast(code, sequence, round)
-
-		// Check if a valid attack config was returned
-		if config.UID != "" {
-			// Log attack execution with consistent format
-			sb.logger.Debug("[byzantine] BFT: Checking attack config",
-				"attack_uid", config.UID,
-				"attack_type", config.Type,
-				"code", code,
-				"sequence", sequence,
-				"round", round)
-
-			// Silent attack should block the message
-			if config.Type == "silent" {
-				sb.logger.Info("[byzantine] Silent attack executed: blocking message",
-					"attack_uid", config.UID,
-					"code", code,
-					"sequence", sequence,
-					"round", round)
-				return nil // Silent drop
-			}
-		}
-	}
+	//if sb.byzantineHook != nil {
+	//	sequence, round, err := extractViewFromPayload(code, payload)
+	//	if err != nil {
+	//		sb.logger.Error("Failed to extract view from message", "err", err)
+	//		sequence, round = 0, 0
+	//	}
+	//
+	//	config := sb.byzantineHook.BeforeBroadcast(code, sequence, round)
+	//
+	//	// Check if a valid attack config was returned
+	//	if config.UID != "" {
+	//		// Log attack execution with consistent format
+	//		sb.logger.Debug("[byzantine] BFT: Checking attack config",
+	//			"attack_uid", config.UID,
+	//			"attack_type", config.Type,
+	//			"code", code,
+	//			"sequence", sequence,
+	//			"round", round)
+	//
+	//		// Silent attack should block the message
+	//		if config.Type == "silent" {
+	//			sb.logger.Info("[byzantine] Silent attack executed: blocking message",
+	//				"attack_uid", config.UID,
+	//				"code", code,
+	//				"sequence", sequence,
+	//				"round", round)
+	//			return nil // Silent drop
+	//		}
+	//	}
+	//}
 
 	// <Double Vote>
 	// 1. Byzantine module이 DoubleVote Attack이 셋업되어있는지, Attack 조건이 충족되는지 체크
