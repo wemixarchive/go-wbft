@@ -58,7 +58,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		preprepare.SetSource(c.Address())
 
 		if hook := c.backend.ByzantineHook(); hook != nil {
-			attacks := hook.GetExecutableAttacks(preprepare.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64())
+			attacks := hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
 			if len(attacks) != 0 {
 				if c.sendByzantinePreprepareMsg(request, attacks) {
 					if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {

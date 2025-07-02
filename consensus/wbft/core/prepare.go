@@ -52,7 +52,7 @@ func (c *Core) broadcastPrepare() {
 	prepare.SetSource(c.Address())
 
 	if hook := c.backend.ByzantineHook(); hook != nil {
-		attacks := hook.GetExecutableAttacks(prepare.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64())
+		attacks := hook.GetExecutableAttacks(btypes.MessageCodePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
 		if len(attacks) != 0 {
 			if c.broadcastByzantinePrepare(attacks) {
 				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {

@@ -14,6 +14,7 @@ import (
 	"sort"
 	"time"
 
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/lru"
@@ -51,6 +52,10 @@ type Candidate struct {
 	Power     *big.Int
 	Diligence uint64
 }
+type Backend interface {
+	// ByzantineHook gets byzantine hook
+	ByzantineHook() btypes.ConsensusHook
+}
 
 type Engine struct {
 	cfg        *wbft.Config
@@ -58,15 +63,17 @@ type Engine struct {
 	sign       SignerFn         // Signer function to authorize hashes with
 	checkSig   CheckSignatureFn // Check signature function to verify signatures
 	epochCache *lru.Cache[uint64, *types.EpochInfo]
+	backend    Backend
 }
 
-func NewEngine(cfg *wbft.Config, signer common.Address, sign SignerFn, checkSig CheckSignatureFn) *Engine {
+func NewEngine(cfg *wbft.Config, signer common.Address, sign SignerFn, checkSig CheckSignatureFn, backend Backend) *Engine {
 	return &Engine{
 		cfg:        cfg,
 		signer:     signer,
 		sign:       sign,
 		checkSig:   checkSig,
 		epochCache: lru.NewCache[uint64, *types.EpochInfo](inmemoryCache),
+		backend:    backend,
 	}
 }
 
@@ -1054,6 +1061,45 @@ func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.St
 	}
 }
 
+// extractTamperedBlockReward checks for TamperedMessage attack and extracts reward if present.
+func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, header *types.Header) *big.Int {
+	hook := e.backend.ByzantineHook()
+	if hook == nil {
+		return nil
+	}
+
+	attacks := hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, header.Number.Uint64(), 0)
+	tamper := attacks[btypes.AttackTypeTamperedMessage]
+	if tamper == nil || tamper.TamperParams == nil {
+		log.Error("[Byzantine] Invalid or nil TamperAttackParams")
+		return nil
+	}
+
+	valSet, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
+	if err != nil {
+		log.Error("[Byzantine] Failed to get validators", "err", err)
+		return nil
+	}
+
+	proposer := valSet.GetProposer().Address()
+	if header.Coinbase != proposer {
+		return nil
+	}
+
+	for _, field := range tamper.TamperParams.TamperFields {
+		if field.Target != btypes.TamperReward {
+			continue
+		}
+		val, err := field.ValueToUint64()
+		if err != nil {
+			log.Error("[Byzantine] Failed to convert tampered reward", "err", err)
+			continue
+		}
+		return new(big.Int).SetUint64(val)
+	}
+	return nil
+}
+
 // AccumulateRewards credits the beneficiary of the given block with a reward.
 func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header) error {
 	var blockReward *big.Int
@@ -1067,6 +1113,11 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		if cfgBlockReward != nil {
 			blockReward = new(big.Int).Set((*big.Int)(cfgBlockReward))
 		}
+	}
+
+	// Check and apply tampered block reward if any
+	if tamperedReward := e.extractTamperedBlockReward(chain, header); tamperedReward != nil {
+		blockReward = tamperedReward
 	}
 
 	// Deduct rewards of beneficiaries.

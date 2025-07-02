@@ -268,7 +268,7 @@ type ConsensusHook interface {
 	// parsed parameters (e.g. TamperAttackParams, FakeAttackParams).
 	// Only attacks that are enabled, match the given message code, and
 	// satisfy runtime execution conditions will be included.
-	GetExecutableAttacks(msgCode, sequence, round uint64) map[AttackType]*ExecutableAttack
+	GetExecutableAttacks(msgCode MessageCode, sequence, round uint64) map[AttackType]*ExecutableAttack
 	ShouldExecuteAttack(attackType AttackType, msgCode, sequence, round uint64) (*AttackConfig, bool)
 	GetAttackConfig(attackType AttackType, sequence, round uint64) (*AttackConfig, error)
 	MarkAttackExecuted(uid string, sequence uint64) error
