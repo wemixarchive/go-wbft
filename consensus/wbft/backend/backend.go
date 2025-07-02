@@ -85,7 +85,7 @@ func New(config *wbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) *
 		knownMessages:    knownMessages,
 	}
 
-	sb.wbftEngine = wbftengine.NewEngine(sb.config, sb.address, sb.Sign, sb.CheckSignature)
+	sb.wbftEngine = wbftengine.NewEngine(sb.config, sb.address, sb.Sign, sb.CheckSignature, sb)
 	return sb
 }
 
@@ -195,17 +195,17 @@ func (sb *Backend) Broadcast(valSet wbft.ValidatorSet, code uint64, payload []by
 		}
 
 		config := sb.byzantineHook.BeforeBroadcast(code, sequence, round)
-		
+
 		// Check if a valid attack config was returned
 		if config.UID != "" {
 			// Log attack execution with consistent format
 			sb.logger.Debug("[byzantine] BFT: Checking attack config",
 				"attack_uid", config.UID,
 				"attack_type", config.Type,
-				"code", code, 
-				"sequence", sequence, 
+				"code", code,
+				"sequence", sequence,
 				"round", round)
-			
+
 			// Silent attack should block the message
 			if config.Type == "silent" {
 				sb.logger.Info("[byzantine] Silent attack executed: blocking message",

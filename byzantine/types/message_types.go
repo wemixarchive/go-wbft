@@ -149,6 +149,7 @@ const (
 	TamperProposalHeaderNonce       TamperTarget = "Proposal.Header.Nonce"
 
 	TamperDigest TamperTarget = "Digest"
+	TamperReward TamperTarget = "Reward"
 
 	// Transaction targets
 	TamperTransactionSign    TamperTarget = "Transaction.Sign"

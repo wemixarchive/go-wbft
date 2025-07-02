@@ -274,7 +274,7 @@ func (h *ConsensusHookImpl) DoubleVote(attackType types.AttackType, msgCode, seq
 // GetExecutableAttacks iterates over every defined AttackType and returns
 // a map keyed by AttackType containing attacks that are both eligible
 // and ready to run for the given <msgCode, sequence, round>.
-func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode, sequence, round uint64) map[types.AttackType]*types.ExecutableAttack {
+func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequence, round uint64) map[types.AttackType]*types.ExecutableAttack {
 	ctx := context.Background()
 	result := make(map[types.AttackType]*types.ExecutableAttack)
 
@@ -315,7 +315,7 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode, sequence, round uint64
 		}
 
 		// Create event
-		evt := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
+		evt := h.createEvent(types.EventTypeMessageSent, types.MessageCodeToQBFT[msgCode], sequence, round, types.DirectionSend)
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, evt) {
 			delete(result, at)
@@ -418,31 +418,24 @@ func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types
 
 // IsMessageCodeMatched checks if the internal message code of the given ExecutableAttack
 // matches the expected msgCode for the specified attack type.
-func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode uint64, attacks *types.ExecutableAttack) bool {
+func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode types.MessageCode, attacks *types.ExecutableAttack) bool {
 	switch cfg.Type {
 	case types.AttackTypeSilentMessage:
-		return attacks.SilentParams != nil &&
-			types.MessageCodeToQBFT[attacks.SilentParams.Code] == msgCode
+		return attacks.SilentParams != nil && attacks.SilentParams.Code == msgCode
 
 	case types.AttackTypeTamperedMessage:
-		return attacks.TamperParams != nil &&
-			types.MessageCodeToQBFT[attacks.TamperParams.Code] == msgCode
+		return attacks.TamperParams != nil && attacks.TamperParams.Code == msgCode
 
 	case types.AttackTypeFakeMessage:
-		return attacks.FakeParams != nil &&
-			types.MessageCodeToQBFT[attacks.FakeParams.Code] == msgCode
-
+		return attacks.FakeParams != nil && attacks.FakeParams.Code == msgCode
 	case types.AttackTypeOmitMessage:
-		return attacks.OmitParams != nil &&
-			types.MessageCodeToQBFT[attacks.OmitParams.Code] == msgCode
+		return attacks.OmitParams != nil && attacks.OmitParams.Code == msgCode
 
 	case types.AttackTypeRoleSpoofed:
-		return attacks.RoleSpoofParams != nil &&
-			types.MessageCodeToQBFT[attacks.RoleSpoofParams.Code] == msgCode
+		return attacks.RoleSpoofParams != nil && attacks.RoleSpoofParams.Code == msgCode
 
 	case types.AttackTypeReplay:
-		return attacks.ReplayParams != nil &&
-			types.MessageCodeToQBFT[attacks.ReplayParams.Code] == msgCode
+		return attacks.ReplayParams != nil && attacks.ReplayParams.Code == msgCode
 	}
 	return false
 }
@@ -626,7 +619,7 @@ func (h *ConsensusHookImpl) generateWildcardPatterns(ctx types.ConsensusContext)
 }
 
 // createEvent creates an event from consensus data
-func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode uint64,
+func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode,
 	sequence, round uint64, direction string) types.Event {
 
 	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
@@ -640,9 +633,9 @@ func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode uint6
 			MessageCode: byzantineCode,
 		},
 		Metadata: map[string]interface{}{
-			"hook":           "ConsensusHook",
-			"direction":      direction,
-			"consensus_code": msgCode,
+			"hook":      "ConsensusHook",
+			"direction": direction,
+			"msg_code":  msgCode,
 		},
 	}
 }

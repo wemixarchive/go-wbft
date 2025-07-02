@@ -54,7 +54,7 @@ func (c *Core) broadcastCommit() {
 	commit.SetSource(c.Address())
 
 	if hook := c.backend.ByzantineHook(); hook != nil {
-		attacks := hook.GetExecutableAttacks(commit.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64())
+		attacks := hook.GetExecutableAttacks(btypes.MessageCodeCommit, c.current.Sequence().Uint64(), c.current.Round().Uint64())
 		if len(attacks) != 0 {
 			if c.broadcastByzantineCommit(attacks) {
 				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
