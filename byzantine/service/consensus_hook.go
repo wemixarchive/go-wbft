@@ -37,50 +37,6 @@ func NewConsensusHook(attackManager types.AttackManager, eventPublisher types.Ev
 	}
 }
 
-// CheckAttackCondition checks if the attack condition is met
-func (h *ConsensusHookImpl) CheckAttackCondition(ctx types.ConsensusContext) bool {
-	// generate uid
-	uid := h.uidGenerator.Generate(
-		ctx.MessageType,
-		ctx.Sequence,
-		ctx.Round,
-	)
-
-	log.Debug("[byzantine] Checking attack condition with UID", "uid", uid)
-
-	if attack, exists := h.attackManager.GetAttackByUID(uid); exists {
-		config := attack.GetConfig()
-
-		// Check if attack is eligible
-		if h.isAttackEligible(config) {
-			log.Info("[byzantine] Attack condition met",
-				"uid", uid,
-				"name", config.Name,
-				"type", config.Type,
-				"status", config.Status)
-			return true
-		}
-	}
-
-	// If no exact match, check for wildcard patterns
-	// This is still optimized as we only check relevant patterns
-	patterns := h.generateWildcardPatterns(ctx)
-	for _, pattern := range patterns {
-		if attack, exists := h.attackManager.GetAttackByUID(pattern); exists {
-			config := attack.GetConfig()
-			if h.isAttackEligible(config) {
-				log.Info("[Byzantine] Wildcard attack condition met",
-					"pattern", pattern,
-					"name", config.Name,
-					"type", config.Type)
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
 // GetExecutableAttacks iterates over every defined AttackType and returns
 // a map keyed by AttackType containing attacks that are both eligible
 // and ready to run for the given <msgCode, sequence, round>.
@@ -124,7 +80,7 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		}
 
 		// Create event
-		evt := h.createEvent(types.EventTypeMessageSent, types.MessageCodeToQBFT[msgCode], sequence, round, types.DirectionSend)
+		evt := h.createEvent(types.EventTypeMessageSent, types.MessageCodeToWBFT[msgCode], sequence, round, types.DirectionSend)
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, evt) {
 			log.Trace("[byzantine] attack skipped: execution condition not met", "attackType", at)

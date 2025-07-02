@@ -247,9 +247,6 @@ type UIDGenerator interface {
 
 // ConsensusHook represents consensus hook
 type ConsensusHook interface {
-	// CheckAttackCondition checks if any attack condition is met
-	CheckAttackCondition(ctx ConsensusContext) bool
-
 	// GetExecutableAttacks returns a map keyed by AttackType,
 	// where each value contains the full attack configuration and its
 	// parsed parameters (e.g. TamperAttackParams, FakeAttackParams).
@@ -270,6 +267,7 @@ type AttackParamsParser interface {
 	Parse(raw map[string]interface{}) (interface{}, error)
 	ParseJSON(data []byte) (interface{}, error)
 	Validate(params interface{}) error
+	HasMessageCode(code MessageCode) bool
 }
 
 type AttackExecutionContext struct {

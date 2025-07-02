@@ -14,10 +14,10 @@ const (
 
 // QBFTMessage codes mapping
 const (
-	QBFTPrePrepareCode  = wbftmessage.PreprepareCode  // 0x12
-	QBFTPrepareCode     = wbftmessage.PrepareCode     // 0x13
-	QBFTCommitCode      = wbftmessage.CommitCode      // 0x14
-	QBFTRoundChangeCode = wbftmessage.RoundChangeCode // 0x15
+	WBFTPrePrepareCode  = wbftmessage.PreprepareCode  // 0x12
+	WBFTPrepareCode     = wbftmessage.PrepareCode     // 0x13
+	WBFTCommitCode      = wbftmessage.CommitCode      // 0x14
+	WBFTRoundChangeCode = wbftmessage.RoundChangeCode // 0x15
 )
 
 // Node roles

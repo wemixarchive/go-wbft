@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,8 +11,33 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// MessageDirection represents message direction
+type MessageDirection uint64
+
+const (
+	MessageDirectionSend    MessageDirection = 1
+	MessageDirectionReceive MessageDirection = 2
+	MessageDirectionBoth    MessageDirection = 3
+)
+
 // MessageCode represents WBFT message types
 type MessageCode uint64
+
+const (
+	MessageCodePrePrepare  MessageCode = 1 << iota // 1
+	MessageCodePrepare                             // 2
+	MessageCodeCommit                              // 4
+	MessageCodeRoundChange                         // 8
+	MessageCodePropagation                         // 16
+)
+
+// MessageCodeToWBFT Byzantine message code to WBFT code mapping
+var MessageCodeToWBFT = map[MessageCode]uint64{
+	MessageCodePrePrepare:  WBFTPrePrepareCode,
+	MessageCodePrepare:     WBFTPrepareCode,
+	MessageCodeCommit:      WBFTCommitCode,
+	MessageCodeRoundChange: WBFTRoundChangeCode,
+}
 
 func (mc *MessageCode) UnmarshalJSON(data []byte) error {
 	var val interface{}
@@ -33,25 +59,41 @@ func (mc *MessageCode) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// NOTE:
-// RoundChangePrePrepare is a message code that does not exist in WBFT
-// and means a PrePrepare msg that is sent when the Proposer gathers more
-// than the Quorum Size of RoundChange.
-const (
-	MessageCodePrePrepare  MessageCode = 1 << iota // 1
-	MessageCodePrepare                             // 2
-	MessageCodeCommit                              // 4
-	MessageCodeRoundChange                         // 8
-	MessageCodePropagation                         // 16
-)
+func (mc *MessageCode) Has(flag MessageCode) bool {
+	return (*mc & flag) != 0
+}
 
-// MessageCodeToQBFT Byzantine message code to QBFT code mapping
-var MessageCodeToQBFT = map[MessageCode]uint64{
-	MessageCodePrePrepare:  QBFTPrePrepareCode,
-	MessageCodePrepare:     QBFTPrepareCode,
-	MessageCodeCommit:      QBFTCommitCode,
-	MessageCodeRoundChange: QBFTRoundChangeCode,
-	//MessageCodeRoundChangePrePrepare: QBFTPrePrepareCode, // Special case
+func (mc *MessageCode) Add(flag MessageCode) MessageCode {
+	return *mc | flag
+}
+
+func (mc *MessageCode) Remove(flag MessageCode) MessageCode {
+	return *mc & ^flag
+}
+
+func (mc *MessageCode) String() string {
+	if *mc == 0 {
+		return "none"
+	}
+
+	var codes []string
+	if mc.Has(MessageCodePrePrepare) {
+		codes = append(codes, "PrePrepare")
+	}
+	if mc.Has(MessageCodePrepare) {
+		codes = append(codes, "Prepare")
+	}
+	if mc.Has(MessageCodeCommit) {
+		codes = append(codes, "Commit")
+	}
+	if mc.Has(MessageCodeRoundChange) {
+		codes = append(codes, "RoundChange")
+	}
+	if mc.Has(MessageCodePropagation) {
+		codes = append(codes, "Propagation")
+	}
+
+	return strings.Join(codes, "|")
 }
 
 // ParseMessageCode parses various formats of message code
@@ -74,6 +116,9 @@ func ParseMessageCode(val interface{}) MessageCode {
 
 // ParseStringToMessageCode converts string to MessageCode
 func ParseStringToMessageCode(code string) MessageCode {
+	if num, err := strconv.ParseUint(code, 10, 64); err == nil {
+		return MessageCode(num)
+	}
 	v := strings.ToLower(code)
 	switch v {
 	case "PrePrepare":
@@ -87,27 +132,23 @@ func ParseStringToMessageCode(code string) MessageCode {
 	case "Propagation":
 		return MessageCodePropagation
 	default:
+		if strings.Contains(v, "|") {
+			var result MessageCode
+			parts := strings.Split(v, "|")
+			for _, part := range parts {
+				result = result.Add(ParseStringToMessageCode(strings.TrimSpace(part)))
+			}
+			return result
+		}
 		return 0
 	}
 }
 
 func ValidateMessageCode(code MessageCode) bool {
-	switch code {
-	case MessageCodePrePrepare, MessageCodePrepare, MessageCodeCommit, MessageCodeRoundChange, MessageCodePropagation:
-		return true
-	default:
-		return false
-	}
+	validMask := MessageCodePrePrepare | MessageCodePrepare | MessageCodeCommit |
+		MessageCodeRoundChange | MessageCodePropagation
+	return code != 0 && (code & ^validMask) == 0
 }
-
-// MessageDirection represents message direction
-type MessageDirection uint64
-
-const (
-	MessageDirectionSend    MessageDirection = 1
-	MessageDirectionReceive MessageDirection = 2
-	MessageDirectionBoth    MessageDirection = 3
-)
 
 // QBFTMessage represents a QBFT consensus message
 type QBFTMessage struct {
