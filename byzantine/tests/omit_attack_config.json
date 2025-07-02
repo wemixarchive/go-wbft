@@ -4,12 +4,10 @@
     {
       "name": "omit_prev_prepare_seals",
       "type": "omitMessage",
+      "enabled": true,
       "sequence_start": 10,
       "sequence_end": 15,
       "round": 0,
-      "code": 1,
-      "enabled": true,
-      "max_executions": 5,
       "parameters": {
         "code": 1,
         "cmd": 1,
@@ -20,12 +18,10 @@
     {
       "name": "omit_prev_commit_seals",
       "type": "omitMessage",
+      "enabled": true,
       "sequence_start": 20,
       "sequence_end": 25,
       "round": 0,
-      "code": 1,
-      "enabled": true,
-      "max_executions": 3,
       "parameters": {
         "code": 1,
         "cmd": 2,
@@ -36,14 +32,12 @@
     {
       "name": "omit_current_prepare_seals_propagation",
       "type": "omitMessage",
+      "enabled": true,
       "sequence_start": 30,
       "sequence_end": 35,
       "round": 0,
-      "code": 32,
-      "enabled": true,
-      "max_executions": 4,
       "parameters": {
-        "code": 32,
+        "code": 16,
         "cmd": 1,
         "cnt": 3,
         "targets": []
@@ -52,14 +46,12 @@
     {
       "name": "omit_current_commit_seals_propagation",
       "type": "omitMessage",
+      "enabled": true,
       "sequence_start": 40,
       "sequence_end": 45,
       "round": 0,
-      "code": 32,
-      "enabled": true,
-      "max_executions": 2,
       "parameters": {
-        "code": 32,
+        "code": 16,
         "cmd": 2,
         "cnt": 1,
         "targets": [
@@ -71,12 +63,10 @@
     {
       "name": "omit_roundchange_justification",
       "type": "omitMessage",
+      "enabled": true,
       "sequence_start": 50,
       "sequence_end": 55,
       "round": 1,
-      "code": 16,
-      "enabled": true,
-      "max_executions": 2,
       "parameters": {
         "code": 16,
         "cmd": 1,
@@ -87,12 +77,10 @@
     {
       "name": "omit_prepare_justification",
       "type": "omitMessage",
+      "enabled": true,
       "sequence_start": 60,
       "sequence_end": 65,
       "round": 2,
-      "code": 16,
-      "enabled": true,
-      "max_executions": 3,
       "parameters": {
         "code": 16,
         "cmd": 2,

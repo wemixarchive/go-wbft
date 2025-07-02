@@ -3,73 +3,78 @@
   "attacks": [
     {
       "name": "OmitPrevSeals_InheritExtra",
+      "description": "Omits 2 previous prepare seals when creating new block (InheritExtra phase)",
       "type": "omit",
       "enabled": true,
-      "sequence": 100,
+      "sequence_start": 100,
+      "sequence_end": 100,
       "round": 0,
       "parameters": {
         "code": 1,
         "cmd": 1,
         "cnt": 2,
         "targets": []
-      },
-      "description": "Omits 2 previous prepare seals when creating new block (InheritExtra phase)"
+      }
     },
     {
       "name": "OmitPrevCommitSeals_InheritExtra",
+      "description": "Omits all previous commit seals when creating new block (InheritExtra phase)",
       "type": "omit",
       "enabled": true,
-      "sequence": 200,
+      "sequence_start": 200,
+      "sequence_end": 200,
       "round": 0,
       "parameters": {
         "code": 1,
         "cmd": 2,
         "cnt": 0,
         "targets": []
-      },
-      "description": "Omits all previous commit seals when creating new block (InheritExtra phase)"
+      }
     },
     {
       "name": "OmitRoundChangeJustification",
+      "description": "Omits RoundChange justification messages from PrePrepare after round change",
       "type": "omit",
       "enabled": true,
-      "sequence": 300,
+      "sequence_start": 300,
+      "sequence_end": 300,
       "round": 1,
       "parameters": {
         "code": 16,
         "cmd": 1,
         "cnt": 0,
         "targets": []
-      },
-      "description": "Omits RoundChange justification messages from PrePrepare after round change"
+      }
     },
     {
       "name": "OmitPrepareJustification",
+      "description": "Omits 3 Prepare justification messages from PrePrepare after round change",
       "type": "omit",
       "enabled": true,
-      "sequence": 400,
+      "sequence_start": 400,
+      "sequence_end": 400,
       "round": 1,
       "parameters": {
         "code": 16,
         "cmd": 2,
         "cnt": 3,
         "targets": []
-      },
-      "description": "Omits 3 Prepare justification messages from PrePrepare after round change"
+      }
     },
     {
       "name": "OmitSealsBeforeBlockCommit",
+      "description": "Omits all prepare seals before committing block (BeforeBlockCommit phase)",
       "type": "omit",
       "enabled": true,
-      "sequence": 500,
+      "sequence_start": 500,
+      "sequence_end": 500,
       "round": 0,
       "parameters": {
         "code": 32,
         "cmd": 1,
         "cnt": 0,
         "targets": []
-      },
-      "description": "Omits all prepare seals before committing block (BeforeBlockCommit phase)"
+      }
     }
   ],
   "message_codes": {
@@ -77,8 +82,7 @@
     "2": "MessageCodePrepare",
     "4": "MessageCodeCommit",
     "8": "MessageCodeRoundChange",
-    "16": "MessageCodeRoundChangePrePrepare - Used for justification omission",
-    "32": "MessageCodePropagation - Used in BeforeBlockCommit for seal omission"
+    "16": "MessageCodePropagation - Used in BeforeBlockCommit for seal omission"
   },
   "cmd_values": {
     "1": "Omit prepare seals/messages",

@@ -4,9 +4,32 @@
     {
       "name": "no_broadcast_prepare",
       "type": "silent",
-      "sequence": 100,
+      "sequence_start": 10,
+      "sequence_end": 10,
       "round": 0,
-      "code": 1,
+      "code": 2,
+      "parameters": {
+        "direction": 1
+      }
+    },
+    {
+      "name": "no_broadcast_prepare",
+      "type": "silent",
+      "sequence_start": 11,
+      "sequence_end": 11,
+      "round": 0,
+      "code": 2,
+      "parameters": {
+        "direction": 2
+      }
+    },
+    {
+      "name": "no_broadcast_prepare",
+      "type": "silent",
+      "sequence_start": 12,
+      "sequence_end": 12,
+      "round": 0,
+      "code": 4,
       "parameters": {
         "direction": 3
       }

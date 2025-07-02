@@ -5,18 +5,51 @@
       "name": "silent_attack",
       "type": "silent",
       "enabled": true,
-      "sequence": 2,
+      "sequence_start": 10,
+      "sequence_end": 10,
       "round": 0,
-      "code": 1,
       "parameters": {
-        "direction": 3
+        "code": 2,
+        "direction": 3,
+        "targets": []
       }
     },
     {
       "name": "doublevotepreprepare",
       "type": "tamper",
       "enabled": true,
-      "sequence": 5,
+      "sequence_start": 11,
+      "sequence_end": 11,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "doublevotepreprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 12,
+      "sequence_end": 12,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "tamperFields": [],
+        "withValidMessage": true,
+        "delay": 1000,
+        "targets": []
+      }
+    },
+    {
+      "name": "doublevotepreprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 14,
+      "sequence_end": 14,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -30,35 +63,8 @@
       "name": "doublevotepreprepare",
       "type": "tamper",
       "enabled": true,
-      "sequence": 6,
-      "round": 0,
-      "parameters": {
-        "code": 1,
-        "tamperFields": [],
-        "withValidMessage": true,
-        "delay": 1000,
-        "targets": []
-      }
-    },
-    {
-      "name": "doublevotepreprepare",
-      "type": "tamper",
-      "enabled": true,
-      "sequence": 7,
-      "round": 0,
-      "parameters": {
-        "code": 1,
-        "tamperFields": [],
-        "withValidMessage": true,
-        "delay": 1000,
-        "targets": []
-      }
-    },
-    {
-      "name": "doublevotepreprepare",
-      "type": "tamper",
-      "enabled": true,
-      "sequence": 8,
+      "sequence_start": 16,
+      "sequence_end": 16,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -72,7 +78,8 @@
       "name": "doublevoteprepare",
       "type": "tamper",
       "enabled": true,
-      "sequence": 9,
+      "sequence_start": 18,
+      "sequence_end": 18,
       "round": 0,
       "parameters": {
         "code": 2,
@@ -86,7 +93,8 @@
       "name": "doublevotecommit",
       "type": "tamper",
       "enabled": true,
-      "sequence": 10,
+      "sequence_start": 20,
+      "sequence_end": 20,
       "round": 0,
       "parameters": {
         "code": 4,

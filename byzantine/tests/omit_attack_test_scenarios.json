@@ -8,12 +8,11 @@
         {
           "name": "omit_all_prev_prepare_seals",
           "type": "omitMessage",
+          "enabled": true,
           "sequence_start": 100,
           "sequence_end": 100,
           "round": 0,
           "code": 1,
-          "enabled": true,
-          "max_executions": 1,
           "parameters": {
             "code": 1,
             "cmd": 1,
@@ -39,12 +38,10 @@
         {
           "name": "omit_partial_commit_seals",
           "type": "omitMessage",
+          "enabled": true,
           "sequence_start": 200,
           "sequence_end": 205,
           "round": 0,
-          "code": 1,
-          "enabled": true,
-          "max_executions": 5,
           "parameters": {
             "code": 1,
             "cmd": 2,
@@ -70,12 +67,10 @@
         {
           "name": "omit_all_commit_seals_on_propagation",
           "type": "omitMessage",
+          "enabled": true,
           "sequence_start": 300,
           "sequence_end": 300,
           "round": 0,
-          "code": 32,
-          "enabled": true,
-          "max_executions": 1,
           "parameters": {
             "code": 32,
             "cmd": 2,
@@ -101,12 +96,10 @@
         {
           "name": "omit_roundchange_messages",
           "type": "omitMessage",
+          "enabled": true,
           "sequence_start": 400,
           "sequence_end": 400,
           "round": 1,
-          "code": 16,
-          "enabled": true,
-          "max_executions": 1,
           "parameters": {
             "code": 16,
             "cmd": 1,
@@ -135,9 +128,7 @@
           "sequence_start": 500,
           "sequence_end": 510,
           "round": 0,
-          "code": 1,
           "enabled": true,
-          "max_executions": 10,
           "parameters": {
             "code": 1,
             "cmd": 1,
@@ -166,12 +157,10 @@
         {
           "name": "max_omission_preprepare",
           "type": "omitMessage",
+          "enabled": true,
           "sequence_start": 600,
           "sequence_end": 610,
           "round": 0,
-          "code": 1,
-          "enabled": true,
-          "max_executions": 5,
           "parameters": {
             "code": 1,
             "cmd": 1,
@@ -182,12 +171,10 @@
         {
           "name": "max_omission_propagation",
           "type": "omitMessage",
+          "enabled": true,
           "sequence_start": 600,
           "sequence_end": 610,
           "round": 0,
-          "code": 32,
-          "enabled": true,
-          "max_executions": 5,
           "parameters": {
             "code": 32,
             "cmd": 2,
@@ -212,8 +199,7 @@
       "2": "Prepare",
       "4": "Commit",
       "8": "RoundChange",
-      "16": "RoundChange-PrePrepare",
-      "32": "Propagation"
+      "16": "Propagation"
     },
     "cmd_values": {
       "PrePrepare": {
