@@ -467,13 +467,19 @@ func (m *AttackManager) GetUIDGenerator() types.UIDGenerator {
 }
 
 // FindExecutableAttack finds an executable attack based on type, sequence, round, and message code
-func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequence, round uint64,
-	msgCode types.MessageCode) (types.Attack, bool) {
+func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
+	sequence, round uint64, msgCode types.MessageCode) (types.Attack, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	// TODO:
+	// 1. m.attacksByUID -> GetActiveAttacks() : m.attacksByUID는 지난 attack도 포함되므로,
 	for _, attack := range m.attacksByUID {
 		config := attack.GetConfig()
+
+		if !config.CanExecute() {
+			continue
+		}
 
 		// Check attack type
 		if config.Type != attackType {

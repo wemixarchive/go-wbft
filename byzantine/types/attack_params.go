@@ -17,6 +17,54 @@ type SilentAttackParams struct {
 	Targets   []common.Address `json:"targets,omitempty"`
 }
 
+var _ AttackParamsParser = (*SilentAttackParams)(nil)
+
+// HasMessageCode checks if the attack applies to a specific message code
+func (p *SilentAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
+}
+
+// ShouldBlockSend checks if sending should be blocked
+func (p *SilentAttackParams) ShouldBlockSend() bool {
+	return p.Direction == uint64(1) || p.Direction == uint64(3)
+}
+
+// ShouldBlockReceive checks if receiving should be blocked
+func (p *SilentAttackParams) ShouldBlockReceive() bool {
+	return p.Direction == uint64(2) || p.Direction == uint64(3)
+}
+
+// IsTargeted checks if a specific address is targeted
+func (p *SilentAttackParams) IsTargeted(addr common.Address) bool {
+	if len(p.Targets) == 0 {
+		return true // No specific targets means all are targeted
+	}
+
+	for _, target := range p.Targets {
+		if target == addr {
+			return true
+		}
+	}
+	return false
+}
+
+// GetBlockedTargets returns the list of addresses to block
+func (p *SilentAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
+	if len(p.Targets) == 0 {
+		// Block all validators
+		return valSet
+	}
+
+	// Filter only targeted validators
+	var blocked []common.Address
+	for _, val := range valSet {
+		if p.IsTargeted(val) {
+			blocked = append(blocked, val)
+		}
+	}
+	return blocked
+}
+
 func (p *SilentAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias SilentAttackParams
 	aux := &struct {
@@ -53,11 +101,22 @@ func (p *SilentAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 		params.Direction = uint64(v)
 	case uint64:
 		params.Direction = v
+	case string:
+		switch strings.ToLower(v) {
+		case "send", "1":
+			params.Direction = 1
+		case "receive", "2":
+			params.Direction = 2
+		case "both", "3":
+			params.Direction = 3
+		default:
+			return nil, fmt.Errorf("invalid direction: %s", v)
+		}
 	default:
-		params.Direction = 0
+		return nil, fmt.Errorf("invalid direction type: %T", v)
 	}
 
-	params.Targets = parseTargets(raw["targets"])
+	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -85,15 +144,6 @@ func (p *SilentAttackParams) Validate(params interface{}) error {
 	}
 
 	return nil
-}
-
-// TamperAttackParams handles parsing for tamper attack parameters
-type TamperAttackParams struct {
-	Code             MessageCode      `json:"code"`
-	TamperFields     []TamperField    `json:"tamperFields"`
-	WithValidMessage bool             `json:"withValidMessage"`
-	Delay            uint64           `json:"delay"`
-	Targets          []common.Address `json:"targets,omitempty"`
 }
 
 // TamperField represents a field to be tampered with in a message
@@ -162,6 +212,21 @@ func (tf *TamperField) ValueToHash() (common.Hash, error) {
 	}
 }
 
+// TamperAttackParams handles parsing for tamper attack parameters
+type TamperAttackParams struct {
+	Code             MessageCode      `json:"code"`
+	TamperFields     []TamperField    `json:"tamperFields"`
+	WithValidMessage bool             `json:"withValidMessage"`
+	Delay            uint64           `json:"delay"`
+	Targets          []common.Address `json:"targets,omitempty"`
+}
+
+var _ AttackParamsParser = (*TamperAttackParams)(nil)
+
+func (p *TamperAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
+}
+
 func (p *TamperAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias TamperAttackParams
 	aux := &struct {
@@ -222,7 +287,7 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 		params.Delay = 0
 	}
 
-	params.Targets = parseTargets(raw["targets"])
+	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -277,6 +342,12 @@ type FakeAttackParams struct {
 	Targets     []common.Address `json:"targets,omitempty"`
 }
 
+var _ AttackParamsParser = (*FakeAttackParams)(nil)
+
+func (p *FakeAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
+}
+
 func (p *FakeAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias FakeAttackParams
 	aux := &struct {
@@ -311,7 +382,7 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 		params.FakeMessage = fakeMsg
 	}
 
-	params.Targets = parseTargets(raw["targets"])
+	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -344,6 +415,12 @@ type OmitAttackParams struct {
 	Cmd     uint64           `json:"cmd"`
 	Cnt     uint64           `json:"cnt"`
 	Targets []common.Address `json:"targets,omitempty"`
+}
+
+var _ AttackParamsParser = (*OmitAttackParams)(nil)
+
+func (p *OmitAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
 }
 
 func (p *OmitAttackParams) UnmarshalJSON(data []byte) error {
@@ -400,7 +477,7 @@ func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 		params.Cnt = 0
 	}
 
-	params.Targets = parseTargets(raw["targets"])
+	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -432,6 +509,12 @@ type RoleSpoofAttackParams struct {
 	Code        MessageCode      `json:"code"`
 	FakeMessage []byte           `json:"fakeMessage,omitempty"`
 	Targets     []common.Address `json:"targets,omitempty"`
+}
+
+var _ AttackParamsParser = (*RoleSpoofAttackParams)(nil)
+
+func (p *RoleSpoofAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
 }
 
 func (p *RoleSpoofAttackParams) UnmarshalJSON(data []byte) error {
@@ -468,7 +551,7 @@ func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, 
 		params.FakeMessage = fakeMsg
 	}
 
-	params.Targets = parseTargets(raw["targets"])
+	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -502,6 +585,12 @@ type ReplayAttackParams struct {
 	OriRound        uint64           `json:"ori_round"`
 	UseOriginalView bool             `json:"useOriginalView"`
 	Targets         []common.Address `json:"targets,omitempty"`
+}
+
+var _ AttackParamsParser = (*ReplayAttackParams)(nil)
+
+func (p *ReplayAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
 }
 
 func (p *ReplayAttackParams) UnmarshalJSON(data []byte) error {
@@ -562,7 +651,7 @@ func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 		params.UseOriginalView = useOrigView
 	}
 
-	params.Targets = parseTargets(raw["targets"])
+	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -593,7 +682,8 @@ func (p *ReplayAttackParams) Validate(params interface{}) error {
 }
 
 // Helper function to parse targets
-func parseTargets(rawTargets interface{}) []common.Address {
+
+func ParseTargets(rawTargets interface{}) []common.Address {
 	var targets []common.Address
 
 	switch v := rawTargets.(type) {
