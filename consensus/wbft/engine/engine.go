@@ -1071,7 +1071,7 @@ func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, h
 	attacks := hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, header.Number.Uint64(), 0)
 	tamper := attacks[btypes.AttackTypeTamperedMessage]
 	if tamper == nil || tamper.TamperParams == nil {
-		log.Error("[Byzantine] Invalid or nil TamperAttackParams")
+		// log.Error("[Byzantine] Invalid or nil TamperAttackParams")
 		return nil
 	}
 

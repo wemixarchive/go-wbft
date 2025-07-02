@@ -284,17 +284,15 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 	//    fails execution‐condition checks.
 	// ───────────────────────────────────────────────────────────────
 	for _, at := range types.AllAttackTypes {
-
-		uid := h.uidGenerator.Generate(at, sequence, round)
-		attack, ok := h.attackManager.GetAttackByUID(uid)
+		attack, ok := h.attackManager.FindExecutableAttack(at, sequence, round, msgCode)
 		if !ok {
-			//log.Warn("[byzantine] no attack scheduled for this UID", "uid", uid)
+			//log.Warn("[byzantine] no attack scheduled for this UID")
 			continue
 		}
 
 		cfg := attack.GetConfig()
 		if !h.isAttackEligible(cfg) {
-			log.Warn("[byzantine]globally disabled, or not in active window", "uid", uid)
+			log.Warn("[byzantine]globally disabled, or not in active window")
 			continue
 		}
 
@@ -319,11 +317,11 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, evt) {
 			delete(result, at)
-			log.Warn("[byzantine] CheckExecuteCondition error", "uid", uid)
+			log.Warn("[byzantine] CheckExecuteCondition error")
 			continue
 		}
 
-		log.Info("[byzantine] executable attack found", "uid", uid, "msgCode", msgCode)
+		log.Info("[byzantine] executable attack found", "uid", cfg.UID, "msgCode", msgCode)
 
 	}
 	return result
