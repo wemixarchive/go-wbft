@@ -125,7 +125,7 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 	prepare := wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
 	prepare.SetSource(c.Address())
 
-	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams == nil {
+	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 		for _, field := range at.TamperParams.TamperFields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder

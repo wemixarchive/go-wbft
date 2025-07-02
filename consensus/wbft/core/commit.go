@@ -61,7 +61,7 @@ func (c *Core) broadcastCommit() {
 	}
 
 	if c.broadcastByzantineCommit(attacks) {
-		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams == nil {
+		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 			if !at.TamperParams.WithValidMessage {
 				return // skip the normal message
 			}
@@ -127,7 +127,7 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 	commit := wbfmessage.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
 	commit.SetSource(c.Address())
 
-	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams == nil {
+	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 		for _, field := range at.TamperParams.TamperFields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
