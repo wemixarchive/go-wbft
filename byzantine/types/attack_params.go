@@ -174,7 +174,7 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 	}
 
 	if len(tamperParams.TamperFields) == 0 && !tamperParams.WithValidMessage {
-		return fmt.Errorf("tamper attack must have either tamperFields or withValidMessage=true")
+		return fmt.Errorf("tamper attack must have either tamperFields or withValidMessage=true (tamperFields: %d, withValidMessage: %t)", len(tamperParams.TamperFields), tamperParams.WithValidMessage)
 	}
 
 	for i, field := range tamperParams.TamperFields {

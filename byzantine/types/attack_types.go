@@ -21,6 +21,16 @@ const (
 	AttackTypeReplay          AttackType = AttackReplay
 )
 
+// Slice of all AttackType constants for iteration
+var AllAttackTypes = []AttackType{
+	AttackTypeSilentMessage,
+	AttackTypeTamperedMessage,
+	AttackTypeFakeMessage,
+	AttackTypeOmitMessage,
+	AttackTypeRoleSpoofed,
+	AttackTypeReplay,
+}
+
 // AttackStatus represents the status of an attack
 type AttackStatus string
 
@@ -262,7 +272,7 @@ func validateSilentParams(params *SilentAttackParams) error {
 
 func validateTamperParams(params *TamperAttackParams) error {
 	if len(params.TamperFields) == 0 && !params.WithValidMessage {
-		return errors.New("tamper attack must have either tamperFields or withValidMessage=true")
+		return fmt.Errorf("tamper attack must have either tamperFields or withValidMessage=true (tamperFields: %d, withValidMessage: %t)", len(params.TamperFields), params.WithValidMessage)
 	}
 	for i, field := range params.TamperFields {
 		if field.Target == "" {
@@ -375,4 +385,12 @@ type AttackContext struct {
 	CurrentSequence uint64
 	CurrentRound    uint64
 	MessageCode     uint64
+}
+
+// ExecutableAttack bundles the original AttackConfig with its
+// concrete parameter struct (TamperAttackParams, FakeAttackParams, …).
+type ExecutableAttack struct {
+	Enabled bool
+	Status  AttackStatus
+	Params  interface{}
 }
