@@ -62,18 +62,16 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			if len(attacks) != 0 {
 				if c.sendByzantinePreprepareMsg(request, attacks) {
 					if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-						params, ok := at.Params.(*btypes.TamperAttackParams)
-						if !ok || params == nil {
+						if at.TamperParams == nil {
 							withMsg(logger, preprepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
 						} else {
-							// 에러 체크
-							if !params.WithValidMessage {
+							if !at.TamperParams.WithValidMessage {
 								// Set the preprepareSent to the current round
 								c.current.preprepareSent = curView.Round
 								return // skip the normal message
 							}
 							// Wait for the configured delay
-							time.Sleep(time.Duration(params.Delay) * time.Millisecond)
+							time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 						}
 					}
 				}
@@ -146,13 +144,11 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 	preprepare.SetSource(c.Address())
 
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-		params, ok := at.Params.(*btypes.TamperAttackParams)
-		if !ok || params == nil {
+		if at.TamperParams == nil {
 			withMsg(logger, preprepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
 			return false
 		}
-
-		for _, field := range params.TamperFields {
+		for _, field := range at.TamperParams.TamperFields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
 			switch field.Target {
