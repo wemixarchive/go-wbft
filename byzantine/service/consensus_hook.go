@@ -124,8 +124,7 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64) typ
 					"sequence", sequence,
 					"round", round,
 					"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-					"execution_count", config.ExecutionCount+1,
-					"max_executions", config.MaxExecutions)
+					"execution_count", config.ExecutionCount+1)
 
 				// Update execution state
 				if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
@@ -256,8 +255,7 @@ func (h *ConsensusHookImpl) DoubleVote(attackType types.AttackType, msgCode, seq
 				"byzantineCode", byzantineCode,
 				"sequence", sequence,
 				"round", round,
-				"execution_count", config.ExecutionCount+1,
-				"max_executions", config.MaxExecutions)
+				"execution_count", config.ExecutionCount+1)
 
 			// Update execution state
 			if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {

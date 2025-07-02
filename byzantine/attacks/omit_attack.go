@@ -50,7 +50,7 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 	if !config.IsInSequenceRange(event.Sequence) {
 		return false
 	}
-	
+
 	// Check round (0 means any round)
 	if config.Round != 0 && event.Round != config.Round {
 		return false
@@ -155,8 +155,8 @@ func (a *OmitMessageAttack) createOmittedMessage(messageCode types.MessageCode, 
 		return a.omitPrePrepareFields(event)
 	case types.MessageCodePropagation:
 		return a.omitPropagationFields(event)
-	case types.MessageCodeRoundChangePrePrepare:
-		return a.omitRoundChangePrePrepareFields(event)
+	//case types.MessageCodeRoundChangePrePrepare:
+	//	return a.omitRoundChangePrePrepareFields(event)
 	default:
 		return nil, fmt.Errorf("unsupported message type for omit attack: %v", messageCode)
 	}
@@ -245,7 +245,6 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 
 	return msgEvent.Content, nil
 }
-
 
 // sendMessage sends a message to targets
 func (a *OmitMessageAttack) sendMessage(content []byte, targets []common.Address) error {

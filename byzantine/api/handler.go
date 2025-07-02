@@ -41,7 +41,6 @@ func (h *Handler) GetByzantineTests() ([]types.AttackConfig, error) {
 			SequenceStart:  attack.SequenceStart,
 			SequenceEnd:    attack.SequenceEnd,
 			Round:          attack.Round,
-			MaxExecutions:  attack.MaxExecutions,
 			ExecutionCount: attack.ExecutionCount,
 			Status:         attack.Status,
 			Parameters:     attack.Parameters,
@@ -86,11 +85,11 @@ func (h *Handler) RegisterSilentMessage(params types.SilentMessageParams) error 
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:     fmt.Sprintf("silent_%d_%d", params.Sequence, params.Round),
-		Type:     types.AttackTypeSilentMessage,
+		Name:          fmt.Sprintf("silent_%d_%d", params.Sequence, params.Round),
+		Type:          types.AttackTypeSilentMessage,
 		SequenceStart: params.Sequence,
 		SequenceEnd:   0, // 0 means single sequence
-		Round:    params.Round,
+		Round:         params.Round,
 		Parameters: map[string]interface{}{
 			"code":      params.Code,
 			"direction": params.Direction,
@@ -128,11 +127,11 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:     fmt.Sprintf("tampered_%d_%d", params.Sequence, params.Round),
-		Type:     types.AttackTypeTamperedMessage,
+		Name:          fmt.Sprintf("tampered_%d_%d", params.Sequence, params.Round),
+		Type:          types.AttackTypeTamperedMessage,
 		SequenceStart: params.Sequence,
 		SequenceEnd:   0, // 0 means single sequence
-		Round:    params.Round,
+		Round:         params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":             params.Code,
@@ -164,11 +163,11 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:     fmt.Sprintf("fake_%d_%d", params.Sequence, params.Round),
-		Type:     types.AttackTypeFakeMessage,
+		Name:          fmt.Sprintf("fake_%d_%d", params.Sequence, params.Round),
+		Type:          types.AttackTypeFakeMessage,
 		SequenceStart: params.Sequence,
 		SequenceEnd:   0, // 0 means single sequence
-		Round:    params.Round,
+		Round:         params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":        params.Code,
@@ -198,11 +197,11 @@ func (h *Handler) RegisterOmitMessage(params types.OmitMessageParams) error {
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:     fmt.Sprintf("omit_%d_%d", params.Sequence, params.Round),
-		Type:     types.AttackTypeOmitMessage,
+		Name:          fmt.Sprintf("omit_%d_%d", params.Sequence, params.Round),
+		Type:          types.AttackTypeOmitMessage,
 		SequenceStart: params.Sequence,
 		SequenceEnd:   0, // 0 means single sequence
-		Round:    params.Round,
+		Round:         params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":    params.Code,
@@ -233,11 +232,11 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:     fmt.Sprintf("rolespoof_%d_%d", params.Sequence, params.Round),
-		Type:     types.AttackTypeRoleSpoofed,
+		Name:          fmt.Sprintf("rolespoof_%d_%d", params.Sequence, params.Round),
+		Type:          types.AttackTypeRoleSpoofed,
 		SequenceStart: params.Sequence,
 		SequenceEnd:   0, // 0 means single sequence
-		Round:    params.Round,
+		Round:         params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":        params.Code,
@@ -267,11 +266,11 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:     fmt.Sprintf("replay_%d_%d", params.Sequence, params.Round),
-		Type:     types.AttackTypeReplay,
+		Name:          fmt.Sprintf("replay_%d_%d", params.Sequence, params.Round),
+		Type:          types.AttackTypeReplay,
 		SequenceStart: params.Sequence,
 		SequenceEnd:   0, // 0 means single sequence
-		Round:    params.Round,
+		Round:         params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":            params.Code,

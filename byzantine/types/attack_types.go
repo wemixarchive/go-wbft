@@ -84,15 +84,13 @@ func AttackTypeToString(attackType AttackType) string {
 
 // AttackConfig represents the configuration for an attack
 type AttackConfig struct {
-	UID     string     `json:"uid"`
-	Name    string     `json:"name"`
-	Type    AttackType `json:"type"`
-	Enabled bool       `json:"enabled"`
-	//Sequence         uint64                 `json:"sequence"`
+	UID              string                 `json:"uid"`
+	Name             string                 `json:"name"`
+	Type             AttackType             `json:"type"`
+	Enabled          bool                   `json:"enabled"`
 	SequenceStart    uint64                 `json:"sequence_start"`
 	SequenceEnd      uint64                 `json:"sequence_end"`
 	Round            uint64                 `json:"round"`
-	MaxExecutions    uint64                 `json:"max_executions,omitempty"`
 	ExecutionCount   uint64                 `json:"-"`
 	Status           AttackStatus           `json:"status,omitempty"`
 	Parameters       map[string]interface{} `json:"parameters,omitempty"`
@@ -134,7 +132,7 @@ func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
 
 	uidGen := NewUIDGenerator()
 	ac.UID = uidGen.GenerateWithRange(ac.Type, ac.SequenceStart, ac.SequenceEnd, ac.Round)
-	
+
 	if ac.Status == "" {
 		ac.Status = AttackStatusPending
 	}
@@ -159,7 +157,7 @@ func (ac *AttackConfig) CanExecute() bool {
 	if !ac.Enabled {
 		return false
 	}
-	
+
 	// Check status
 	switch ac.Status {
 	case AttackStatusCompleted, AttackStatusCancelled, AttackStatusFailed:
@@ -167,12 +165,12 @@ func (ac *AttackConfig) CanExecute() bool {
 	default:
 		// Continue with execution limit check
 	}
-	
-	// Check max executions
-	if ac.MaxExecutions > 0 && ac.ExecutionCount >= ac.MaxExecutions {
+
+	// Check already execution
+	if ac.ExecutionCount > uint64(0) {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -181,7 +179,7 @@ func (ac *AttackConfig) IncrementExecutionCount(sequence uint64) {
 	ac.ExecutionCount++
 	ac.LastExecutedSeq = sequence
 
-	if ac.MaxExecutions > 0 && ac.ExecutionCount >= ac.MaxExecutions {
+	if ac.ExecutionCount >= uint64(1) {
 		ac.Status = AttackStatusCompleted
 	}
 }
@@ -367,9 +365,6 @@ func validateSilentParams(params *SilentAttackParams) error {
 }
 
 func validateTamperParams(params *TamperAttackParams) error {
-	if len(params.TamperFields) == 0 && !params.WithValidMessage {
-		return fmt.Errorf("tamper attack must have either tamperFields or withValidMessage=true (tamperFields: %d, withValidMessage: %t)", len(params.TamperFields), params.WithValidMessage)
-	}
 	for i, field := range params.TamperFields {
 		if field.Target == "" {
 			return fmt.Errorf("tamperField[%d] target is empty", i)

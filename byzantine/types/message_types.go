@@ -38,21 +38,20 @@ func (mc *MessageCode) UnmarshalJSON(data []byte) error {
 // and means a PrePrepare msg that is sent when the Proposer gathers more
 // than the Quorum Size of RoundChange.
 const (
-	MessageCodePrePrepare            MessageCode = 1 << iota // 1
-	MessageCodePrepare                                       // 2
-	MessageCodeCommit                                        // 4
-	MessageCodeRoundChange                                   // 8
-	MessageCodeRoundChangePrePrepare                         // 16
-	MessageCodePropagation                                   // 32
+	MessageCodePrePrepare  MessageCode = 1 << iota // 1
+	MessageCodePrepare                             // 2
+	MessageCodeCommit                              // 4
+	MessageCodeRoundChange                         // 8
+	MessageCodePropagation                         // 16
 )
 
 // MessageCodeToQBFT Byzantine message code to QBFT code mapping
 var MessageCodeToQBFT = map[MessageCode]uint64{
-	MessageCodePrePrepare:            QBFTPrePrepareCode,
-	MessageCodePrepare:               QBFTPrepareCode,
-	MessageCodeCommit:                QBFTCommitCode,
-	MessageCodeRoundChange:           QBFTRoundChangeCode,
-	MessageCodeRoundChangePrePrepare: QBFTPrePrepareCode, // Special case
+	MessageCodePrePrepare:  QBFTPrePrepareCode,
+	MessageCodePrepare:     QBFTPrepareCode,
+	MessageCodeCommit:      QBFTCommitCode,
+	MessageCodeRoundChange: QBFTRoundChangeCode,
+	//MessageCodeRoundChangePrePrepare: QBFTPrePrepareCode, // Special case
 }
 
 // ParseMessageCode parses various formats of message code
@@ -85,8 +84,6 @@ func ParseStringToMessageCode(code string) MessageCode {
 		return MessageCodeCommit
 	case "RoundChange":
 		return MessageCodeRoundChange
-	case "RoundChangePrePrepare":
-		return MessageCodeRoundChangePrePrepare
 	case "Propagation":
 		return MessageCodePropagation
 	default:
@@ -96,7 +93,7 @@ func ParseStringToMessageCode(code string) MessageCode {
 
 func ValidateMessageCode(code MessageCode) bool {
 	switch code {
-	case MessageCodePrePrepare, MessageCodePrepare, MessageCodeCommit, MessageCodeRoundChange, MessageCodeRoundChangePrePrepare, MessageCodePropagation:
+	case MessageCodePrePrepare, MessageCodePrepare, MessageCodeCommit, MessageCodeRoundChange, MessageCodePropagation:
 		return true
 	default:
 		return false

@@ -245,10 +245,6 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid message code: %d", tamperParams.Code)
 	}
 
-	if len(tamperParams.TamperFields) == 0 && !tamperParams.WithValidMessage {
-		return fmt.Errorf("tamper attack must have either tamperFields or withValidMessage=true (tamperFields: %d, withValidMessage: %t)", len(tamperParams.TamperFields), tamperParams.WithValidMessage)
-	}
-
 	for i, field := range tamperParams.TamperFields {
 		if field.Target == "" {
 			return fmt.Errorf("tamperField[%d] target is empty", i)
