@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -51,22 +52,19 @@ func (c *Core) broadcastPrepare() {
 	prepare := wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
 	prepare.SetSource(c.Address())
 
+	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
+
 	if hook := c.backend.ByzantineHook(); hook != nil {
-		attacks := hook.GetExecutableAttacks(btypes.MessageCodePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
-		if len(attacks) != 0 {
-			if c.broadcastByzantinePrepare(attacks) {
-				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-					if at.TamperParams == nil {
-						withMsg(logger, prepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
-					} else {
-						if !at.TamperParams.WithValidMessage {
-							return // skip the normal message
-						}
-						// Wait for the configured delay
-						time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
-					}
-				}
+		attacks = hook.GetExecutableAttacks(btypes.MessageCodePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+	}
+
+	if c.broadcastByzantinePrepare(attacks) {
+		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
+			if !at.TamperParams.WithValidMessage {
+				return // skip the normal message
 			}
+			// Wait for the configured delay
+			time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 		}
 	}
 
@@ -90,6 +88,13 @@ func (c *Core) broadcastPrepare() {
 		return
 	}
 
+	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
+		if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
+			log.Info("[byzantine] silent attack: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare)
+			return
+		}
+	}
+
 	withMsg(logger, prepare).Info("WBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
 
 	// Broadcast RLP-encoded message
@@ -100,6 +105,11 @@ func (c *Core) broadcastPrepare() {
 }
 
 func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
+	if len(attacks) == 0 {
+		return false
+	}
+	send := false
+
 	logger := c.currentLogger(true, nil)
 
 	// Create PREPARE message from the current proposal
@@ -115,11 +125,7 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 	prepare := wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
 	prepare.SetSource(c.Address())
 
-	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-		if at.TamperParams == nil {
-			withMsg(logger, prepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
-			return false
-		}
+	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams == nil {
 		for _, field := range at.TamperParams.TamperFields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
@@ -130,6 +136,8 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 					withMsg(logger, prepare).Error("[Byzantine] Conversion failed", "err", err)
 					return false
 				} else {
+					send = true
+					log.Info("[byzantine] tamper attack: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare)
 					prepare.Digest = val
 				}
 			}
@@ -156,15 +164,16 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 		return false
 	}
 
-	withMsg(logger, prepare).Info("[Byzantine] WBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
-
-	// Broadcast RLP-encoded message
-	if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
-		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to broadcast PREPARE message", "err", err)
-		return false
+	if send {
+		withMsg(logger, prepare).Info("[Byzantine] WBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
+		// Broadcast RLP-encoded message
+		if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
+			withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to broadcast PREPARE message", "err", err)
+			return false
+		}
 	}
 
-	return true
+	return true && send
 }
 
 // handlePrepareMsg is called when receiving a PREPARE message

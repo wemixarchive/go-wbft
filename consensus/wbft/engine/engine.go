@@ -1063,6 +1063,7 @@ func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.St
 
 // extractTamperedBlockReward checks for TamperedMessage attack and extracts reward if present.
 func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, header *types.Header) *big.Int {
+	return nil
 	hook := e.backend.ByzantineHook()
 	if hook == nil {
 		return nil
