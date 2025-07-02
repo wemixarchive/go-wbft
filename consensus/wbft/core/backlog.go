@@ -23,10 +23,12 @@ package core
 import (
 	"math/big"
 
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // 1. package "gopkg.in/karalabe/cookiejar.v2/collections/prque" is replaced to  "github.com/ethereum/go-ethereum/common/prque"
@@ -54,6 +56,31 @@ var (
 func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
+	}
+
+	seq := view.Sequence.Uint64()
+	round := view.Round.Uint64()
+	var attackGroups []map[btypes.AttackType]*btypes.ExecutableAttack
+	if hook := c.backend.ByzantineHook(); hook != nil {
+		attackGroups = []map[btypes.AttackType]*btypes.ExecutableAttack{
+			hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, seq, round),
+			hook.GetExecutableAttacks(btypes.MessageCodePrepare, seq, round),
+			hook.GetExecutableAttacks(btypes.MessageCodeCommit, seq, round),
+			hook.GetExecutableAttacks(btypes.MessageCodeRoundChange, seq, round),
+		}
+	}
+
+	isSilentMessage := func(at *btypes.ExecutableAttack) bool {
+		return at != nil && at.SilentParams != nil &&
+			(at.SilentParams.Direction == 2 || at.SilentParams.Direction == 3)
+	}
+
+	// check silent
+	for _, group := range attackGroups {
+		if isSilentMessage(group[btypes.AttackTypeSilentMessage]) {
+			log.Info("[byzantine] silent attack: dropped incoming message", "seq", seq, "round", round, "msgCode", msgCode)
+			return errInvalidMessage
+		}
 	}
 
 	if msgCode == wbfmessage.RoundChangeCode {

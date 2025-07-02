@@ -22,7 +22,6 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/byzantine/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -193,56 +192,7 @@ func (c *Core) handleEncodedMsg(code uint64, data []byte) error {
 		return err
 	}
 
-	// byzantine
-	//if c.state == StatePreprepared || c.state == StatePrepared || c.state == StateCommitted {
-	// byzantine
-	//if c.backend.ByzantineHook() != nil {
-	//sequence := m.View().Sequence.Uint64()
-	//round := m.View().Round.Uint64()
-	//if c.backend.ByzantineHook().BeforeProcessMessage(code, sequence, round, m.Source()) {
-	//	logger.Debug("BFT: Outbound message blocked by Byzantine module",
-	//		"code", code, "sequence", sequence, "round", round)
-	//	return nil // Silent drop
-	//}
-	//}
-	//}
-
 	return c.handleDecodedMessage(m)
-}
-
-func (c *Core) handleByzantineAttack(msgCode uint64) {
-	hook := c.backend.ByzantineHook()
-	if hook == nil {
-		return
-	}
-
-	// Silent attack 체크
-	if _, shouldExecute := hook.ShouldExecuteAttack(
-		types.AttackTypeSilentMessage,
-		msgCode,
-		c.current.Sequence().Uint64(),
-		c.current.Round().Uint64(),
-	); shouldExecute {
-		log.Info("[byzantine] : Dropping message", "sequence", c.current.Sequence().Uint64())
-		return
-	}
-
-	if config, shouldExecute := hook.ShouldExecuteAttack(
-		types.AttackTypeTamperedMessage,
-		msgCode,
-		c.current.Sequence().Uint64(),
-		c.current.Round().Uint64(),
-	); shouldExecute {
-		if tamperParams, ok := config.ParsedParameters.(*types.TamperAttackParams); ok {
-			//c.tamperMessage(tamperParams)
-			// TODO:
-			// 1. Attack
-			log.Debug("[byzantine] tamper attack", "tamperParams", tamperParams)
-		}
-
-		hook.MarkAttackExecuted(config.UID, c.current.Sequence().Uint64())
-	}
-
 }
 
 func (c *Core) handleDecodedMessage(m wbfmessage.WBFTMessage) error {

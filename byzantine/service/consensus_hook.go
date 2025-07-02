@@ -81,196 +81,6 @@ func (h *ConsensusHookImpl) CheckAttackCondition(ctx types.ConsensusContext) boo
 	return false
 }
 
-// BeforeBroadcast is called before broadcasting a message
-func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64) types.AttackConfig {
-	ctx := context.Background()
-
-	// TODO:
-	// 1. check MessageCodeRoundChangePrePrepare
-	// 2. check MessageCodePropagation
-
-	// Map consensus message code to Byzantine message code
-	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
-	// Get applicable attack types for this message
-	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionSend)
-
-	// Check each attack type
-	for _, attackType := range attackTypes {
-		// Use new FindExecutableAttack method with message code
-
-		attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
-		if !found {
-			continue
-		}
-
-		config := attack.GetConfig()
-
-		// Create event for condition checking
-		event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
-
-		// Check attack-specific execution condition
-		if !attack.CheckExecuteCondition(ctx, event) {
-			continue
-		}
-
-		switch attackType {
-		case types.AttackTypeSilentMessage:
-			if config.Parameters["direction"] == uint64(1) || config.Parameters["direction"] == uint64(3) {
-				log.Info("[byzantine] Blocking outbound message",
-					"attack_uid", config.UID,
-					"attack_type", attackType,
-					"msgCode", msgCode,
-					"byzantineCode", byzantineCode,
-					"sequence", sequence,
-					"round", round,
-					"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-					"execution_count", config.ExecutionCount+1)
-
-				// Update execution state
-				if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
-					log.Error("[byzantine] Failed to mark attack executed", "error", err)
-				}
-				return config // Block the message
-			}
-		case types.AttackTypeTamperedMessage:
-		case types.AttackTypeOmitMessage:
-		case types.AttackTypeFakeMessage:
-		case types.AttackTypeRoleSpoofed:
-		case types.AttackTypeReplay:
-		}
-	}
-
-	// Create general event for monitoring/logging
-	//event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, from, types.DirectionSend)
-
-	// Publish event asynchronously
-	//go h.publishEvent(event)
-
-	return types.AttackConfig{}
-}
-
-// BeforeProcessMessage is called before processing a received message
-func (h *ConsensusHookImpl) BeforeProcessMessage(msgCode, sequence, round uint64) types.AttackConfig {
-	ctx := context.Background()
-	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
-
-	// Get applicable attack types for receiving messages
-	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionReceive)
-
-	// Check each attack type with lookup
-	for _, attackType := range attackTypes {
-		// Use new FindExecutableAttack method with message code
-		attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
-		if !found {
-			continue
-		}
-
-		// Check if attack is eligible
-		config := attack.GetConfig()
-		if !h.isAttackEligible(config) {
-			continue
-		}
-
-		// Create event
-		event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, types.DirectionReceive)
-
-		// Check execution condition
-		if !attack.CheckExecuteCondition(ctx, event) {
-			continue
-		}
-
-		switch attackType {
-		case types.AttackTypeSilentMessage:
-			if !(config.Parameters["direction"] == 2 || config.Parameters["direction"] == 3) {
-				return types.AttackConfig{}
-			}
-			log.Info("[byzantine] Blocking inbound message",
-				"attack_uid", config.UID,
-				"attack_type", attackType,
-				"msgCode", msgCode,
-				"sequence", sequence,
-				"round", round)
-
-			// Mark attack as executed
-			h.attackManager.MarkAttackExecuted(config.UID,
-				sequence)
-
-			// Publish event asynchronously
-			//go h.publishEvent(event)
-
-			return config // Block inbound message
-		case types.AttackTypeOmitMessage:
-		case types.AttackTypeTamperedMessage:
-		case types.AttackTypeFakeMessage:
-		case types.AttackTypeRoleSpoofed:
-		case types.AttackTypeReplay:
-		default:
-			log.Error("[byzantine] unknown attack type", "attackType", attackType)
-			return types.AttackConfig{}
-		}
-
-		// Evaluate other attack types
-		//if h.shouldExecuteAttack(attackType, types.DirectionReceive) {
-		//	decision := h.evaluateAttack(ctx, attack, event)
-		//	if decision.ShouldAttack {
-		//		log.Info("[byzantine] Blocking inbound message",
-		//			"attack_uid", config.UID,
-		//			"attack_type", attackType,
-		//			"reason", decision.Reason)
-		//
-		//		h.attackManager.MarkAttackExecuted(config.UID, sequence)
-		//
-		//		// Publish event asynchronously
-		//		//go h.publishEvent(event)
-		//
-		//		return config
-		//	}
-		//}
-	}
-
-	// Create event for monitoring
-	//event := h.createEvent(types.EventTypeMessageReceived, msgCode, sequence, round, from, types.DirectionReceive)
-
-	// Publish event asynchronously
-	//go h.publishEvent(event)
-
-	return types.AttackConfig{}
-}
-
-// DoubleVote is called before broadcasting a message
-func (h *ConsensusHookImpl) DoubleVote(attackType types.AttackType, msgCode, sequence, round uint64) types.AttackConfig {
-	ctx := context.Background()
-	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
-
-	// Use new FindExecutableAttack method with message code
-	attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
-	if found {
-		config := attack.GetConfig()
-		event := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
-
-		if attack.CheckExecuteCondition(ctx, event) {
-			log.Info("[byzantine] Double vote attack triggered",
-				"attack_uid", config.UID,
-				"msgCode", msgCode,
-				"byzantineCode", byzantineCode,
-				"sequence", sequence,
-				"round", round,
-				"execution_count", config.ExecutionCount+1)
-
-			// Update execution state
-			if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
-				log.Error("[byzantine] Failed to mark attack executed", "error", err)
-			}
-
-			// Publish event asynchronously
-			//go h.publishEvent(event)
-
-			return config
-		}
-	}
-	return types.AttackConfig{}
-}
-
 // GetExecutableAttacks iterates over every defined AttackType and returns
 // a map keyed by AttackType containing attacks that are both eligible
 // and ready to run for the given <msgCode, sequence, round>.
@@ -286,13 +96,13 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 	for _, at := range types.AllAttackTypes {
 		attack, ok := h.attackManager.FindExecutableAttack(at, sequence, round, msgCode)
 		if !ok {
-			//log.Warn("[byzantine] no attack scheduled for this UID")
+			log.Trace("[byzantine] no attack found", "sequence", sequence, "round", round, "msgCode", msgCode)
 			continue
 		}
 
 		cfg := attack.GetConfig()
 		if !h.isAttackEligible(cfg) {
-			log.Warn("[byzantine]globally disabled, or not in active window")
+			log.Trace("[byzantine] attack skipped: disabled or status is not active", "uid", cfg.UID, "enabled", cfg.Enabled, "status", cfg.Status)
 			continue
 		}
 
@@ -302,12 +112,13 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		}
 		err := h.extractParams(cfg, result[at])
 		if err != nil {
-			// log.Warn("[byzantine] code mismatch or param-parse error", "uid", uid)
+			log.Trace("[byzantine] failed to extract attack parameters", "uid", cfg.UID, "err", err)
 			delete(result, at)
 			continue
 		}
 
 		if !h.IsMessageCodeMatched(cfg, msgCode, result[at]) {
+			log.Trace("[byzantine] message code mismatch, attack skipped", "uid", cfg.UID, "attackType", at, "code", msgCode)
 			delete(result, at)
 			continue
 		}
@@ -316,14 +127,14 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		evt := h.createEvent(types.EventTypeMessageSent, types.MessageCodeToQBFT[msgCode], sequence, round, types.DirectionSend)
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, evt) {
+			log.Trace("[byzantine] attack skipped: execution condition not met", "attackType", at)
 			delete(result, at)
-			log.Warn("[byzantine] CheckExecuteCondition error")
 			continue
 		}
 
-		log.Info("[byzantine] executable attack found", "uid", cfg.UID, "msgCode", msgCode)
-
+		log.Trace("[byzantine] Executable attack found", "uid", cfg.UID, "attackType", at, "msgCode", msgCode)
 	}
+	log.Trace("[byzantine] total executable attacks", "count", len(result), "msgCode", msgCode, "seq", sequence, "round", round)
 	return result
 }
 

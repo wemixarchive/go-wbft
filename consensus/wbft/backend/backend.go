@@ -178,62 +178,6 @@ func (sb *Backend) Broadcast(valSet wbft.ValidatorSet, code uint64, payload []by
 		)
 		return wbft.ErrUnauthorizedAddress
 	}
-	// TODO: 여기서 진행하면 모든 메시지 막힘 ? code 값을 통해 preprepare, prepare, commit, RoundChange 을 체크 가능
-	// PreprepareCode  = 0x12
-	// PrepareCode     = 0x13
-	// CommitCode      = 0x14
-	// RoundChangeCode = 0x15
-	// <Silent Attack>
-	// 1. Byzantine module이 SilentAttack이 셋업되어있는지, direction이 1혹은 3이고, 현재 Attack을 수행할 상태인지 체크
-	// 2. 1번 조건이 충족하면, 메시지를 전송하지 않도록 스킵
-	// Check with Byzantine module before broadcasting
-	//if sb.byzantineHook != nil {
-	//	sequence, round, err := extractViewFromPayload(code, payload)
-	//	if err != nil {
-	//		sb.logger.Error("Failed to extract view from message", "err", err)
-	//		sequence, round = 0, 0
-	//	}
-	//
-	//	config := sb.byzantineHook.BeforeBroadcast(code, sequence, round)
-	//
-	//	// Check if a valid attack config was returned
-	//	if config.UID != "" {
-	//		// Log attack execution with consistent format
-	//		sb.logger.Debug("[byzantine] BFT: Checking attack config",
-	//			"attack_uid", config.UID,
-	//			"attack_type", config.Type,
-	//			"code", code,
-	//			"sequence", sequence,
-	//			"round", round)
-	//
-	//		// Silent attack should block the message
-	//		if config.Type == "silent" {
-	//			sb.logger.Info("[byzantine] Silent attack executed: blocking message",
-	//				"attack_uid", config.UID,
-	//				"code", code,
-	//				"sequence", sequence,
-	//				"round", round)
-	//			return nil // Silent drop
-	//		}
-	//	}
-	//}
-
-	// <Double Vote>
-	// 1. Byzantine module이 DoubleVote Attack이 셋업되어있는지, Attack 조건이 충족되는지 체크
-	// 2. 1번의 조건이 맞다면, 변조 메시지 생성 및 전송
-	// 3-1. 전송 이후, withValidMessage 가 true이면, delay 시간 후, 정상 메시지 전송
-	// 3-2. 전송 이후, withValidMessage 가 false이면, 스킵
-
-	// <Tolerating Invalid RoundChange Messages from Up to F Byzantine Nodes>
-	// 1. Byzantine module이 FakeMessage Attack이 셋업되어있는지, Attack 조건이 충족되는지 체크
-	// 2. 1번의 조건이 맞다면, fakeMessage 생성 (nil일 경우 임의 생성)
-	// 3. RoundChange 메시지로 전송 시도
-
-	// <DDoS by Message Flooding : Excessive PrePrepare/Prepare/Commit Broadcast>
-	// 1.
-
-	// <Tampered Header in Proposal>
-	// 1.
 
 	// send to others
 	sb.Gossip(valSet, code, payload)

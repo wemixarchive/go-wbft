@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -53,22 +54,19 @@ func (c *Core) broadcastCommit() {
 	commit := wbfmessage.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
 	commit.SetSource(c.Address())
 
+	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
+
 	if hook := c.backend.ByzantineHook(); hook != nil {
-		attacks := hook.GetExecutableAttacks(btypes.MessageCodeCommit, c.current.Sequence().Uint64(), c.current.Round().Uint64())
-		if len(attacks) != 0 {
-			if c.broadcastByzantineCommit(attacks) {
-				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-					if at.TamperParams == nil {
-						withMsg(logger, commit).Error("[Byzantine]  Invalid or nil TamperAttackParams")
-					} else {
-						if !at.TamperParams.WithValidMessage {
-							return // skip the normal message
-						}
-						// Wait for the configured delay
-						time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
-					}
-				}
+		attacks = hook.GetExecutableAttacks(btypes.MessageCodeCommit, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+	}
+
+	if c.broadcastByzantineCommit(attacks) {
+		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams == nil {
+			if !at.TamperParams.WithValidMessage {
+				return // skip the normal message
 			}
+			// Wait for the configured delay
+			time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 		}
 	}
 
@@ -93,6 +91,13 @@ func (c *Core) broadcastCommit() {
 		return
 	}
 
+	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
+		if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
+			log.Info("[byzantine] silent attack: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit)
+			return
+		}
+	}
+
 	withMsg(logger, commit).Info("WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
 
 	// Broadcast RLP-encoded message
@@ -103,10 +108,13 @@ func (c *Core) broadcastCommit() {
 }
 
 func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
+	if len(attacks) == 0 {
+		return false
+	}
+
+	send := false
 	var err error
-
 	logger := c.currentLogger(true, nil)
-
 	sub := c.current.Subject()
 
 	var header *types.Header
@@ -119,11 +127,7 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 	commit := wbfmessage.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
 	commit.SetSource(c.Address())
 
-	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-		if at.TamperParams == nil {
-			withMsg(logger, commit).Error("[Byzantine]  Invalid or nil TamperAttackParams")
-			return false
-		}
+	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams == nil {
 		for _, field := range at.TamperParams.TamperFields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
@@ -134,6 +138,8 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 					withMsg(logger, commit).Error("[Byzantine] Conversion failed", "err", err)
 					return false
 				} else {
+					send = true
+					log.Info("[byzantine] tamper attack: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit)
 					commit.Digest = val
 				}
 			}
@@ -161,14 +167,15 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 		return false
 	}
 
-	withMsg(logger, commit).Info("[Byzantine] WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
-
-	// Broadcast RLP-encoded message
-	if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
-		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to broadcast COMMIT message", "err", err)
-		return false
+	if send {
+		withMsg(logger, commit).Info("[Byzantine] WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
+		// Broadcast RLP-encoded message
+		if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
+			withMsg(logger, commit).Error("[Byzantine] WBFT: failed to broadcast COMMIT message", "err", err)
+			return false
+		}
 	}
-	return true
+	return true && send
 }
 
 // handleCommitMsg is called when receiving a COMMIT message from another validator
