@@ -23,7 +23,6 @@ package backend
 import (
 	"bytes"
 	"errors"
-	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"io"
 	"math/big"
 	"reflect"
@@ -83,32 +82,32 @@ func (sb *Backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 
 		// ===== 추가할 Byzantine Hook 코드 시작 =====
 		// Byzantine hook check for inbound messages
-		if sb.byzantineHook != nil && msg.Code != istanbulMsg {
-			// Extract view information from the message
-			sequence, round, err := extractViewFromPayload(msg.Code, data)
-			if err != nil {
-				sb.logger.Debug("Failed to extract view from inbound message", "err", err)
-				sequence, round = 0, 0
-			}
-
-			// Check with Byzantine module
-			if config := sb.byzantineHook.BeforeProcessMessage(msg.Code, sequence, round); config.Name != "" {
-				switch config.Type {
-				case btypes.AttackTypeSilentMessage:
-					sb.logger.Debug("BFT: Inbound message blocked by Byzantine module",
-						"code", msg.Code,
-						"sequence", sequence,
-						"round", round,
-						"uid", config.UID)
-					return true, nil // Message processed (dropped)
-				case btypes.AttackTypeTamperedMessage:
-				case btypes.AttackTypeOmitMessage:
-				case btypes.AttackTypeFakeMessage:
-				case btypes.AttackTypeRoleSpoofed:
-				case btypes.AttackTypeReplay:
-				}
-			}
-		}
+		//if sb.byzantineHook != nil && msg.Code != istanbulMsg {
+		//	// Extract view information from the message
+		//	sequence, round, err := extractViewFromPayload(msg.Code, data)
+		//	if err != nil {
+		//		sb.logger.Debug("Failed to extract view from inbound message", "err", err)
+		//		sequence, round = 0, 0
+		//	}
+		//
+		//	// Check with Byzantine module
+		//	if config := sb.byzantineHook.BeforeProcessMessage(msg.Code, sequence, round); config.Name != "" {
+		//		switch config.Type {
+		//		case btypes.AttackTypeSilentMessage:
+		//			sb.logger.Debug("BFT: Inbound message blocked by Byzantine module",
+		//				"code", msg.Code,
+		//				"sequence", sequence,
+		//				"round", round,
+		//				"uid", config.UID)
+		//			return true, nil // Message processed (dropped)
+		//		case btypes.AttackTypeTamperedMessage:
+		//		case btypes.AttackTypeOmitMessage:
+		//		case btypes.AttackTypeFakeMessage:
+		//		case btypes.AttackTypeRoleSpoofed:
+		//		case btypes.AttackTypeReplay:
+		//		}
+		//	}
+		//}
 		// ===== 추가할 Byzantine Hook 코드 끝 =====
 
 		// Mark peer's message

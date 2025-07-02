@@ -539,7 +539,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequen
 			continue
 		}
 
-		log.Debug("[byzantine] Found executable attack",
+		log.Trace("[byzantine] Found executable attack",
 			"uid", config.UID,
 			"type", config.Type,
 			"sequence", sequence,
