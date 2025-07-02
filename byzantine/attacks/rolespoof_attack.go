@@ -49,7 +49,7 @@ func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event typ
 	if !config.IsInSequenceRange(event.Sequence) {
 		return false
 	}
-	
+
 	// Check round (0 means any round)
 	if config.Round != 0 && event.Round != config.Round {
 		return false
@@ -149,7 +149,7 @@ func (a *RoleSpoofedAttack) Execute(ctx context.Context, event types.Event) (*ty
 // createSpoofedMessage creates a message spoofing a different role
 func (a *RoleSpoofedAttack) createSpoofedMessage(messageCode types.MessageCode, event types.Event) ([]byte, string, error) {
 	switch messageCode {
-	case types.MessageCodePrePrepare, types.MessageCodeRoundChangePrePrepare:
+	case types.MessageCodePrePrepare:
 		// Spoof proposer role
 		return a.spoofProposerMessage(event)
 	case types.MessageCodePrepare, types.MessageCodeCommit:

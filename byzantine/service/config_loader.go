@@ -109,7 +109,6 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 		SequenceStart: basicConfig.SequenceStart,
 		SequenceEnd:   basicConfig.SequenceEnd,
 		Round:         basicConfig.Round,
-		MaxExecutions: basicConfig.MaxExecutions,
 		Parameters:    basicConfig.Parameters,
 		Status:        types.AttackStatusPending,
 		CreatedAt:     time.Now(),

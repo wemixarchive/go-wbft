@@ -200,13 +200,14 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 	config.ExecutedAt = &now
 
 	// Check if max executions reached
-	if config.MaxExecutions > 0 && config.ExecutionCount >= config.MaxExecutions {
+	if config.ExecutionCount >= uint64(1) {
 		config.Status = types.AttackStatusCompleted
 		attack.SetStatus(types.AttackStatusCompleted)
 		log.Info("[byzantine] Attack completed after reaching max executions",
 			"uid", uid,
 			"executed", config.ExecutionCount,
-			"max", config.MaxExecutions)
+			"status", config.Status,
+			"executed_")
 	}
 
 	// Update the attack's config
@@ -225,7 +226,6 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 		"sequence", sequence,
 		"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
 		"execution_count", config.ExecutionCount,
-		"max_executions", config.MaxExecutions,
 		"status", config.Status,
 		"last_executed_seq", config.LastExecutedSeq)
 
@@ -535,8 +535,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequen
 				"last_executed_seq", config.LastExecutedSeq,
 				"current_seq", sequence,
 				"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-				"execution_count", config.ExecutionCount,
-				"max_executions", config.MaxExecutions)
+				"execution_count", config.ExecutionCount)
 			continue
 		}
 
@@ -546,7 +545,6 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequen
 			"sequence", sequence,
 			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
 			"execution_count", config.ExecutionCount,
-			"max_executions", config.MaxExecutions,
 			"code", config.Parameters["code"])
 
 		return attack, true
@@ -576,11 +574,10 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 	config := attack.GetConfig()
 
 	// Check max executions
-	if config.MaxExecutions > 0 && config.ExecutionCount >= config.MaxExecutions {
+	if config.ExecutionCount >= uint64(1) {
 		log.Trace("[byzantine] Attack execution limit reached",
 			"uid", config.UID,
-			"executed", config.ExecutionCount,
-			"max", config.MaxExecutions)
+			"executed", config.ExecutionCount)
 		return false
 	}
 
@@ -592,8 +589,7 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 			"type", config.Type,
 			"sequence", sequence,
 			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-			"execution_count", config.ExecutionCount,
-			"max_executions", config.MaxExecutions)
+			"execution_count", config.ExecutionCount)
 		return true
 	}
 

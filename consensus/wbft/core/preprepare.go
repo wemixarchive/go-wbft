@@ -113,7 +113,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			// Note: Using MessageCodeRoundChangePrePrepare (16) for PrePrepare with justification
 			config, found := hook.ShouldExecuteAttack(
 				btypes.AttackTypeOmitMessage,
-				uint64(btypes.MessageCodeRoundChangePrePrepare), // 16
+				uint64(btypes.MessageCodePropagation), // 16
 				c.current.Sequence().Uint64(),
 				c.current.Round().Uint64(),
 			)
