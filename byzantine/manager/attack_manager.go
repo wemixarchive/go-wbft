@@ -80,8 +80,8 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	defer m.mu.Unlock()
 
 	config := attack.GetConfig()
-	log.Info("[byzantine] attack manager ", "attack", attack)
-	log.Info("[byzantine] attack manager ", "config", config)
+	log.Trace("[byzantine] attack manager ", "attack", attack)
+	log.Trace("[byzantine] attack manager ", "config", config)
 
 	// Generate standardized UID
 	uid := m.uidGenerator.GenerateWithRange(
@@ -467,20 +467,11 @@ func (m *AttackManager) GetUIDGenerator() types.UIDGenerator {
 }
 
 // FindExecutableAttack finds an executable attack based on type, sequence, round, and message code
-func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequence, round uint64, msgCode types.MessageCode) (types.Attack, bool) {
+func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequence, round uint64,
+	msgCode types.MessageCode) (types.Attack, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	//log.Debug("[byzantine] Finding executable attack",
-	//	"type", attackType,
-	//	"sequence", sequence,
-	//	"round", round,
-	//	"msgCode", msgCode,
-	//	"total_attacks", len(m.attacksByUID))
-
-	var candidates []types.Attack
-
-	// Step 1: Find candidates by attack_type, sequence(range), round
 	for _, attack := range m.attacksByUID {
 		config := attack.GetConfig()
 
@@ -499,21 +490,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequen
 			continue
 		}
 
-		//log.Debug("[byzantine] Found candidate attack",
-		//	"uid", config.UID,
-		//	"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-		//	"status", config.Status,
-		//	"execution_count", config.ExecutionCount,
-		//	"max_executions", config.MaxExecutions)
-
-		candidates = append(candidates, attack)
-	}
-
-	// Step 2: Filter by message code
-	var codeMatchedCandidates []types.Attack
-	for _, attack := range candidates {
-		config := attack.GetConfig()
-
+		// Check Code
 		// Extract code from ParsedParameters
 		var attackCode types.MessageCode
 		switch params := config.ParsedParameters.(type) {
@@ -542,57 +519,38 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequen
 		}
 
 		// Match message code
-		if attackCode == msgCode {
-			codeMatchedCandidates = append(codeMatchedCandidates, attack)
+		if attackCode != msgCode {
+			continue
 		}
-	}
 
-	log.Debug("[byzantine] Code matched candidates", "count", len(codeMatchedCandidates))
-
-	// Step 3: Check status and execution eligibility
-	for _, attack := range codeMatchedCandidates {
-		config := attack.GetConfig()
-
-		// Check if attack is eligible
+		// Check if attack is eligible (check attack status)
 		if !m.isAttackEligible(config) {
-			//log.Debug("[byzantine] Attack not eligible",
-			//	"uid", config.UID,
-			//	"status", config.Status,
-			//	"enabled", config.Enabled)
 			continue
 		}
 
 		// Check if attack can be executed
 		if !m.canExecuteAttack(attack, sequence) {
-			//log.Debug("[byzantine] Attack cannot execute",
-			//	"uid", config.UID,
-			//	"last_executed_seq", config.LastExecutedSeq,
-			//	"current_seq", sequence,
-			//	"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-			//	"execution_count", config.ExecutionCount,
-			//	"max_executions", config.MaxExecutions)
+			log.Trace("[byzantine] Attack cannot execute",
+				"uid", config.UID,
+				"last_executed_seq", config.LastExecutedSeq,
+				"current_seq", sequence,
+				"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+				"execution_count", config.ExecutionCount,
+				"max_executions", config.MaxExecutions)
 			continue
 		}
 
-		// TODO:
-		// 1. call attack execute condition function
-
-		log.Info("[byzantine] Found executable attack",
+		log.Debug("[byzantine] Found executable attack",
 			"uid", config.UID,
 			"type", config.Type,
 			"sequence", sequence,
 			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
 			"execution_count", config.ExecutionCount,
-			"max_executions", config.MaxExecutions)
+			"max_executions", config.MaxExecutions,
+			"code", config.Parameters["code"])
 
 		return attack, true
 	}
-
-	//log.Debug("[byzantine] No executable attack found",
-	//	"type", attackType,
-	//	"sequence", sequence,
-	//	"candidates", len(candidates),
-	//	"code_matched", len(codeMatchedCandidates))
 
 	return nil, false
 }
@@ -619,7 +577,7 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 
 	// Check max executions
 	if config.MaxExecutions > 0 && config.ExecutionCount >= config.MaxExecutions {
-		log.Debug("[byzantine] Attack execution limit reached",
+		log.Trace("[byzantine] Attack execution limit reached",
 			"uid", config.UID,
 			"executed", config.ExecutionCount,
 			"max", config.MaxExecutions)
@@ -629,18 +587,19 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 	// For attacks with sequence range, skip LastExecutedSeq check
 	// They should be able to execute once per sequence within the range
 	if config.SequenceStart != config.SequenceEnd {
-		log.Debug("[byzantine] Sequence range attack, allowing execution",
+		log.Trace("[byzantine] Sequence range attack",
 			"uid", config.UID,
+			"type", config.Type,
 			"sequence", sequence,
-			"range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-			"executionCount", config.ExecutionCount,
-			"maxExecutions", config.MaxExecutions)
+			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+			"execution_count", config.ExecutionCount,
+			"max_executions", config.MaxExecutions)
 		return true
 	}
 
 	// For single sequence attacks, check if already executed at this sequence
 	if config.LastExecutedSeq == sequence {
-		log.Debug("[byzantine] Attack already executed at this sequence",
+		log.Trace("[byzantine] Attack already executed at this sequence",
 			"uid", config.UID,
 			"sequence", sequence)
 		return false

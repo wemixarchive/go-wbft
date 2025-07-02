@@ -3,13 +3,12 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
-
 	"github.com/ethereum/go-ethereum/log"
+	"io"
+	"os"
+	"time"
 )
 
 // ConfigLoader loads Byzantine configuration
@@ -86,12 +85,43 @@ func (cl *ConfigLoader) LoadConfigFromReader(reader io.Reader) (*types.Byzantine
 
 // parseAttackConfig parses a single attack configuration
 func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConfig, error) {
-	var config types.AttackConfig
-
-	// Use the custom UnmarshalJSON which handles basic parsing
-	if err := json.Unmarshal(raw, &config); err != nil {
-		return config, fmt.Errorf("failed to unmarshal attack config: %w", err)
+	var basicConfig struct {
+		UID           string                 `json:"uid"`
+		Name          string                 `json:"name"`
+		Type          string                 `json:"type"`
+		Enabled       bool                   `json:"enabled"`
+		SequenceStart uint64                 `json:"sequence_start"`
+		SequenceEnd   uint64                 `json:"sequence_end"`
+		Round         uint64                 `json:"round"`
+		MaxExecutions uint64                 `json:"max_executions,omitempty"`
+		Parameters    map[string]interface{} `json:"parameters,omitempty"`
 	}
+
+	if err := json.Unmarshal(raw, &basicConfig); err != nil {
+		return types.AttackConfig{}, fmt.Errorf("failed to unmarshal attack config: %w", err)
+	}
+
+	// Create attack config
+	config := types.AttackConfig{
+		Name:          basicConfig.Name,
+		Type:          types.StringToAttackType(basicConfig.Type),
+		Enabled:       basicConfig.Enabled,
+		SequenceStart: basicConfig.SequenceStart,
+		SequenceEnd:   basicConfig.SequenceEnd,
+		Round:         basicConfig.Round,
+		MaxExecutions: basicConfig.MaxExecutions,
+		Parameters:    basicConfig.Parameters,
+		Status:        types.AttackStatusPending,
+		CreatedAt:     time.Now(),
+	}
+
+	uid := types.NewUIDGenerator().GenerateWithRange(
+		config.Type,
+		config.SequenceStart,
+		config.SequenceEnd,
+		config.Round,
+	)
+	config.UID = uid
 
 	// Now parse the parameters using the registry (no import cycle)
 	if config.RawParameters != nil {
@@ -113,8 +143,7 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 				return config, fmt.Errorf("failed to parse %s parameters: %w", config.Type, err)
 			}
 			config.ParsedParameters = parsedParams
-			log.Debug("[byzantine]", "type", config.Type, "parameters", config.Parameters)
-			log.Debug("[byzantine]", "type", config.Type, "parsedParameters", config.ParsedParameters)
+			config.Parameters = cl.restructureParameters(config.Type, parsedParams)
 		}
 	}
 
@@ -136,73 +165,9 @@ func (cl *ConfigLoader) parseAttacks(rawAttacks []json.RawMessage) ([]types.Atta
 	return attacks, nil
 }
 
-//
-//// parseAttackConfig parses a single attack configuration
-//func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConfig, error) {
-//	// First, unmarshal to get basic fields and determine attack type
-//	var basicConfig struct {
-//		Name       string                 `json:"name"`
-//		Type       string                 `json:"type"`
-//		Enabled    bool                   `json:"enabled"`
-//		Sequence   uint64                 `json:"sequence"`
-//		Round      uint64                 `json:"round"`
-//		Parameters map[string]interface{} `json:"parameters,omitempty"`
-//	}
-//
-//	if err := json.Unmarshal(raw, &basicConfig); err != nil {
-//		return types.AttackConfig{}, fmt.Errorf("failed to unmarshal basic config: %w", err)
-//	}
-//
-//	// Create attack config
-//	config := types.AttackConfig{
-//		Name:      basicConfig.Name,
-//		Type:      types.StringToAttackType(basicConfig.Type),
-//		Enabled:   basicConfig.Enabled,
-//		Sequence:  basicConfig.Sequence,
-//		Round:     basicConfig.Round,
-//		Status:    types.AttackStatusPending,
-//		CreatedAt: time.Now(),
-//	}
-//
-//	// Store raw parameters for potential debugging
-//	config.Parameters = basicConfig.Parameters
-//
-//	// Generate UID based on type, code, sequence, and round
-//	config.UID = cl.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
-//
-//	// Parse type-specific parameters
-//	if basicConfig.Parameters != nil {
-//		parsedParams, err := cl.paramRegistry.ParseParameters(config.Type, basicConfig.Parameters)
-//		if err != nil {
-//			return config, fmt.Errorf("failed to parse parameters for %s: %w", config.Name, err)
-//		}
-//
-//		// For improved config, we would set ParsedParameters
-//		// However, since we're using the existing AttackConfig, we need to
-//		// ensure parameters are properly structured
-//		config.Parameters = cl.restructureParameters(config.Type, parsedParams)
-//		config.ParsedParameters = parsedParams
-//	}
-//
-//	// Validate individual attack config
-//	if err := cl.validateAttackConfig(&config); err != nil {
-//		return config, fmt.Errorf("validation failed for %s: %w", config.Name, err)
-//	}
-//
-//	log.Debug("Parsed attack configuration",
-//		"name", config.Name,
-//		"type", config.Type,
-//		"uid", config.UID,
-//		"sequence", config.Sequence,
-//		"round", config.Round,
-//		"code", config.Parameters["code"],
-//		"parameters", config.Parameters)
-//
-//	return config, nil
-//}
-
 // restructureParameters converts parsed parameters back to map for storage
-func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parsedParams interface{}) map[string]interface{} {
+func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
+	parsedParams interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 
 	switch attackType {
@@ -263,6 +228,8 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parse
 			result["useOriginalView"] = params.UseOriginalView
 			result["targets"] = params.Targets
 		}
+	default:
+		log.Debug("[byzantine] error", "restructureParameters", attackType)
 	}
 
 	return result
@@ -274,8 +241,7 @@ func (cl *ConfigLoader) validateConfig(config *types.ByzantineConfig) error {
 	uidMap := make(map[string]string) // UID -> attack name
 	for _, attack := range config.Attacks {
 		if existingName, exists := uidMap[attack.UID]; exists {
-			return fmt.Errorf("duplicate UID %s detected between attacks '%s' and '%s'",
-				attack.UID, existingName, attack.Name)
+			return fmt.Errorf("duplicate UID %s detected between attacks '%s' and '%s'", attack.UID, existingName, attack.Name)
 		}
 		uidMap[attack.UID] = attack.Name
 	}
