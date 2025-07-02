@@ -284,6 +284,99 @@ func (h *ConsensusHookImpl) DoubleVote(attackType types.AttackType, msgCode, seq
 	return types.AttackConfig{}
 }
 
+// GetExecutableAttacks iterates over every defined AttackType and returns
+// a map keyed by AttackType containing attacks that are both eligible
+// and ready to run for the given <msgCode, sequence, round>.
+func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode, sequence, round uint64) map[types.AttackType]*types.ExecutableAttack {
+	ctx := context.Background()
+	result := make(map[types.AttackType]*types.ExecutableAttack)
+
+	// ───────────────────────────────────────────────────────────────
+	//    Scan all attack types and pick those registered for this
+	//    <sequence, round>. Skip anything that isn’t enabled or that
+	//    fails execution‐condition checks.
+	// ───────────────────────────────────────────────────────────────
+	for _, at := range types.AllAttackTypes {
+
+		uid := h.uidGenerator.Generate(at, sequence, round)
+		attack, ok := h.attackManager.GetAttackByUID(uid)
+		if !ok {
+			//log.Warn("[byzantine] no attack scheduled for this UID", "uid", uid)
+			continue
+		}
+
+		cfg := attack.GetConfig()
+		if !h.isAttackEligible(cfg) {
+			log.Warn("[byzantine]globally disabled, or not in active window", "uid", uid)
+			continue
+		}
+
+		// Parse params and verify that cfg’s internal code matches msgCode.
+		params := h.extractParamsIfMatches(cfg, msgCode)
+		if params == nil {
+			// log.Warn("[byzantine] code mismatch or param-parse error", "uid", uid)
+			continue
+		}
+
+		// Create event
+		evt := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
+		// Check execution condition
+		if !attack.CheckExecuteCondition(ctx, evt) {
+			log.Warn("[byzantine] CheckExecuteCondition error", "uid", uid)
+			continue
+		}
+
+		log.Info("[byzantine] executable attack found", "uid", uid, "msgCode", msgCode)
+
+		result[at] = &types.ExecutableAttack{
+			Enabled: cfg.Enabled,
+			Status:  cfg.Status,
+			Params:  params,
+		}
+	}
+	return result
+}
+
+// extractParamsIfMatches tries to parse the concrete param struct for cfg
+// and additionally ensures its internal message code equals msgCode.
+// It returns (params, true) on success; otherwise (nil, false).
+func (h *ConsensusHookImpl) extractParamsIfMatches(cfg types.AttackConfig, msgCode uint64) interface{} {
+	log.Info("[Byzantine] extractParamsIfMatches", "cfg", cfg, "msgCode", msgCode)
+	switch cfg.Type {
+	case types.AttackTypeSilentMessage:
+		p, err := cfg.GetSilentParams()
+		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
+			return p
+		}
+	case types.AttackTypeTamperedMessage:
+		p, err := cfg.GetTamperParams()
+		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
+			return p
+		}
+	case types.AttackTypeFakeMessage:
+		p, err := cfg.GetFakeParams()
+		if err == nil && uint64(p.Code) == msgCode {
+			return p
+		}
+	case types.AttackTypeOmitMessage:
+		p, err := cfg.GetOmitParams()
+		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
+			return p
+		}
+	case types.AttackTypeRoleSpoofed:
+		p, err := cfg.GetRoleSpoofParams()
+		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
+			return p
+		}
+	case types.AttackTypeReplay:
+		p, err := cfg.GetReplayParams()
+		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
+			return p
+		}
+	}
+	return nil
+}
+
 // Helper methods
 
 // mapConsensusCodeToByzantine maps consensus message code to Byzantine message code

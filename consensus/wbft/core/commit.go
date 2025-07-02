@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -55,26 +54,22 @@ func (c *Core) broadcastCommit() {
 	commit.SetSource(c.Address())
 
 	if hook := c.backend.ByzantineHook(); hook != nil {
-		// Check if DoubleVote attack should be triggered
-		if config := hook.DoubleVote(
-			btypes.AttackTypeTamperedMessage,
-			commit.Code(),
-			c.current.Sequence().Uint64(),
-			c.current.Round().Uint64(),
-		); config.Name != "" {
-			// Retrieve tamper parameters
-			params, err := config.GetTamperParams()
-			if err != nil {
-				log.Error("[byzantine] Failed to get tamper parameters")
-				return
-			}
-			if c.broadcastByzantineCommit(params) {
-
-				if !params.WithValidMessage {
-					return // skip the normal message
+		attacks := hook.GetExecutableAttacks(commit.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64())
+		if len(attacks) != 0 {
+			if c.broadcastByzantineCommit(attacks) {
+				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
+					params, ok := at.Params.(*btypes.TamperAttackParams)
+					if !ok || params == nil {
+						withMsg(logger, commit).Error("[Byzantine]  Invalid or nil TamperAttackParams")
+					} else {
+						// 에러 체크
+						if !params.WithValidMessage {
+							return // skip the normal message
+						}
+						// Wait for the configured delay
+						time.Sleep(time.Duration(params.Delay) * time.Millisecond)
+					}
 				}
-				// Wait for the configured delay
-				time.Sleep(time.Duration(params.Delay) * time.Millisecond)
 			}
 		}
 	}
@@ -109,7 +104,7 @@ func (c *Core) broadcastCommit() {
 	}
 }
 
-func (c *Core) broadcastByzantineCommit(params *btypes.TamperAttackParams) bool {
+func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
 	var err error
 
 	logger := c.currentLogger(true, nil)
@@ -126,17 +121,24 @@ func (c *Core) broadcastByzantineCommit(params *btypes.TamperAttackParams) bool 
 	commit := wbfmessage.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
 	commit.SetSource(c.Address())
 
-	for _, field := range params.TamperFields {
-		// Implementation depends on actual message structure
-		// This is just a placeholder
-		switch field.Target {
-		case btypes.TamperDigest:
-			val, err := field.ValueToHash()
-			if err != nil {
-				withMsg(logger, commit).Error("[Byzantine] Conversion failed", "err", err)
-				return false
-			} else {
-				commit.Digest = val
+	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
+		params, ok := at.Params.(*btypes.TamperAttackParams)
+		if !ok || params == nil {
+			withMsg(logger, commit).Error("[Byzantine]  Invalid or nil TamperAttackParams")
+			return false
+		}
+		for _, field := range params.TamperFields {
+			// Implementation depends on actual message structure
+			// This is just a placeholder
+			switch field.Target {
+			case btypes.TamperDigest:
+				val, err := field.ValueToHash()
+				if err != nil {
+					withMsg(logger, commit).Error("[Byzantine] Conversion failed", "err", err)
+					return false
+				} else {
+					commit.Digest = val
+				}
 			}
 		}
 	}

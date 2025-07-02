@@ -238,6 +238,13 @@ type ConsensusHook interface {
 	// If it returns true, both a valid message and a tampered (invalid) message will be sent.
 	// Returns true to simulate a double vote, false to send only the original message.
 	DoubleVote(attachType AttackType, msgCode, sequence, round uint64) AttackConfig
+
+	// GetExecutableAttacks returns a map keyed by AttackType,
+	// where each value contains the full attack configuration and its
+	// parsed parameters (e.g. TamperAttackParams, FakeAttackParams).
+	// Only attacks that are enabled, match the given message code, and
+	// satisfy runtime execution conditions will be included.
+	GetExecutableAttacks(msgCode, sequence, round uint64) map[AttackType]*ExecutableAttack
 }
 
 // AttackParamsParser defines an interface for parsing and validating attack parameters

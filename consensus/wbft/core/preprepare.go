@@ -27,9 +27,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
@@ -58,28 +58,24 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		preprepare.SetSource(c.Address())
 
 		if hook := c.backend.ByzantineHook(); hook != nil {
-			// Check if DoubleVote attack should be triggered
-			if config := hook.DoubleVote(
-				btypes.AttackTypeTamperedMessage,
-				preprepare.Code(),
-				c.current.Sequence().Uint64(),
-				c.current.Round().Uint64(),
-			); config.Name != "" {
-				// Retrieve tamper parameters
-				params, err := config.GetTamperParams()
-				if err != nil {
-					log.Error("[byzantine] Failed to get tamper parameters")
-					return
-				}
-				if c.sendByzantinePreprepareMsg(request, params) {
-
-					if !params.WithValidMessage {
-						// Set the preprepareSent to the current round
-						c.current.preprepareSent = curView.Round
-						return // skip the normal message
+			attacks := hook.GetExecutableAttacks(preprepare.Code(), c.current.Sequence().Uint64(), c.current.Round().Uint64())
+			if len(attacks) != 0 {
+				if c.sendByzantinePreprepareMsg(request, attacks) {
+					if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
+						params, ok := at.Params.(*btypes.TamperAttackParams)
+						if !ok || params == nil {
+							withMsg(logger, preprepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
+						} else {
+							// 에러 체크
+							if !params.WithValidMessage {
+								// Set the preprepareSent to the current round
+								c.current.preprepareSent = curView.Round
+								return // skip the normal message
+							}
+							// Wait for the configured delay
+							time.Sleep(time.Duration(params.Delay) * time.Millisecond)
+						}
 					}
-					// Wait for the configured delay
-					time.Sleep(time.Duration(params.Delay) * time.Millisecond)
 				}
 			}
 		}
@@ -135,7 +131,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 	}
 }
 
-func (c *Core) sendByzantinePreprepareMsg(request *Request, params *btypes.TamperAttackParams) bool {
+func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.AttackType]*types.ExecutableAttack) bool {
 	logger := c.currentLogger(true, nil)
 
 	// Creates PRE-PREPARE message
@@ -149,21 +145,28 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, params *btypes.Tampe
 	preprepare := wbfmessage.NewPreprepare(sequence, round, proposal)
 	preprepare.SetSource(c.Address())
 
-	for _, field := range params.TamperFields {
-		// Implementation depends on actual message structure
-		// This is just a placeholder
-		switch field.Target {
-		case btypes.TamperProposalHeaderNumber:
-			val, err := field.ValueToUint64()
-			if err != nil {
-				withMsg(logger, preprepare).Error("[Byzantine] Conversion failed", "err", err)
-				return false
-			} else {
-				proposal.SetNumber(val)
+	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
+		params, ok := at.Params.(*btypes.TamperAttackParams)
+		if !ok || params == nil {
+			withMsg(logger, preprepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
+			return false
+		}
+
+		for _, field := range params.TamperFields {
+			// Implementation depends on actual message structure
+			// This is just a placeholder
+			switch field.Target {
+			case btypes.TamperProposalHeaderNumber:
+				val, err := field.ValueToUint64()
+				if err != nil {
+					withMsg(logger, preprepare).Error("[Byzantine] Conversion failed", "err", err)
+					return false
+				} else {
+					proposal.SetNumber(val)
+				}
 			}
 		}
 	}
-
 	// Sign payload
 	encodedPayload, err := preprepare.EncodePayloadForSigning()
 	if err != nil {
