@@ -216,11 +216,7 @@ func (ac *AttackConfig) GetSilentParams() (*SilentAttackParams, error) {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeSilentMessage, ac.Type)
 	}
 
-	params := &SilentAttackParams{
-		Code:      ac.Parameters["code"].(MessageCode),
-		Direction: ac.Parameters["direction"].(uint64),
-		Targets:   ac.Parameters["target"].([]common.Address),
-	}
+	params := ac.ParsedParameters.(*SilentAttackParams)
 
 	return params, nil
 }
