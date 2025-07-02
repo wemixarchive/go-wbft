@@ -23,6 +23,7 @@ package core
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/byzantine/types"
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
@@ -70,15 +71,17 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 		}
 	}
 
-	isSilentMessage := func(at *btypes.ExecutableAttack) bool {
-		return at != nil && at.SilentParams != nil &&
-			(at.SilentParams.Direction == 2 || at.SilentParams.Direction == 3)
+	isSilentMessage := func(at *btypes.ExecutableAttack) (*types.SilentAttackParams, bool) {
+		if at == nil || at.SilentParams == nil {
+			return nil, false
+		}
+		return at.SilentParams, (at.SilentParams.Direction == 2 || at.SilentParams.Direction == 3)
 	}
 
 	// check silent
 	for _, group := range attackGroups {
-		if isSilentMessage(group[btypes.AttackTypeSilentMessage]) {
-			log.Info("[byzantine] silent attack: dropped incoming message", "seq", seq, "round", round, "msgCode", msgCode)
+		if params, ok := isSilentMessage(group[btypes.AttackTypeSilentMessage]); ok {
+			log.Info("[byzantine] attack silent: dropped incoming message", "seq", seq, "round", round, "msgCode", params.Code)
 			return errInvalidMessage
 		}
 	}

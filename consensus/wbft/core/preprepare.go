@@ -153,7 +153,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 		if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 			if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
-				log.Info("[byzantine] silent attack: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
+				log.Info("[byzantine] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
 				return
 			}
 		}
@@ -202,7 +202,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 					return false
 				} else {
 					send = true
-					log.Info("[byzantine] tamper attack: Proposal Block Number", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
+					log.Info("[byzantine] attack tamper: Proposal Block Number", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
 					proposal.SetNumber(val)
 				}
 			}
