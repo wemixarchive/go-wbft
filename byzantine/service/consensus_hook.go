@@ -142,8 +142,6 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 // into the appropriate field of the provided ExecutableAttack object.
 // Returns an error if param extraction fails or returns nil.
 func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types.ExecutableAttack) error {
-	// log.Info("[Byzantine] extractParams", "cfg", cfg)
-
 	type extractorFunc func(types.AttackConfig) (interface{}, error)
 	type assignFunc func(interface{})
 
