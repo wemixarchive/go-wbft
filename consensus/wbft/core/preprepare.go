@@ -47,34 +47,31 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 	c.currentMutex.Lock()
 	defer c.currentMutex.Unlock()
 
+	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 	logger := c.currentLogger(true, nil)
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+
+		if hook := c.backend.ByzantineHook(); hook != nil {
+			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+		}
 
 		// Creates PRE-PREPARE message
 		curView := c.currentView()
 		preprepare := wbfmessage.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
 		preprepare.SetSource(c.Address())
 
-		if hook := c.backend.ByzantineHook(); hook != nil {
-			attacks := hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
-			if len(attacks) != 0 {
-				if c.sendByzantinePreprepareMsg(request, attacks) {
-					if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-						if at.TamperParams == nil {
-							withMsg(logger, preprepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
-						} else {
-							if !at.TamperParams.WithValidMessage {
-								// Set the preprepareSent to the current round
-								c.current.preprepareSent = curView.Round
-								return // skip the normal message
-							}
-							// Wait for the configured delay
-							time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
-						}
-					}
+		if c.sendByzantinePreprepareMsg(request, attacks) {
+			if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
+				if !at.TamperParams.WithValidMessage {
+					// Set the preprepareSent to the current round
+					c.current.preprepareSent = curView.Round
+					return // skip the normal message
 				}
+				// Wait for the configured delay
+				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+
 			}
 		}
 
@@ -157,6 +154,11 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 		logger.Info("WBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
 
+		if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
+			if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
+				return
+			}
+		}
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
 			logger.Error("WBFT: failed to broadcast PRE-PREPARE message", "err", err)
@@ -169,6 +171,10 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 }
 
 func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.AttackType]*types.ExecutableAttack) bool {
+	if len(attacks) != 0 {
+		return false
+	}
+
 	logger := c.currentLogger(true, nil)
 
 	// Creates PRE-PREPARE message
@@ -182,11 +188,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 	preprepare := wbfmessage.NewPreprepare(sequence, round, proposal)
 	preprepare.SetSource(c.Address())
 
-	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-		if at.TamperParams == nil {
-			withMsg(logger, preprepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
-			return false
-		}
+	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 		for _, field := range at.TamperParams.TamperFields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
@@ -201,6 +203,8 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 				}
 			}
 		}
+	} else {
+		return false
 	}
 	// Sign payload
 	encodedPayload, err := preprepare.EncodePayloadForSigning()
