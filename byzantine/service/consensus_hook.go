@@ -184,21 +184,22 @@ func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types
 func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode types.MessageCode, attacks *types.ExecutableAttack) bool {
 	switch cfg.Type {
 	case types.AttackTypeSilentMessage:
-		return attacks.SilentParams != nil && attacks.SilentParams.Code == msgCode
+		return attacks.SilentParams != nil && attacks.SilentParams.HasMessageCode(msgCode)
 
 	case types.AttackTypeTamperedMessage:
-		return attacks.TamperParams != nil && attacks.TamperParams.Code == msgCode
+		return attacks.TamperParams != nil && attacks.TamperParams.HasMessageCode(msgCode)
 
 	case types.AttackTypeFakeMessage:
-		return attacks.FakeParams != nil && attacks.FakeParams.Code == msgCode
+		return attacks.FakeParams != nil && attacks.FakeParams.HasMessageCode(msgCode)
+
 	case types.AttackTypeOmitMessage:
-		return attacks.OmitParams != nil && attacks.OmitParams.Code == msgCode
+		return attacks.OmitParams != nil && attacks.OmitParams.HasMessageCode(msgCode)
 
 	case types.AttackTypeRoleSpoofed:
-		return attacks.RoleSpoofParams != nil && attacks.RoleSpoofParams.Code == msgCode
+		return attacks.RoleSpoofParams != nil && attacks.RoleSpoofParams.HasMessageCode(msgCode)
 
 	case types.AttackTypeReplay:
-		return attacks.ReplayParams != nil && attacks.ReplayParams.Code == msgCode
+		return attacks.ReplayParams != nil && attacks.ReplayParams.HasMessageCode(msgCode)
 	}
 	return false
 }
