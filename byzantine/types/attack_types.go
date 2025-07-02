@@ -390,7 +390,12 @@ type AttackContext struct {
 // ExecutableAttack bundles the original AttackConfig with its
 // concrete parameter struct (TamperAttackParams, FakeAttackParams, …).
 type ExecutableAttack struct {
-	Enabled bool
-	Status  AttackStatus
-	Params  interface{}
+	Enabled         bool
+	Status          AttackStatus
+	SilentParams    *SilentAttackParams
+	TamperParams    *TamperAttackParams
+	FakeParams      *FakeAttackParams
+	OmitParams      *OmitAttackParams
+	RoleSpoofParams *RoleSpoofAttackParams
+	ReplayParams    *ReplayAttackParams
 }

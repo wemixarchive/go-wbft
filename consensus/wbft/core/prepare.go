@@ -56,16 +56,14 @@ func (c *Core) broadcastPrepare() {
 		if len(attacks) != 0 {
 			if c.broadcastByzantinePrepare(attacks) {
 				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-					params, ok := at.Params.(*btypes.TamperAttackParams)
-					if !ok || params == nil {
+					if at.TamperParams == nil {
 						withMsg(logger, prepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
 					} else {
-						// 에러 체크
-						if !params.WithValidMessage {
+						if !at.TamperParams.WithValidMessage {
 							return // skip the normal message
 						}
 						// Wait for the configured delay
-						time.Sleep(time.Duration(params.Delay) * time.Millisecond)
+						time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 					}
 				}
 			}
@@ -118,12 +116,11 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 	prepare.SetSource(c.Address())
 
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil {
-		params, ok := at.Params.(*btypes.TamperAttackParams)
-		if !ok || params == nil {
+		if at.TamperParams == nil {
 			withMsg(logger, prepare).Error("[Byzantine]  Invalid or nil TamperAttackParams")
 			return false
 		}
-		for _, field := range params.TamperFields {
+		for _, field := range at.TamperParams.TamperFields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
 			switch field.Target {

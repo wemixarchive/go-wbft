@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/byzantine/types"
@@ -311,10 +312,19 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode, sequence, round uint64
 			continue
 		}
 
-		// Parse params and verify that cfg’s internal code matches msgCode.
-		params := h.extractParamsIfMatches(cfg, msgCode)
-		if params == nil {
+		result[at] = &types.ExecutableAttack{
+			Enabled: cfg.Enabled,
+			Status:  cfg.Status,
+		}
+		err := h.extractParams(cfg, result[at])
+		if err != nil {
 			// log.Warn("[byzantine] code mismatch or param-parse error", "uid", uid)
+			delete(result, at)
+			continue
+		}
+
+		if !h.IsMessageCodeMatched(cfg, msgCode, result[at]) {
+			delete(result, at)
 			continue
 		}
 
@@ -322,59 +332,133 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode, sequence, round uint64
 		evt := h.createEvent(types.EventTypeMessageSent, msgCode, sequence, round, types.DirectionSend)
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, evt) {
+			delete(result, at)
 			log.Warn("[byzantine] CheckExecuteCondition error", "uid", uid)
 			continue
 		}
 
 		log.Info("[byzantine] executable attack found", "uid", uid, "msgCode", msgCode)
 
-		result[at] = &types.ExecutableAttack{
-			Enabled: cfg.Enabled,
-			Status:  cfg.Status,
-			Params:  params,
-		}
 	}
 	return result
 }
 
-// extractParamsIfMatches tries to parse the concrete param struct for cfg
-// and additionally ensures its internal message code equals msgCode.
-// It returns (params, true) on success; otherwise (nil, false).
-func (h *ConsensusHookImpl) extractParamsIfMatches(cfg types.AttackConfig, msgCode uint64) interface{} {
-	log.Info("[Byzantine] extractParamsIfMatches", "cfg", cfg, "msgCode", msgCode)
+// extractParams attempts to parse and assign the concrete param struct for the given cfg
+// into the appropriate field of the provided ExecutableAttack object.
+// Returns an error if param extraction fails or returns nil.
+func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types.ExecutableAttack) error {
+	// log.Info("[Byzantine] extractParams", "cfg", cfg)
+
+	type extractorFunc func(types.AttackConfig) (interface{}, error)
+	type assignFunc func(interface{})
+
+	handlers := map[types.AttackType]struct {
+		extract extractorFunc
+		assign  assignFunc
+		errMsg  string
+	}{
+		types.AttackTypeSilentMessage: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) {
+				return cfg.GetSilentParams()
+			},
+			assign: func(v interface{}) {
+				attacks.SilentParams = v.(*types.SilentAttackParams)
+			},
+			errMsg: "SilentParams is nil",
+		},
+		types.AttackTypeTamperedMessage: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) {
+				return cfg.GetTamperParams()
+			},
+			assign: func(v interface{}) {
+				attacks.TamperParams = v.(*types.TamperAttackParams)
+			},
+			errMsg: "TamperParams is nil",
+		},
+		types.AttackTypeFakeMessage: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) {
+				return cfg.GetFakeParams()
+			},
+			assign: func(v interface{}) {
+				attacks.FakeParams = v.(*types.FakeAttackParams)
+			},
+			errMsg: "FakeParams is nil",
+		},
+		types.AttackTypeOmitMessage: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) {
+				return cfg.GetOmitParams()
+			},
+			assign: func(v interface{}) {
+				attacks.OmitParams = v.(*types.OmitAttackParams)
+			},
+			errMsg: "OmitParams is nil",
+		},
+		types.AttackTypeRoleSpoofed: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) {
+				return cfg.GetRoleSpoofParams()
+			},
+			assign: func(v interface{}) {
+				attacks.RoleSpoofParams = v.(*types.RoleSpoofAttackParams)
+			},
+			errMsg: "RoleSpoofParams is nil",
+		},
+		types.AttackTypeReplay: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) {
+				return cfg.GetReplayParams()
+			},
+			assign: func(v interface{}) {
+				attacks.ReplayParams = v.(*types.ReplayAttackParams)
+			},
+			errMsg: "ReplayParams is nil",
+		},
+	}
+
+	handler, ok := handlers[cfg.Type]
+	if !ok {
+		return fmt.Errorf("unknown attack type: %s", cfg.Type)
+	}
+
+	param, err := handler.extract(cfg)
+	if err != nil {
+		return err
+	}
+	if param == nil {
+		return fmt.Errorf(handler.errMsg)
+	}
+
+	handler.assign(param)
+	return nil
+}
+
+// IsMessageCodeMatched checks if the internal message code of the given ExecutableAttack
+// matches the expected msgCode for the specified attack type.
+func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode uint64, attacks *types.ExecutableAttack) bool {
 	switch cfg.Type {
 	case types.AttackTypeSilentMessage:
-		p, err := cfg.GetSilentParams()
-		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
-			return p
-		}
+		return attacks.SilentParams != nil &&
+			types.MessageCodeToQBFT[attacks.SilentParams.Code] == msgCode
+
 	case types.AttackTypeTamperedMessage:
-		p, err := cfg.GetTamperParams()
-		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
-			return p
-		}
+		return attacks.TamperParams != nil &&
+			types.MessageCodeToQBFT[attacks.TamperParams.Code] == msgCode
+
 	case types.AttackTypeFakeMessage:
-		p, err := cfg.GetFakeParams()
-		if err == nil && uint64(p.Code) == msgCode {
-			return p
-		}
+		return attacks.FakeParams != nil &&
+			types.MessageCodeToQBFT[attacks.FakeParams.Code] == msgCode
+
 	case types.AttackTypeOmitMessage:
-		p, err := cfg.GetOmitParams()
-		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
-			return p
-		}
+		return attacks.OmitParams != nil &&
+			types.MessageCodeToQBFT[attacks.OmitParams.Code] == msgCode
+
 	case types.AttackTypeRoleSpoofed:
-		p, err := cfg.GetRoleSpoofParams()
-		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
-			return p
-		}
+		return attacks.RoleSpoofParams != nil &&
+			types.MessageCodeToQBFT[attacks.RoleSpoofParams.Code] == msgCode
+
 	case types.AttackTypeReplay:
-		p, err := cfg.GetReplayParams()
-		if err == nil && types.MessageCodeToQBFT[p.Code] == msgCode {
-			return p
-		}
+		return attacks.ReplayParams != nil &&
+			types.MessageCodeToQBFT[attacks.ReplayParams.Code] == msgCode
 	}
-	return nil
+	return false
 }
 
 // Helper methods
