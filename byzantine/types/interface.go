@@ -126,7 +126,7 @@ type AttackManager interface {
 
 	// FindAttackForExecution finds an attack that can be executed at given sequence/round
 	FindAttackForExecution(attackType AttackType, sequence, round uint64) (Attack, bool)
-	
+
 	// FindExecutableAttack finds an executable attack based on type, sequence, round, and message code
 	FindExecutableAttack(attackType AttackType, sequence, round uint64, msgCode MessageCode) (Attack, bool)
 
@@ -272,7 +272,7 @@ type ConsensusHook interface {
 	ShouldExecuteAttack(attackType AttackType, msgCode, sequence, round uint64) (*AttackConfig, bool)
 	GetAttackConfig(attackType AttackType, sequence, round uint64) (*AttackConfig, error)
 	MarkAttackExecuted(uid string, sequence uint64) error
-	
+
 	// BeforeBlockCommit is called before committing a block
 	// Allows modification of seals for omit attack
 	BeforeBlockCommit(block interface{}, preparedSeals, committedSeals []interface{}) ([]interface{}, []interface{}, error)

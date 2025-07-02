@@ -27,9 +27,9 @@ func (ug *UIDGeneratorImpl) Generate(attackType AttackType, sequence, round uint
 func (ug *UIDGeneratorImpl) GenerateWithRange(attackType AttackType, sequenceStart, sequenceEnd, round uint64) string {
 	typeStr := AttackTypeToString(attackType)
 
-	if sequenceEnd == 0 || sequenceEnd == sequenceStart {
-		return fmt.Sprintf("%s-%d-%d", typeStr, sequenceStart, round)
-	}
+	//if sequenceEnd == 0 || sequenceEnd == sequenceStart {
+	//	return fmt.Sprintf("%s-%d-%d", typeStr, sequenceStart, round)
+	//}
 
 	return fmt.Sprintf("%s-%d-%d-%d", typeStr, sequenceStart, sequenceEnd, round)
 }
@@ -50,7 +50,7 @@ func (ug *UIDGeneratorImpl) GenerateForLookup(attackType AttackType, sequence, r
 // ParseRange parse UID to extract attack info including range
 func (ug *UIDGeneratorImpl) ParseRange(uid string) (AttackType, uint64, uint64, uint64, error) {
 	parts := strings.Split(uid, "-")
-	if len(parts) < 3 {
+	if len(parts) < 4 {
 		return "", 0, 0, 0, fmt.Errorf("invalid UID format: %s", uid)
 	}
 

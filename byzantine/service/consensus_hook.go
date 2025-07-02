@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
@@ -20,6 +21,7 @@ type ConsensusHookImpl struct {
 
 	// Cache for attack type mapping to improve performance
 	attackTypeCache map[string][]types.AttackType
+	mu              sync.RWMutex
 }
 
 var _ types.ConsensusHook = (*ConsensusHookImpl)(nil)
@@ -83,18 +85,19 @@ func (h *ConsensusHookImpl) CheckAttackCondition(ctx types.ConsensusContext) boo
 func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64) types.AttackConfig {
 	ctx := context.Background()
 
-	// Map consensus message code to Byzantine message code
-	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 	// TODO:
 	// 1. check MessageCodeRoundChangePrePrepare
 	// 2. check MessageCodePropagation
 
+	// Map consensus message code to Byzantine message code
+	byzantineCode := h.mapConsensusCodeToByzantine(msgCode)
 	// Get applicable attack types for this message
 	attackTypes := h.getApplicableAttackTypes(byzantineCode, types.DirectionSend)
 
 	// Check each attack type
 	for _, attackType := range attackTypes {
 		// Use new FindExecutableAttack method with message code
+
 		attack, found := h.attackManager.FindExecutableAttack(attackType, sequence, round, byzantineCode)
 		if !found {
 			continue
@@ -107,75 +110,20 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64) typ
 
 		// Check attack-specific execution condition
 		if !attack.CheckExecuteCondition(ctx, event) {
-			//log.Debug("[byzantine] Attack condition not met",
-			//	"uid", config.UID,
-			//	"type", attackType,
-			//	"sequence", sequence,
-			//	"msgCode", msgCode,
-			//	"byzantineCode", byzantineCode)
 			continue
 		}
 
-		// Special handling for silent attacks
-		if attackType == types.AttackTypeSilentMessage {
-			log.Debug("[byzantine]", "direction", config.Parameters["direction"])
-			if !(config.Parameters["direction"] == 1 || config.Parameters["direction"] == 3) {
-				return types.AttackConfig{}
-			}
-
-			log.Info("[byzantine] Blocking outbound message",
-				"attack_uid", config.UID,
-				"attack_type", attackType,
-				"msgCode", msgCode,
-				"byzantineCode", byzantineCode,
-				"sequence", sequence,
-				"round", round,
-				"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-				"execution_count", config.ExecutionCount+1,
-				"max_executions", config.MaxExecutions)
-
-			// Update execution state
-			if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
-				log.Error("[byzantine] Failed to mark attack executed", "error", err)
-			}
-
-			// Publish event asynchronously for monitoring
-			//go h.publishEvent(event)
-
-			return config // Block the message
-		}
-
-		// Double vote attacks (tamper)
-		if attackType == types.AttackTypeTamperedMessage {
-			log.Info("[byzantine] Double vote attack triggered",
-				"attack_uid", config.UID,
-				"msgCode", msgCode,
-				"byzantineCode", byzantineCode,
-				"sequence", sequence,
-				"round", round,
-				"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-				"execution_count", config.ExecutionCount+1,
-				"max_executions", config.MaxExecutions)
-
-			// Update execution state
-			if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
-				log.Error("[byzantine] Failed to mark attack executed", "error", err)
-			}
-
-			return config
-		}
-
-		// For other attack types that might need execution
-		if h.shouldExecuteAttack(attackType, types.DirectionSend) {
-			decision := h.evaluateAttack(ctx, attack, event)
-			if decision.ShouldAttack {
-				log.Info("[byzantine] Attack execution decision",
+		switch attackType {
+		case types.AttackTypeSilentMessage:
+			if config.Parameters["direction"] == uint64(1) || config.Parameters["direction"] == uint64(3) {
+				log.Info("[byzantine] Blocking outbound message",
 					"attack_uid", config.UID,
 					"attack_type", attackType,
 					"msgCode", msgCode,
 					"byzantineCode", byzantineCode,
 					"sequence", sequence,
 					"round", round,
+					"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
 					"execution_count", config.ExecutionCount+1,
 					"max_executions", config.MaxExecutions)
 
@@ -183,9 +131,13 @@ func (h *ConsensusHookImpl) BeforeBroadcast(msgCode, sequence, round uint64) typ
 				if err := h.attackManager.MarkAttackExecuted(config.UID, sequence); err != nil {
 					log.Error("[byzantine] Failed to mark attack executed", "error", err)
 				}
-
-				return config
+				return config // Block the message
 			}
+		case types.AttackTypeTamperedMessage:
+		case types.AttackTypeOmitMessage:
+		case types.AttackTypeFakeMessage:
+		case types.AttackTypeRoleSpoofed:
+		case types.AttackTypeReplay:
 		}
 	}
 
@@ -590,7 +542,9 @@ func (h *ConsensusHookImpl) getApplicableAttackTypes(msgCode types.MessageCode, 
 	}
 
 	// Cache the result
+	h.mu.Lock()
 	h.attackTypeCache[cacheKey] = attackTypes
+	h.mu.Unlock()
 
 	return attackTypes
 }

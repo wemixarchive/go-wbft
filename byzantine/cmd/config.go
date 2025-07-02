@@ -48,7 +48,6 @@ func LoadByzantineConfig(ctx *cli.Context, nodeConfig *node.Config) (*types.Byza
 		configFile := ctx.String(ByzantineConfigFileFlag.Name)
 		if configFile != "" {
 			configPath := resolveConfigPath(configFile, nodeConfig.DataDir)
-
 			configLoader := service.NewConfigLoader()
 			parsedConfig, err := configLoader.LoadConfig(configPath)
 			if err != nil {
