@@ -80,13 +80,14 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	defer m.mu.Unlock()
 
 	config := attack.GetConfig()
-	//log.Info("[byzantine] attack manager ", "attack", attack)
-	//log.Info("[byzantine] attack manager ", "config", config)
+	log.Info("[byzantine] attack manager ", "attack", attack)
+	log.Info("[byzantine] attack manager ", "config", config)
 
 	// Generate standardized UID
-	uid := m.uidGenerator.Generate(
+	uid := m.uidGenerator.GenerateWithRange(
 		config.Type,
-		config.Sequence,
+		config.SequenceStart,
+		config.SequenceEnd,
 		config.Round,
 	)
 
@@ -123,6 +124,114 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	return nil
 }
 
+// GetAttacksBySequenceRange retrieves attacks that match the given sequence
+func (m *AttackManager) GetAttacksBySequenceRange(attackType types.AttackType, sequence, round uint64) []types.Attack {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var matchingAttacks []types.Attack
+
+	for _, attack := range m.attacksByUID {
+		config := attack.GetConfig()
+
+		if config.Type != attackType || config.Round != round {
+			continue
+		}
+
+		if config.IsInSequenceRange(sequence) && config.CanExecute() {
+			matchingAttacks = append(matchingAttacks, attack)
+		}
+	}
+
+	return matchingAttacks
+}
+
+// FindAttackForExecution finds an attack that can be executed at given sequence/round
+func (m *AttackManager) FindAttackForExecution(attackType types.AttackType, sequence, round uint64) (types.Attack, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// First try exact match for single sequence attacks
+	exactUID := m.uidGenerator.Generate(attackType, sequence,
+		round)
+	if attack, exists := m.attacksByUID[exactUID]; exists {
+		config := attack.GetConfig()
+		if config.Type == attackType && config.Round == round &&
+			config.CanExecute() {
+			return attack, true
+		}
+	}
+
+	// Then check range-based attacks
+	for _, attack := range m.attacksByUID {
+		config := attack.GetConfig()
+
+		// Skip if wrong type or round
+		if config.Type != attackType || config.Round != round {
+			continue
+		}
+
+		// Check if sequence is in range and attack can execute
+		if config.IsInSequenceRange(sequence) &&
+			config.CanExecute() {
+			return attack, true
+		}
+	}
+
+	return nil, false
+}
+
+// MarkAttackExecuted updates attack execution state
+func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	attack, exists := m.attacksByUID[uid]
+	if !exists {
+		return fmt.Errorf("attack not found: %s", uid)
+	}
+
+	config := attack.GetConfig()
+
+	// Update execution count and sequence
+	config.ExecutionCount++
+	config.LastExecutedSeq = sequence
+	now := time.Now()
+	config.ExecutedAt = &now
+
+	// Check if max executions reached
+	if config.MaxExecutions > 0 && config.ExecutionCount >= config.MaxExecutions {
+		config.Status = types.AttackStatusCompleted
+		attack.SetStatus(types.AttackStatusCompleted)
+		log.Info("[byzantine] Attack completed after reaching max executions",
+			"uid", uid,
+			"executed", config.ExecutionCount,
+			"max", config.MaxExecutions)
+	}
+
+	// Update the attack's config
+	attack.SetConfig(config)
+	m.attacksByUID[uid] = attack
+
+	// Update status tracking
+	if config.Status == types.AttackStatusCompleted {
+		m.updateStatusTracking(uid, types.AttackStatusCompleted, types.AttackStatusExecuted)
+	} else {
+		m.updateStatusTracking(uid, types.AttackStatusExecuted, config.Status)
+	}
+
+	log.Info("[byzantine] Attack executed",
+		"uid", uid,
+		"sequence", sequence,
+		"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+		"execution_count", config.ExecutionCount,
+		"max_executions", config.MaxExecutions,
+		"status", config.Status,
+		"last_executed_seq", config.LastExecutedSeq)
+
+	return nil
+}
+
 // GetAttackByUID retrieves an attack by its string UID
 func (m *AttackManager) GetAttackByUID(uid string) (types.Attack, bool) {
 	m.mu.RLock()
@@ -141,26 +250,14 @@ func (m *AttackManager) GetAttacksByCondition(attackType types.AttackType, seque
 	lookupUID := m.uidGenerator.Generate(attackType, sequence, round)
 	if attack, exists := m.GetAttackByUID(lookupUID); exists {
 		// Check if the attack is eligible
-		if m.isAttackEligible(attack) {
+		config := attack.GetConfig()
+		if m.isAttackEligible(config) {
 			return []types.Attack{attack}
 		}
 	}
 
-	// If no lookup found, check pattern index for wildcard
-	var matches []types.Attack
-	patterns := m.generateLookupPatterns(attackType, sequence, round)
-
-	for _, pattern := range patterns {
-		if uids, exists := m.patternIndex[pattern]; exists {
-			for _, uid := range uids {
-				if attack, ok := m.attacksByUID[uid]; ok && m.isAttackEligible(attack) {
-					matches = append(matches, attack)
-				}
-			}
-		}
-	}
-
-	return matches
+	// If no direct match, use GetAttacksBySequenceRange
+	return m.GetAttacksBySequenceRange(attackType, sequence, round)
 }
 
 // generateLookupPatterns generates possible UID patterns for wildcard matching
@@ -169,9 +266,9 @@ func (m *AttackManager) generateLookupPatterns(attackType types.AttackType, sequ
 		// Exact match
 		m.uidGenerator.Generate(attackType, sequence, round),
 		// Wildcard round (attacks that apply to all rounds)
-		fmt.Sprintf("%s-%d-*", types.AttachTypeToString(attackType), sequence),
+		fmt.Sprintf("%s-%d-*", types.AttackTypeToString(attackType), sequence),
 		// Wildcard sequence and round (attacks that apply globally)
-		fmt.Sprintf("%s-*-*", types.AttachTypeToString(attackType)),
+		fmt.Sprintf("%s-*-*", types.AttackTypeToString(attackType)),
 	}
 	return patterns
 }
@@ -307,36 +404,38 @@ func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event typ
 	applicableTypes := m.getApplicableAttackTypes(msgEvent.MessageCode, direction)
 
 	for _, attackType := range applicableTypes {
-		// Generate UID for direct lookup
-		uid := m.uidGenerator.Generate(attackType, event.Sequence, event.Round)
+		attack, found := m.FindAttackForExecution(attackType,
+			event.Sequence, event.Round)
+		if !found {
+			continue
+		}
 
-		if attack, exists := m.GetAttackByUID(uid); exists {
-			if !m.isAttackEligible(attack) {
-				continue
-			}
+		config := attack.GetConfig()
+		if !m.isAttackEligible(config) {
+			continue
+		}
 
-			// Check execution condition
-			if !attack.CheckExecuteCondition(ctx, event) {
-				continue
-			}
+		// Check execution condition
+		if !attack.CheckExecuteCondition(ctx, event) {
+			continue
+		}
 
-			// Execute attack
-			result, err := m.executeAttack(ctx, attack, event)
-			if err != nil {
-				log.Error("Failed to execute attack", "uid", uid, "error", err)
-				continue
-			}
+		// Execute attack
+		result, err := m.executeAttack(ctx, attack, event)
+		if err != nil {
+			log.Error("Failed to execute attack", "uid", attack.GetUID(), "error", err)
+			continue
+		}
 
-			// Check if message should be blocked
-			if result != nil && result.BlockMessage {
-				return types.AttackDecision{
-					ShouldAttack: true,
-					AttackUID:    uid,
-					AttackType:   attackType,
-					Reason:       result.BlockReason,
-					Result:       result,
-				}, nil
-			}
+		// Check if message should be blocked
+		if result != nil && result.BlockMessage {
+			return types.AttackDecision{
+				ShouldAttack: true,
+				AttackUID:    attack.GetUID(),
+				AttackType:   attackType,
+				Reason:       result.BlockReason,
+				Result:       result,
+			}, nil
 		}
 	}
 
@@ -367,6 +466,189 @@ func (m *AttackManager) GetUIDGenerator() types.UIDGenerator {
 	return m.uidGenerator
 }
 
+// FindExecutableAttack finds an executable attack based on type, sequence, round, and message code
+func (m *AttackManager) FindExecutableAttack(attackType types.AttackType, sequence, round uint64, msgCode types.MessageCode) (types.Attack, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	//log.Debug("[byzantine] Finding executable attack",
+	//	"type", attackType,
+	//	"sequence", sequence,
+	//	"round", round,
+	//	"msgCode", msgCode,
+	//	"total_attacks", len(m.attacksByUID))
+
+	var candidates []types.Attack
+
+	// Step 1: Find candidates by attack_type, sequence(range), round
+	for _, attack := range m.attacksByUID {
+		config := attack.GetConfig()
+
+		// Check attack type
+		if config.Type != attackType {
+			continue
+		}
+
+		// Check sequence range
+		if !config.IsInSequenceRange(sequence) {
+			continue
+		}
+
+		// Check round (0 means any round)
+		if config.Round != 0 && config.Round != round {
+			continue
+		}
+
+		//log.Debug("[byzantine] Found candidate attack",
+		//	"uid", config.UID,
+		//	"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+		//	"status", config.Status,
+		//	"execution_count", config.ExecutionCount,
+		//	"max_executions", config.MaxExecutions)
+
+		candidates = append(candidates, attack)
+	}
+
+	// Step 2: Filter by message code
+	var codeMatchedCandidates []types.Attack
+	for _, attack := range candidates {
+		config := attack.GetConfig()
+
+		// Extract code from ParsedParameters
+		var attackCode types.MessageCode
+		switch params := config.ParsedParameters.(type) {
+		case *types.SilentAttackParams:
+			attackCode = params.Code
+		case *types.TamperAttackParams:
+			attackCode = params.Code
+		case *types.FakeAttackParams:
+			attackCode = params.Code
+		case *types.OmitAttackParams:
+			attackCode = params.Code
+		case *types.RoleSpoofAttackParams:
+			attackCode = params.Code
+		case *types.ReplayAttackParams:
+			attackCode = params.Code
+		default:
+			// Fallback to Parameters map
+			if codeVal, ok := config.Parameters["code"]; ok {
+				switch v := codeVal.(type) {
+				case float64:
+					attackCode = types.MessageCode(v)
+				case int:
+					attackCode = types.MessageCode(v)
+				}
+			}
+		}
+
+		// Match message code
+		if attackCode == msgCode {
+			codeMatchedCandidates = append(codeMatchedCandidates, attack)
+		}
+	}
+
+	log.Debug("[byzantine] Code matched candidates", "count", len(codeMatchedCandidates))
+
+	// Step 3: Check status and execution eligibility
+	for _, attack := range codeMatchedCandidates {
+		config := attack.GetConfig()
+
+		// Check if attack is eligible
+		if !m.isAttackEligible(config) {
+			//log.Debug("[byzantine] Attack not eligible",
+			//	"uid", config.UID,
+			//	"status", config.Status,
+			//	"enabled", config.Enabled)
+			continue
+		}
+
+		// Check if attack can be executed
+		if !m.canExecuteAttack(attack, sequence) {
+			//log.Debug("[byzantine] Attack cannot execute",
+			//	"uid", config.UID,
+			//	"last_executed_seq", config.LastExecutedSeq,
+			//	"current_seq", sequence,
+			//	"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+			//	"execution_count", config.ExecutionCount,
+			//	"max_executions", config.MaxExecutions)
+			continue
+		}
+
+		// TODO:
+		// 1. call attack execute condition function
+
+		log.Info("[byzantine] Found executable attack",
+			"uid", config.UID,
+			"type", config.Type,
+			"sequence", sequence,
+			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+			"execution_count", config.ExecutionCount,
+			"max_executions", config.MaxExecutions)
+
+		return attack, true
+	}
+
+	//log.Debug("[byzantine] No executable attack found",
+	//	"type", attackType,
+	//	"sequence", sequence,
+	//	"candidates", len(candidates),
+	//	"code_matched", len(codeMatchedCandidates))
+
+	return nil, false
+}
+
+// isAttackEligible checks if an attack is eligible based on its status
+func (m *AttackManager) isAttackEligible(config types.AttackConfig) bool {
+	// Check if enabled
+	if !config.Enabled {
+		return false
+	}
+
+	// Check status
+	switch config.Status {
+	case types.AttackStatusCompleted, types.AttackStatusCancelled, types.AttackStatusFailed:
+		return false
+	default:
+		return true
+	}
+}
+
+// canExecuteAttack checks if an attack can be executed based on execution limits
+func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) bool {
+	config := attack.GetConfig()
+
+	// Check max executions
+	if config.MaxExecutions > 0 && config.ExecutionCount >= config.MaxExecutions {
+		log.Debug("[byzantine] Attack execution limit reached",
+			"uid", config.UID,
+			"executed", config.ExecutionCount,
+			"max", config.MaxExecutions)
+		return false
+	}
+
+	// For attacks with sequence range, skip LastExecutedSeq check
+	// They should be able to execute once per sequence within the range
+	if config.SequenceStart != config.SequenceEnd {
+		log.Debug("[byzantine] Sequence range attack, allowing execution",
+			"uid", config.UID,
+			"sequence", sequence,
+			"range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+			"executionCount", config.ExecutionCount,
+			"maxExecutions", config.MaxExecutions)
+		return true
+	}
+
+	// For single sequence attacks, check if already executed at this sequence
+	if config.LastExecutedSeq == sequence {
+		log.Debug("[byzantine] Attack already executed at this sequence",
+			"uid", config.UID,
+			"sequence", sequence)
+		return false
+	}
+
+	return true
+}
+
 // Helper methods
 
 // updateStatusTracking updates the UID tracking by status
@@ -383,27 +665,35 @@ func (m *AttackManager) updateStatusTracking(uid string, newStatus, oldStatus ty
 // updatePatternIndex updates the pattern index for wildcard matching
 func (m *AttackManager) updatePatternIndex(uid string, config types.AttackConfig) {
 	// Index exact pattern
-	exactPattern := m.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
+	exactPattern := m.uidGenerator.GenerateWithRange(config.Type, config.SequenceStart, config.SequenceEnd, config.Round)
 	m.patternIndex[exactPattern] = append(m.patternIndex[exactPattern], uid)
 
 	// Index wildcard patterns for flexible matching
-	// Pattern for any round: "type-code-sequence-*"
+	// Pattern for any round: "type-sequence_start-sequence_end-*"
 	anyRoundPattern := fmt.Sprintf("%s-%d-%d-*",
-		types.AttachTypeToString(config.Type), config.Parameters["code"], config.Sequence)
-	m.patternIndex[anyRoundPattern] = append(m.patternIndex[anyRoundPattern], uid)
+		types.AttackTypeToString(config.Type), config.SequenceStart, config.SequenceEnd)
+	if m.patternIndex[anyRoundPattern] == nil {
+		m.patternIndex[anyRoundPattern] = append(m.patternIndex[anyRoundPattern], uid)
+	} else {
+		log.Error("Duplicated pattern", "uid", uid, "pattern", anyRoundPattern)
+	}
 
-	// Pattern for any sequence and round: "type-code-*-*"
+	// Pattern for any sequence and round: "type-sequence_start-*-*"
 	globalPattern := fmt.Sprintf("%s-%d-*-*",
-		types.AttachTypeToString(config.Type), config.Parameters["code"])
-	m.patternIndex[globalPattern] = append(m.patternIndex[globalPattern], uid)
+		types.AttackTypeToString(config.Type), config.SequenceStart)
+	if m.patternIndex[globalPattern] == nil {
+		m.patternIndex[globalPattern] = append(m.patternIndex[globalPattern], uid)
+	} else {
+		log.Error("Duplicated global pattern", "uid", uid, "pattern", globalPattern)
+	}
 }
 
 // removeFromPatternIndex removes UID from pattern index
 func (m *AttackManager) removeFromPatternIndex(uid string, config types.AttackConfig) {
 	patterns := []string{
-		m.uidGenerator.Generate(config.Type, config.Sequence, config.Round),
-		fmt.Sprintf("%s-%d-*", types.AttachTypeToString(config.Type), config.Sequence),
-		fmt.Sprintf("%s-*-*", types.AttachTypeToString(config.Type)),
+		m.uidGenerator.GenerateWithRange(config.Type, config.SequenceStart, config.SequenceEnd, config.Round),
+		fmt.Sprintf("%s-%d-%d-*", types.AttackTypeToString(config.Type), config.SequenceStart, config.SequenceEnd),
+		fmt.Sprintf("%s-%d-*-*", types.AttackTypeToString(config.Type), config.SequenceStart),
 	}
 
 	for _, pattern := range patterns {
@@ -421,26 +711,6 @@ func (m *AttackManager) removeFromPatternIndex(uid string, config types.AttackCo
 			}
 		}
 	}
-}
-
-// generatePatterns generates patterns for wildcard matching
-func (m *AttackManager) generatePatterns(attackType types.AttackType, code types.MessageCode, sequence, round uint64) []string {
-	return []string{
-		// Exact match already tried in GetAttacksByCondition
-		// Try wildcard round
-		fmt.Sprintf("%s-%d-%d-*", types.AttachTypeToString(attackType), code, sequence),
-		// Try global wildcard
-		fmt.Sprintf("%s-%d-*-*", types.AttachTypeToString(attackType), code),
-	}
-}
-
-// isAttackEligible checks if an attack is eligible for execution
-func (m *AttackManager) isAttackEligible(attack types.Attack) bool {
-	config := attack.GetConfig()
-	return config.Enabled &&
-		config.Status != types.AttackStatusCompleted &&
-		config.Status != types.AttackStatusCancelled &&
-		config.Status != types.AttackStatusFailed
 }
 
 // getApplicableAttackTypes returns attack types applicable to the message and direction

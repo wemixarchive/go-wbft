@@ -63,7 +63,7 @@ func StringToAttackType(s string) AttackType {
 	}
 }
 
-func AttachTypeToString(attackType AttackType) string {
+func AttackTypeToString(attackType AttackType) string {
 	switch attackType {
 	case AttackTypeSilentMessage:
 		return AttackSilent
@@ -84,18 +84,114 @@ func AttachTypeToString(attackType AttackType) string {
 
 // AttackConfig represents the configuration for an attack
 type AttackConfig struct {
-	UID      string       `json:"uid"`
-	Name     string       `json:"name"`
-	Type     AttackType   `json:"type"`
-	Enabled  bool         `json:"enabled"`
-	Sequence uint64       `json:"sequence"`
-	Round    uint64       `json:"round"`
-	Status   AttackStatus `json:"status,omitempty"`
-	//Targets          []common.Address       `json:"targets,omitempty"`
+	UID     string     `json:"uid"`
+	Name    string     `json:"name"`
+	Type    AttackType `json:"type"`
+	Enabled bool       `json:"enabled"`
+	//Sequence         uint64                 `json:"sequence"`
+	SequenceStart    uint64                 `json:"sequence_start"`
+	SequenceEnd      uint64                 `json:"sequence_end"`
+	Round            uint64                 `json:"round"`
+	MaxExecutions    uint64                 `json:"max_executions,omitempty"`
+	ExecutionCount   uint64                 `json:"-"`
+	Status           AttackStatus           `json:"status,omitempty"`
 	Parameters       map[string]interface{} `json:"parameters,omitempty"`
+	RawParameters    json.RawMessage        `json:"-"`
 	ParsedParameters interface{}            `json:"-"`
 	CreatedAt        time.Time              `json:"created_at"`
 	ExecutedAt       *time.Time             `json:"executed_at,omitempty"`
+	LastExecutedSeq  uint64                 `json:"-"`
+}
+
+func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
+	type Alias AttackConfig
+	aux := &struct {
+		*Alias
+		Type       string          `json:"type"`
+		Parameters json.RawMessage `json:"parameters,omitempty"`
+		Sequence   *uint64         `json:"sequence,omitempty"`
+	}{
+		Alias: (*Alias)(ac),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	ac.Type = StringToAttackType(aux.Type)
+
+	if aux.Sequence != nil {
+		ac.SequenceStart = *aux.Sequence
+		ac.SequenceEnd = 0
+	}
+
+	if len(aux.Parameters) > 0 {
+		// Store raw parameters for later parsing
+		ac.RawParameters = aux.Parameters
+		// Also unmarshal to map for backward compatibility
+		json.Unmarshal(aux.Parameters, &ac.Parameters)
+	}
+
+	uidGen := NewUIDGenerator()
+	ac.UID = uidGen.GenerateWithRange(ac.Type, ac.SequenceStart, ac.SequenceEnd, ac.Round)
+	
+	if ac.Status == "" {
+		ac.Status = AttackStatusPending
+	}
+	ac.CreatedAt = time.Now()
+
+	return nil
+}
+
+// IsInSequenceRange checks if given sequence is in attack's range
+func (ac *AttackConfig) IsInSequenceRange(sequence uint64) bool {
+	if ac.SequenceEnd == 0 || ac.SequenceEnd == ac.SequenceStart {
+		// Single sequence case
+		return sequence == ac.SequenceStart
+	}
+	// Range case
+	return sequence >= ac.SequenceStart && sequence <= ac.SequenceEnd
+}
+
+// CanExecute checks if attack can be executed
+func (ac *AttackConfig) CanExecute() bool {
+	// Check if enabled
+	if !ac.Enabled {
+		return false
+	}
+	
+	// Check status
+	switch ac.Status {
+	case AttackStatusCompleted, AttackStatusCancelled, AttackStatusFailed:
+		return false
+	default:
+		// Continue with execution limit check
+	}
+	
+	// Check max executions
+	if ac.MaxExecutions > 0 && ac.ExecutionCount >= ac.MaxExecutions {
+		return false
+	}
+	
+	return true
+}
+
+// IncrementExecutionCount increments the execution count
+func (ac *AttackConfig) IncrementExecutionCount(sequence uint64) {
+	ac.ExecutionCount++
+	ac.LastExecutedSeq = sequence
+
+	if ac.MaxExecutions > 0 && ac.ExecutionCount >= ac.MaxExecutions {
+		ac.Status = AttackStatusCompleted
+	}
+}
+
+// GetSequenceRange returns the sequence range as string for display
+func (ac *AttackConfig) GetSequenceRange() string {
+	if ac.SequenceEnd == 0 {
+		return fmt.Sprintf("%d", ac.SequenceStart)
+	}
+	return fmt.Sprintf("%d-%d", ac.SequenceStart, ac.SequenceEnd)
 }
 
 // MarshalJSON implements custom JSON marshaling to ensure deep nes ted structures are properly serialized

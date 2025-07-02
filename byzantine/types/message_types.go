@@ -1,17 +1,40 @@
 package types
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// MessageCode represents QBFT message types
+// MessageCode represents WBFT message types
 type MessageCode uint64
 
+func (mc *MessageCode) UnmarshalJSON(data []byte) error {
+	var val interface{}
+	if err := json.Unmarshal(data, &val); err != nil {
+		return err
+	}
+
+	switch v := val.(type) {
+	case float64:
+		*mc = MessageCode(uint64(v))
+	case string:
+		*mc = ParseStringToMessageCode(v)
+		if *mc == 0 {
+			return fmt.Errorf("invalid message code string: %s", v)
+		}
+	default:
+		return fmt.Errorf("invalid message code type: %T", v)
+	}
+	return nil
+}
+
 // NOTE:
-// RoundChangePrePrepare is a message code that does not exist in QBFT
+// RoundChangePrePrepare is a message code that does not exist in WBFT
 // and means a PrePrepare msg that is sent when the Proposer gathers more
 // than the Quorum Size of RoundChange.
 const (
@@ -52,7 +75,8 @@ func ParseMessageCode(val interface{}) MessageCode {
 
 // ParseStringToMessageCode converts string to MessageCode
 func ParseStringToMessageCode(code string) MessageCode {
-	switch code {
+	v := strings.ToLower(code)
+	switch v {
 	case "PrePrepare":
 		return MessageCodePrePrepare
 	case "Prepare":

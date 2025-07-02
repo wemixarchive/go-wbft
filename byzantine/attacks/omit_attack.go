@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
-	coretypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // OmitMessageAttack implements omit message attack
@@ -46,8 +46,13 @@ func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error)
 func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
 
-	// Check sequence and round
-	if event.Sequence != config.Sequence || event.Round != config.Round {
+	// Check if sequence is in range
+	if !config.IsInSequenceRange(event.Sequence) {
+		return false
+	}
+	
+	// Check round (0 means any round)
+	if config.Round != 0 && event.Round != config.Round {
 		return false
 	}
 
@@ -57,12 +62,29 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 		return false
 	}
 
-	// Check if this is the right message type to attack
-	if event.Type == types.EventTypeMessageSent || event.Type == types.EventTypeBlockCommitted {
-		return true
+	// Check message type
+	messageEvent, ok := event.Data.(*types.MessageEvent)
+	if !ok {
+		return false
 	}
 
-	return false
+	// Use ParsedParameters first
+	if params, ok := config.ParsedParameters.(*types.OmitAttackParams); ok {
+		return messageEvent.MessageCode == params.Code
+	}
+
+	// Fallback to Parameters map
+	var attackCode types.MessageCode
+	switch v := config.Parameters["code"].(type) {
+	case float64:
+		attackCode = types.MessageCode(v)
+	case int:
+		attackCode = types.MessageCode(v)
+	default:
+		return false
+	}
+
+	return messageEvent.MessageCode == attackCode
 }
 
 // Execute performs the omit message attack
@@ -71,7 +93,25 @@ func (a *OmitMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 	config := a.GetConfig()
 
 	// Determine what to omit based on message code and command
-	omittedMessage, err := a.createOmittedMessage(config.Parameters["code"].(types.MessageCode), event)
+	// Safe type conversion for code parameter
+	var messageCode types.MessageCode
+	switch v := config.Parameters["code"].(type) {
+	case float64:
+		messageCode = types.MessageCode(v)
+	case int:
+		messageCode = types.MessageCode(v)
+	case types.MessageCode:
+		messageCode = v
+	default:
+		return &types.AttackResult{
+			UID:        a.GetUID(),
+			Success:    false,
+			Error:      fmt.Errorf("invalid message code type: %T", config.Parameters["code"]),
+			ExecutedAt: time.Now(),
+			Duration:   time.Since(startTime),
+		}, nil
+	}
+	omittedMessage, err := a.createOmittedMessage(messageCode, event)
 	if err != nil {
 		return &types.AttackResult{
 			UID:        a.GetUID(),
@@ -128,29 +168,28 @@ func (a *OmitMessageAttack) omitPrePrepareFields(event types.Event) ([]byte, err
 	// 1: omit prev Prepare Seal
 	// 2: omit prev Commit Seal
 
-	blockEvent, ok := event.Data.(*types.BlockEvent)
+	// For PrePrepare, the event would contain a block proposal
+	// Since we're creating an attack, we need to create a modified message
+
+	log.Info("[byzantine] Omitting fields from PrePrepare",
+		"cmd", a.cmd,
+		"cnt", a.cnt,
+		"sequence", event.Sequence,
+		"round", event.Round)
+
+	// TODO: In real implementation, this would:
+	// 1. Get the current block proposal from consensus layer
+	// 2. Extract WBFT extra data
+	// 3. Modify seals based on cmd
+	// 4. Re-encode and send modified PrePrepare
+
+	// For now, return the original content as we need consensus layer integration
+	msgEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return nil, fmt.Errorf("invalid event data for PrePrepare omit")
 	}
 
-	// Create a proposal with omitted seals
-	proposal := blockEvent.Block
-
-	switch a.cmd {
-	case 1:
-		// Omit prepare seals
-		// Remove prepare seals from extra data
-		proposal = a.removePrepareSeal(proposal, a.cnt)
-	case 2:
-		// Omit commit seals
-		// Remove commit seals from extra data
-		proposal = a.removeCommitSeal(proposal, a.cnt)
-	default:
-		return nil, fmt.Errorf("invalid omit command: %d", a.cmd)
-	}
-
-	// Serialize the modified proposal
-	return serializeProposal(proposal), nil
+	return msgEvent.Content, nil
 }
 
 // omitPropagationFields omits fields from block propagation
@@ -159,25 +198,24 @@ func (a *OmitMessageAttack) omitPropagationFields(event types.Event) ([]byte, er
 	// 1: omit Prepare Seal
 	// 2: omit Commit Seal
 
-	blockEvent, ok := event.Data.(*types.BlockEvent)
+	log.Info("[byzantine] Omitting fields from Propagation",
+		"cmd", a.cmd,
+		"cnt", a.cnt,
+		"sequence", event.Sequence)
+
+	// TODO: In real implementation, this would:
+	// 1. Get the finalized block from consensus layer
+	// 2. Extract and modify WBFT extra data
+	// 3. Remove prepare/commit seals based on cmd
+	// 4. Re-encode and propagate modified block
+
+	// For now, return the original content
+	msgEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return nil, fmt.Errorf("invalid event data for Propagation omit")
 	}
 
-	block := blockEvent.Block
-
-	switch a.cmd {
-	case 1:
-		// Omit current prepare seals
-		block = a.removePrepareSeal(block, a.cnt)
-	case 2:
-		// Omit current commit seals
-		block = a.removeCommitSeal(block, a.cnt)
-	default:
-		return nil, fmt.Errorf("invalid omit command: %d", a.cmd)
-	}
-
-	return serializeBlock(block), nil
+	return msgEvent.Content, nil
 }
 
 // omitRoundChangePrePrepareFields omits fields from RoundChange-PrePrepare
@@ -186,61 +224,39 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 	// 1: omit RoundChangeMessages
 	// 2: omit PrepareMessages
 
-	// Create a PrePrepare message with omitted justification
-	message := &types.QBFTMessage{
-		Code:     types.MessageCodePrePrepare,
-		Sequence: event.Sequence,
-		Round:    event.Round,
-		Address:  common.HexToAddress("0x0000000000000000000000000000000000000001"),
+	log.Info("[byzantine] Omitting justification from RoundChange-PrePrepare",
+		"cmd", a.cmd,
+		"cnt", a.cnt,
+		"sequence", event.Sequence,
+		"round", event.Round)
+
+	// TODO: In real implementation, this would:
+	// 1. Get the PrePrepare message after round change
+	// 2. Remove justification messages based on cmd:
+	//    - cmd=1: Remove RoundChange messages
+	//    - cmd=2: Remove Prepare messages
+	// 3. Re-encode and send modified message
+
+	// For now, return the original content
+	msgEvent, ok := event.Data.(*types.MessageEvent)
+	if !ok {
+		return nil, fmt.Errorf("invalid event data for RoundChange-PrePrepare omit")
 	}
 
-	// Normally would include justification, but we're omitting it
-	// TODO:
-	switch a.cmd {
-	case 1:
-		// Omit RoundChangeMessages (but might include PrepareMessages)
-		// This creates an unjustified PrePrepare after round change
-	case 2:
-		// Omit PrepareMessages (but might include RoundChangeMessages)
-		// This creates a PrePrepare without proper prepare justification
-	default:
-		return nil, fmt.Errorf("invalid omit command: %d", a.cmd)
-	}
-
-	return serializeQBFTMessage(message), nil
+	return msgEvent.Content, nil
 }
 
-// Helper functions to remove seals
-func (a *OmitMessageAttack) removePrepareSeal(block *coretypes.Block, count uint64) *coretypes.Block {
-	// TODO:
-	// Implementation would modify the block's extra data to remove prepare seals
-	// If count is 0, remove all; otherwise remove specified number
-	return block
-}
-
-func (a *OmitMessageAttack) removeCommitSeal(block *coretypes.Block, count uint64) *coretypes.Block {
-	// TODO:
-	// Implementation would modify the block's extra data to remove commit seals
-	// If count is 0, remove all; otherwise remove specified number
-	return block
-}
 
 // sendMessage sends a message to targets
 func (a *OmitMessageAttack) sendMessage(content []byte, targets []common.Address) error {
-	// TODO:
-	// Implementation depends on actual network layer
+	// TODO: Implement actual message sending through consensus layer
+	// This would involve:
+	// 1. Getting the backend/broadcaster interface
+	// 2. Sending the message to specified targets or all validators
+	log.Info("[byzantine] Sending omitted message",
+		"targets", len(targets),
+		"content_size", len(content))
 	return nil
-}
-
-// Serialization helpers (placeholders)
-func serializeProposal(proposal *coretypes.Block) []byte {
-	// TODO:
-	return []byte("serialized_proposal_with_omissions")
-}
-
-func serializeBlock(block *coretypes.Block) []byte {
-	// TODO:
-	return []byte("serialized_block_with_omissions")
 }
 
 // OmitAttackFactory creates omit attacks

@@ -3,12 +3,12 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"io"
 	"os"
-	"time"
 
+	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
+
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -84,6 +84,43 @@ func (cl *ConfigLoader) LoadConfigFromReader(reader io.Reader) (*types.Byzantine
 	return config, nil
 }
 
+// parseAttackConfig parses a single attack configuration
+func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConfig, error) {
+	var config types.AttackConfig
+
+	// Use the custom UnmarshalJSON which handles basic parsing
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return config, fmt.Errorf("failed to unmarshal attack config: %w", err)
+	}
+
+	// Now parse the parameters using the registry (no import cycle)
+	if config.RawParameters != nil {
+		parser, exists := cl.paramRegistry.GetParser(config.Type)
+		if exists {
+			// Use ParseJSON for direct JSON parsing
+			parsedParams, err := parser.ParseJSON(config.RawParameters)
+			if err != nil {
+				return config, fmt.Errorf("failed to parse %s parameters: %w", config.Type, err)
+			}
+			config.ParsedParameters = parsedParams
+		}
+	} else if config.Parameters != nil {
+		// Fallback to map-based parsing for backward compatibility
+		parser, exists := cl.paramRegistry.GetParser(config.Type)
+		if exists {
+			parsedParams, err := parser.Parse(config.Parameters)
+			if err != nil {
+				return config, fmt.Errorf("failed to parse %s parameters: %w", config.Type, err)
+			}
+			config.ParsedParameters = parsedParams
+			log.Debug("[byzantine]", "type", config.Type, "parameters", config.Parameters)
+			log.Debug("[byzantine]", "type", config.Type, "parsedParameters", config.ParsedParameters)
+		}
+	}
+
+	return config, nil
+}
+
 // parseAttacks parses attack configurations with type-safe parameter handling
 func (cl *ConfigLoader) parseAttacks(rawAttacks []json.RawMessage) ([]types.AttackConfig, error) {
 	attacks := make([]types.AttackConfig, 0, len(rawAttacks))
@@ -99,69 +136,70 @@ func (cl *ConfigLoader) parseAttacks(rawAttacks []json.RawMessage) ([]types.Atta
 	return attacks, nil
 }
 
-// parseAttackConfig parses a single attack configuration
-func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConfig, error) {
-	// First, unmarshal to get basic fields and determine attack type
-	var basicConfig struct {
-		Name       string                 `json:"name"`
-		Type       string                 `json:"type"`
-		Enabled    bool                   `json:"enabled"`
-		Sequence   uint64                 `json:"sequence"`
-		Round      uint64                 `json:"round"`
-		Parameters map[string]interface{} `json:"parameters,omitempty"`
-	}
-
-	if err := json.Unmarshal(raw, &basicConfig); err != nil {
-		return types.AttackConfig{}, fmt.Errorf("failed to unmarshal basic config: %w", err)
-	}
-
-	// Create attack config
-	config := types.AttackConfig{
-		Name:      basicConfig.Name,
-		Type:      types.StringToAttackType(basicConfig.Type),
-		Enabled:   basicConfig.Enabled,
-		Sequence:  basicConfig.Sequence,
-		Round:     basicConfig.Round,
-		Status:    types.AttackStatusPending,
-		CreatedAt: time.Now(),
-	}
-
-	// Store raw parameters for potential debugging
-	config.Parameters = basicConfig.Parameters
-
-	// Generate UID based on type, code, sequence, and round
-	config.UID = cl.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
-
-	// Parse type-specific parameters
-	if basicConfig.Parameters != nil {
-		parsedParams, err := cl.paramRegistry.ParseParameters(config.Type, basicConfig.Parameters)
-		if err != nil {
-			return config, fmt.Errorf("failed to parse parameters for %s: %w", config.Name, err)
-		}
-
-		// For improved config, we would set ParsedParameters
-		// However, since we're using the existing AttackConfig, we need to
-		// ensure parameters are properly structured
-		config.Parameters = cl.restructureParameters(config.Type, parsedParams)
-		config.ParsedParameters = parsedParams
-	}
-
-	// Validate individual attack config
-	if err := cl.validateAttackConfig(&config); err != nil {
-		return config, fmt.Errorf("validation failed for %s: %w", config.Name, err)
-	}
-
-	log.Debug("Parsed attack configuration",
-		"name", config.Name,
-		"type", config.Type,
-		"uid", config.UID,
-		"sequence", config.Sequence,
-		"round", config.Round,
-		"code", config.Parameters["code"],
-		"parameters", config.Parameters)
-
-	return config, nil
-}
+//
+//// parseAttackConfig parses a single attack configuration
+//func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConfig, error) {
+//	// First, unmarshal to get basic fields and determine attack type
+//	var basicConfig struct {
+//		Name       string                 `json:"name"`
+//		Type       string                 `json:"type"`
+//		Enabled    bool                   `json:"enabled"`
+//		Sequence   uint64                 `json:"sequence"`
+//		Round      uint64                 `json:"round"`
+//		Parameters map[string]interface{} `json:"parameters,omitempty"`
+//	}
+//
+//	if err := json.Unmarshal(raw, &basicConfig); err != nil {
+//		return types.AttackConfig{}, fmt.Errorf("failed to unmarshal basic config: %w", err)
+//	}
+//
+//	// Create attack config
+//	config := types.AttackConfig{
+//		Name:      basicConfig.Name,
+//		Type:      types.StringToAttackType(basicConfig.Type),
+//		Enabled:   basicConfig.Enabled,
+//		Sequence:  basicConfig.Sequence,
+//		Round:     basicConfig.Round,
+//		Status:    types.AttackStatusPending,
+//		CreatedAt: time.Now(),
+//	}
+//
+//	// Store raw parameters for potential debugging
+//	config.Parameters = basicConfig.Parameters
+//
+//	// Generate UID based on type, code, sequence, and round
+//	config.UID = cl.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
+//
+//	// Parse type-specific parameters
+//	if basicConfig.Parameters != nil {
+//		parsedParams, err := cl.paramRegistry.ParseParameters(config.Type, basicConfig.Parameters)
+//		if err != nil {
+//			return config, fmt.Errorf("failed to parse parameters for %s: %w", config.Name, err)
+//		}
+//
+//		// For improved config, we would set ParsedParameters
+//		// However, since we're using the existing AttackConfig, we need to
+//		// ensure parameters are properly structured
+//		config.Parameters = cl.restructureParameters(config.Type, parsedParams)
+//		config.ParsedParameters = parsedParams
+//	}
+//
+//	// Validate individual attack config
+//	if err := cl.validateAttackConfig(&config); err != nil {
+//		return config, fmt.Errorf("validation failed for %s: %w", config.Name, err)
+//	}
+//
+//	log.Debug("Parsed attack configuration",
+//		"name", config.Name,
+//		"type", config.Type,
+//		"uid", config.UID,
+//		"sequence", config.Sequence,
+//		"round", config.Round,
+//		"code", config.Parameters["code"],
+//		"parameters", config.Parameters)
+//
+//	return config, nil
+//}
 
 // restructureParameters converts parsed parameters back to map for storage
 func (cl *ConfigLoader) restructureParameters(attackType types.AttackType, parsedParams interface{}) map[string]interface{} {
@@ -275,7 +313,7 @@ func (cl *ConfigLoader) validateAttackConfig(config *types.AttackConfig) error {
 	}
 
 	// Verify UID matches expected format
-	expectedUID := cl.uidGenerator.Generate(config.Type, config.Sequence, config.Round)
+	expectedUID := cl.uidGenerator.GenerateWithRange(config.Type, config.SequenceStart, config.SequenceEnd, config.Round)
 	if config.UID != expectedUID {
 		return fmt.Errorf("UID mismatch: got %s, expected %s", config.UID, expectedUID)
 	}

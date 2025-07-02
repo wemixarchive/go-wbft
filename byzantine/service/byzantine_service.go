@@ -303,11 +303,13 @@ func (s *ByzantineService) loadAttacksFromConfig() error {
 		if _, err := s.RegisterAttack(attackConfig); err != nil {
 			return fmt.Errorf("failed to register attack %s: %w", attackConfig.Name, err)
 		}
-		log.Info("Attack registered successfully",
+		log.Info("[byzantine] Attack registered successfully",
 			"name", attackConfig.Name,
 			"uid", attackConfig.UID,
 			"type", attackConfig.Type,
-			"code", attackConfig.Parameters["code"])
+			"code", attackConfig.Parameters["code"],
+			"sequence start", attackConfig.SequenceStart,
+			"sequence end", attackConfig.SequenceEnd)
 	}
 	return nil
 }

@@ -34,18 +34,18 @@ func (h *Handler) GetByzantineTests() ([]types.AttackConfig, error) {
 	infos := make([]types.AttackConfig, len(attacks))
 	for i, attack := range attacks {
 		infos[i] = types.AttackConfig{
-			UID:      attack.UID,
-			Name:     attack.Name,
-			Type:     attack.Type,
-			Enabled:  attack.Enabled,
-			Sequence: attack.Sequence,
-			Round:    attack.Round,
-			Status:   attack.Status,
-			//Targets:    attack.Targets,
-			Parameters: attack.Parameters,
-			CreatedAt:  attack.CreatedAt,
-			//FakeMessage:      h.getFakeMessageFromOptions(attack.Options),
-			//WithValidMessage: h.getWithValidMessageFromOptions(attack.Options),
+			UID:            attack.UID,
+			Name:           attack.Name,
+			Type:           attack.Type,
+			Enabled:        attack.Enabled,
+			SequenceStart:  attack.SequenceStart,
+			SequenceEnd:    attack.SequenceEnd,
+			Round:          attack.Round,
+			MaxExecutions:  attack.MaxExecutions,
+			ExecutionCount: attack.ExecutionCount,
+			Status:         attack.Status,
+			Parameters:     attack.Parameters,
+			CreatedAt:      attack.CreatedAt,
 		}
 	}
 
@@ -88,7 +88,8 @@ func (h *Handler) RegisterSilentMessage(params types.SilentMessageParams) error 
 	config := types.AttackConfig{
 		Name:     fmt.Sprintf("silent_%d_%d", params.Sequence, params.Round),
 		Type:     types.AttackTypeSilentMessage,
-		Sequence: params.Sequence,
+		SequenceStart: params.Sequence,
+		SequenceEnd:   0, // 0 means single sequence
 		Round:    params.Round,
 		Parameters: map[string]interface{}{
 			"code":      params.Code,
@@ -129,7 +130,8 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 	config := types.AttackConfig{
 		Name:     fmt.Sprintf("tampered_%d_%d", params.Sequence, params.Round),
 		Type:     types.AttackTypeTamperedMessage,
-		Sequence: params.Sequence,
+		SequenceStart: params.Sequence,
+		SequenceEnd:   0, // 0 means single sequence
 		Round:    params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
@@ -164,7 +166,8 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 	config := types.AttackConfig{
 		Name:     fmt.Sprintf("fake_%d_%d", params.Sequence, params.Round),
 		Type:     types.AttackTypeFakeMessage,
-		Sequence: params.Sequence,
+		SequenceStart: params.Sequence,
+		SequenceEnd:   0, // 0 means single sequence
 		Round:    params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
@@ -197,7 +200,8 @@ func (h *Handler) RegisterOmitMessage(params types.OmitMessageParams) error {
 	config := types.AttackConfig{
 		Name:     fmt.Sprintf("omit_%d_%d", params.Sequence, params.Round),
 		Type:     types.AttackTypeOmitMessage,
-		Sequence: params.Sequence,
+		SequenceStart: params.Sequence,
+		SequenceEnd:   0, // 0 means single sequence
 		Round:    params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
@@ -231,7 +235,8 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 	config := types.AttackConfig{
 		Name:     fmt.Sprintf("rolespoof_%d_%d", params.Sequence, params.Round),
 		Type:     types.AttackTypeRoleSpoofed,
-		Sequence: params.Sequence,
+		SequenceStart: params.Sequence,
+		SequenceEnd:   0, // 0 means single sequence
 		Round:    params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
@@ -264,7 +269,8 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 	config := types.AttackConfig{
 		Name:     fmt.Sprintf("replay_%d_%d", params.Sequence, params.Round),
 		Type:     types.AttackTypeReplay,
-		Sequence: params.Sequence,
+		SequenceStart: params.Sequence,
+		SequenceEnd:   0, // 0 means single sequence
 		Round:    params.Round,
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{

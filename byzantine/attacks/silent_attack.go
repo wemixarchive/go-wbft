@@ -21,7 +21,7 @@ type SilentMessageAttack struct {
 
 var _ (types.Attack) = (*SilentMessageAttack)(nil)
 
-// NewSilentProposerAttack creates a new silent proposer attack
+// NewSilentMessageAttack creates a new silent proposer attack
 func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, error) {
 	paramRegistry := registry.NewParameterParserRegistry()
 
@@ -32,7 +32,6 @@ func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, er
 	}
 
 	params := parsedParams.(*types.SilentAttackParams)
-	//log.Info("[byzantine] silent attack config : ", "params", params)
 
 	attack := &SilentMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
@@ -48,9 +47,14 @@ func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, er
 func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
 
-	// Check sequence and round
-	if event.Sequence != config.Sequence || event.Round != config.Round {
+	// Check if sequence is in range
+	if !config.IsInSequenceRange(event.Sequence) {
 		//log.Debug("this silent attack is not matched ", "sequence", event.Sequence, "round", event.Round)
+		return false
+	}
+	
+	// Check round (0 means any round)
+	if config.Round != 0 && event.Round != config.Round {
 		return false
 	}
 
@@ -66,12 +70,23 @@ func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event t
 		return false
 	}
 
-	if data.MessageCode == config.Parameters["code"] {
-		return true
+	// Use ParsedParameters first
+	if params, ok := config.ParsedParameters.(*types.SilentAttackParams); ok {
+		return data.MessageCode == params.Code
 	}
 
-	// Check if we should be silent for this message type
-	return event.Type == types.EventTypeMessageSent || event.Type == types.EventTypeMessageReceived
+	// Fallback to Parameters map
+	var attackCode types.MessageCode
+	switch v := config.Parameters["code"].(type) {
+	case float64:
+		attackCode = types.MessageCode(v)
+	case int:
+		attackCode = types.MessageCode(v)
+	default:
+		return false
+	}
+
+	return data.MessageCode == attackCode
 }
 
 // Execute performs the silent proposer attack

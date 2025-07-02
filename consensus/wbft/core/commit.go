@@ -259,6 +259,37 @@ func (c *Core) commitWBFT() {
 			copy(committedSeals[i].Seal[:], commitMsg.CommitSeal[:])
 		}
 
+		// Byzantine hook: Allow modification of seals before commit
+		if hook := c.backend.ByzantineHook(); hook != nil {
+			// Convert to interface slices for hook
+			preparedInterface := make([]interface{}, len(preparedSeals))
+			committedInterface := make([]interface{}, len(committedSeals))
+			for i, seal := range preparedSeals {
+				preparedInterface[i] = seal
+			}
+			for i, seal := range committedSeals {
+				committedInterface[i] = seal
+			}
+
+			// Call hook
+			modPrepared, modCommitted, err := hook.BeforeBlockCommit(proposal, preparedInterface, committedInterface)
+			if err == nil {
+				// Convert back to SealData
+				preparedSeals = make([]wbft.SealData, len(modPrepared))
+				for i, seal := range modPrepared {
+					if s, ok := seal.(wbft.SealData); ok {
+						preparedSeals[i] = s
+					}
+				}
+				committedSeals = make([]wbft.SealData, len(modCommitted))
+				for i, seal := range modCommitted {
+					if s, ok := seal.(wbft.SealData); ok {
+						committedSeals[i] = s
+					}
+				}
+			}
+		}
+
 		// Commit proposal to database
 		if err := c.backend.Commit(proposal, preparedSeals, committedSeals, c.currentView().Round); err != nil {
 			c.currentLogger(true, nil).Error("WBFT: error committing proposal", "err", err)

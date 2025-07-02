@@ -45,8 +45,13 @@ func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error)
 func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
 
-	// Check sequence and round
-	if event.Sequence != config.Sequence || event.Round != config.Round {
+	// Check if sequence is in range
+	if !config.IsInSequenceRange(event.Sequence) {
+		return false
+	}
+	
+	// Check round (0 means any round)
+	if config.Round != 0 && event.Round != config.Round {
 		return false
 	}
 
@@ -56,13 +61,29 @@ func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event typ
 		return false
 	}
 
-	// Role spoofing can be triggered on various events
-	switch event.Type {
-	case types.EventTypeMessageSent, types.EventTypeRoundChange:
-		return true
+	// Check message type
+	messageEvent, ok := event.Data.(*types.MessageEvent)
+	if !ok {
+		return false
+	}
+
+	// Use ParsedParameters first
+	if params, ok := config.ParsedParameters.(*types.RoleSpoofAttackParams); ok {
+		return messageEvent.MessageCode == params.Code
+	}
+
+	// Fallback to Parameters map
+	var attackCode types.MessageCode
+	switch v := config.Parameters["code"].(type) {
+	case float64:
+		attackCode = types.MessageCode(v)
+	case int:
+		attackCode = types.MessageCode(v)
 	default:
 		return false
 	}
+
+	return messageEvent.MessageCode == attackCode
 }
 
 // Execute performs the role spoofed attack
@@ -71,7 +92,25 @@ func (a *RoleSpoofedAttack) Execute(ctx context.Context, event types.Event) (*ty
 	config := a.GetConfig()
 
 	// Generate spoofed message based on message type
-	spoofedMessage, spoofedRole, err := a.createSpoofedMessage(config.Parameters["code"].(types.MessageCode), event)
+	// Safe type conversion for code parameter
+	var messageCode types.MessageCode
+	switch v := config.Parameters["code"].(type) {
+	case float64:
+		messageCode = types.MessageCode(v)
+	case int:
+		messageCode = types.MessageCode(v)
+	case types.MessageCode:
+		messageCode = v
+	default:
+		return &types.AttackResult{
+			UID:        a.GetUID(),
+			Success:    false,
+			Error:      fmt.Errorf("invalid message code type: %T", config.Parameters["code"]),
+			ExecutedAt: time.Now(),
+			Duration:   time.Since(startTime),
+		}, nil
+	}
+	spoofedMessage, spoofedRole, err := a.createSpoofedMessage(messageCode, event)
 	if err != nil {
 		return &types.AttackResult{
 			UID:        a.GetUID(),
