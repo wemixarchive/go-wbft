@@ -4,12 +4,10 @@
     {
       "name": "simple_omit_test",
       "type": "omitMessage",
+      "enabled": true,
       "sequence_start": 5,
       "sequence_end": 10,
       "round": 0,
-      "code": 1,
-      "enabled": true,
-      "max_executions": 3,
       "parameters": {
         "code": 1,
         "cmd": 1,

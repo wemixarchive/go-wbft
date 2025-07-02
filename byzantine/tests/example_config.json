@@ -8,7 +8,6 @@
       "sequence_start": 10,
       "sequence_end": 20,
       "round": 0,
-      "max_executions": 5,
       "parameters": {
         "code": 1,
         "direction": 3,

@@ -7,7 +7,6 @@
       "enabled": true,
       "sequence_start": 5,
       "sequence_end": 5,
-      "max_executions": 1,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -23,7 +22,6 @@
       "enabled": true,
       "sequence_start": 6,
       "sequence_end": 6,
-      "max_executions": 1,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -39,7 +37,6 @@
       "enabled": true,
       "sequence_start": 7,
       "sequence_end": 7,
-      "max_executions": 1,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -55,7 +52,6 @@
       "enabled": true,
       "sequence_start": 8,
       "sequence_end": 8,
-      "max_executions": 1,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -71,7 +67,6 @@
       "enabled": true,
       "sequence_start": 9,
       "sequence_end": 9,
-      "max_executions": 1,
       "round": 0,
       "parameters": {
         "code": 2,
@@ -92,7 +87,6 @@
       "enabled": true,
       "sequence_start": 10,
       "sequence_end": 10,
-      "max_executions": 1,
       "round": 0,
       "parameters": {
         "code": 4,
@@ -107,8 +101,7 @@
       "type": "silent",
       "enabled": true,
       "sequence_start": 20,
-      "sequence_end": 30,
-      "max_executions": 5,
+      "sequence_end": 24,
       "round": 0,
       "parameters": {
         "code": 1,
