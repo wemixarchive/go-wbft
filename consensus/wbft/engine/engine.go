@@ -55,6 +55,7 @@ type Candidate struct {
 type Backend interface {
 	// ByzantineHook gets byzantine hook
 	ByzantineHook() btypes.ConsensusHook
+	Core() *core.Core
 }
 
 type Engine struct {
@@ -1062,41 +1063,49 @@ func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.St
 }
 
 // extractTamperedBlockReward checks for TamperedMessage attack and extracts reward if present.
-func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, header *types.Header) *big.Int {
-	return nil
-	hook := e.backend.ByzantineHook()
-	if hook == nil {
+func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, header *types.Header, blockReward *big.Int) *big.Int {
+	c := e.backend.Core()
+	curView := c.CurrentView()
+
+	if c == nil || curView == nil {
+		log.Trace("[byzantine] skipping: core or curView is nil", "coreNil", c == nil, "curViewNil", curView == nil)
 		return nil
 	}
 
-	attacks := hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, header.Number.Uint64(), 0)
-	tamper := attacks[btypes.AttackTypeTamperedMessage]
-	if tamper == nil || tamper.TamperParams == nil {
-		// log.Error("[Byzantine] Invalid or nil TamperAttackParams")
+	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
+
+	if header.Number.Uint64() != curView.Sequence.Uint64() {
+		log.Trace("[byzantine] skipping: header number does not match current sequence", "have", header.Number.Uint64(), "want", curView.Sequence.Uint64())
 		return nil
 	}
 
-	valSet, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
-	if err != nil {
-		log.Error("[Byzantine] Failed to get validators", "err", err)
-		return nil
-	}
-
-	proposer := valSet.GetProposer().Address()
-	if header.Coinbase != proposer {
-		return nil
-	}
-
-	for _, field := range tamper.TamperParams.TamperFields {
-		if field.Target != btypes.TamperReward {
-			continue
+	if hook := e.backend.ByzantineHook(); hook != nil {
+		if state := c.GetState(); state == core.StateAcceptRequest && c.IsProposer() {
+			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
+		} else {
+			log.Trace("[byzantine] skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
+			return nil
 		}
-		val, err := field.ValueToUint64()
-		if err != nil {
-			log.Error("[Byzantine] Failed to convert tampered reward", "err", err)
-			continue
+	}
+
+	at := attacks[btypes.AttackTypeTamperedMessage]
+	if at == nil || at.TamperParams == nil {
+		log.Trace("[Byzantine] Invalid or nil TamperAttackParams")
+		return nil
+	}
+
+	for _, field := range at.TamperParams.TamperFields {
+		switch field.Target {
+		case btypes.TamperReward:
+			val, err := field.ValueToUint64()
+			if err != nil {
+				log.Error("[Byzantine] Conversion failed", "target", field.Target, "err", err)
+				return nil
+			} else {
+				log.Info("[Byzantine] attack tamper: Proposal Reward", "seq", curView.Sequence.Uint64(), "round", curView.Round.Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", blockReward, "changed", val)
+				return new(big.Int).SetUint64(val)
+			}
 		}
-		return new(big.Int).SetUint64(val)
 	}
 	return nil
 }
@@ -1117,7 +1126,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	}
 
 	// Check and apply tampered block reward if any
-	if tamperedReward := e.extractTamperedBlockReward(chain, header); tamperedReward != nil {
+	if tamperedReward := e.extractTamperedBlockReward(chain, header, blockReward); tamperedReward != nil {
 		blockReward = tamperedReward
 	}
 

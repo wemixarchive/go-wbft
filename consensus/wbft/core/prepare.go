@@ -137,7 +137,7 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 					return false
 				} else {
 					send = true
-					log.Info("[byzantine] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare)
+					log.Info("[byzantine] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare, "original", prepare.Digest.Hex(), "changed", val.Hex())
 					prepare.Digest = val
 				}
 			}

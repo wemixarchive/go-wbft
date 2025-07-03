@@ -139,7 +139,7 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 					return false
 				} else {
 					send = true
-					log.Info("[byzantine] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit)
+					log.Info("[byzantine] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit, "original", commit.Digest.Hex(), "changed", val.Hex())
 					commit.Digest = val
 				}
 			}
