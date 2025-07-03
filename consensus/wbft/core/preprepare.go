@@ -202,7 +202,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 					return false
 				} else {
 					send = true
-					log.Info("[byzantine] attack tamper: Proposal Block Number", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
+					log.Info("[byzantine] attack tamper: Proposal Block Number", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", proposal.Number(), "changed", val)
 					proposal.SetNumber(val)
 				}
 			}

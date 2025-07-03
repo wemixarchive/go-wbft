@@ -144,6 +144,10 @@ func (sb *Backend) ByzantineHook() btypes.ConsensusHook {
 	return sb.byzantineHook
 }
 
+func (sb *Backend) Core() *wbftcore.Core {
+	return sb.core
+}
+
 func (sb *Backend) InjectSimApplier(applier SimApplier) {
 	sb.simApplier = applier
 }

@@ -124,6 +124,10 @@ func (c *Core) currentView() *wbft.View {
 	}
 }
 
+func (c *Core) CurrentView() *wbft.View {
+	return c.currentView()
+}
+
 func (c *Core) PriorRound() *big.Int {
 	return c.priorState.Round()
 }
