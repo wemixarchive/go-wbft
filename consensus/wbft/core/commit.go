@@ -93,7 +93,7 @@ func (c *Core) broadcastCommit() {
 
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 		if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
-			log.Info("[BYZ] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit)
+			log.Info("[BYZ] attack silent: blocked outgoing message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit)
 			return
 		}
 	}
@@ -139,7 +139,7 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 					return false
 				} else {
 					send = true
-					log.Info("[BYZ] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit, "original", commit.Digest.Hex(), "changed", val.Hex())
+					log.Info("[BYZ] attack tamper: Digest", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit, "original", commit.Digest.Hex(), "changed", val.Hex())
 					commit.Digest = val
 				}
 			}

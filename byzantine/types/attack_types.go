@@ -482,6 +482,7 @@ type AttackContext struct {
 type ExecutableAttack struct {
 	Enabled         bool
 	UID             string
+	NAME            string
 	Status          AttackStatus
 	SilentParams    *SilentAttackParams
 	TamperParams    *TamperAttackParams

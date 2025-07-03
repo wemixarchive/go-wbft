@@ -82,6 +82,7 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		result[at] = &types.ExecutableAttack{
 			Enabled: cfg.Enabled,
 			UID:     cfg.UID,
+			NAME:    cfg.Name,
 			Status:  cfg.Status,
 		}
 		err := h.extractParams(cfg, result[at])
