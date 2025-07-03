@@ -121,19 +121,19 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 						cnt := params.Cnt
 						if cnt == 0 || int(cnt) >= len(preprepare.JustificationRoundChanges) {
 							preprepare.JustificationRoundChanges = nil
-							logger.Info("[byzantine] Omitted all RoundChange justifications", "attack_uid", config.UID)
+							logger.Info("[BYZ] Omitted all RoundChange justifications", "attack_uid", config.UID)
 						} else {
 							preprepare.JustificationRoundChanges = preprepare.JustificationRoundChanges[cnt:]
-							logger.Info("[byzantine] Omitted RoundChange justifications", "attack_uid", config.UID, "omitted", cnt)
+							logger.Info("[BYZ] Omitted RoundChange justifications", "attack_uid", config.UID, "omitted", cnt)
 						}
 					case 2: // Omit Prepare messages
 						cnt := params.Cnt
 						if cnt == 0 || int(cnt) >= len(preprepare.JustificationPrepares) {
 							preprepare.JustificationPrepares = nil
-							logger.Info("[byzantine] Omitted all Prepare justifications", "attack_uid", config.UID)
+							logger.Info("[BYZ] Omitted all Prepare justifications", "attack_uid", config.UID)
 						} else {
 							preprepare.JustificationPrepares = preprepare.JustificationPrepares[cnt:]
-							logger.Info("[byzantine] Omitted Prepare justifications", "attack_uid", config.UID, "omitted", cnt)
+							logger.Info("[BYZ] Omitted Prepare justifications", "attack_uid", config.UID, "omitted", cnt)
 						}
 					}
 					// Mark attack as executed
@@ -153,7 +153,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 		if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 			if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
-				log.Info("[byzantine] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
+				log.Info("[BYZ] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
 				return
 			}
 		}
@@ -198,11 +198,11 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 			case btypes.TamperProposalHeaderNumber:
 				val, err := field.ValueToUint64()
 				if err != nil {
-					withMsg(logger, preprepare).Error("[Byzantine] Conversion failed", "err", err)
+					withMsg(logger, preprepare).Error("[BYZ] Conversion failed", "err", err)
 					return false
 				} else {
 					send = true
-					log.Info("[byzantine] attack tamper: Proposal Block Number", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", proposal.Number(), "changed", val)
+					log.Info("[BYZ] attack tamper: Proposal Block Number", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", proposal.Number(), "changed", val)
 					proposal.SetNumber(val)
 				}
 			}
@@ -211,12 +211,12 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 	// Sign payload
 	encodedPayload, err := preprepare.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, preprepare).Error("[Byzantine] WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
+		withMsg(logger, preprepare).Error("[BYZ] WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
 		return false
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, preprepare).Error("[Byzantine] WBFT: failed to sign PRE-PREPARE message", "err", err)
+		withMsg(logger, preprepare).Error("[BYZ] WBFT: failed to sign PRE-PREPARE message", "err", err)
 		return false
 	}
 	preprepare.SetSignature(signature)
@@ -226,31 +226,31 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.At
 		preprepare.JustificationRoundChanges = make([]*wbfmessage.SignedRoundChangePayload, 0)
 		for _, m := range request.RCMessages.Values() {
 			preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
-			withMsg(logger, preprepare).Trace("[Byzantine] WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+			withMsg(logger, preprepare).Trace("[BYZ] WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
 		}
-		withMsg(logger, preprepare).Trace("[Byzantine] WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+		withMsg(logger, preprepare).Trace("[BYZ] WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
 	}
 
 	// Extend PRE-PREPARE message with PREPARE justification
 	if request.PrepareMessages != nil {
 		preprepare.JustificationPrepares = request.PrepareMessages
-		withMsg(logger, preprepare).Trace("[Byzantine] WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+		withMsg(logger, preprepare).Trace("[BYZ] WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
 	}
 
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&preprepare)
 	if err != nil {
-		withMsg(logger, preprepare).Error("[Byzantine] WBFT: failed to encode PRE-PREPARE message", "err", err)
+		withMsg(logger, preprepare).Error("[BYZ] WBFT: failed to encode PRE-PREPARE message", "err", err)
 		return false
 	}
 
 	logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
 
 	if send {
-		logger.Info("[Byzantine] WBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
+		logger.Info("[BYZ] WBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
-			logger.Error("[Byzantine] WBFT: failed to broadcast PRE-PREPARE message", "err", err)
+			logger.Error("[BYZ] WBFT: failed to broadcast PRE-PREPARE message", "err", err)
 			return false
 		}
 		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {

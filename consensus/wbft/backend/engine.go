@@ -361,7 +361,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 
 		prevPreparedSeal := extra.PreparedSeal
 		prevCommittedSeal := extra.CommittedSeal
-		
+
 		// Byzantine hook: Check for omit attack on PrePrepare prev seals
 		if hook := sb.ByzantineHook(); hook != nil {
 			// Use block number from header since this is the block being created
@@ -372,7 +372,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 				header.Number.Uint64(),
 				0, // round is typically 0 for new blocks
 			)
-			
+
 			if found && config != nil && config.ParsedParameters != nil {
 				if params, ok := config.ParsedParameters.(*byzantineTypes.OmitAttackParams); ok {
 					originalPreparedCount := 0
@@ -383,7 +383,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 					if prevCommittedSeal != nil && prevCommittedSeal.Sealers != nil {
 						originalCommittedCount = len(prevCommittedSeal.Sealers)
 					}
-					
+
 					switch params.Cmd {
 					case 1: // Omit prepare seals
 						if params.Cnt == 0 || prevPreparedSeal == nil {
@@ -395,7 +395,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 								Signature: prevPreparedSeal.Signature,
 							}
 						}
-						log.Info("[byzantine] Omitted prev prepare seals from PrePrepare",
+						log.Info("[BYZ] Omitted prev prepare seals from PrePrepare",
 							"attack_uid", config.UID,
 							"original_count", originalPreparedCount,
 							"remaining_count", func() int {
@@ -415,7 +415,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 								Signature: prevCommittedSeal.Signature,
 							}
 						}
-						log.Info("[byzantine] Omitted prev commit seals from PrePrepare",
+						log.Info("[BYZ] Omitted prev commit seals from PrePrepare",
 							"attack_uid", config.UID,
 							"original_count", originalCommittedCount,
 							"remaining_count", func() int {
@@ -426,13 +426,13 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 							}(),
 							"block_number", header.Number.Uint64())
 					}
-					
+
 					// Mark attack as executed
 					hook.MarkAttackExecuted(config.UID, header.Number.Uint64())
 				}
 			}
 		}
-		
+
 		// add lastBlock committers to extraData's prevCommittedSeal section
 		// validators are stored in genesis block
 		wbftengine.ApplyHeaderWBFTExtra(

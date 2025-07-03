@@ -136,7 +136,7 @@ type Backend struct {
 // SetByzantineHook sets the Byzantine hook
 func (sb *Backend) SetByzantineHook(hook btypes.ConsensusHook) {
 	sb.byzantineHook = hook
-	sb.logger.Info("[byzantine] Byzantine hook integrated with WBFT backend")
+	sb.logger.Info("[BYZ] Byzantine hook integrated with WBFT backend")
 }
 
 // ByzantineHook gets teh Byzantine hook

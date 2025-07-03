@@ -3,12 +3,13 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/byzantine/registry"
-	"github.com/ethereum/go-ethereum/byzantine/types"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"os"
 	"time"
+
+	"github.com/ethereum/go-ethereum/byzantine/registry"
+	"github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // ConfigLoader loads Byzantine configuration
@@ -228,7 +229,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 			result["targets"] = params.Targets
 		}
 	default:
-		log.Debug("[byzantine] error", "restructureParameters", attackType)
+		log.Debug("[BYZ] error", "restructureParameters", attackType)
 	}
 
 	return result

@@ -80,8 +80,8 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	defer m.mu.Unlock()
 
 	config := attack.GetConfig()
-	log.Trace("[byzantine] attack manager ", "attack", attack)
-	log.Trace("[byzantine] attack manager ", "config", config)
+	log.Trace("[BYZ] attack manager ", "attack", attack)
+	log.Trace("[BYZ] attack manager ", "config", config)
 
 	// Generate standardized UID
 	uid := m.uidGenerator.GenerateWithRange(
@@ -203,7 +203,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 	if config.ExecutionCount >= uint64(1) {
 		config.Status = types.AttackStatusCompleted
 		attack.SetStatus(types.AttackStatusCompleted)
-		log.Info("[byzantine] Attack completed after reaching max executions",
+		log.Info("[BYZ] Attack completed after reaching max executions",
 			"uid", uid,
 			"executed", config.ExecutionCount,
 			"status", config.Status,
@@ -221,7 +221,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 		m.updateStatusTracking(uid, types.AttackStatusExecuted, config.Status)
 	}
 
-	log.Info("[byzantine] Attack executed",
+	log.Info("[BYZ] Attack executed",
 		"uid", uid,
 		"sequence", sequence,
 		"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
@@ -529,7 +529,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 			continue
 		}
 
-		log.Trace("[byzantine] Found executable attack",
+		log.Trace("[BYZ] Found executable attack",
 			"uid", config.UID,
 			"type", config.Type,
 			"sequence", sequence,
@@ -565,7 +565,7 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 
 	// Check max executions
 	if config.ExecutionCount >= uint64(1) {
-		log.Trace("[byzantine] Attack execution limit reached",
+		log.Trace("[BYZ] Attack execution limit reached",
 			"uid", config.UID,
 			"executed", config.ExecutionCount)
 		return false
@@ -574,7 +574,7 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 	// For attacks with sequence range, skip LastExecutedSeq check
 	// They should be able to execute once per sequence within the range
 	if config.SequenceStart != config.SequenceEnd {
-		log.Trace("[byzantine] Sequence range attack",
+		log.Trace("[BYZ] Sequence range attack",
 			"uid", config.UID,
 			"type", config.Type,
 			"sequence", sequence,
@@ -585,7 +585,7 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 
 	// For single sequence attacks, check if already executed at this sequence
 	if config.LastExecutedSeq == sequence {
-		log.Trace("[byzantine] Attack already executed at this sequence",
+		log.Trace("[BYZ] Attack already executed at this sequence",
 			"uid", config.UID,
 			"sequence", sequence)
 		return false

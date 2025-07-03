@@ -90,7 +90,7 @@ func (c *Core) broadcastPrepare() {
 
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 		if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
-			log.Info("[byzantine] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare)
+			log.Info("[BYZ] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare)
 			return
 		}
 	}
@@ -133,11 +133,11 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 			case btypes.TamperDigest:
 				val, err := field.ValueToHash()
 				if err != nil {
-					withMsg(logger, prepare).Error("[Byzantine] Conversion failed", "err", err)
+					withMsg(logger, prepare).Error("[BYZ] Conversion failed", "err", err)
 					return false
 				} else {
 					send = true
-					log.Info("[byzantine] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare, "original", prepare.Digest.Hex(), "changed", val.Hex())
+					log.Info("[BYZ] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare, "original", prepare.Digest.Hex(), "changed", val.Hex())
 					prepare.Digest = val
 				}
 			}
@@ -147,12 +147,12 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 	// Sign Message
 	encodedPayload, err := prepare.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to encode payload of PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("[BYZ] WBFT: failed to encode payload of PREPARE message", "err", err)
 		return false
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to sign PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("[BYZ] WBFT: failed to sign PREPARE message", "err", err)
 		return false
 	}
 	prepare.SetSignature(signature)
@@ -160,15 +160,15 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&prepare)
 	if err != nil {
-		withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to encode PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("[BYZ] WBFT: failed to encode PREPARE message", "err", err)
 		return false
 	}
 
 	if send {
-		withMsg(logger, prepare).Info("[Byzantine] WBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
+		withMsg(logger, prepare).Info("[BYZ] WBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
-			withMsg(logger, prepare).Error("[Byzantine] WBFT: failed to broadcast PREPARE message", "err", err)
+			withMsg(logger, prepare).Error("[BYZ] WBFT: failed to broadcast PREPARE message", "err", err)
 			return false
 		}
 	}
