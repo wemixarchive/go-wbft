@@ -529,22 +529,6 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 			continue
 		}
 
-		// Check if attack is eligible (check attack status)
-		if !m.isAttackEligible(config) {
-			continue
-		}
-
-		// Check if attack can be executed
-		if !m.canExecuteAttack(attack, sequence) {
-			log.Trace("[byzantine] Attack cannot execute",
-				"uid", config.UID,
-				"last_executed_seq", config.LastExecutedSeq,
-				"current_seq", sequence,
-				"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-				"execution_count", config.ExecutionCount)
-			continue
-		}
-
 		log.Trace("[byzantine] Found executable attack",
 			"uid", config.UID,
 			"type", config.Type,

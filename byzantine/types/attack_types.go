@@ -166,10 +166,13 @@ func (ac *AttackConfig) CanExecute() bool {
 		// Continue with execution limit check
 	}
 
+	// NOTE:
+	// Currently not checking ExecutionCount.
+	// Activated after byzantine attack development is complete.
 	// Check already execution
-	if ac.ExecutionCount > uint64(0) {
-		return false
-	}
+	//if ac.ExecutionCount > uint64(0) {
+	//	return false
+	//}
 
 	return true
 }
@@ -478,6 +481,7 @@ type AttackContext struct {
 // concrete parameter struct (TamperAttackParams, FakeAttackParams, …).
 type ExecutableAttack struct {
 	Enabled         bool
+	UID             string
 	Status          AttackStatus
 	SilentParams    *SilentAttackParams
 	TamperParams    *TamperAttackParams
