@@ -39,6 +39,126 @@
         "direction": 1,
         "targets":[]
       }
+    },
+    {
+      "name": "double_vote_preprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 16,
+      "sequence_end": 19,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [
+          {
+            "target": "Proposal.Header.Number",
+            "value": 100
+          }
+        ],
+        "withValidMessage": true,
+        "delay": 10,
+        "targets": []
+      }
+    },
+    {
+      "name": "double_vote_prepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 20,
+      "sequence_end": 20,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "tamperFields": [
+          {
+            "target": "Digest",
+            "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "withValidMessage": true,
+        "delay": 10,
+        "targets": []
+      }
+    },
+    {
+      "name": "double_vote_commit",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 21,
+      "sequence_end": 21,
+      "round": 0,
+      "parameters": {
+        "code": 4,
+        "tamperFields": [
+          {
+            "target": "Digest",
+            "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          }
+        ],
+        "withValidMessage": true,
+        "delay": 10,
+        "targets": []
+      }
+    },
+    {
+      "name": "double_vote_roundchange_preprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 22,
+      "sequence_end": 25,
+      "round": 1,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [
+          {
+            "target": "Proposal.Header.Number",
+            "value": 100
+          }
+        ],
+        "withValidMessage": true,
+        "delay": 10,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_header_preprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 26,
+      "sequence_end": 29,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [
+          {
+            "target": "Proposal.Header.Number",
+            "value": 100
+          }
+        ],
+        "withValidMessage": false,
+        "delay": 0,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_reward_preprepare",
+      "type": "tamper",
+      "enabled": true,
+      "sequence_start": 30,
+      "sequence_end": 33,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [
+          {
+            "target": "Reward",
+            "value": 100000
+          }
+        ],
+        "withValidMessage": false,
+        "delay": 0,
+        "targets": []
+      }
     }
   ],
   "storage": {

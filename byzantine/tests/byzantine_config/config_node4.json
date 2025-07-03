@@ -13,6 +13,19 @@
         "direction": 1,
         "targets":[]
       }
+    },
+    {
+      "name": "no_broadcast_preprepare",
+      "type": "silent",
+      "enabled": true,
+      "sequence_start": 22,
+      "sequence_end": 25,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "direction": 1,
+        "target": []
+      }
     }
   ],
   "storage": {
