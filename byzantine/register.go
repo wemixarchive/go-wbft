@@ -65,7 +65,8 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 		config.Monitoring.LogLevel,
 		config.Monitoring.AlertThresholds,
 	))
-	// Create Byzantine service
+
+	// Create a Byzantine service
 	byzantineService, err := service.NewByzantineService(config)
 	if err != nil {
 		return fmt.Errorf("byzantine: failed to create service: %w", err)
@@ -103,7 +104,7 @@ func RegisterByzantineCommands(app *cli.App) {
 	app.Commands = append(app.Commands, byzantineCmd)
 }
 
-// IntegrateByzantineWithConsensus connects Byzantine module with consensus engine
+// IntegrateByzantineWithConsensus connects Byzantine module with the consensus engine
 func IntegrateByzantineWithConsensus(service types.ByzantineService, consensusEngine consensus.Engine) error {
 	// Type assertion to WBFT backend
 	wbftBackend, ok := consensusEngine.(*backend.Backend)
