@@ -71,17 +71,17 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 		}
 	}
 
-	isSilentMessage := func(at *btypes.ExecutableAttack) (*types.SilentAttackParams, bool) {
+	isSilentMessage := func(at *btypes.ExecutableAttack) (*types.SilentAttackParams, string, string, bool) {
 		if at == nil || at.SilentParams == nil {
-			return nil, false
+			return nil, "", "", false
 		}
-		return at.SilentParams, (at.SilentParams.Direction == 2 || at.SilentParams.Direction == 3)
+		return at.SilentParams, at.NAME, at.UID, (at.SilentParams.Direction == 2 || at.SilentParams.Direction == 3)
 	}
 
 	// check silent
 	for _, group := range attackGroups {
-		if params, ok := isSilentMessage(group[btypes.AttackTypeSilentMessage]); ok {
-			log.Info("[BYZ] attack silent: dropped incoming message", "seq", seq, "round", round, "msgCode", params.Code)
+		if params, name, uid, ok := isSilentMessage(group[btypes.AttackTypeSilentMessage]); ok {
+			log.Info("[BYZ] attack silent: dropped incoming message", "name", name, "uid", uid, "seq", seq, "round", round, "msgCode", params.Code)
 			return errInvalidMessage
 		}
 	}
