@@ -15,16 +15,16 @@
       }
     },
     {
-      "name": "no_broadcast_preprepare",
+      "name": "no_broadcast_commit",
       "type": "silent",
       "enabled": true,
-      "sequence_start": 22,
-      "sequence_end": 25,
+      "sequence_start": 15,
+      "sequence_end": 15,
       "round": 0,
       "parameters": {
-        "code": 1,
+        "code": 4,
         "direction": 1,
-        "target": []
+        "targets":[]
       }
     }
   ],
