@@ -1068,14 +1068,14 @@ func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, h
 	curView := c.CurrentView()
 
 	if c == nil || curView == nil {
-		log.Trace("[byzantine] skipping: core or curView is nil", "coreNil", c == nil, "curViewNil", curView == nil)
+		log.Trace("[BYZ] skipping: core or curView is nil", "coreNil", c == nil, "curViewNil", curView == nil)
 		return nil
 	}
 
 	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 
 	if header.Number.Uint64() != curView.Sequence.Uint64() {
-		log.Trace("[byzantine] skipping: header number does not match current sequence", "have", header.Number.Uint64(), "want", curView.Sequence.Uint64())
+		log.Trace("[BYZ] skipping: header number does not match current sequence", "have", header.Number.Uint64(), "want", curView.Sequence.Uint64())
 		return nil
 	}
 
@@ -1083,14 +1083,14 @@ func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, h
 		if state := c.GetState(); state == core.StateAcceptRequest && c.IsProposer() {
 			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
 		} else {
-			log.Trace("[byzantine] skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
+			log.Trace("[BYZ] skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
 			return nil
 		}
 	}
 
 	at := attacks[btypes.AttackTypeTamperedMessage]
 	if at == nil || at.TamperParams == nil {
-		log.Trace("[Byzantine] Invalid or nil TamperAttackParams")
+		log.Trace("[BYZ] Invalid or nil TamperAttackParams")
 		return nil
 	}
 
@@ -1099,10 +1099,10 @@ func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, h
 		case btypes.TamperReward:
 			val, err := field.ValueToUint64()
 			if err != nil {
-				log.Error("[Byzantine] Conversion failed", "target", field.Target, "err", err)
+				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
 				return nil
 			} else {
-				log.Info("[Byzantine] attack tamper: Proposal Reward", "seq", curView.Sequence.Uint64(), "round", curView.Round.Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", blockReward, "changed", val)
+				log.Info("[BYZ] attack tamper: Proposal Reward", "seq", curView.Sequence.Uint64(), "round", curView.Round.Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", blockReward, "changed", val)
 				return new(big.Int).SetUint64(val)
 			}
 		}

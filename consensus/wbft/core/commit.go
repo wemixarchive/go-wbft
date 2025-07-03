@@ -93,7 +93,7 @@ func (c *Core) broadcastCommit() {
 
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 		if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
-			log.Info("[byzantine] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit)
+			log.Info("[BYZ] attack silent: blocked outgoing message", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit)
 			return
 		}
 	}
@@ -135,11 +135,11 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 			case btypes.TamperDigest:
 				val, err := field.ValueToHash()
 				if err != nil {
-					withMsg(logger, commit).Error("[Byzantine] Conversion failed", "err", err)
+					withMsg(logger, commit).Error("[BYZ] Conversion failed", "err", err)
 					return false
 				} else {
 					send = true
-					log.Info("[byzantine] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit, "original", commit.Digest.Hex(), "changed", val.Hex())
+					log.Info("[BYZ] attack tamper: Digest", "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodeCommit, "original", commit.Digest.Hex(), "changed", val.Hex())
 					commit.Digest = val
 				}
 			}
@@ -149,13 +149,13 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 	// Sign Message
 	encodedPayload, err := commit.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to encode payload of COMMIT message", "err", err)
+		withMsg(logger, commit).Error("[BYZ] WBFT: failed to encode payload of COMMIT message", "err", err)
 		return false
 	}
 
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to sign COMMIT message", "err", err)
+		withMsg(logger, commit).Error("[BYZ] WBFT: failed to sign COMMIT message", "err", err)
 		return false
 	}
 	commit.SetSignature(signature)
@@ -163,15 +163,15 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&commit)
 	if err != nil {
-		withMsg(logger, commit).Error("[Byzantine] WBFT: failed to encode COMMIT message", "err", err)
+		withMsg(logger, commit).Error("[BYZ] WBFT: failed to encode COMMIT message", "err", err)
 		return false
 	}
 
 	if send {
-		withMsg(logger, commit).Info("[Byzantine] WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
+		withMsg(logger, commit).Info("[BYZ] WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
-			withMsg(logger, commit).Error("[Byzantine] WBFT: failed to broadcast COMMIT message", "err", err)
+			withMsg(logger, commit).Error("[BYZ] WBFT: failed to broadcast COMMIT message", "err", err)
 			return false
 		}
 	}

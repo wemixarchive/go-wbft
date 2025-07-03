@@ -2,6 +2,7 @@ package byzantine
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/wbft/backend"
@@ -25,11 +26,11 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 
 	// Skip registration if Byzantine is disabled
 	if !config.Enabled {
-		log.Warn("[byzantine] module disabled")
+		log.Warn("[BYZ] module disabled")
 		return nil
 	}
 
-	log.Info("[byzantine] Registering Byzantine module",
+	log.Info("[BYZ] Registering Byzantine module",
 		"enabled", config.Enabled,
 		"attacks count", len(config.Attacks),
 		"attacks", config.Attacks,
@@ -49,10 +50,10 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 	apis := byzantineService.APIs()
 	if len(apis) > 0 {
 		stack.RegisterAPIs(apis)
-		log.Info("[byzantine] Byzantine APIs registered", "count", len(apis))
+		log.Info("[BYZ] Byzantine APIs registered", "count", len(apis))
 	}
 
-	log.Info("[byzantine] Byzantine module registered successfully")
+	log.Info("[BYZ] Byzantine module registered successfully")
 
 	if eth != nil && eth.Engine() != nil {
 		if err := IntegrateByzantineWithConsensus(byzantineService, eth.Engine()); err != nil {
@@ -82,7 +83,7 @@ func IntegrateByzantineWithConsensus(service types.ByzantineService, consensusEn
 		hook := service.GetConsensusHook()
 		wbftBackend.SetByzantineHook(hook)
 
-		log.Info("[byzantine] module integrated with consensus",
+		log.Info("[BYZ] module integrated with consensus",
 			"total_attacks", len(service.ListAttacks()),
 			"active_attacks", service.GetStatus().ActiveAttacks)
 	} else {

@@ -47,7 +47,7 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 	if h.callMetrics != nil {
 		caller := GetCallerInfo()
 		h.callMetrics.TrackCall(caller)
-		log.Trace("[byzantine] GetExecutableAttacks called",
+		log.Trace("[BYZ] GetExecutableAttacks called",
 			"caller", caller,
 			"msgCode", msgCode,
 			"sequence", sequence,
@@ -69,13 +69,13 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 	for _, at := range types.AllAttackTypes {
 		attack, ok := h.attackManager.FindExecutableAttack(at, sequence, round, msgCode)
 		if !ok {
-			log.Trace("[byzantine] no attack found", "sequence", sequence, "round", round, "msgCode", msgCode)
+			log.Trace("[BYZ] no attack found", "sequence", sequence, "round", round, "msgCode", msgCode)
 			continue
 		}
 
 		cfg := attack.GetConfig()
 		if !h.isAttackEligible(cfg) {
-			log.Trace("[byzantine] attack skipped: disabled or status is not active", "uid", cfg.UID, "enabled", cfg.Enabled, "status", cfg.Status)
+			log.Trace("[BYZ] attack skipped: disabled or status is not active", "uid", cfg.UID, "enabled", cfg.Enabled, "status", cfg.Status)
 			continue
 		}
 
@@ -86,13 +86,13 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		}
 		err := h.extractParams(cfg, result[at])
 		if err != nil {
-			log.Trace("[byzantine] failed to extract attack parameters", "uid", cfg.UID, "err", err)
+			log.Trace("[BYZ] failed to extract attack parameters", "uid", cfg.UID, "err", err)
 			delete(result, at)
 			continue
 		}
 
 		if !h.IsMessageCodeMatched(cfg, msgCode, result[at]) {
-			log.Trace("[byzantine] message code mismatch, attack skipped", "uid", cfg.UID, "attackType", at, "code", msgCode)
+			log.Trace("[BYZ] message code mismatch, attack skipped", "uid", cfg.UID, "attackType", at, "code", msgCode)
 			delete(result, at)
 			continue
 		}
@@ -101,14 +101,14 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		evt := h.createEvent(types.EventTypeMessageSent, types.MessageCodeToWBFT[msgCode], sequence, round, types.DirectionSend)
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, evt) {
-			log.Trace("[byzantine] attack skipped: execution condition not met", "attackType", at)
+			log.Trace("[BYZ] attack skipped: execution condition not met", "attackType", at)
 			delete(result, at)
 			continue
 		}
 
-		log.Trace("[byzantine] Executable attack found", "uid", cfg.UID, "attackType", at, "msgCode", msgCode)
+		log.Trace("[BYZ] Executable attack found", "uid", cfg.UID, "attackType", at, "msgCode", msgCode)
 	}
-	log.Trace("[byzantine] total executable attacks", "count", len(result), "msgCode", msgCode, "seq", sequence, "round", round)
+	log.Trace("[BYZ] total executable attacks", "count", len(result), "msgCode", msgCode, "seq", sequence, "round", round)
 	return result
 }
 
@@ -426,7 +426,7 @@ func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode,
 func (h *ConsensusHookImpl) publishEvent(event types.Event) {
 	if h.eventPublisher != nil {
 		if err := h.eventPublisher.Publish(event); err != nil {
-			log.Error("[byzantine] Failed to publish event",
+			log.Error("[BYZ] Failed to publish event",
 				"type", event.Type,
 				"sequence", event.Sequence,
 				"round", event.Round,
@@ -438,7 +438,7 @@ func (h *ConsensusHookImpl) publishEvent(event types.Event) {
 	if h.attackManager != nil {
 		ctx := context.Background()
 		if err := h.attackManager.ProcessEventAsync(ctx, event); err != nil {
-			log.Error("[byzantine] Failed to process event asynchronously", "error", err)
+			log.Error("[BYZ] Failed to process event asynchronously", "error", err)
 		}
 	}
 }
@@ -497,7 +497,7 @@ func (h *ConsensusHookImpl) BeforeBlockCommit(block interface{}, preparedSeals, 
 	config := attack.GetConfig()
 
 	// Log attack detection
-	log.Info("[byzantine] Detected omit attack for block commit",
+	log.Info("[BYZ] Detected omit attack for block commit",
 		"attack_uid", config.UID,
 		"block_number", blockNumber,
 		"prepared_seals", len(preparedSeals),
@@ -517,14 +517,14 @@ func (h *ConsensusHookImpl) BeforeBlockCommit(block interface{}, preparedSeals, 
 		switch params.Cmd {
 		case 1: // Omit prepare seals
 			preparedSeals = h.omitSeals(preparedSeals, params.Cnt)
-			log.Info("[byzantine] Omitted prepare seals before block commit",
+			log.Info("[BYZ] Omitted prepare seals before block commit",
 				"attack_uid", config.UID,
 				"original_count", originalPreparedCount,
 				"remaining_count", len(preparedSeals),
 				"cnt", params.Cnt)
 		case 2: // Omit commit seals
 			committedSeals = h.omitSeals(committedSeals, params.Cnt)
-			log.Info("[byzantine] Omitted commit seals before block commit",
+			log.Info("[BYZ] Omitted commit seals before block commit",
 				"attack_uid", config.UID,
 				"original_count", originalCommittedCount,
 				"remaining_count", len(committedSeals),

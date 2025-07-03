@@ -81,7 +81,7 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	// check silent
 	for _, group := range attackGroups {
 		if params, ok := isSilentMessage(group[btypes.AttackTypeSilentMessage]); ok {
-			log.Info("[byzantine] attack silent: dropped incoming message", "seq", seq, "round", round, "msgCode", params.Code)
+			log.Info("[BYZ] attack silent: dropped incoming message", "seq", seq, "round", round, "msgCode", params.Code)
 			return errInvalidMessage
 		}
 	}
