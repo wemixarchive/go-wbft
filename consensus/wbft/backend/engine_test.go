@@ -150,7 +150,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 		if addr.String() == proposerAddr.String() {
 			backend.privateKey = key
 			backend.address = addr
-			backend.wbftEngine = wbftengine.NewEngine(backend.config, addr, backend.Sign, backend.CheckSignature)
+			backend.wbftEngine = wbftengine.NewEngine(backend.config, addr, backend.Sign, backend.CheckSignature, nil)
 			backend.blsSecretKey, _ = bls.DeriveFromECDSA(key)
 			// set backend's node to first index of nodes for convenient
 			nodes[0], nodes[i] = nodes[i], nodes[0]

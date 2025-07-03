@@ -322,7 +322,7 @@ func TestWriteRandao(t *testing.T) {
 	engine := NewEngine(wbft.DefaultConfig, crypto.PubkeyToAddress(privateKey.PublicKey), func(data []byte) ([]byte, error) {
 		hashData := crypto.Keccak256(data)
 		return crypto.Sign(hashData, privateKey)
-	}, nil)
+	}, nil, nil)
 
 	chainConfig := &params.ChainConfig{
 		ChainID:        new(big.Int).SetUint64(9999),
@@ -530,7 +530,7 @@ func TestEpochInfo(t *testing.T) {
 			wbft.SetConfigFromChainConfig(wbftCfg, c.chainConfig)
 			wbftCfg.Epoch = 3
 
-			engine := NewEngine(wbftCfg, common.Address{}, nil, nil)
+			engine := NewEngine(wbftCfg, common.Address{}, nil, nil, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -646,7 +646,7 @@ func TestEpochInfoTransition(t *testing.T) {
 			c.chainConfig.Croissant.Init.BLSPublicKeys = blsPubKeys
 			testConfig := *wbft.DefaultConfig
 			testConfig.Epoch = tc.epoch
-			engine := NewEngine(&testConfig, common.Address{}, nil, nil)
+			engine := NewEngine(&testConfig, common.Address{}, nil, nil, nil)
 			parent = makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -748,7 +748,7 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 			c.chainConfig = params.TestWBFTChainConfig
 			c.chainConfig.Croissant.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-			engine := NewEngine(tc.wbftConfig, common.Address{}, nil, nil)
+			engine := NewEngine(tc.wbftConfig, common.Address{}, nil, nil, nil)
 			parent := makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -833,7 +833,7 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			tc.wbftConfig.BlockReward = c.chainConfig.Croissant.WBFT.BlockReward
 
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-			engine := NewEngine(tc.wbftConfig, common.Address{}, nil, nil)
+			engine := NewEngine(tc.wbftConfig, common.Address{}, nil, nil, nil)
 			parent := makeGenesis(signers)
 			c.insertHeader(parent)
 
@@ -941,7 +941,7 @@ func getEpochBlock(e *Engine, chain consensus.ChainHeaderReader, header *types.H
 }
 
 func TestIsEpochBlock(t *testing.T) {
-	engine := NewEngine(nil, common.Address{}, nil, nil)
+	engine := NewEngine(nil, common.Address{}, nil, nil, nil)
 
 	testCases := []struct {
 		chainConfig         params.ChainConfig
