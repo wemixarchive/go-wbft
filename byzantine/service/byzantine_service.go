@@ -56,7 +56,6 @@ func (s *storageProviderImpl) GetMessageStorage() types.MessageStorage {
 
 // NewByzantineService creates a new Byzantine service
 func NewByzantineService(config *types.ByzantineConfig) (*ByzantineService, error) {
-	log.Warn("storage config : ", config.StorageConfig)
 	// Create components
 	messageStorage := storage.NewInMemoryMessageStorage(config.StorageConfig)
 	historyStorage := storage.NewInMemoryHistoryStorage(config.StorageConfig)

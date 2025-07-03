@@ -33,10 +33,38 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 	log.Info("[BYZ] Registering Byzantine module",
 		"enabled", config.Enabled,
 		"attacks count", len(config.Attacks),
-		"attacks", config.Attacks,
-		"storage", config.StorageConfig,
-		"monitoring", config.Monitoring)
+	)
 
+	log.Info("=== Attack configurations ===")
+	for i, attack := range config.Attacks {
+		log.Info(fmt.Sprintf("→ [%d] uid=%s name=%s type=%s enabled=%v sequence=%d-%d round=%d parameters=%v",
+			i,
+			attack.UID,
+			attack.Name,
+			attack.Type,
+			attack.Enabled,
+			attack.SequenceStart,
+			attack.SequenceEnd,
+			attack.Round,
+			attack.Parameters,
+		))
+	}
+
+	log.Info("=== Storage configuration ===")
+	log.Info(fmt.Sprintf("→ retention=%s history=%s max size=%d prune interval=%s",
+		config.StorageConfig.MessageRetention,
+		config.StorageConfig.HistoryRetention,
+		config.StorageConfig.MaxStorageSize,
+		config.StorageConfig.PruneInterval,
+	))
+
+	log.Info("=== Monitoring configuration ===")
+	log.Info(fmt.Sprintf("→ enabled=%v port=%d log level=%s alert thresholds=%v",
+		config.Monitoring.Enabled,
+		config.Monitoring.MetricsPort,
+		config.Monitoring.LogLevel,
+		config.Monitoring.AlertThresholds,
+	))
 	// Create Byzantine service
 	byzantineService, err := service.NewByzantineService(config)
 	if err != nil {
