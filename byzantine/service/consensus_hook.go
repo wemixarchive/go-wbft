@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -467,96 +466,6 @@ func (h *ConsensusHookImpl) isAttackApplicable(config types.AttackConfig, msgCod
 	}
 
 	return true
-}
-
-// BeforeBlockCommit is called before committing a block
-// Allows modification of seals for omit attack
-func (h *ConsensusHookImpl) BeforeBlockCommit(block interface{}, preparedSeals, committedSeals []interface{}) ([]interface{}, []interface{}, error) {
-	// Extract block number from interface
-	var blockNumber uint64
-	var round uint64
-
-	// Type assertion for block
-	if proposal, ok := block.(interface{ Number() *big.Int }); ok {
-		blockNumber = proposal.Number().Uint64()
-	}
-
-	// Try to find omit attack for propagation
-	// Note: Using MessageCodePropagation (32) for block propagation/commit phase
-	attack, found := h.attackManager.FindExecutableAttack(
-		types.AttackTypeOmitMessage,
-		blockNumber,
-		round,
-		types.MessageCodePropagation, // 32
-	)
-
-	if !found {
-		// No omit attack, return original seals
-		return preparedSeals, committedSeals, nil
-	}
-
-	config := attack.GetConfig()
-
-	// Log attack detection
-	log.Info("[BYZ] Detected omit attack for block commit",
-		"attack_uid", config.UID,
-		"block_number", blockNumber,
-		"prepared_seals", len(preparedSeals),
-		"committed_seals", len(committedSeals))
-
-	// Check if this is an omit attack for propagation
-	if config.ParsedParameters != nil {
-		params, ok := config.ParsedParameters.(*types.OmitAttackParams)
-		if !ok {
-			return preparedSeals, committedSeals, nil
-		}
-
-		originalPreparedCount := len(preparedSeals)
-		originalCommittedCount := len(committedSeals)
-
-		// Apply omit based on cmd
-		switch params.Cmd {
-		case 1: // Omit prepare seals
-			preparedSeals = h.omitSeals(preparedSeals, params.Cnt)
-			log.Info("[BYZ] Omitted prepare seals before block commit",
-				"attack_uid", config.UID,
-				"original_count", originalPreparedCount,
-				"remaining_count", len(preparedSeals),
-				"cnt", params.Cnt)
-		case 2: // Omit commit seals
-			committedSeals = h.omitSeals(committedSeals, params.Cnt)
-			log.Info("[BYZ] Omitted commit seals before block commit",
-				"attack_uid", config.UID,
-				"original_count", originalCommittedCount,
-				"remaining_count", len(committedSeals),
-				"cnt", params.Cnt)
-		}
-
-		// Mark attack as executed
-		h.attackManager.MarkAttackExecuted(config.UID, blockNumber)
-	}
-
-	return preparedSeals, committedSeals, nil
-}
-
-// Helper function to omit seals
-func (h *ConsensusHookImpl) omitSeals(seals []interface{}, cnt uint64) []interface{} {
-	if len(seals) == 0 {
-		return seals
-	}
-
-	if cnt == 0 {
-		// Omit all
-		return []interface{}{}
-	}
-
-	if int(cnt) >= len(seals) {
-		// Omit all if count exceeds available seals
-		return []interface{}{}
-	}
-
-	// Return seals with first 'cnt' items omitted
-	return seals[cnt:]
 }
 
 func (h *ConsensusHookImpl) GetCallMetrics() map[string]CallStat {

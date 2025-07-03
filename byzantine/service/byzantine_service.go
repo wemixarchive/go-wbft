@@ -74,14 +74,14 @@ func NewByzantineService(config *types.ByzantineConfig) (*ByzantineService, erro
 		configLoader:   configLoader,
 	}
 
-	// Create hook adapter
+	// Create a hook adapter
 	service.hookAdapter = adapter.NewHookAdapter(service, eventPublisher, messageStorage)
 	service.consensusHook = NewConsensusHook(service.attackManager, service.eventPublisher)
 
 	// Initialize metrics
 	service.metrics.Store(types.Metrics{})
 
-	// Set storage provider for replay attack
+	// Set a storage provider for replay attack
 	provider := &storageProviderImpl{
 		messageStorage: messageStorage,
 	}

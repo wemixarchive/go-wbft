@@ -103,44 +103,44 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			withMsg(logger, preprepare).Trace("WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
 		}
 
-		// Byzantine hook: Check for omit attack on RoundChange-PrePrepare
-		if hook := c.backend.ByzantineHook(); hook != nil && c.current.Round().Uint64() > 0 {
-			// Check if we should omit justification
-			// Note: Using MessageCodeRoundChangePrePrepare (16) for PrePrepare with justification
-			config, found := hook.ShouldExecuteAttack(
-				btypes.AttackTypeOmitMessage,
-				uint64(btypes.MessageCodePropagation), // 16
-				c.current.Sequence().Uint64(),
-				c.current.Round().Uint64(),
-			)
-
-			if found && config != nil {
-				if params, ok := config.ParsedParameters.(*btypes.OmitAttackParams); ok {
-					switch params.Cmd {
-					case 1: // Omit RoundChange messages
-						cnt := params.Cnt
-						if cnt == 0 || int(cnt) >= len(preprepare.JustificationRoundChanges) {
-							preprepare.JustificationRoundChanges = nil
-							logger.Info("[BYZ] Omitted all RoundChange justifications", "attack_uid", config.UID)
-						} else {
-							preprepare.JustificationRoundChanges = preprepare.JustificationRoundChanges[cnt:]
-							logger.Info("[BYZ] Omitted RoundChange justifications", "attack_uid", config.UID, "omitted", cnt)
-						}
-					case 2: // Omit Prepare messages
-						cnt := params.Cnt
-						if cnt == 0 || int(cnt) >= len(preprepare.JustificationPrepares) {
-							preprepare.JustificationPrepares = nil
-							logger.Info("[BYZ] Omitted all Prepare justifications", "attack_uid", config.UID)
-						} else {
-							preprepare.JustificationPrepares = preprepare.JustificationPrepares[cnt:]
-							logger.Info("[BYZ] Omitted Prepare justifications", "attack_uid", config.UID, "omitted", cnt)
-						}
-					}
-					// Mark attack as executed
-					hook.MarkAttackExecuted(config.UID, c.current.Sequence().Uint64())
-				}
-			}
-		}
+		//// Byzantine hook: Check for omit attack on RoundChange-PrePrepare
+		//if hook := c.backend.ByzantineHook(); hook != nil && c.current.Round().Uint64() > 0 {
+		//	// Check if we should omit justification
+		//	// Note: Using MessageCodeRoundChangePrePrepare (16) for PrePrepare with justification
+		//	config, found := hook.ShouldExecuteAttack(
+		//		btypes.AttackTypeOmitMessage,
+		//		uint64(btypes.MessageCodePropagation), // 16
+		//		c.current.Sequence().Uint64(),
+		//		c.current.Round().Uint64(),
+		//	)
+		//
+		//	if found && config != nil {
+		//		if params, ok := config.ParsedParameters.(*btypes.OmitAttackParams); ok {
+		//			switch params.Cmd {
+		//			case 1: // Omit RoundChange messages
+		//				cnt := params.Cnt
+		//				if cnt == 0 || int(cnt) >= len(preprepare.JustificationRoundChanges) {
+		//					preprepare.JustificationRoundChanges = nil
+		//					logger.Info("[BYZ] Omitted all RoundChange justifications", "attack_uid", config.UID)
+		//				} else {
+		//					preprepare.JustificationRoundChanges = preprepare.JustificationRoundChanges[cnt:]
+		//					logger.Info("[BYZ] Omitted RoundChange justifications", "attack_uid", config.UID, "omitted", cnt)
+		//				}
+		//			case 2: // Omit Prepare messages
+		//				cnt := params.Cnt
+		//				if cnt == 0 || int(cnt) >= len(preprepare.JustificationPrepares) {
+		//					preprepare.JustificationPrepares = nil
+		//					logger.Info("[BYZ] Omitted all Prepare justifications", "attack_uid", config.UID)
+		//				} else {
+		//					preprepare.JustificationPrepares = preprepare.JustificationPrepares[cnt:]
+		//					logger.Info("[BYZ] Omitted Prepare justifications", "attack_uid", config.UID, "omitted", cnt)
+		//				}
+		//			}
+		//			// Mark attack as executed
+		//			hook.MarkAttackExecuted(config.UID, c.current.Sequence().Uint64())
+		//		}
+		//	}
+		//}
 
 		// RLP-encode message
 		payload, err := rlp.EncodeToBytes(&preprepare)

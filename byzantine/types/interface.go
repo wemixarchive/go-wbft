@@ -79,7 +79,7 @@ type Attack interface {
 	// UpdateParameters updates attack parameters
 	UpdateParameters(params map[string]interface{}) error
 
-	// CanExecute checks if attack can be executed at given sequence
+	// CanExecute checks if an attack can be executed at a given sequence
 	CanExecute(sequence uint64) bool
 }
 
@@ -256,10 +256,6 @@ type ConsensusHook interface {
 	ShouldExecuteAttack(attackType AttackType, msgCode, sequence, round uint64) (*AttackConfig, bool)
 	GetAttackConfig(attackType AttackType, sequence, round uint64) (*AttackConfig, error)
 	MarkAttackExecuted(uid string, sequence uint64) error
-
-	// BeforeBlockCommit is called before committing a block
-	// Allows modification of seals for omit attack
-	BeforeBlockCommit(block interface{}, preparedSeals, committedSeals []interface{}) ([]interface{}, []interface{}, error)
 }
 
 // AttackParamsParser defines an interface for parsing and validating attack parameters

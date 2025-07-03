@@ -43,11 +43,11 @@ func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error)
 func (a *FakeMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
 
-	// Check if sequence is in range
+	// Check if a sequence is in range
 	if !config.IsInSequenceRange(event.Sequence) {
 		return false
 	}
-	
+
 	// Check round (0 means any round)
 	if config.Round != 0 && event.Round != config.Round {
 		return false
@@ -59,7 +59,7 @@ func (a *FakeMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 		return false
 	}
 
-	// Check message type
+	// Check a message type
 	messageEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return false
@@ -89,12 +89,12 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 	startTime := time.Now()
 	config := a.GetConfig()
 
-	// Generate or use provided fake message
+	// Generate or use provided a fake message
 	var messageToSend []byte
 	if a.fakeMessage != nil {
 		messageToSend = a.fakeMessage
 	} else {
-		// Generate fake message based on message type
+		// Generate a fake message based on a message type
 		var err error
 		// Safe type conversion for code parameter
 		var messageCode types.MessageCode
@@ -126,7 +126,7 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 		}
 	}
 
-	// Send fake message
+	// Send a fake message
 	if err := a.sendMessage(messageToSend, a.targets); err != nil {
 		return &types.AttackResult{
 			UID:        a.GetUID(),
@@ -154,7 +154,7 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 // generateFakeMessage generates a fake message based on type
 func (a *FakeMessageAttack) generateFakeMessage(messageCode types.MessageCode, event types.Event) ([]byte, error) {
 	// This would generate appropriate fake messages based on the message type
-	// For example:
+	// For example,
 	// - For RoundChange: generate a valid-looking round change message
 	// - For PrePrepare: generate a fake proposal with non-existent transactions
 	// - For Prepare/Commit: generate messages with valid signatures but wrong content
@@ -213,7 +213,7 @@ func (a *FakeMessageAttack) generateFakeVote(messageCode types.MessageCode, even
 
 // sendMessage sends a message to targets
 func (a *FakeMessageAttack) sendMessage(content []byte, targets []common.Address) error {
-	// Implementation depends on actual network layer
+	// Implementation depends on the actual network layer
 	// This would broadcast the fake message to specified targets
 	return nil
 }
