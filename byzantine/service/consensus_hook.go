@@ -20,8 +20,10 @@ type ConsensusHookImpl struct {
 	paramRegistry  *registry.ParameterParserRegistry
 
 	// Cache for attack type mapping to improve performance
-	attackTypeCache map[string][]types.AttackType
 	mu              sync.RWMutex
+	attackTypeCache map[string][]types.AttackType
+
+	callMetrics *CallMetrics // for debug
 }
 
 var _ types.ConsensusHook = (*ConsensusHookImpl)(nil)
@@ -34,6 +36,7 @@ func NewConsensusHook(attackManager types.AttackManager, eventPublisher types.Ev
 		uidGenerator:    types.NewUIDGenerator(),
 		paramRegistry:   registry.NewParameterParserRegistry(),
 		attackTypeCache: make(map[string][]types.AttackType),
+		callMetrics:     NewCallMetrics(),
 	}
 }
 
@@ -41,6 +44,20 @@ func NewConsensusHook(attackManager types.AttackManager, eventPublisher types.Ev
 // a map keyed by AttackType containing attacks that are both eligible
 // and ready to run for the given <msgCode, sequence, round>.
 func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequence, round uint64) map[types.AttackType]*types.ExecutableAttack {
+	if h.callMetrics != nil {
+		caller := GetCallerInfo()
+		h.callMetrics.TrackCall(caller)
+		log.Trace("[byzantine] GetExecutableAttacks called",
+			"caller", caller,
+			"msgCode", msgCode,
+			"sequence", sequence,
+			"round", round,
+			"thread_id", GetGoroutineID())
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
 	ctx := context.Background()
 	result := make(map[types.AttackType]*types.ExecutableAttack)
 
@@ -539,4 +556,8 @@ func (h *ConsensusHookImpl) omitSeals(seals []interface{}, cnt uint64) []interfa
 
 	// Return seals with first 'cnt' items omitted
 	return seals[cnt:]
+}
+
+func (h *ConsensusHookImpl) GetCallMetrics() map[string]CallStat {
+	return h.callMetrics.GetStats()
 }
