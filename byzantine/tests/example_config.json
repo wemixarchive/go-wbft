@@ -57,7 +57,8 @@
       "name": "FakeRoundChange_Block300",
       "type": "fake",
       "enabled": true,
-      "sequence": 300,
+      "sequence_start": 300,
+      "sequence_end": 300,
       "round": 0,
       "parameters": {
         "code": 8,
@@ -69,7 +70,8 @@
       "name": "OmitPrevSeal_Block400",
       "type": "omit",
       "enabled": false,
-      "sequence": 400,
+      "sequence_start": 400,
+      "sequence_end": 400,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -82,7 +84,8 @@
       "name": "SpoofProposer_Block500",
       "type": "roleSpoof",
       "enabled": false,
-      "sequence": 500,
+      "sequence_start": 500,
+      "sequence_end": 500,
       "round": 0,
       "parameters": {
         "code": 2,
@@ -94,7 +97,8 @@
       "name": "ReplayCommit_Block600",
       "type": "replay",
       "enabled": false,
-      "sequence": 600,
+      "sequence_start": 600,
+      "sequence_end": 600,
       "round": 0,
       "parameters": {
         "code": 4,
