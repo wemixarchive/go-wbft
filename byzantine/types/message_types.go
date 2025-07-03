@@ -39,6 +39,21 @@ var MessageCodeToWBFT = map[MessageCode]uint64{
 	MessageCodeRoundChange: WBFTRoundChangeCode,
 }
 
+func WBFTCodeToByzantineCode(code uint64) (MessageCode, error) {
+	switch code {
+	case WBFTPrePrepareCode:
+		return MessageCodePrePrepare, nil
+	case WBFTPrepareCode:
+		return MessageCodePrepare, nil
+	case WBFTCommitCode:
+		return MessageCodeCommit, nil
+	case WBFTRoundChangeCode:
+		return MessageCodeRoundChange, nil
+	default:
+		return 0, fmt.Errorf("unknown message code: %d", code)
+	}
+}
+
 func (mc *MessageCode) UnmarshalJSON(data []byte) error {
 	var val interface{}
 	if err := json.Unmarshal(data, &val); err != nil {
