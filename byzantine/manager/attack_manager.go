@@ -492,7 +492,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 		}
 
 		// Check round (0 means any round)
-		if config.Round != 0 && config.Round != round {
+		if config.Round != round {
 			continue
 		}
 
