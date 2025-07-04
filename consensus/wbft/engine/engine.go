@@ -519,7 +519,25 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				}
 
 				if hook := e.backend.ByzantineHook(); hook != nil {
-					//hook.MarkAttackExecuted(at.UID, header.Number.Uint64())
+					hook.MarkAttackExecuted(at.UID, header.Number.Uint64())
+				}
+			}
+			
+			// Check for fake seal attack
+			if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+				if at.FakeParams.FakeType == "fakeSeal" {
+					// Apply fake seal attack
+					prevPreparedSeal, prevCommittedSeal = e.applyFakeSealAttack(
+						prevPreparedSeal, prevCommittedSeal, at.FakeParams, validators)
+					
+					log.Info("[BYZ] Applied fake seal attack",
+						"attack_uid", at.UID,
+						"fake_sealers", len(at.FakeParams.FakeSealers))
+						
+					// Mark attack as executed
+					if hook := e.backend.ByzantineHook(); hook != nil {
+						hook.MarkAttackExecuted(at.UID, header.Number.Uint64())
+					}
 				}
 			}
 
@@ -1618,4 +1636,78 @@ func (e *Engine) mergeSealWithOmitAttack(seal *types.WBFTAggregatedSeal, extraSe
 
 	// Continue with normal merge
 	return mergeSeals(seal, extraSeals)
+}
+
+// applyFakeSealAttack applies fake seal attack by adding non-validator signatures
+func (e *Engine) applyFakeSealAttack(
+	preparedSeal, committedSeal *types.WBFTAggregatedSeal,
+	params *btypes.FakeAttackParams,
+	validators wbft.ValidatorSet) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal) {
+	
+	// Add fake sealers
+	for i, fakeAddr := range params.FakeSealers {
+		fakeSealData := wbft.SealData{
+			Sealer: uint32(validators.Size() + i), // Use index beyond validator set
+			Seal:   e.generateFakeSignature(),      // Generate fake BLS signature
+		}
+		
+		if params.SealType == "prepare" || params.SealType == "" {
+			// Add fake seal to preparedSeal
+			if preparedSeal != nil {
+				preparedSeal = e.addFakeSealToAggregated(preparedSeal, fakeSealData)
+			}
+			log.Info("[BYZ] Added fake seal to PrevPreparedSeal",
+				"fake_addr", fakeAddr,
+				"sealer_index", fakeSealData.Sealer)
+		}
+		if params.SealType == "commit" || params.SealType == "" {
+			// Add fake seal to committedSeal
+			if committedSeal != nil {
+				committedSeal = e.addFakeSealToAggregated(committedSeal, fakeSealData)
+			}
+			log.Info("[BYZ] Added fake seal to PrevCommittedSeal",
+				"fake_addr", fakeAddr,
+				"sealer_index", fakeSealData.Sealer)
+		}
+	}
+	
+	return preparedSeal, committedSeal
+}
+
+// generateFakeSignature generates a fake BLS signature
+func (e *Engine) generateFakeSignature() []byte {
+	// BLS signature is 96 bytes
+	sig := make([]byte, 96)
+	// Fill with pseudo-random data
+	for i := range sig {
+		sig[i] = byte(i % 256)
+	}
+	return sig
+}
+
+// addFakeSealToAggregated adds a fake seal to an aggregated seal
+func (e *Engine) addFakeSealToAggregated(seal *types.WBFTAggregatedSeal, fakeSeal wbft.SealData) *types.WBFTAggregatedSeal {
+	// Create new sealers set with fake sealer
+	newSealers := make(types.SealerSet, len(seal.Sealers))
+	copy(newSealers, seal.Sealers)
+	newSealers.SetSealer(fakeSeal.Sealer)
+	
+	// For fake attack, we just append the fake signature
+	// In reality, this would create an invalid aggregated signature
+	seals := [][]byte{seal.Signature, fakeSeal.Seal}
+	
+	// Try to aggregate, but if it fails, just concatenate
+	aggregated, err := bls.AggregateCompressedSignatures(seals)
+	if err != nil {
+		// For testing purpose, just use the original signature
+		return &types.WBFTAggregatedSeal{
+			Sealers:   newSealers,
+			Signature: seal.Signature, // Keep original signature
+		}
+	}
+	
+	return &types.WBFTAggregatedSeal{
+		Sealers:   newSealers,
+		Signature: aggregated.Marshal(),
+	}
 }

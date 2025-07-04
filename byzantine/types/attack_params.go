@@ -338,8 +338,16 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 // FakeAttackParams handles parsing for fake attack parameters
 type FakeAttackParams struct {
 	Code        MessageCode      `json:"code"`
-	FakeMessage []byte           `json:"fakeMessage,omitempty"`
+	FakeType    string          `json:"fakeType"`    // "fakeSeal" or "invalidProposal"
+	FakeMessage json.RawMessage `json:"fakeMessage,omitempty"`
 	Targets     []common.Address `json:"targets,omitempty"`
+	
+	// FakeSeal specific
+	FakeSealers []common.Address `json:"fakeSealers,omitempty"` // 비-validator 주소들
+	SealType    string          `json:"sealType,omitempty"`     // "prepare" or "commit"
+	
+	// InvalidProposal specific  
+	IgnorePrepared bool `json:"ignorePrepared,omitempty"` // prepared proposal 무시 여부
 }
 
 var _ AttackParamsParser = (*FakeAttackParams)(nil)
@@ -352,7 +360,8 @@ func (p *FakeAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias FakeAttackParams
 	aux := &struct {
 		*Alias
-		Targets []string `json:"targets,omitempty"`
+		Targets     []string `json:"targets,omitempty"`
+		FakeSealers []string `json:"fakeSealers,omitempty"`
 	}{
 		Alias: (*Alias)(p),
 	}
@@ -367,6 +376,13 @@ func (p *FakeAttackParams) UnmarshalJSON(data []byte) error {
 			p.Targets = append(p.Targets, common.HexToAddress(addr))
 		}
 	}
+	
+	p.FakeSealers = make([]common.Address, 0, len(aux.FakeSealers))
+	for _, addr := range aux.FakeSealers {
+		if common.IsHexAddress(addr) {
+			p.FakeSealers = append(p.FakeSealers, common.HexToAddress(addr))
+		}
+	}
 
 	return nil
 }
@@ -376,13 +392,26 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 
 	params.Code = ParseMessageCode(raw["code"])
 
+	if fakeType, ok := raw["fakeType"].(string); ok {
+		params.FakeType = fakeType
+	}
+
 	if fakeMsg, ok := raw["fakeMessage"].(string); ok {
-		params.FakeMessage = []byte(fakeMsg)
+		params.FakeMessage = json.RawMessage(fakeMsg)
 	} else if fakeMsg, ok := raw["fakeMessage"].([]byte); ok {
-		params.FakeMessage = fakeMsg
+		params.FakeMessage = json.RawMessage(fakeMsg)
 	}
 
 	params.Targets = ParseTargets(raw["targets"])
+	params.FakeSealers = ParseTargets(raw["fakeSealers"])
+	
+	if sealType, ok := raw["sealType"].(string); ok {
+		params.SealType = sealType
+	}
+	
+	if ignorePrepared, ok := raw["ignorePrepared"].(bool); ok {
+		params.IgnorePrepared = ignorePrepared
+	}
 
 	return params, nil
 }
@@ -403,6 +432,16 @@ func (p *FakeAttackParams) Validate(params interface{}) error {
 
 	if !ValidateMessageCode(fakeParams.Code) {
 		return fmt.Errorf("invalid message code: %d", fakeParams.Code)
+	}
+
+	// Validate fakeType
+	if fakeParams.FakeType != "" && fakeParams.FakeType != "fakeSeal" && fakeParams.FakeType != "invalidProposal" {
+		return fmt.Errorf("invalid fakeType: %s (must be 'fakeSeal' or 'invalidProposal')", fakeParams.FakeType)
+	}
+	
+	// Validate sealType if specified
+	if fakeParams.SealType != "" && fakeParams.SealType != "prepare" && fakeParams.SealType != "commit" {
+		return fmt.Errorf("invalid sealType: %s (must be 'prepare' or 'commit')", fakeParams.SealType)
 	}
 
 	// FakeMessage can be empty as it might be generated later

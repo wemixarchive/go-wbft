@@ -27,10 +27,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 
-	"github.com/ethereum/go-ethereum/byzantine/types"
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
@@ -102,6 +103,35 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			preprepare.JustificationPrepares = request.PrepareMessages
 			withMsg(logger, preprepare).Trace("WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
 		}
+		
+		// Byzantine hook for fake attack - Invalid PrePrepare
+		if hook := c.backend.ByzantineHook(); hook != nil {
+			if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+				if at.FakeParams.FakeType == "invalidProposal" && at.FakeParams.IgnorePrepared {
+					// Round > 0이고 prepared proposal이 있어도 무시
+					if c.current.Round().Uint64() > 0 && request.PrepareMessages != nil {
+						originalPrepares := len(request.PrepareMessages)
+						request.PrepareMessages = nil
+						preprepare.JustificationPrepares = nil
+						
+						// Create new proposal ignoring the prepared one
+						if block, ok := request.Proposal.(*types.Block); ok {
+							newProposal := c.createNewProposal(block)
+							request.Proposal = newProposal
+							preprepare.Proposal = newProposal
+						}
+						
+						logger.Info("[BYZ] Ignoring prepared proposal, creating new one",
+							"attack_uid", at.UID,
+							"round", c.current.Round(),
+							"ignored_prepares", originalPrepares)
+						
+						// Mark attack as executed
+						hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+					}
+				}
+			}
+		}
 
 		//// Byzantine hook: Check for omit attack on RoundChange-PrePrepare
 		//if hook := c.backend.ByzantineHook(); hook != nil && c.current.Round().Uint64() > 0 {
@@ -171,7 +201,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 	}
 }
 
-func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[types.AttackType]*types.ExecutableAttack) bool {
+func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
 	if len(attacks) == 0 {
 		return false
 	}
@@ -335,4 +365,28 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 	}
 
 	return nil
+}
+
+// createNewProposal creates a new proposal ignoring the prepared one
+func (c *Core) createNewProposal(originalProposal *types.Block) *types.Block {
+	// Create a new empty block with the same header info
+	header := &types.Header{
+		ParentHash: originalProposal.ParentHash(),
+		Number:     originalProposal.Number(),
+		GasLimit:   originalProposal.GasLimit(),
+		Time:       originalProposal.Time(),
+		Coinbase:   originalProposal.Coinbase(),
+		// Other fields will be filled by consensus
+	}
+	
+	// Create new block with empty transactions
+	// This simulates creating a completely new proposal
+	newBlock := types.NewBlock(header, nil, nil, nil, trie.NewStackTrie(nil))
+	
+	c.logger.Info("[BYZ] Created new proposal",
+		"number", newBlock.Number(),
+		"hash", newBlock.Hash(),
+		"original_hash", originalProposal.Hash())
+		
+	return newBlock
 }

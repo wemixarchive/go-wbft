@@ -15,6 +15,7 @@ type FakeMessageAttack struct {
 	*registry.BaseAttack
 	fakeMessage []byte
 	targets     []common.Address
+	params      *types.FakeAttackParams
 }
 
 var _ (types.Attack) = (*FakeMessageAttack)(nil)
@@ -35,6 +36,7 @@ func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error)
 		BaseAttack:  registry.NewBaseAttack(config),
 		fakeMessage: params.FakeMessage,
 		targets:     params.Targets,
+		params:      params,
 	}
 	return attack, nil
 }
@@ -89,7 +91,25 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 	startTime := time.Now()
 	config := a.GetConfig()
 
-	// Generate or use provided a fake message
+	// For fakeSeal and invalidProposal attacks, we don't send messages
+	// Instead, these are handled directly in consensus engine
+	if a.params != nil && (a.params.FakeType == "fakeSeal" || a.params.FakeType == "invalidProposal") {
+		// These attacks are executed in consensus layer via hooks
+		// Just return success here to mark the attack as triggered
+		return &types.AttackResult{
+			UID:        a.GetUID(),
+			Success:    true,
+			ExecutedAt: time.Now(),
+			Duration:   time.Since(startTime),
+			Details: map[string]interface{}{
+				"fake_type":   a.params.FakeType,
+				"message_code": a.params.Code,
+				"action":      "consensus_layer_attack",
+			},
+		}, nil
+	}
+
+	// Original fake message attack logic
 	var messageToSend []byte
 	if a.fakeMessage != nil {
 		messageToSend = a.fakeMessage
@@ -98,21 +118,25 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 		var err error
 		// Safe type conversion for code parameter
 		var messageCode types.MessageCode
-		switch v := config.Parameters["code"].(type) {
-		case float64:
-			messageCode = types.MessageCode(v)
-		case int:
-			messageCode = types.MessageCode(v)
-		case types.MessageCode:
-			messageCode = v
-		default:
-			return &types.AttackResult{
-				UID:        a.GetUID(),
-				Success:    false,
-				Error:      fmt.Errorf("invalid message code type: %T", config.Parameters["code"]),
-				ExecutedAt: time.Now(),
-				Duration:   time.Since(startTime),
-			}, nil
+		if a.params != nil {
+			messageCode = a.params.Code
+		} else {
+			switch v := config.Parameters["code"].(type) {
+			case float64:
+				messageCode = types.MessageCode(v)
+			case int:
+				messageCode = types.MessageCode(v)
+			case types.MessageCode:
+				messageCode = v
+			default:
+				return &types.AttackResult{
+					UID:        a.GetUID(),
+					Success:    false,
+					Error:      fmt.Errorf("invalid message code type: %T", config.Parameters["code"]),
+					ExecutedAt: time.Now(),
+					Duration:   time.Since(startTime),
+				}, nil
+			}
 		}
 		messageToSend, err = a.generateFakeMessage(messageCode, event)
 		if err != nil {
