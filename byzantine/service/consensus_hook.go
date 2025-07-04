@@ -68,7 +68,6 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 	for _, at := range types.AllAttackTypes {
 		attack, ok := h.attackManager.FindExecutableAttack(at, sequence, round, msgCode)
 		if !ok {
-			log.Trace("[BYZ] no attack found", "sequence", sequence, "round", round, "msgCode", msgCode)
 			continue
 		}
 

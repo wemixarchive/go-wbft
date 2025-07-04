@@ -159,6 +159,34 @@
         "delay": 0,
         "targets": []
       }
+    },
+    {
+      "name": "broadcast_missing_prevseal_preprepare",
+      "type": "omit",
+      "enabled": true,
+      "sequence_start": 36,
+      "sequence_end": 39,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "cmd": 2,
+        "cnt": 0,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_missing_prevseal_preprepare#2",
+      "type": "omit",
+      "enabled": true,
+      "sequence_start": 40,
+      "sequence_end": 43,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "cmd": 1,
+        "cnt": 2,
+        "targets": []
+      }
     }
   ],
   "storage": {
