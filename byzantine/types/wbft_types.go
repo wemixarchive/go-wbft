@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// ConsensusContext - Consensus context for QBFT messages
+// ConsensusContext - Consensus context for WBFT messages
 type ConsensusContext struct {
 	MessageType  AttackType
 	MessageCode  MessageCode
@@ -28,7 +28,6 @@ type ConsensusContext struct {
 	Timestamp   time.Time
 }
 
-// Proposal - PrePrepare 메시지의 블록 제안
 type Proposal struct {
 	Number       *big.Int       `json:"number"`
 	Hash         common.Hash    `json:"hash"`
@@ -44,7 +43,6 @@ type Proposal struct {
 	PrepareMessages []PrepareInfo     `json:"prepareMessages,omitempty"`
 }
 
-// PrepareMessage - Prepare 단계 메시지
 type PrepareMessage struct {
 	View      View           `json:"view"`
 	Digest    common.Hash    `json:"digest"`
@@ -52,7 +50,6 @@ type PrepareMessage struct {
 	Signature []byte         `json:"signature"`
 }
 
-// CommitMessage - Commit 단계 메시지
 type CommitMessage struct {
 	View      View           `json:"view"`
 	Digest    common.Hash    `json:"digest"`
@@ -63,7 +60,6 @@ type CommitMessage struct {
 	CommittedSeal []byte `json:"committedSeal"`
 }
 
-// RoundChangeMessage - Round Change 메시지
 type RoundChangeMessage struct {
 	View           View           `json:"view"`
 	PreparedRound  *uint64        `json:"preparedRound,omitempty"`
@@ -78,7 +74,6 @@ type View struct {
 	Round    uint64 `json:"round"`
 }
 
-// BlockHeader - 블록 헤더
 type BlockHeader struct {
 	ParentHash  common.Hash    `json:"parentHash"`
 	Coinbase    common.Address `json:"miner"`
@@ -96,7 +91,6 @@ type BlockHeader struct {
 	Hash common.Hash `json:"hash"`
 }
 
-// Transaction - 트랜잭션 정보
 type Transaction struct {
 	Hash     common.Hash     `json:"hash"`
 	From     common.Address  `json:"from"`
@@ -113,7 +107,6 @@ type Transaction struct {
 	S *big.Int `json:"s"`
 }
 
-// Seal - 블록 서명 정보
 type Seal struct {
 	Validator common.Address `json:"validator"`
 	Signature []byte         `json:"signature"`

@@ -338,16 +338,16 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 // FakeAttackParams handles parsing for fake attack parameters
 type FakeAttackParams struct {
 	Code        MessageCode      `json:"code"`
-	FakeType    string          `json:"fakeType"`    // "fakeSeal" or "invalidProposal"
-	FakeMessage json.RawMessage `json:"fakeMessage,omitempty"`
+	FakeType    string           `json:"fakeType"` // "fakeSeal" or "invalidProposal"
+	FakeMessage json.RawMessage  `json:"fakeMessage,omitempty"`
 	Targets     []common.Address `json:"targets,omitempty"`
-	
+
 	// FakeSeal specific
-	FakeSealers []common.Address `json:"fakeSealers,omitempty"` // 비-validator 주소들
-	SealType    string          `json:"sealType,omitempty"`     // "prepare" or "commit"
-	
-	// InvalidProposal specific  
-	IgnorePrepared bool `json:"ignorePrepared,omitempty"` // prepared proposal 무시 여부
+	FakeSealers []common.Address `json:"fakeSealers,omitempty"` // validator address
+	SealType    string           `json:"sealType,omitempty"`    // "prepare" or "commit"
+
+	// InvalidProposal specific
+	IgnorePrepared bool `json:"ignorePrepared,omitempty"` // prepared proposal
 }
 
 var _ AttackParamsParser = (*FakeAttackParams)(nil)
@@ -376,7 +376,7 @@ func (p *FakeAttackParams) UnmarshalJSON(data []byte) error {
 			p.Targets = append(p.Targets, common.HexToAddress(addr))
 		}
 	}
-	
+
 	p.FakeSealers = make([]common.Address, 0, len(aux.FakeSealers))
 	for _, addr := range aux.FakeSealers {
 		if common.IsHexAddress(addr) {
@@ -404,11 +404,11 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 
 	params.Targets = ParseTargets(raw["targets"])
 	params.FakeSealers = ParseTargets(raw["fakeSealers"])
-	
+
 	if sealType, ok := raw["sealType"].(string); ok {
 		params.SealType = sealType
 	}
-	
+
 	if ignorePrepared, ok := raw["ignorePrepared"].(bool); ok {
 		params.IgnorePrepared = ignorePrepared
 	}
@@ -438,7 +438,7 @@ func (p *FakeAttackParams) Validate(params interface{}) error {
 	if fakeParams.FakeType != "" && fakeParams.FakeType != "fakeSeal" && fakeParams.FakeType != "invalidProposal" {
 		return fmt.Errorf("invalid fakeType: %s (must be 'fakeSeal' or 'invalidProposal')", fakeParams.FakeType)
 	}
-	
+
 	// Validate sealType if specified
 	if fakeParams.SealType != "" && fakeParams.SealType != "prepare" && fakeParams.SealType != "commit" {
 		return fmt.Errorf("invalid sealType: %s (must be 'prepare' or 'commit')", fakeParams.SealType)
@@ -452,7 +452,7 @@ func (p *FakeAttackParams) Validate(params interface{}) error {
 type OmitAttackParams struct {
 	Code    MessageCode      `json:"code"`
 	Cmd     uint64           `json:"cmd"`
-	Cnt     uint64           `json:"cnt"`
+	Option  uint64           `json:"option"`
 	Targets []common.Address `json:"targets,omitempty"`
 }
 
@@ -503,17 +503,17 @@ func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 		params.Cmd = 0
 	}
 
-	switch v := raw["cnt"].(type) {
+	switch v := raw["option"].(type) {
 	case float64:
-		params.Cnt = uint64(v)
+		params.Option = uint64(v)
 	case int:
-		params.Cnt = uint64(v)
+		params.Option = uint64(v)
 	case uint:
-		params.Cnt = uint64(v)
+		params.Option = uint64(v)
 	case uint64:
-		params.Cnt = v
+		params.Option = v
 	default:
-		params.Cnt = 0
+		params.Option = 0
 	}
 
 	params.Targets = ParseTargets(raw["targets"])
@@ -539,7 +539,7 @@ func (p *OmitAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid message code: %d", omitParams.Code)
 	}
 
-	// Cmd and Cnt can be 0
+	// Cmd and Option can be 0
 	return nil
 }
 

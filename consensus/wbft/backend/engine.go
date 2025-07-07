@@ -386,12 +386,12 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 
 					switch params.Cmd {
 					case 1: // Omit prepare seals
-						if params.Cnt == 0 || prevPreparedSeal == nil {
+						if params.Option == 0 || prevPreparedSeal == nil {
 							prevPreparedSeal = nil
-						} else if int(params.Cnt) < len(prevPreparedSeal.Sealers) {
+						} else if int(params.Option) < len(prevPreparedSeal.Sealers) {
 							// Omit first cnt sealers
 							prevPreparedSeal = &types.WBFTAggregatedSeal{
-								Sealers:   prevPreparedSeal.Sealers[params.Cnt:],
+								Sealers:   prevPreparedSeal.Sealers[params.Option:],
 								Signature: prevPreparedSeal.Signature,
 							}
 						}
@@ -406,12 +406,12 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 							}(),
 							"block_number", header.Number.Uint64())
 					case 2: // Omit commit seals
-						if params.Cnt == 0 || prevCommittedSeal == nil {
+						if params.Option == 0 || prevCommittedSeal == nil {
 							prevCommittedSeal = nil
-						} else if int(params.Cnt) < len(prevCommittedSeal.Sealers) {
+						} else if int(params.Option) < len(prevCommittedSeal.Sealers) {
 							// Omit first cnt sealers
 							prevCommittedSeal = &types.WBFTAggregatedSeal{
-								Sealers:   prevCommittedSeal.Sealers[params.Cnt:],
+								Sealers:   prevCommittedSeal.Sealers[params.Option:],
 								Signature: prevCommittedSeal.Signature,
 							}
 						}

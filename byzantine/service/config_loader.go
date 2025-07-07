@@ -207,7 +207,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 		if params, ok := parsedParams.(*types.OmitAttackParams); ok {
 			result["code"] = params.Code
 			result["cmd"] = params.Cmd
-			result["cnt"] = params.Cnt
+			result["option"] = params.Option
 			result["targets"] = params.Targets
 		}
 
