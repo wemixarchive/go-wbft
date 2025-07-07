@@ -381,7 +381,7 @@ func validateFakeParams(params *FakeAttackParams) error {
 }
 
 func validateOmitParams(params *OmitAttackParams) error {
-	// Cmd and Cnt can be 0, which might be valid
+	// Cmd and Option can be 0, which might be valid
 	return validateTargets(params.Targets)
 }
 

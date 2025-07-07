@@ -80,8 +80,6 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	defer m.mu.Unlock()
 
 	config := attack.GetConfig()
-	log.Trace("[BYZ] attack manager ", "attack", attack)
-	log.Trace("[BYZ] attack manager ", "config", config)
 
 	// Generate standardized UID
 	uid := m.uidGenerator.GenerateWithRange(

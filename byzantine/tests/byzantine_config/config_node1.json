@@ -170,7 +170,7 @@
       "parameters": {
         "code": 1,
         "cmd": 2,
-        "cnt": 0,
+        "options": 0,
         "targets": []
       }
     },
@@ -184,7 +184,34 @@
       "parameters": {
         "code": 1,
         "cmd": 1,
-        "cnt": 2,
+        "option": 1,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_missing_prevseal_preprepare#3",
+      "type": "omit",
+      "enabled": true,
+      "sequence_start": 44,
+      "sequence_end": 47,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "cmd": 1,
+        "option": 2,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_prevseal_preprepare",
+      "type": "fake",
+      "enabled": true,
+      "sequence_start": 44,
+      "sequence_end": 47,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fakeMessage": "nil",
         "targets": []
       }
     }

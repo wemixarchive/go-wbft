@@ -45,13 +45,6 @@ func (e *Engine) applyByzantineAttacksToSeals(
 
 	var preparedSeal, committedSeal *types.WBFTAggregatedSeal
 
-	// ==== FAKE ATTACK ====
-	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
-		//
-	} else {
-		log.Trace("[BYZ] Invalid or nil OmitAttackParams")
-	}
-
 	// ==== OMIT ATTACK ====
 	if at := attacks[btypes.AttackTypeOmitMessage]; at != nil && at.OmitParams != nil {
 		omittedPreparedSeal, omittedCommittedSeal, attackApplied := e.applyOmitAttackIfExists(
@@ -72,27 +65,46 @@ func (e *Engine) applyByzantineAttacksToSeals(
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
 				"round", curView.Round.Uint64(),
-				"msgCode", btypes.MessageCodePrePrepare,
+				"msgCode", at.OmitParams.Code,
 				"cmd", btypes.ParseOmitCommand(at.OmitParams.Code, at.OmitParams.Cmd),
-			)
-
-			log.Trace("[BYZ] Omit attack applied to block seals",
-				"block_number", header.Number.Uint64(),
-				"prepared_seals", func() int {
+				"options", at.OmitParams.Option,
+				"preparedSeal_count", func() int {
 					if preparedSeal == nil {
 						return 0
 					}
-					return len(preparedSeal.Sealers)
+					return len(preparedSeal.Sealers.GetSealers())
 				}(),
-				"committed_seals", func() int {
+				"committedSeal_count", func() int {
 					if committedSeal == nil {
 						return 0
 					}
-					return len(committedSeal.Sealers)
-				}())
+					return len(committedSeal.Sealers.GetSealers())
+				}(),
+			)
 		}
 	} else {
 		log.Trace("[BYZ] Invalid or nil OmitAttackParams")
+	}
+
+	// ==== FAKE ATTACK ====
+	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+		// Check for fake seal attack
+		//if at.FakeParams.FakeType == "fakeSeal" {
+		//	// Apply fake seal attack
+		//	prevPreparedSeal, prevCommittedSeal = e.applyFakeSealAttack(
+		//		prevPreparedSeal, prevCommittedSeal, at.FakeParams, validators)
+		//
+		//	log.Info("[BYZ] Applied fake seal attack",
+		//		"attack_uid", at.UID,
+		//		"fake_sealers", len(at.FakeParams.FakeSealers))
+		//
+		//	// Mark attack as executed
+		//	if hook := e.backend.ByzantineHook(); hook != nil {
+		//		hook.MarkAttackExecuted(at.UID, header.Number.Uint64())
+		//	}
+		//}
+	} else {
+		log.Trace("[BYZ] Invalid or nil FakeAttackParams")
 	}
 
 	if len(appliedAttacks) > 0 {
@@ -116,105 +128,32 @@ func (e *Engine) applyOmitAttackIfExists(
 	extraPreparedSeals, extraCommittedSeals []wbft.SealData,
 	validators wbft.ValidatorSet, at *btypes.ExecutableAttack) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
-	// Only apply if attack is for PrePrepare message
-	if at.OmitParams.Code != btypes.MessageCodePrePrepare {
+	var mergedPreparedSeal, mergedCommittedSeal *types.WBFTAggregatedSeal
+	var attackExecute bool
+
+	// Only apply if attack is for PrePrepare message or for Propagation message
+	switch at.OmitParams.Code {
+	case btypes.MessageCodePrepare, btypes.MessageCodeCommit, btypes.MessageCodeRoundChange:
 		return nil, nil, false
+	case btypes.MessageCodePrePrepare:
+		switch at.OmitParams.Cmd {
+		case btypes.OmitCommandPrepareSeal:
+			mergedPreparedSeal, attackExecute = mergeSealsWithOmitAttack(
+				originalPreparedSeal, extraPreparedSeals, at.OmitParams.Option)
+			mergedCommittedSeal = mergeSeals(originalCommittedSeal, extraCommittedSeals)
+		case btypes.OmitCommandCommitSeal:
+			mergedPreparedSeal = mergeSeals(originalPreparedSeal, extraPreparedSeals)
+			mergedCommittedSeal, attackExecute = mergeSealsWithOmitAttack(
+				originalCommittedSeal, extraCommittedSeals, at.OmitParams.Option)
+		case btypes.OmitCommandRoundChange:
+		case btypes.OmitCommandPrepareMessage:
+		}
+	case btypes.MessageCodePropagation:
+	default:
+		log.Error("[BYZ] attack omit: unknown omit param code", "code", at.OmitParams.Code)
 	}
 
-	// First, perform normal merge to get the final seals with duplicates removed
-	mergedPreparedSeal := mergeSeals(originalPreparedSeal, extraPreparedSeals)
-	mergedCommittedSeal := mergeSeals(originalCommittedSeal, extraCommittedSeals)
-	attackExecuted := false
-
-	switch at.OmitParams.Cmd {
-	case btypes.OmitCommandPrevPrepareSeal:
-		// Apply omit attack on prev prepare seals
-		if mergedPreparedSeal != nil {
-			originalCount := len(mergedPreparedSeal.Sealers)
-			mergedPreparedSeal = omitSealsBy(int(at.OmitParams.Cnt), mergedPreparedSeal)
-
-			log.Trace("[BYZ] Applied omit attack on PrevPreparedSeal",
-				"attack_uid", at.UID,
-				"original_count", originalCount,
-				"cnt", at.OmitParams.Cnt,
-				"remaining_count", func() int {
-					if mergedPreparedSeal == nil {
-						return 0
-					}
-					return len(mergedPreparedSeal.Sealers)
-				}())
-
-			// Check if below quorum
-			if mergedPreparedSeal != nil && len(mergedPreparedSeal.Sealers) < validators.QuorumSize() {
-				attackExecuted = true
-			}
-		}
-	case btypes.OmitCommandPrevCommitSeal:
-		// Apply omit attack on prev commit seals
-		if mergedCommittedSeal != nil {
-			originalCount := len(mergedCommittedSeal.Sealers)
-			mergedCommittedSeal = omitSealsBy(int(at.OmitParams.Cnt), mergedCommittedSeal)
-
-			log.Trace("[BYZ] Applied omit attack on PrevCommittedSeal",
-				"attack_uid", at.UID,
-				"original_count", originalCount,
-				"cnt", at.OmitParams.Cnt,
-				"remaining_count", func() int {
-					if mergedCommittedSeal == nil {
-						return 0
-					}
-					return len(mergedCommittedSeal.Sealers)
-				}())
-
-			// Check if below quorum
-			if mergedCommittedSeal != nil && len(mergedCommittedSeal.Sealers) < validators.QuorumSize() {
-				attackExecuted = true
-			}
-		}
-	case btypes.OmitCommandRoundChange:
-	case btypes.OmitCommandPrepareMessage:
-	}
-
-	return mergedPreparedSeal, mergedCommittedSeal, attackExecuted
-}
-
-func (e *Engine) mergeSealWithOmitAttack(seal *types.WBFTAggregatedSeal, extraSeals []wbft.SealData,
-	attacks map[btypes.AttackType]*btypes.ExecutableAttack, sealType string) *types.WBFTAggregatedSeal {
-
-	if at := attacks[btypes.AttackTypeOmitMessage]; at != nil && at.OmitParams != nil {
-		// Check if this attack is for PrePrepare message
-		if at.OmitParams.Code == btypes.MessageCodePrePrepare {
-			// Apply to omit based on cmd and seal type
-			if (at.OmitParams.Cmd == 1 && sealType == "prepare") ||
-				(at.OmitParams.Cmd == 2 && sealType == "commit") {
-
-				// TODO: remove this log
-				log.Debug("[BYZ] Applying omit attack on mergeSeals",
-					"attack_uid", at.UID,
-					"seal_type", sealType,
-					"cmd", at.OmitParams.Cmd,
-					"cnt", at.OmitParams.Cnt,
-					"original_seal_count", len(seal.Sealers),
-					"extra_seal_count", len(extraSeals))
-
-				// If cnt == 0, omit all (don't merge at all)
-				if at.OmitParams.Cnt == 0 {
-					return nil
-				}
-
-				// Omit from extraSeals before merging
-				if int(at.OmitParams.Cnt) < len(extraSeals) {
-					extraSeals = extraSeals[at.OmitParams.Cnt:]
-				} else {
-					// If cnt >= extraSeals length, no extra seals to add
-					return seal
-				}
-			}
-		}
-	}
-
-	// Continue with normal merge
-	return mergeSeals(seal, extraSeals)
+	return mergedPreparedSeal, mergedCommittedSeal, attackExecute
 }
 
 // addFakeSealToAggregated adds a fake seal to an aggregated seal
@@ -310,95 +249,20 @@ func (e *Engine) generateFakeSignature() []byte {
 	return sig
 }
 
-func omitSealsBy(cnt int, seal *types.WBFTAggregatedSeal) *types.WBFTAggregatedSeal {
-	var seals [][]byte
-	sealers := make(types.SealerSet, 0)
-
-	if cnt > 0 {
-		sealCount := len(seal.Sealers)
-		if cnt < sealCount {
-			seals = [][]byte{seal.Signature}
-			sealers = make(types.SealerSet, sealCount-cnt)
-			copy(sealers[:], seal.Sealers[cnt:])
-		}
-	} else {
-		log.Trace("[BYZ] all seal will be omitted")
+func mergeSealsWithOmitAttack(
+	seal *types.WBFTAggregatedSeal,
+	extraSeal []wbft.SealData,
+	option uint64) (*types.WBFTAggregatedSeal, bool) {
+	switch option {
+	case 0:
+		emptySeal := &types.WBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}}
+		return emptySeal, true
+	case 1:
+		emptySeal := &types.WBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}}
+		return mergeSeals(emptySeal, extraSeal), true
+	case 2:
+		return seal, true
+	default:
 	}
-
-	aggregated, err := bls.AggregateCompressedSignatures(seals)
-	if err != nil {
-		return seal
-	}
-
-	return &types.WBFTAggregatedSeal{
-		Sealers:   sealers,
-		Signature: aggregated.Marshal(),
-	}
-}
-
-func omitSeals(seal *types.WBFTAggregatedSeal, extraSeals []wbft.SealData, cnt int, quorumSize int) *types.WBFTAggregatedSeal {
-	seals := [][]byte{}
-	sealers := make(types.SealerSet, 0)
-
-	if cnt > 0 {
-		mergedSeals := mergeSeals(seal, extraSeals)
-		if cnt < len(mergedSeals.Sealers) {
-			seals = [][]byte{mergedSeals.Signature}
-			sealers = make(types.SealerSet, len(mergedSeals.Sealers)-cnt)
-			copy(sealers[:], mergedSeals.Sealers[cnt:])
-		}
-	} else {
-		log.Trace("[BYZ] all seal will be omitted")
-	}
-
-	aggregated, err := bls.AggregateCompressedSignatures(seals)
-	if err != nil {
-		return seal
-	}
-
-	return &types.WBFTAggregatedSeal{
-		Sealers:   sealers,
-		Signature: aggregated.Marshal(),
-	}
-}
-
-// omitSealsFromAggregated removes cnt sealers from an aggregated seal
-func omitSealsFromAggregated(seal *types.WBFTAggregatedSeal, cnt uint64) *types.WBFTAggregatedSeal {
-	if seal == nil {
-		return nil
-	}
-
-	// If cnt == 0, omit all
-	if cnt == 0 {
-		return nil
-	}
-
-	// Get current sealers
-	sealerIndices := seal.Sealers.GetSealers()
-
-	// If cnt >= total seals, return nil
-	if int(cnt) >= len(sealerIndices) {
-		return nil
-	}
-
-	// Create new sealer set with remaining sealers
-	newSealers := make(types.SealerSet, 0)
-	for _, idx := range sealerIndices[cnt:] {
-		newSealers.SetSealer(idx)
-	}
-
-	// Return new seal with reduced sealers but original signature
-	// This will cause validation to fail, which is the intended behavior
-	return &types.WBFTAggregatedSeal{
-		Sealers:   newSealers,
-		Signature: seal.Signature,
-	}
-}
-
-func printSeal(seal *types.WBFTAggregatedSeal) {
-	log.Trace("[BYZ] seal :", "seal", seal.String())
-	sealers := seal.Sealers.GetSealers()
-	for _, sealer := range sealers {
-		log.Trace("[BYZ] seal :", "sealer", sealer)
-	}
+	return nil, false
 }

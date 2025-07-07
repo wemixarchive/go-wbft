@@ -44,7 +44,7 @@ func ParseOmitCommand(code MessageCode, cmd uint64) string {
 		switch cmd {
 		case OmitCommandPrevPrepareSeal:
 			return "Omit Prev Prepare Seal"
-		case OmitCommandCommitSeal:
+		case OmitCommandPrevCommitSeal:
 			return "Omit Prev Commit Seal"
 		case OmitCommandRoundChange:
 			return "Omit Round Change Seal"

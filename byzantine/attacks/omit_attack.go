@@ -36,7 +36,7 @@ func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error)
 	attack := &OmitMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
 		cmd:        params.Cmd,
-		cnt:        params.Cnt,
+		cnt:        params.Option,
 		targets:    params.Targets,
 	}
 	return attack, nil

@@ -103,7 +103,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			preprepare.JustificationPrepares = request.PrepareMessages
 			withMsg(logger, preprepare).Trace("WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
 		}
-		
+
 		// Byzantine hook for fake attack - Invalid PrePrepare
 		if hook := c.backend.ByzantineHook(); hook != nil {
 			if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
@@ -113,64 +113,25 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 						originalPrepares := len(request.PrepareMessages)
 						request.PrepareMessages = nil
 						preprepare.JustificationPrepares = nil
-						
+
 						// Create new proposal ignoring the prepared one
 						if block, ok := request.Proposal.(*types.Block); ok {
 							newProposal := c.createNewProposal(block)
 							request.Proposal = newProposal
 							preprepare.Proposal = newProposal
 						}
-						
+
 						logger.Info("[BYZ] Ignoring prepared proposal, creating new one",
 							"attack_uid", at.UID,
 							"round", c.current.Round(),
 							"ignored_prepares", originalPrepares)
-						
+
 						// Mark attack as executed
 						hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 					}
 				}
 			}
 		}
-
-		//// Byzantine hook: Check for omit attack on RoundChange-PrePrepare
-		//if hook := c.backend.ByzantineHook(); hook != nil && c.current.Round().Uint64() > 0 {
-		//	// Check if we should omit justification
-		//	// Note: Using MessageCodeRoundChangePrePrepare (16) for PrePrepare with justification
-		//	config, found := hook.ShouldExecuteAttack(
-		//		btypes.AttackTypeOmitMessage,
-		//		uint64(btypes.MessageCodePropagation), // 16
-		//		c.current.Sequence().Uint64(),
-		//		c.current.Round().Uint64(),
-		//	)
-		//
-		//	if found && config != nil {
-		//		if params, ok := config.ParsedParameters.(*btypes.OmitAttackParams); ok {
-		//			switch params.Cmd {
-		//			case 1: // Omit RoundChange messages
-		//				cnt := params.Cnt
-		//				if cnt == 0 || int(cnt) >= len(preprepare.JustificationRoundChanges) {
-		//					preprepare.JustificationRoundChanges = nil
-		//					logger.Info("[BYZ] Omitted all RoundChange justifications", "attack_uid", config.UID)
-		//				} else {
-		//					preprepare.JustificationRoundChanges = preprepare.JustificationRoundChanges[cnt:]
-		//					logger.Info("[BYZ] Omitted RoundChange justifications", "attack_uid", config.UID, "omitted", cnt)
-		//				}
-		//			case 2: // Omit Prepare messages
-		//				cnt := params.Cnt
-		//				if cnt == 0 || int(cnt) >= len(preprepare.JustificationPrepares) {
-		//					preprepare.JustificationPrepares = nil
-		//					logger.Info("[BYZ] Omitted all Prepare justifications", "attack_uid", config.UID)
-		//				} else {
-		//					preprepare.JustificationPrepares = preprepare.JustificationPrepares[cnt:]
-		//					logger.Info("[BYZ] Omitted Prepare justifications", "attack_uid", config.UID, "omitted", cnt)
-		//				}
-		//			}
-		//			// Mark attack as executed
-		//			hook.MarkAttackExecuted(config.UID, c.current.Sequence().Uint64())
-		//		}
-		//	}
-		//}
 
 		// RLP-encode message
 		payload, err := rlp.EncodeToBytes(&preprepare)
@@ -378,15 +339,15 @@ func (c *Core) createNewProposal(originalProposal *types.Block) *types.Block {
 		Coinbase:   originalProposal.Coinbase(),
 		// Other fields will be filled by consensus
 	}
-	
+
 	// Create new block with empty transactions
 	// This simulates creating a completely new proposal
 	newBlock := types.NewBlock(header, nil, nil, nil, trie.NewStackTrie(nil))
-	
+
 	c.logger.Info("[BYZ] Created new proposal",
 		"number", newBlock.Number(),
 		"hash", newBlock.Hash(),
 		"original_hash", originalProposal.Hash())
-		
+
 	return newBlock
 }

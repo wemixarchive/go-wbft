@@ -73,7 +73,6 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 
 		cfg := attack.GetConfig()
 		if !h.isAttackEligible(cfg) {
-			log.Trace("[BYZ] attack skipped: disabled or status is not active", "uid", cfg.UID, "enabled", cfg.Enabled, "status", cfg.Status)
 			continue
 		}
 
@@ -85,13 +84,11 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		}
 		err := h.extractParams(cfg, result[at])
 		if err != nil {
-			log.Trace("[BYZ] failed to extract attack parameters", "uid", cfg.UID, "err", err)
 			delete(result, at)
 			continue
 		}
 
 		if !h.IsMessageCodeMatched(cfg, msgCode, result[at]) {
-			log.Trace("[BYZ] message code mismatch, attack skipped", "uid", cfg.UID, "attackType", at, "code", msgCode)
 			delete(result, at)
 			continue
 		}
@@ -100,14 +97,10 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		evt := h.createEvent(types.EventTypeMessageSent, types.MessageCodeToWBFT[msgCode], sequence, round, types.DirectionSend)
 		// Check execution condition
 		if !attack.CheckExecuteCondition(ctx, evt) {
-			log.Trace("[BYZ] attack skipped: execution condition not met", "attackType", at)
 			delete(result, at)
 			continue
 		}
-
-		log.Trace("[BYZ] Executable attack found", "uid", cfg.UID, "attackType", at, "msgCode", msgCode)
 	}
-	log.Trace("[BYZ] total executable attacks", "count", len(result), "msgCode", msgCode, "seq", sequence, "round", round)
 	return result
 }
 

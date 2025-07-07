@@ -489,7 +489,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			prevPreparedSeal := mergeSeals(extra.PreparedSeal, extraPreparedSeal)
 			prevCommittedSeal := mergeSeals(extra.CommittedSeal, extraCommittedSeal)
 
-			// Byzantine attack if exists
+			// Byzantine attack if exists (omit attack or fake attack)
 			attackedPrevPreparedSeal, attackedCommittedSeal, appliedAttacks := e.applyByzantineAttacksToSeals(
 				extra.PreparedSeal,
 				extra.CommittedSeal,
@@ -502,24 +502,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				prevPreparedSeal = attackedPrevPreparedSeal
 				prevCommittedSeal = attackedCommittedSeal
 			}
-
-			// Check for fake seal attack
-			//if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
-			//	if at.FakeParams.FakeType == "fakeSeal" {
-			//		// Apply fake seal attack
-			//		prevPreparedSeal, prevCommittedSeal = e.applyFakeSealAttack(
-			//			prevPreparedSeal, prevCommittedSeal, at.FakeParams, validators)
-			//
-			//		log.Info("[BYZ] Applied fake seal attack",
-			//			"attack_uid", at.UID,
-			//			"fake_sealers", len(at.FakeParams.FakeSealers))
-			//
-			//		// Mark attack as executed
-			//		if hook := e.backend.ByzantineHook(); hook != nil {
-			//			hook.MarkAttackExecuted(at.UID, header.Number.Uint64())
-			//		}
-			//	}
-			//}
+			// Byzantine attack end
 
 			// add validators in snapshot to extraData's validators section and lastBlock committers to extraData's prevCommittedSeal section
 			madeExtra, err = ApplyHeaderWBFTExtra(
