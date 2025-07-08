@@ -64,6 +64,11 @@ func ParseOmitCommand(code MessageCode, cmd uint64) string {
 	return ""
 }
 
+// FakeTarget constants for fake attack
+const (
+	FakeTargetPrevSeal string = "fakeSeal"
+)
+
 // Node roles
 const (
 	RoleValidator = "validator"

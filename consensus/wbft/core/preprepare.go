@@ -105,33 +105,33 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		}
 
 		// Byzantine hook for fake attack - Invalid PrePrepare
-		if hook := c.backend.ByzantineHook(); hook != nil {
-			if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
-				if at.FakeParams.FakeType == "invalidProposal" && at.FakeParams.IgnorePrepared {
-					// Round > 0이고 prepared proposal이 있어도 무시
-					if c.current.Round().Uint64() > 0 && request.PrepareMessages != nil {
-						originalPrepares := len(request.PrepareMessages)
-						request.PrepareMessages = nil
-						preprepare.JustificationPrepares = nil
-
-						// Create new proposal ignoring the prepared one
-						if block, ok := request.Proposal.(*types.Block); ok {
-							newProposal := c.createNewProposal(block)
-							request.Proposal = newProposal
-							preprepare.Proposal = newProposal
-						}
-
-						logger.Info("[BYZ] Ignoring prepared proposal, creating new one",
-							"attack_uid", at.UID,
-							"round", c.current.Round(),
-							"ignored_prepares", originalPrepares)
-
-						// Mark attack as executed
-						hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					}
-				}
-			}
-		}
+		//if hook := c.backend.ByzantineHook(); hook != nil {
+		//	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+		//		if at.FakeParams.FakeType == "invalidProposal" && at.FakeParams.IgnorePrepared {
+		//			// Round > 0이고 prepared proposal이 있어도 무시
+		//			if c.current.Round().Uint64() > 0 && request.PrepareMessages != nil {
+		//				originalPrepares := len(request.PrepareMessages)
+		//				request.PrepareMessages = nil
+		//				preprepare.JustificationPrepares = nil
+		//
+		//				// Create new proposal ignoring the prepared one
+		//				if block, ok := request.Proposal.(*types.Block); ok {
+		//					newProposal := c.createNewProposal(block)
+		//					request.Proposal = newProposal
+		//					preprepare.Proposal = newProposal
+		//				}
+		//
+		//				logger.Info("[BYZ] Ignoring prepared proposal, creating new one",
+		//					"attack_uid", at.UID,
+		//					"round", c.current.Round(),
+		//					"ignored_prepares", originalPrepares)
+		//
+		//				// Mark attack as executed
+		//				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		//			}
+		//		}
+		//	}
+		//}
 
 		// RLP-encode message
 		payload, err := rlp.EncodeToBytes(&preprepare)
