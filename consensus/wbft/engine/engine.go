@@ -1117,7 +1117,7 @@ func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, h
 				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
 				return nil
 			} else {
-				log.Info("[BYZ] attack tamper: Proposal Reward", "name", at.NAME, "uid", at.UID, "seq", curView.Sequence.Uint64(), "round", curView.Round.Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", blockReward, "changed", val)
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", curView.Sequence.Uint64(), "original", blockReward, "params", at.TamperParams)
 				return new(big.Int).SetUint64(val)
 			}
 		}

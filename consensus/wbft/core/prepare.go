@@ -89,8 +89,8 @@ func (c *Core) broadcastPrepare() {
 	}
 
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
-		if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
-			log.Info("[BYZ] attack silent: blocked outgoing message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare)
+		if at.SilentParams.Direction == 1 {
+			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
 			return
 		}
 	}
@@ -109,9 +109,7 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 		return false
 	}
 	send := false
-
 	logger := c.currentLogger(true, nil)
-
 	// Create PREPARE message from the current proposal
 	sub := c.current.Subject()
 
@@ -137,7 +135,7 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 					return false
 				} else {
 					send = true
-					log.Info("[BYZ] attack tamper: Digest", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrepare, "original", prepare.Digest.Hex(), "changed", val.Hex())
+					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", prepare.Digest.Hex(), "params", at.TamperParams)
 					prepare.Digest = val
 				}
 			}

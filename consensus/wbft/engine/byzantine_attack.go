@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	"github.com/ethereum/go-ethereum/consensus/wbft/core"
@@ -61,14 +62,10 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			committedSeal = omittedCommittedSeal
 			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
 
-			log.Info("[BYZ] attack omit: broadcast_missing_prevseal_preprepare",
+			log.Info("[BYZ] attack",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
-				"round", curView.Round.Uint64(),
-				"msgCode", at.OmitParams.Code,
-				"cmd", btypes.ParseOmitCommand(at.OmitParams.Code, at.OmitParams.Cmd),
-				"options", at.OmitParams.Option,
 				"preparedSeal_count", func() int {
 					if preparedSeal == nil {
 						return 0
@@ -81,6 +78,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 					}
 					return len(committedSeal.Sealers.GetSealers())
 				}(),
+				"params", at.OmitParams,
 			)
 		}
 	} else {
@@ -109,8 +107,6 @@ func (e *Engine) applyByzantineAttacksToSeals(
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
-				"msgCode", at.FakeParams.Code,
-				"fakeField", at.FakeParams.FakeMessage,
 				"preparedSeal_count", func() int {
 					if preparedSeal == nil {
 						return 0
@@ -123,6 +119,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 					}
 					return len(committedSeal.Sealers.GetSealers())
 				}(),
+				"params", at.FakeParams,
 			)
 		}
 	} else {

@@ -143,8 +143,8 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
 
 		if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
-			if at.SilentParams.Direction == 1 || at.SilentParams.Direction == 3 {
-				log.Info("[BYZ] attack silent: blocked outgoing message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare)
+			if at.SilentParams.Direction == 1 {
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
 				return
 			}
 		}
@@ -193,7 +193,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 					return false
 				} else {
 					send = true
-					log.Info("[BYZ] attack tamper: Proposal Block Number", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "round", c.current.Round().Uint64(), "msgCode", btypes.MessageCodePrePrepare, "original", proposal.Number(), "changed", val)
+					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", proposal.Number(), "parmas", at.TamperParams)
 					proposal.SetNumber(val)
 				}
 			}
