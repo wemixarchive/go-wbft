@@ -75,13 +75,13 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 		if at == nil || at.SilentParams == nil {
 			return nil, "", "", false
 		}
-		return at.SilentParams, at.NAME, at.UID, (at.SilentParams.Direction == 2 || at.SilentParams.Direction == 3)
+		return at.SilentParams, at.NAME, at.UID, (at.SilentParams.Direction == 2)
 	}
 
 	// check silent
 	for _, group := range attackGroups {
 		if params, name, uid, ok := isSilentMessage(group[btypes.AttackTypeSilentMessage]); ok {
-			log.Info("[BYZ] attack silent: dropped incoming message", "name", name, "uid", uid, "seq", seq, "round", round, "msgCode", params.Code)
+			log.Info("[BYZ] attack", "name", name, "uid", uid, "seq", seq, "params", params)
 			return errInvalidMessage
 		}
 	}

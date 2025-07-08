@@ -201,7 +201,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 	if config.ExecutionCount >= uint64(1) {
 		config.Status = types.AttackStatusCompleted
 		attack.SetStatus(types.AttackStatusCompleted)
-		log.Info("[BYZ] Attack completed after reaching max executions",
+		log.Debug("[BYZ] Attack completed after reaching max executions",
 			"uid", uid,
 			"executed", config.ExecutionCount,
 			"status", config.Status,
@@ -219,7 +219,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 		m.updateStatusTracking(uid, types.AttackStatusExecuted, config.Status)
 	}
 
-	log.Info("[BYZ] Attack executed",
+	log.Debug("[BYZ] Attack executed",
 		"uid", uid,
 		"sequence", sequence,
 		"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
