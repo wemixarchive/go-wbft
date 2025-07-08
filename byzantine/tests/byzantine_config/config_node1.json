@@ -223,7 +223,7 @@
     {
       "name": "broadcast_invalid_prepare",
       "type": "tamper",
-      "enabled": false,
+      "enabled": true,
       "seq_s": 52,
       "seq_e": 52,
       "round": 0,
