@@ -9,8 +9,8 @@
           "name": "omit_all_prev_prepare_seals",
           "type": "omitMessage",
           "enabled": true,
-          "sequence_start": 100,
-          "sequence_end": 100,
+          "seq_s": 100,
+          "seq_e": 100,
           "round": 0,
           "code": 1,
           "parameters": {
@@ -39,8 +39,8 @@
           "name": "omit_partial_commit_seals",
           "type": "omitMessage",
           "enabled": true,
-          "sequence_start": 200,
-          "sequence_end": 205,
+          "seq_s": 200,
+          "seq_e": 205,
           "round": 0,
           "parameters": {
             "code": 1,
@@ -68,8 +68,8 @@
           "name": "omit_all_commit_seals_on_propagation",
           "type": "omitMessage",
           "enabled": true,
-          "sequence_start": 300,
-          "sequence_end": 300,
+          "seq_s": 300,
+          "seq_e": 300,
           "round": 0,
           "parameters": {
             "code": 32,
@@ -97,8 +97,8 @@
           "name": "omit_roundchange_messages",
           "type": "omitMessage",
           "enabled": true,
-          "sequence_start": 400,
-          "sequence_end": 400,
+          "seq_s": 400,
+          "seq_e": 400,
           "round": 1,
           "parameters": {
             "code": 16,
@@ -125,8 +125,8 @@
         {
           "name": "targeted_seal_omission",
           "type": "omitMessage",
-          "sequence_start": 500,
-          "sequence_end": 510,
+          "seq_s": 500,
+          "seq_e": 510,
           "round": 0,
           "enabled": true,
           "parameters": {
@@ -158,8 +158,8 @@
           "name": "max_omission_preprepare",
           "type": "omitMessage",
           "enabled": true,
-          "sequence_start": 600,
-          "sequence_end": 610,
+          "seq_s": 600,
+          "seq_e": 610,
           "round": 0,
           "parameters": {
             "code": 1,
@@ -172,8 +172,8 @@
           "name": "max_omission_propagation",
           "type": "omitMessage",
           "enabled": true,
-          "sequence_start": 600,
-          "sequence_end": 610,
+          "seq_s": 600,
+          "seq_e": 610,
           "round": 0,
           "parameters": {
             "code": 32,

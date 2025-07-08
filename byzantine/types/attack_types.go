@@ -88,8 +88,8 @@ type AttackConfig struct {
 	Name             string                 `json:"name"`
 	Type             AttackType             `json:"type"`
 	Enabled          bool                   `json:"enabled"`
-	SequenceStart    uint64                 `json:"sequence_start"`
-	SequenceEnd      uint64                 `json:"sequence_end"`
+	SequenceStart    uint64                 `json:"seq_s"`
+	SequenceEnd      uint64                 `json:"seq_e"`
 	Round            uint64                 `json:"round"`
 	ExecutionCount   uint64                 `json:"-"`
 	Status           AttackStatus           `json:"status,omitempty"`

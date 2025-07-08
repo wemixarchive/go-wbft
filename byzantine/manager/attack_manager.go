@@ -612,7 +612,7 @@ func (m *AttackManager) updatePatternIndex(uid string, config types.AttackConfig
 	m.patternIndex[exactPattern] = append(m.patternIndex[exactPattern], uid)
 
 	// Index wildcard patterns for flexible matching
-	// Pattern for any round: "type-sequence_start-sequence_end-*"
+	// Pattern for any round: "type-seq_s-seq_e-*"
 	anyRoundPattern := fmt.Sprintf("%s-%d-%d-*",
 		types.AttackTypeToString(config.Type), config.SequenceStart, config.SequenceEnd)
 	if m.patternIndex[anyRoundPattern] == nil {
@@ -621,7 +621,7 @@ func (m *AttackManager) updatePatternIndex(uid string, config types.AttackConfig
 		log.Error("Duplicated pattern", "uid", uid, "pattern", anyRoundPattern)
 	}
 
-	// Pattern for any sequence and round: "type-sequence_start-*-*"
+	// Pattern for any sequence and round: "type-seq_s-*-*"
 	globalPattern := fmt.Sprintf("%s-%d-*-*",
 		types.AttackTypeToString(config.Type), config.SequenceStart)
 	if m.patternIndex[globalPattern] == nil {
