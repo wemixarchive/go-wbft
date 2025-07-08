@@ -112,11 +112,11 @@ func IntegrateByzantineWithConsensus(service types.ByzantineService, consensusEn
 		hook := service.GetConsensusHook()
 		wbftBackend.SetByzantineHook(hook)
 
-		log.Info("[BYZ] module integrated with consensus",
+		log.Debug("[BYZ] module integrated with consensus",
 			"total_attacks", len(service.ListAttacks()),
 			"active_attacks", service.GetStatus().ActiveAttacks)
 	} else {
-		log.Debug("Consensus is not WBFT, skipping Byzantine integration")
+		log.Warn("Consensus is not WBFT, skipping Byzantine integration")
 	}
 
 	return nil

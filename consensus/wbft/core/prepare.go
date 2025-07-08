@@ -165,7 +165,7 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 	}
 
 	if send {
-		withMsg(logger, prepare).Info("[BYZ] WBFT: broadcast PREPARE message", "payload", hexutil.Encode(payload))
+		withMsg(logger, prepare).Info("[BYZ] broadcast PREPARE message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
 			withMsg(logger, prepare).Error("[BYZ] WBFT: failed to broadcast PREPARE message", "err", err)
