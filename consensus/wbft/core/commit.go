@@ -171,7 +171,7 @@ func (c *Core) broadcastByzantineCommit(attacks map[btypes.AttackType]*btypes.Ex
 		withMsg(logger, commit).Info("[BYZ] WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
-			withMsg(logger, commit).Error("[BYZ] WBFT: failed to broadcast COMMIT message", "err", err)
+			withMsg(logger, commit).Error("[BYZ] failed to broadcast COMMIT message", "err", err)
 			return false
 		}
 	}

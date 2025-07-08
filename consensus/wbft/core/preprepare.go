@@ -238,7 +238,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 	logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
 
 	if send {
-		logger.Info("[BYZ] WBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
+		logger.Info("[BYZ] broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
 			logger.Error("[BYZ] WBFT: failed to broadcast PRE-PREPARE message", "err", err)
