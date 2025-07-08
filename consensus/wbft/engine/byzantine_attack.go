@@ -2,6 +2,7 @@ package wbftengine
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
@@ -53,7 +54,6 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			originalCommittedSeal,
 			extraPreparedSeal,
 			extraCommittedSeal,
-			validators,
 			at,
 		)
 		if attackApplied {
@@ -89,46 +89,41 @@ func (e *Engine) applyByzantineAttacksToSeals(
 
 	// ==== FAKE ATTACK ====
 	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
-		// Check for fake seal attack
-		for _, fakeField := range at.FakeParams.FakeMessage {
-			if fakeField.FakeTarget == btypes.FakeTargetPrevSeal {
-				if preparedSeal == nil {
-					preparedSeal = mergeSeals(originalPreparedSeal, extraPreparedSeal)
-				}
-				if committedSeal == nil {
-					committedSeal = mergeSeals(originalCommittedSeal, extraCommittedSeal)
-				}
-				// add fake seal
-				fakedPreparedSeal, fakedCommittedSeal, attackApplied := e.applyFakeSealAttackIfExists(
-					preparedSeal, committedSeal, fakeField.Value.(string), validators)
+		if preparedSeal == nil {
+			preparedSeal = mergeSeals(originalPreparedSeal, extraPreparedSeal)
+		}
+		if committedSeal == nil {
+			committedSeal = mergeSeals(originalCommittedSeal, extraCommittedSeal)
+		}
 
-				if attackApplied {
-					preparedSeal = fakedPreparedSeal
-					committedSeal = fakedCommittedSeal
-					appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
+		// add fake seal
+		fakedPreparedSeal, fakedCommittedSeal, attackApplied := e.applyFakeSealAttackIfExists(
+			preparedSeal, committedSeal, at.FakeParams.FakeMessage, validators)
 
-					log.Info("[BYZ] attack fake: broadcast_invalid_prevseal_preprepare",
-						"name", at.NAME,
-						"uid", at.UID,
-						"seq", curView.Sequence.Uint64(),
-						"round", curView.Round.Uint64(),
-						"msgCode", at.FakeParams.Code,
-						"fakeType", fakeField.FakeTarget,
-						"preparedSeal_count", func() int {
-							if preparedSeal == nil {
-								return 0
-							}
-							return len(preparedSeal.Sealers.GetSealers())
-						}(),
-						"committedSeal_count", func() int {
-							if committedSeal == nil {
-								return 0
-							}
-							return len(committedSeal.Sealers.GetSealers())
-						}(),
-					)
-				}
-			}
+		if attackApplied {
+			preparedSeal = fakedPreparedSeal
+			committedSeal = fakedCommittedSeal
+			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
+
+			log.Info("[BYZ] attack",
+				"name", at.NAME,
+				"uid", at.UID,
+				"seq", curView.Sequence.Uint64(),
+				"msgCode", at.FakeParams.Code,
+				"fakeField", at.FakeParams.FakeMessage,
+				"preparedSeal_count", func() int {
+					if preparedSeal == nil {
+						return 0
+					}
+					return len(preparedSeal.Sealers.GetSealers())
+				}(),
+				"committedSeal_count", func() int {
+					if committedSeal == nil {
+						return 0
+					}
+					return len(committedSeal.Sealers.GetSealers())
+				}(),
+			)
 		}
 	} else {
 		log.Trace("[BYZ] Invalid or nil FakeAttackParams")
@@ -153,7 +148,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 func (e *Engine) applyOmitAttackIfExists(
 	originalPreparedSeal, originalCommittedSeal *types.WBFTAggregatedSeal,
 	extraPreparedSeals, extraCommittedSeals []wbft.SealData,
-	validators wbft.ValidatorSet, at *btypes.ExecutableAttack) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
+	at *btypes.ExecutableAttack) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
 	var mergedPreparedSeal, mergedCommittedSeal *types.WBFTAggregatedSeal
 	var attackExecute bool
@@ -205,34 +200,126 @@ func (e *Engine) logSealStatus(preparedSeal, committedSeal *types.WBFTAggregated
 // applyFakeSealAttack applies fake seal attack by adding non-validator signatures
 func (e *Engine) applyFakeSealAttackIfExists(
 	preparedSeal, committedSeal *types.WBFTAggregatedSeal,
-	value string, validators wbft.ValidatorSet) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
+	fakeMessage []btypes.FakeField, validators wbft.ValidatorSet) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
-	if value == "nil" {
-		// Generate a fake sealer index (using validator set size + 1)
-		// This ensures we're using an index outside the valid validator range
-		fakeSealerIndex := uint32(validators.Size())
+	attackCount := 0
+	resultPreparedSeal := preparedSeal
+	resultCommittedSeal := committedSeal
+	baseValidatorCount := validators.Size()
 
-		// Generate fake seal data
-		fakeSeal := wbft.SealData{
-			Sealer: fakeSealerIndex,
-			Seal:   e.generateFakeSignature(),
+	// Process each fake field and accumulate results
+	for i, fakeField := range fakeMessage {
+		// Use incremental indices for each fake seal to avoid conflicts
+		fakeIndexOffset := baseValidatorCount + i
+
+		updatedPrepared, updatedCommitted, applied := e.processFakeField(
+			resultPreparedSeal,
+			resultCommittedSeal,
+			fakeField,
+			fakeIndexOffset,
+		)
+
+		if applied {
+			resultPreparedSeal = updatedPrepared
+			resultCommittedSeal = updatedCommitted
+			attackCount++
 		}
+	}
 
-		// Create copies of the original seals and add fake seal
-		var fakePreparedSeal, fakeCommittedSeal *types.WBFTAggregatedSeal
+	return resultPreparedSeal, resultCommittedSeal, attackCount > 0
+}
 
+// processFakeField processes a single fake field and returns updated seals
+func (e *Engine) processFakeField(
+	preparedSeal, committedSeal *types.WBFTAggregatedSeal,
+	fakeField btypes.FakeField,
+	fakeIndexOffset int) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
+
+	// Generate fake seal based on value
+	fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset)
+	if err != nil {
+		log.Debug("[BYZ] Failed to generate fake seal", "err", err, "value", fakeField.Value)
+		return preparedSeal, committedSeal, false
+	}
+
+	switch fakeField.FakeTarget {
+	case btypes.FakeTargetPrevPrePareSeal:
+		// Only modify prepared seal for PrevPrePareSeal
 		if preparedSeal != nil {
-			fakePreparedSeal = e.addFakeSealToAggregated(preparedSeal, fakeSeal)
+			return e.addFakeSealToAggregated(preparedSeal, fakeSeal), committedSeal, true
 		}
 
+	case btypes.FakeTargetPrevCommitSeal:
+		// Only modify committed seal for PrevCommitSeal
 		if committedSeal != nil {
-			fakeCommittedSeal = e.addFakeSealToAggregated(committedSeal, fakeSeal)
+			return preparedSeal, e.addFakeSealToAggregated(committedSeal, fakeSeal), true
 		}
 
-		return fakePreparedSeal, fakeCommittedSeal, true
+	case btypes.FakeTargetPrePareSeal:
+	case btypes.FakeTargetCommitSeal:
 	}
 
 	return preparedSeal, committedSeal, false
+}
+
+// generateFakeSealFromValue generates a fake seal based on the provided value
+func (e *Engine) generateFakeSealFromValue(value interface{}, fakeIndex int) (wbft.SealData, error) {
+	if value == nil || value == "nil" {
+		// Generate random fake seal
+		return e.createFakeSeal(fakeIndex), nil
+	}
+
+	// Try to parse value as a map for specific seal configuration
+	switch v := value.(type) {
+	case map[string]interface{}:
+		var sealerIndex uint32
+		if idx, ok := v["sealer"].(float64); ok {
+			sealerIndex = uint32(idx)
+		} else {
+			sealerIndex = uint32(fakeIndex)
+		}
+
+		var signature []byte
+		if sig, ok := v["signature"].(string); ok {
+			if len(sig) > 2 && sig[:2] == "0x" {
+				sig = sig[2:]
+			}
+			decoded, err := hex.DecodeString(sig)
+			if err != nil {
+				return wbft.SealData{}, fmt.Errorf("failed to decode signature: %w", err)
+			}
+			signature = decoded
+		} else {
+			// Generate fake signature if not provided
+			signature = e.generateFakeSignature()
+		}
+
+		return wbft.SealData{
+			Sealer: sealerIndex,
+			Seal:   signature,
+		}, nil
+
+	case string:
+		// If it's a string other than "nil", error
+		if v != "nil" {
+			return wbft.SealData{}, fmt.Errorf("unexpected string value: %s", v)
+		}
+		return e.createFakeSeal(fakeIndex), nil
+
+	default:
+		return wbft.SealData{}, fmt.Errorf("unsupported value type: %T", value)
+	}
+}
+
+// createFakeSeal creates a fake seal with the given sealer index
+func (e *Engine) createFakeSeal(fakeIndex int) wbft.SealData {
+	// Use the provided fake index which should be outside the valid validator range
+	fakeSealerIndex := uint32(fakeIndex)
+
+	return wbft.SealData{
+		Sealer: fakeSealerIndex,
+		Seal:   e.generateFakeSignature(),
+	}
 }
 
 // addFakeSealToAggregated adds a fake seal to an aggregated seal
@@ -242,8 +329,7 @@ func (e *Engine) addFakeSealToAggregated(seal *types.WBFTAggregatedSeal, fakeSea
 	copy(newSealers, seal.Sealers)
 	newSealers.SetSealer(fakeSeal.Sealer)
 
-	// For fake attack, we just append the fake signature
-	// In reality, this would create an invalid aggregated signature
+	// append the fake signature
 	seals := [][]byte{seal.Signature, fakeSeal.Seal}
 
 	// Try to aggregate, but if it fails, just concatenate
