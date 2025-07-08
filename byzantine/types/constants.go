@@ -66,7 +66,10 @@ func ParseOmitCommand(code MessageCode, cmd uint64) string {
 
 // FakeTarget constants for fake attack
 const (
-	FakeTargetPrevSeal string = "fakeSeal"
+	FakeTargetPrevCommitSeal  string = "prevCommitSeal"
+	FakeTargetPrevPrePareSeal string = "prevPrePareSeal"
+	FakeTargetCommitSeal      string = "commitSeal"
+	FakeTargetPrePareSeal     string = "prePareSeal"
 )
 
 // Node roles
