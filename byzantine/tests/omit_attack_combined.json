@@ -6,8 +6,8 @@
       "name": "phase1_omit_prepare",
       "type": "omitMessage",
       "enabled": true,
-      "sequence_start": 100,
-      "sequence_end": 105,
+      "seq_s": 100,
+      "seq_e": 105,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -20,8 +20,8 @@
       "name": "phase2_omit_commit",
       "type": "omitMessage",
       "enabled": true,
-      "sequence_start": 106,
-      "sequence_end": 110,
+      "seq_s": 106,
+      "seq_e": 110,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -34,8 +34,8 @@
       "name": "phase3_omit_propagation",
       "type": "omitMessage",
       "enabled": true,
-      "sequence_start": 111,
-      "sequence_end": 115,
+      "seq_s": 111,
+      "seq_e": 115,
       "round": 0,
       "parameters": {
         "code": 16,
@@ -48,8 +48,8 @@
       "name": "combined_with_silent",
       "type": "silentMessage",
       "enabled": true,
-      "sequence_start": 100,
-      "sequence_end": 115,
+      "seq_s": 100,
+      "seq_e": 115,
       "round": 0,
       "parameters": {
         "code": 2,

@@ -5,8 +5,8 @@
       "name": "simple_omit_test",
       "type": "omitMessage",
       "enabled": true,
-      "sequence_start": 5,
-      "sequence_end": 10,
+      "seq_s": 5,
+      "seq_e": 10,
       "round": 0,
       "parameters": {
         "code": 1,

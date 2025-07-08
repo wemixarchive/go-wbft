@@ -4,8 +4,8 @@
     {
       "name": "no_broadcast_prepare",
       "type": "silent",
-      "sequence_start": 10,
-      "sequence_end": 10,
+      "seq_s": 10,
+      "seq_e": 10,
       "round": 0,
       "code": 2,
       "parameters": {
@@ -15,8 +15,8 @@
     {
       "name": "no_broadcast_prepare",
       "type": "silent",
-      "sequence_start": 11,
-      "sequence_end": 11,
+      "seq_s": 11,
+      "seq_e": 11,
       "round": 0,
       "code": 2,
       "parameters": {
@@ -26,8 +26,8 @@
     {
       "name": "no_broadcast_prepare",
       "type": "silent",
-      "sequence_start": 12,
-      "sequence_end": 12,
+      "seq_s": 12,
+      "seq_e": 12,
       "round": 0,
       "code": 4,
       "parameters": {

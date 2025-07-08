@@ -5,8 +5,8 @@
       "name": "no_broadcast_prepare",
       "type": "silent",
       "enabled": true,
-      "sequence_start": 14,
-      "sequence_end": 14,
+      "seq_s": 14,
+      "seq_e": 14,
       "round": 0,
       "parameters": {
         "code": 2,
@@ -18,8 +18,8 @@
       "name": "no_broadcast_commit",
       "type": "silent",
       "enabled": true,
-      "sequence_start": 15,
-      "sequence_end": 15,
+      "seq_s": 15,
+      "seq_e": 15,
       "round": 0,
       "parameters": {
         "code": 4,
