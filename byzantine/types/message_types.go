@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -175,13 +174,6 @@ type QBFTMessage struct {
 	CommittedSeal []byte         `json:"committed_seal,omitempty"`
 	Proposal      *types.Block   `json:"proposal,omitempty"`
 	Hash          common.Hash    `json:"hash"`
-}
-
-// StoredMessage represents a message stored for potential replay
-type StoredMessage struct {
-	Message    *QBFTMessage   `json:"message"`
-	ReceivedAt time.Time      `json:"received_at"`
-	FromPeer   common.Address `json:"from_peer"`
 }
 
 // TamperTarget represents fields that can be tampered

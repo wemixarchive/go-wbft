@@ -14,6 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/urfave/cli/v2"
+
+	// Import all attack implementations to register their factories
+	_ "github.com/ethereum/go-ethereum/byzantine/attacks"
 )
 
 // Register registers Byzantine service using the provided config
@@ -49,22 +52,6 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 			attack.Parameters,
 		))
 	}
-
-	log.Info("=== Storage configuration ===")
-	log.Info(fmt.Sprintf("→ retention=%s history=%s max size=%d prune interval=%s",
-		config.StorageConfig.MessageRetention,
-		config.StorageConfig.HistoryRetention,
-		config.StorageConfig.MaxStorageSize,
-		config.StorageConfig.PruneInterval,
-	))
-
-	log.Info("=== Monitoring configuration ===")
-	log.Info(fmt.Sprintf("→ enabled=%v port=%d log level=%s alert thresholds=%v",
-		config.Monitoring.Enabled,
-		config.Monitoring.MetricsPort,
-		config.Monitoring.LogLevel,
-		config.Monitoring.AlertThresholds,
-	))
 
 	// Create a Byzantine service
 	byzantineService, err := service.NewByzantineService(config)

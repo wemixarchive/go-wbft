@@ -28,32 +28,24 @@ type AttackManager struct {
 	uidGenerator types.UIDGenerator
 
 	// Dependencies
-	registry       *registry.AttackRegistry
-	historyStorage types.HistoryStorage
-	chainHandler   *ChainHandler
+	registry     *registry.AttackRegistry
+	chainHandler *ChainHandler
 
 	// Metrics
 	totalAttacks  uint64
 	activeAttacks uint64
-
-	//attacks         map[uint64]types.Attack
-	//attacks map[string]types.Attack
-	//attacksByStatus map[types.AttackStatus]map[uint64]types.Attack
-	//attacksByStatus map[types.AttackStatus]map[string]types.Attack
-	//attackIndex    map[string][]string // key: "type-code-seq-round", value: []UIDs
 }
 
 var _ types.AttackManager = (*AttackManager)(nil)
 
 // NewAttackManager creates a new attack manager
-func NewAttackManager(registry *registry.AttackRegistry, historyStorage types.HistoryStorage) *AttackManager {
+func NewAttackManager(registry *registry.AttackRegistry) *AttackManager {
 	manager := &AttackManager{
-		attacksByUID:   make(map[string]types.Attack),
-		uidsByStatus:   make(map[types.AttackStatus]map[string]bool),
-		patternIndex:   make(map[string][]string),
-		uidGenerator:   types.NewUIDGenerator(),
-		registry:       registry,
-		historyStorage: historyStorage,
+		attacksByUID: make(map[string]types.Attack),
+		uidsByStatus: make(map[types.AttackStatus]map[string]bool),
+		patternIndex: make(map[string][]string),
+		uidGenerator: types.NewUIDGenerator(),
+		registry:     registry,
 	}
 
 	// Initialize status maps
@@ -111,13 +103,6 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 	// Update metrics
 	m.totalAttacks++
 	m.activeAttacks++
-
-	// Save to history if available
-	if m.historyStorage != nil {
-		if err := m.historyStorage.SaveAttackConfig(config); err != nil {
-			log.Error("Failed to save attack config to history", "uid", uid, "error", err)
-		}
-	}
 
 	return nil
 }
@@ -698,13 +683,6 @@ func (m *AttackManager) executeAttack(ctx context.Context, attack types.Attack, 
 	}
 
 	m.UpdateStatusMap(attack, types.AttackStatusExecuted)
-
-	// Save to history if available
-	if m.historyStorage != nil && result != nil {
-		if err := m.historyStorage.SaveAttackResult(*result); err != nil {
-			log.Error("Failed to save attack result", "uid", attack.GetUID(), "error", err)
-		}
-	}
 
 	// Add execution time to result
 	if result != nil {

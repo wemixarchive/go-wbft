@@ -10,19 +10,15 @@ import (
 
 // Handler handles API requests
 type Handler struct {
-	service        types.ByzantineService
-	attackManager  types.AttackManager
-	messageStorage types.MessageStorage
-	historyStorage types.HistoryStorage
+	service       types.ByzantineService
+	attackManager types.AttackManager
 }
 
 // NewHandler creates a new API handler
 func NewHandler(svc types.ByzantineService) *Handler {
 	return &Handler{
-		service:        svc,
-		attackManager:  svc.GetAttackManager(),
-		messageStorage: svc.GetMessageStorage(),
-		historyStorage: svc.GetHistoryStorage(),
+		service:       svc,
+		attackManager: svc.GetAttackManager(),
 	}
 }
 
