@@ -13,9 +13,9 @@ import (
 // FakeMessageAttack implements fake message attack
 type FakeMessageAttack struct {
 	*registry.BaseAttack
-	fakeMessage []byte
-	targets     []common.Address
-	params      *types.FakeAttackParams
+	fakeFields []types.FakeField
+	targets    []common.Address
+	params     *types.FakeAttackParams
 }
 
 var _ (types.Attack) = (*FakeMessageAttack)(nil)
@@ -33,10 +33,10 @@ func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error)
 	params := parsedParams.(*types.FakeAttackParams)
 
 	attack := &FakeMessageAttack{
-		BaseAttack:  registry.NewBaseAttack(config),
-		fakeMessage: params.FakeMessage,
-		targets:     params.Targets,
-		params:      params,
+		BaseAttack: registry.NewBaseAttack(config),
+		fakeFields: params.FakeMessage,
+		targets:    params.Targets,
+		params:     params,
 	}
 	return attack, nil
 }
@@ -91,28 +91,36 @@ func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 	startTime := time.Now()
 	config := a.GetConfig()
 
-	// For fakeSeal and invalidProposal attacks, we don't send messages
-	// Instead, these are handled directly in consensus engine
-	if a.params != nil && (a.params.FakeType == "fakeSeal" || a.params.FakeType == "invalidProposal") {
-		// These attacks are executed in consensus layer via hooks
-		// Just return success here to mark the attack as triggered
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    true,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-			Details: map[string]interface{}{
-				"fake_type":   a.params.FakeType,
-				"message_code": a.params.Code,
-				"action":      "consensus_layer_attack",
-			},
-		}, nil
+	// Check if FakeFields contains specific attack type information
+	if a.params != nil && len(a.fakeFields) > 0 {
+		// Check for consensus layer attacks
+		for _, field := range a.fakeFields {
+			if field.FakeTarget == "fakeSeal" || field.FakeTarget == "invalidProposal" {
+				// These attacks are executed in consensus layer via hooks
+				// Just return success here to mark the attack as triggered
+				return &types.AttackResult{
+					UID:        a.GetUID(),
+					Success:    true,
+					ExecutedAt: time.Now(),
+					Duration:   time.Since(startTime),
+					Details: map[string]interface{}{
+						"fake_target":  field.FakeTarget,
+						"message_code": a.params.Code,
+						"action":       "consensus_layer_attack",
+					},
+				}, nil
+			}
+		}
 	}
 
 	// Original fake message attack logic
 	var messageToSend []byte
-	if a.fakeMessage != nil {
-		messageToSend = a.fakeMessage
+	
+	// Check if we have fake fields to process
+	if len(a.fakeFields) > 0 {
+		// For now, generate a fake message based on fakeFields
+		// This can be extended to handle different fake scenarios
+		messageToSend = []byte(fmt.Sprintf("fake_message_with_fields:%v", a.fakeFields))
 	} else {
 		// Generate a fake message based on a message type
 		var err error

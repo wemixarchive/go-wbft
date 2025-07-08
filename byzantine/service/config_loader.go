@@ -197,9 +197,14 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	case types.AttackTypeFakeMessage:
 		if params, ok := parsedParams.(*types.FakeAttackParams); ok {
 			result["code"] = params.Code
-			if len(params.FakeMessage) > 0 {
-				result["fakeMessage"] = string(params.FakeMessage)
+			fakeFields := make([]map[string]interface{}, len(params.FakeMessage))
+			for i, field := range params.FakeMessage {
+				fakeFields[i] = map[string]interface{}{
+					"fakeTarget": field.FakeTarget,
+					"value":      field.Value,
+				}
 			}
+			result["fakeMessage"] = fakeFields
 			result["targets"] = params.Targets
 		}
 

@@ -206,12 +206,17 @@
       "name": "broadcast_invalid_prevseal_preprepare",
       "type": "fake",
       "enabled": true,
-      "sequence_start": 44,
-      "sequence_end": 47,
+      "sequence_start": 48,
+      "sequence_end": 51,
       "round": 0,
       "parameters": {
         "code": 1,
-        "fakeMessage": "nil",
+        "fakeMessage": [
+          {
+            "fakeTarget": "fakeSeal",
+            "value": "nil"
+          }
+        ],
         "targets": []
       }
     }
