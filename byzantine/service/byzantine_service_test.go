@@ -2,7 +2,6 @@ package service
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,11 +12,6 @@ import (
 func TestByzantineService(t *testing.T) {
 	config := types.ByzantineConfig{
 		Enabled: true,
-		StorageConfig: types.StorageConfig{
-			MessageRetention: time.Hour,
-			HistoryRetention: 24 * time.Hour,
-			PruneInterval:    time.Minute,
-		},
 	}
 
 	service, serviceErr := NewByzantineService(&config)

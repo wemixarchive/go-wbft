@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -31,20 +30,8 @@ type ByzantineService interface {
 	// GetStatus returns the service status
 	GetStatus() ServiceStatus
 
-	// GetMetrics returns service metrics
-	GetMetrics() Metrics
-
-	// GetAttackHistory gets attack history
-	GetAttackHistory(uid string) ([]AttackResult, error)
-
 	// GetAttackManager gets attack manager
 	GetAttackManager() AttackManager
-
-	// GetMessageStorage gets message storage
-	GetMessageStorage() MessageStorage
-
-	// GetHistoryStorage gets history storage
-	GetHistoryStorage() HistoryStorage
 
 	// GetConsensusHook gets consensus hook
 	GetConsensusHook() ConsensusHook
@@ -132,42 +119,6 @@ type AttackManager interface {
 
 	// MarkAttackExecuted updates attack execution state
 	MarkAttackExecuted(uid string, sequence uint64) error
-}
-
-// MessageStorage handles message storage and retrieval
-type MessageStorage interface {
-	// Store stores a message
-	Store(message *StoredMessage) error
-
-	// GetByHash retrieves a message by hash
-	GetByHash(hash common.Hash) (*StoredMessage, error)
-
-	// GetBySequenceRound retrieves messages by sequence and round
-	GetBySequenceRound(sequence, round uint64) ([]*StoredMessage, error)
-
-	// GetRecentMessages retrieves recent messages
-	GetRecentMessages(limit int) ([]*StoredMessage, error)
-
-	// Prune removes old messages
-	Prune(before time.Time) error
-}
-
-// HistoryStorage handles attack history storage
-type HistoryStorage interface {
-	// SaveAttackConfig saves an attack configuration
-	SaveAttackConfig(config AttackConfig) error
-
-	// SaveAttackResult saves an attack result
-	SaveAttackResult(result AttackResult) error
-
-	// GetAttackHistory retrieves attack history by UID
-	GetAttackHistory(uid string) ([]AttackResult, error)
-
-	// GetAllHistory retrieves all attack history
-	GetAllHistory(limit int) ([]AttackResult, error)
-
-	// Clear clears all history
-	Clear() error
 }
 
 // EventPublisher publishes events

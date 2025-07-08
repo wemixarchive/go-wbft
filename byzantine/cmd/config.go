@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/ethereum/go-ethereum/byzantine/service"
 
@@ -19,18 +18,6 @@ func DefaultByzantineConfig() *types.ByzantineConfig {
 	return &types.ByzantineConfig{
 		Enabled: true,
 		Attacks: []types.AttackConfig{},
-		StorageConfig: types.StorageConfig{
-			MessageRetention: 24 * time.Hour,
-			HistoryRetention: 7 * 24 * time.Hour,
-			MaxStorageSize:   1 << 30, // 1GB
-			PruneInterval:    time.Hour,
-		},
-		Monitoring: types.MonitoringConfig{
-			Enabled:         false,
-			MetricsPort:     9090,
-			LogLevel:        "info",
-			AlertThresholds: make(map[string]int),
-		},
 	}
 }
 
@@ -58,17 +45,6 @@ func LoadByzantineConfig(ctx *cli.Context, nodeConfig *node.Config) (*types.Byza
 			}
 			return parsedConfig, nil
 		}
-	}
-
-	// Apply defaults for zero values
-	if config.StorageConfig.MessageRetention == 0 {
-		config.StorageConfig.MessageRetention = 24 * time.Hour
-	}
-	if config.StorageConfig.HistoryRetention == 0 {
-		config.StorageConfig.HistoryRetention = 7 * 24 * time.Hour
-	}
-	if config.StorageConfig.PruneInterval == 0 {
-		config.StorageConfig.PruneInterval = time.Hour
 	}
 
 	return config, nil

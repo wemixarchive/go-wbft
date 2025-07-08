@@ -80,23 +80,6 @@ func (m *MockByzantineService) GetAttackManager() types.AttackManager {
 	return nil
 }
 
-// GetMessageStorage implements types.ByzantineService
-func (m *MockByzantineService) GetMessageStorage() types.MessageStorage {
-	args := m.Called()
-	if val := args.Get(0); val != nil {
-		return val.(types.MessageStorage)
-	}
-	return nil
-}
-
-// GetHistoryStorage implements types.ByzantineService
-func (m *MockByzantineService) GetHistoryStorage() types.HistoryStorage {
-	args := m.Called()
-	if val := args.Get(0); val != nil {
-		return val.(types.HistoryStorage)
-	}
-	return nil
-}
 
 // GetConsensusHook implements types.ByzantineService
 func (m *MockByzantineService) GetConsensusHook() types.ConsensusHook {
@@ -111,11 +94,9 @@ func (m *MockByzantineService) GetConsensusHook() types.ConsensusHook {
 func setupMockService() *MockByzantineService {
 	mockService := new(MockByzantineService)
 
-	// Handler creation requires these three methods to return something
-	// They can return nil for most tests
+	// Handler creation requires this method to return something
+	// It can return nil for most tests
 	mockService.On("GetAttackManager").Return(nil)
-	mockService.On("GetMessageStorage").Return(nil)
-	mockService.On("GetHistoryStorage").Return(nil)
 
 	return mockService
 }
@@ -251,13 +232,14 @@ func TestAPI_ByzantineTests(t *testing.T) {
 
 	attacks := []types.AttackConfig{
 		{
-			UID:      1,
-			Name:     "test_attack",
-			Type:     types.AttackTypeSilentMessage,
-			Sequence: 100,
-			Round:    0,
-			Code:     types.MessageCodePrePrepare,
-			Status:   types.AttackStatusActive,
+			UID:           "silent-100-100-0",
+			Name:          "test_attack",
+			Type:          types.AttackTypeSilentMessage,
+			SequenceStart: 100,
+			SequenceEnd:   100,
+			Round:         0,
+			Parameters:    make(map[string]types.AttackParamsParser, 0),
+			Status:        types.AttackStatusActive,
 		},
 	}
 

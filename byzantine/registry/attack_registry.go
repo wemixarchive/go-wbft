@@ -43,6 +43,12 @@ func (r *AttackRegistry) CreateAttack(config types.AttackConfig) (types.Attack, 
 
 	factory, exists := r.factories[config.Type]
 	if !exists {
+		//// Log all registered types for debugging
+		//var registeredTypes []string
+		//for t := range r.factories {
+		//	registeredTypes = append(registeredTypes, string(t))
+		//}
+		//log.Error("[BYZ] Unknown attack type", "type", config.Type, "registered", registeredTypes)
 		return nil, fmt.Errorf("unknown attack type: %s", config.Type)
 	}
 

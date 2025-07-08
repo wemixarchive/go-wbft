@@ -62,20 +62,6 @@ func (cl *ConfigLoader) LoadConfigFromReader(reader io.Reader) (*types.Byzantine
 	}
 	config.Attacks = attacks
 
-	// Parse storage config
-	if len(rawConfig.Storage) > 0 {
-		if err := json.Unmarshal(rawConfig.Storage, &config.StorageConfig); err != nil {
-			return nil, fmt.Errorf("failed to parse storage config: %w", err)
-		}
-	}
-
-	// Parse monitoring config
-	if len(rawConfig.Monitoring) > 0 {
-		if err := json.Unmarshal(rawConfig.Monitoring, &config.Monitoring); err != nil {
-			return nil, fmt.Errorf("failed to parse monitoring config: %w", err)
-		}
-	}
-
 	// Validate the entire configuration
 	if err := cl.validateConfig(config); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
@@ -249,19 +235,6 @@ func (cl *ConfigLoader) validateConfig(config *types.ByzantineConfig) error {
 			return fmt.Errorf("duplicate UID %s detected between attacks '%s' and '%s'", attack.UID, existingName, attack.Name)
 		}
 		uidMap[attack.UID] = attack.Name
-	}
-
-	// Validate storage config
-	if config.StorageConfig.MessageRetention < 0 {
-		return fmt.Errorf("invalid message retention: %s", config.StorageConfig.MessageRetention)
-	}
-	if config.StorageConfig.MaxStorageSize < 0 {
-		return fmt.Errorf("invalid max storage size: %d", config.StorageConfig.MaxStorageSize)
-	}
-
-	// Validate monitoring config
-	if config.Monitoring.Enabled && config.Monitoring.MetricsPort <= 0 {
-		return fmt.Errorf("invalid metrics port: %d", config.Monitoring.MetricsPort)
 	}
 
 	return nil

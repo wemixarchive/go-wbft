@@ -14,19 +14,16 @@ type HookAdapter struct {
 	mu               sync.RWMutex
 	byzantineService btypes.ByzantineService
 	eventPublisher   btypes.EventPublisher
-	messageStorage   btypes.MessageStorage
 }
 
 // NewHookAdapter creates a new hook adapter
 func NewHookAdapter(
 	service btypes.ByzantineService,
 	publisher btypes.EventPublisher,
-	storage btypes.MessageStorage,
 ) *HookAdapter {
 	return &HookAdapter{
 		byzantineService: service,
 		eventPublisher:   publisher,
-		messageStorage:   storage,
 	}
 }
 
@@ -84,16 +81,6 @@ func (h *HookAdapter) BeforePrepare(ctx context.Context, message *btypes.QBFTMes
 
 // AfterPrepare is called after receiving prepare message
 func (h *HookAdapter) AfterPrepare(ctx context.Context, message *btypes.QBFTMessage) error {
-	// Store the message
-	if h.messageStorage != nil {
-		storedMsg := &btypes.StoredMessage{
-			Message:    message,
-			ReceivedAt: time.Now(),
-			FromPeer:   message.Address,
-		}
-		_ = h.messageStorage.Store(storedMsg)
-	}
-
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageReceived,
 		Sequence:  message.Sequence,
@@ -134,16 +121,6 @@ func (h *HookAdapter) BeforeCommit(ctx context.Context, message *btypes.QBFTMess
 
 // AfterCommit is called after receiving commit message
 func (h *HookAdapter) AfterCommit(ctx context.Context, message *btypes.QBFTMessage) error {
-	// Store the message
-	if h.messageStorage != nil {
-		storedMsg := &btypes.StoredMessage{
-			Message:    message,
-			ReceivedAt: time.Now(),
-			FromPeer:   message.Address,
-		}
-		_ = h.messageStorage.Store(storedMsg)
-	}
-
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageReceived,
 		Sequence:  message.Sequence,
@@ -179,16 +156,6 @@ func (h *HookAdapter) OnRoundChange(ctx context.Context, sequence, round uint64)
 
 // OnMessageReceive is called when receiving any message
 func (h *HookAdapter) OnMessageReceive(ctx context.Context, message *btypes.QBFTMessage) error {
-	// Store the message
-	if h.messageStorage != nil {
-		storedMsg := &btypes.StoredMessage{
-			Message:    message,
-			ReceivedAt: time.Now(),
-			FromPeer:   message.Address,
-		}
-		_ = h.messageStorage.Store(storedMsg)
-	}
-
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageReceived,
 		Sequence:  message.Sequence,

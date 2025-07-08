@@ -4,17 +4,14 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/node"
 
 	"github.com/ethereum/go-ethereum/byzantine/adapter"
 	byzantineapi "github.com/ethereum/go-ethereum/byzantine/api"
-	"github.com/ethereum/go-ethereum/byzantine/attacks"
 	"github.com/ethereum/go-ethereum/byzantine/manager"
 	"github.com/ethereum/go-ethereum/byzantine/registry"
-	"github.com/ethereum/go-ethereum/byzantine/storage"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -27,8 +24,6 @@ type ByzantineService struct {
 	configLoader   *ConfigLoader
 	status         types.ServiceStatus
 	attackManager  types.AttackManager
-	messageStorage types.MessageStorage
-	historyStorage types.HistoryStorage
 	eventPublisher types.EventPublisher
 	hookAdapter    types.HookAdapter
 	attackRegistry *registry.AttackRegistry
@@ -37,56 +32,30 @@ type ByzantineService struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// Metrics
-	metrics atomic.Value // types.Metrics
-
 	consensusHook types.ConsensusHook
 }
 
 var _ node.Lifecycle = (*ByzantineService)(nil)
 
-// storageProviderImpl implements StorageProvider
-type storageProviderImpl struct {
-	messageStorage types.MessageStorage
-}
-
-func (s *storageProviderImpl) GetMessageStorage() types.MessageStorage {
-	return s.messageStorage
-}
-
 // NewByzantineService creates a new Byzantine service
 func NewByzantineService(config *types.ByzantineConfig) (*ByzantineService, error) {
 	// Create components
-	messageStorage := storage.NewInMemoryMessageStorage(config.StorageConfig)
-	historyStorage := storage.NewInMemoryHistoryStorage(config.StorageConfig)
 	attackRegistry := registry.DefaultRegistry
-	attackManager := manager.NewAttackManager(attackRegistry, historyStorage)
+	attackManager := manager.NewAttackManager(attackRegistry)
 	eventPublisher := adapter.NewEventObserver()
 	configLoader := NewConfigLoader()
 
 	service := &ByzantineService{
 		config:         config,
 		attackManager:  attackManager,
-		messageStorage: messageStorage,
-		historyStorage: historyStorage,
 		eventPublisher: eventPublisher,
 		attackRegistry: attackRegistry,
 		configLoader:   configLoader,
 	}
 
 	// Create a hook adapter
-	service.hookAdapter = adapter.NewHookAdapter(service, eventPublisher, messageStorage)
+	service.hookAdapter = adapter.NewHookAdapter(service, eventPublisher)
 	service.consensusHook = NewConsensusHook(service.attackManager, service.eventPublisher)
-
-	// Initialize metrics
-	service.metrics.Store(types.Metrics{})
-
-	// Set a storage provider for replay attack
-	provider := &storageProviderImpl{
-		messageStorage: messageStorage,
-	}
-	// TODO: refactoring storage provider to be set globally
-	attacks.SetStorageProvider(provider)
 
 	return service, nil
 }
@@ -123,9 +92,6 @@ func (s *ByzantineService) Start() error {
 		s.status.StartedAt = nil
 		return fmt.Errorf("failed to load attacks from config: %w", err)
 	}
-
-	// Start background tasks
-	go s.metricsCollector()
 
 	return nil
 }
@@ -173,10 +139,7 @@ func (s *ByzantineService) GetStatus() types.ServiceStatus {
 		}
 	}
 
-	// Get stored messages count
-	if messages, err := s.messageStorage.GetRecentMessages(0); err == nil {
-		status.StoredMessages = len(messages)
-	}
+	status.StoredMessages = 0
 
 	return status
 }
@@ -194,11 +157,6 @@ func (s *ByzantineService) Configure(config *types.ByzantineConfig) error {
 	}
 
 	return nil
-}
-
-// GetMetrics returns service metrics
-func (s *ByzantineService) GetMetrics() types.Metrics {
-	return s.metrics.Load().(types.Metrics)
 }
 
 // RegisterAttack registers a new attack
@@ -219,11 +177,6 @@ func (s *ByzantineService) RegisterAttack(config types.AttackConfig) (string, er
 		return "", fmt.Errorf("failed to register attack: %w", err)
 	}
 
-	// Update metrics
-	s.updateMetrics(func(m *types.Metrics) {
-		m.AttacksRegistered++
-	})
-
 	return config.UID, nil
 }
 
@@ -242,11 +195,6 @@ func (s *ByzantineService) ListAttacks() []types.AttackConfig {
 	}
 
 	return configs
-}
-
-// GetAttackHistory gets attack history
-func (s *ByzantineService) GetAttackHistory(uid string) ([]types.AttackResult, error) {
-	return s.historyStorage.GetAttackHistory(uid)
 }
 
 // GetHookAdapter returns the hook adapter
@@ -279,14 +227,6 @@ func (s *ByzantineService) subscribeToEvents() {
 
 			err := s.attackManager.ProcessEvent(ctx, event)
 
-			// Update metrics
-			s.updateMetrics(func(m *types.Metrics) {
-				m.EventsProcessed++
-				if err != nil {
-					m.AttacksFailed++
-				}
-			})
-
 			return err
 		})
 		if err != nil {
@@ -313,42 +253,6 @@ func (s *ByzantineService) loadAttacksFromConfig() error {
 	return nil
 }
 
-// updateMetrics updates metrics atomically
-func (s *ByzantineService) updateMetrics(fn func(*types.Metrics)) {
-	metrics := s.metrics.Load().(types.Metrics)
-	fn(&metrics)
-	s.metrics.Store(metrics)
-}
-
-// metricsCollector collects metrics periodically
-func (s *ByzantineService) metricsCollector() {
-	if s.ctx == nil {
-		log.Error("metricCollector started without context")
-		return
-	}
-
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	startTime := time.Now()
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-ticker.C:
-			s.updateMetrics(func(m *types.Metrics) {
-				m.Uptime = int64(time.Since(startTime).Seconds())
-
-				// Get storage size (simplified)
-				if messages, err := s.messageStorage.GetRecentMessages(0); err == nil {
-					m.MessagesStored = int64(len(messages))
-				}
-			})
-		}
-	}
-}
-
 // APIs returns the collection of RPC services the byzantine service offers
 func (s *ByzantineService) APIs() []rpc.API {
 	return []rpc.API{
@@ -364,16 +268,6 @@ func (s *ByzantineService) APIs() []rpc.API {
 // GetAttackManager returns the attack manager (interface for API)
 func (s *ByzantineService) GetAttackManager() types.AttackManager {
 	return s.attackManager
-}
-
-// GetMessageStorage returns the message storage (interface for API)
-func (s *ByzantineService) GetMessageStorage() types.MessageStorage {
-	return s.messageStorage
-}
-
-// GetHistoryStorage returns the history storage (interface for API)
-func (s *ByzantineService) GetHistoryStorage() types.HistoryStorage {
-	return s.historyStorage
 }
 
 // GetConsensusHook returns the consensus hook for integration

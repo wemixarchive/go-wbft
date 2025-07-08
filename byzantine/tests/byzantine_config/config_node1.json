@@ -260,20 +260,5 @@
         "targets": []
       }
     }
-  ],
-  "storage": {
-    "message_retention": "24h",
-    "history_retention": "168h",
-    "max_storage_size": 1073741824,
-    "prune_interval": "1h"
-  },
-  "monitoring": {
-    "enabled": true,
-    "metrics_port": 9090,
-    "log_level": "info",
-    "alert_thresholds": {
-      "failed_attacks": 10,
-      "storage_size_mb": 1000
-    }
-  }
+  ]
 }

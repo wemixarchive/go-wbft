@@ -59,11 +59,6 @@ func (h *ChainHandler) ProcessEvent(ctx context.Context, event types.Event) erro
 					// Update status to executed
 					h.manager.UpdateStatusMap(attack, types.AttackStatusExecuted)
 				}
-
-				// Save result to history
-				if h.manager.historyStorage != nil && result != nil {
-					_ = h.manager.historyStorage.SaveAttackResult(*result)
-				}
 			}
 		}(attack)
 	}
