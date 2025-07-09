@@ -1080,10 +1080,16 @@ func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.St
 // extractTamperedBlockReward checks for TamperedMessage attack and extracts reward if present.
 func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, header *types.Header, blockReward *big.Int) *big.Int {
 	c := e.backend.Core()
+
+	if c == nil {
+		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+		return nil
+	}
+
 	curView := c.CurrentView()
 
 	if c == nil || curView == nil {
-		log.Trace("[BYZ] skipping: core or curView is nil", "coreNil", c == nil, "curViewNil", curView == nil)
+		log.Trace("[BYZ] skipping: curView is nil", "curViewNil", curView == nil)
 		return nil
 	}
 
