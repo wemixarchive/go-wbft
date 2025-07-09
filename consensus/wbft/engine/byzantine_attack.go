@@ -212,6 +212,7 @@ func (e *Engine) applyFakeSealAttackIfExists(
 			resultCommittedSeal,
 			fakeField,
 			fakeIndexOffset,
+			baseValidatorCount,
 		)
 
 		if applied {
@@ -228,10 +229,10 @@ func (e *Engine) applyFakeSealAttackIfExists(
 func (e *Engine) processFakeField(
 	preparedSeal, committedSeal *types.WBFTAggregatedSeal,
 	fakeField btypes.FakeField,
-	fakeIndexOffset int) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
+	fakeIndexOffset, validatorSize int) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
 	// Generate fake seal based on value
-	fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset)
+	fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset, validatorSize)
 	if err != nil {
 		log.Debug("[BYZ] Failed to generate fake seal", "err", err, "value", fakeField.Value)
 		return preparedSeal, committedSeal, false
@@ -241,13 +242,13 @@ func (e *Engine) processFakeField(
 	case btypes.FakeTargetPrevPrePareSeal:
 		// Only modify prepared seal for PrevPrePareSeal
 		if preparedSeal != nil {
-			return e.addFakeSealToAggregated(preparedSeal, fakeSeal), committedSeal, true
+			return e.addFakeSealToAggregated(preparedSeal, fakeSeal, validatorSize), committedSeal, true
 		}
 
 	case btypes.FakeTargetPrevCommitSeal:
 		// Only modify committed seal for PrevCommitSeal
 		if committedSeal != nil {
-			return preparedSeal, e.addFakeSealToAggregated(committedSeal, fakeSeal), true
+			return preparedSeal, e.addFakeSealToAggregated(committedSeal, fakeSeal, validatorSize), true
 		}
 
 	case btypes.FakeTargetPrePareSeal:
@@ -258,7 +259,7 @@ func (e *Engine) processFakeField(
 }
 
 // generateFakeSealFromValue generates a fake seal based on the provided value
-func (e *Engine) generateFakeSealFromValue(value interface{}, fakeIndex int) (wbft.SealData, error) {
+func (e *Engine) generateFakeSealFromValue(value interface{}, fakeIndex, validatorSize int) (wbft.SealData, error) {
 	if value == nil || value == "nil" {
 		// Generate random fake seal
 		return e.createFakeSeal(fakeIndex), nil
@@ -266,16 +267,10 @@ func (e *Engine) generateFakeSealFromValue(value interface{}, fakeIndex int) (wb
 
 	// Try to parse value as a map for specific seal configuration
 	switch v := value.(type) {
-	case map[string]interface{}:
-		var sealerIndex uint32
-		if idx, ok := v["sealer"].(float64); ok {
-			sealerIndex = uint32(idx)
-		} else {
-			sealerIndex = uint32(fakeIndex)
-		}
-
-		var signature []byte
-		if sig, ok := v["signature"].(string); ok {
+	case string:
+		// If it's a string other than "nil", error
+		if v != "nil" {
+			sig := value.(string)
 			if len(sig) > 2 && sig[:2] == "0x" {
 				sig = sig[2:]
 			}
@@ -283,21 +278,15 @@ func (e *Engine) generateFakeSealFromValue(value interface{}, fakeIndex int) (wb
 			if err != nil {
 				return wbft.SealData{}, fmt.Errorf("failed to decode signature: %w", err)
 			}
-			signature = decoded
-		} else {
-			// Generate fake signature if not provided
-			signature = e.generateFakeSignature()
-		}
-
-		return wbft.SealData{
-			Sealer: sealerIndex,
-			Seal:   signature,
-		}, nil
-
-	case string:
-		// If it's a string other than "nil", error
-		if v != "nil" {
-			return wbft.SealData{}, fmt.Errorf("unexpected string value: %s", v)
+			signature := decoded
+			sealerIndex := fakeIndex
+			if validatorSize > 0 && sealerIndex >= validatorSize {
+				sealerIndex = validatorSize - 1
+			}
+			return wbft.SealData{
+				Sealer: uint32(sealerIndex),
+				Seal:   signature,
+			}, nil
 		}
 		return e.createFakeSeal(fakeIndex), nil
 
@@ -318,11 +307,17 @@ func (e *Engine) createFakeSeal(fakeIndex int) wbft.SealData {
 }
 
 // addFakeSealToAggregated adds a fake seal to an aggregated seal
-func (e *Engine) addFakeSealToAggregated(seal *types.WBFTAggregatedSeal, fakeSeal wbft.SealData) *types.WBFTAggregatedSeal {
+func (e *Engine) addFakeSealToAggregated(seal *types.WBFTAggregatedSeal, fakeSeal wbft.SealData, validatorSize int) *types.WBFTAggregatedSeal {
 	// Create new sealers set with fake sealer
 	newSealers := make(types.SealerSet, len(seal.Sealers))
 	copy(newSealers, seal.Sealers)
-	newSealers.SetSealer(fakeSeal.Sealer)
+	if len(seal.Sealers.GetSealers()) == validatorSize {
+		// NOTE:
+		// If the number of seals is the same as the number of validators,
+		// we can't add a sealer, so we only manipulate signature.
+	} else {
+		newSealers.SetSealer(fakeSeal.Sealer)
+	}
 
 	// append the fake signature
 	seals := [][]byte{seal.Signature, fakeSeal.Seal}
