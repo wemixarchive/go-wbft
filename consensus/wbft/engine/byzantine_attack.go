@@ -157,13 +157,11 @@ func (e *Engine) applyOmitAttackIfExists(
 	case btypes.MessageCodePrePrepare:
 		switch at.OmitParams.Cmd {
 		case btypes.OmitCommandPrepareSeal:
-			mergedPreparedSeal, attackExecute = mergeSealsWithOmitAttack(
-				originalPreparedSeal, extraPreparedSeals, at.OmitParams.Option)
+			mergedPreparedSeal, attackExecute = mergeSealsWithOmitAttack()
 			mergedCommittedSeal = mergeSeals(originalCommittedSeal, extraCommittedSeals)
 		case btypes.OmitCommandCommitSeal:
 			mergedPreparedSeal = mergeSeals(originalPreparedSeal, extraPreparedSeals)
-			mergedCommittedSeal, attackExecute = mergeSealsWithOmitAttack(
-				originalCommittedSeal, extraCommittedSeals, at.OmitParams.Option)
+			mergedCommittedSeal, attackExecute = mergeSealsWithOmitAttack()
 		case btypes.OmitCommandRoundChange:
 		case btypes.OmitCommandPrepareMessage:
 		}
@@ -372,20 +370,7 @@ func (e *Engine) generateFakeSignature() []byte {
 	return signature.Marshal()
 }
 
-func mergeSealsWithOmitAttack(
-	seal *types.WBFTAggregatedSeal,
-	extraSeal []wbft.SealData,
-	option uint64) (*types.WBFTAggregatedSeal, bool) {
-	switch option {
-	case 0:
-		emptySeal := &types.WBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}}
-		return emptySeal, true
-	case 1:
-		emptySeal := &types.WBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}}
-		return mergeSeals(emptySeal, extraSeal), true
-	case 2:
-		return seal, true
-	default:
-	}
-	return nil, false
+func mergeSealsWithOmitAttack() (*types.WBFTAggregatedSeal, bool) {
+	emptySeal := &types.WBFTAggregatedSeal{Signature: []byte{}, Sealers: types.SealerSet{}}
+	return emptySeal, true
 }

@@ -24,7 +24,6 @@ import (
 	"math/big"
 	"time"
 
-	byzantineTypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
@@ -331,6 +330,7 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 		}
 		if sb.coreStarted {
 			_ = sb.Stop()
+			
 		}
 		return sb.Start(chain, currentBlock, hasBadBlock, notifyNewRound)
 	case "InheritExtra":
@@ -361,77 +361,6 @@ func (sb *Backend) CallEngineSpecific(method string, args ...interface{}) interf
 
 		prevPreparedSeal := extra.PreparedSeal
 		prevCommittedSeal := extra.CommittedSeal
-
-		// Byzantine hook: Check for omit attack on PrePrepare prev seals
-		if hook := sb.ByzantineHook(); hook != nil {
-			// Use block number from header since this is the block being created
-			// Note: Using MessageCodePrePrepare (1) for InheritExtra phase
-			config, found := hook.ShouldExecuteAttack(
-				byzantineTypes.AttackTypeOmitMessage,
-				uint64(byzantineTypes.MessageCodePrePrepare), // 1
-				header.Number.Uint64(),
-				0, // round is typically 0 for new blocks
-			)
-
-			if found && config != nil && config.ParsedParameters != nil {
-				if params, ok := config.ParsedParameters.(*byzantineTypes.OmitAttackParams); ok {
-					originalPreparedCount := 0
-					originalCommittedCount := 0
-					if prevPreparedSeal != nil && prevPreparedSeal.Sealers != nil {
-						originalPreparedCount = len(prevPreparedSeal.Sealers)
-					}
-					if prevCommittedSeal != nil && prevCommittedSeal.Sealers != nil {
-						originalCommittedCount = len(prevCommittedSeal.Sealers)
-					}
-
-					switch params.Cmd {
-					case 1: // Omit prepare seals
-						if params.Option == 0 || prevPreparedSeal == nil {
-							prevPreparedSeal = nil
-						} else if int(params.Option) < len(prevPreparedSeal.Sealers) {
-							// Omit first cnt sealers
-							prevPreparedSeal = &types.WBFTAggregatedSeal{
-								Sealers:   prevPreparedSeal.Sealers[params.Option:],
-								Signature: prevPreparedSeal.Signature,
-							}
-						}
-						log.Info("[BYZ] Omitted prev prepare seals from PrePrepare",
-							"attack_uid", config.UID,
-							"original_count", originalPreparedCount,
-							"remaining_count", func() int {
-								if prevPreparedSeal == nil {
-									return 0
-								}
-								return len(prevPreparedSeal.Sealers)
-							}(),
-							"block_number", header.Number.Uint64())
-					case 2: // Omit commit seals
-						if params.Option == 0 || prevCommittedSeal == nil {
-							prevCommittedSeal = nil
-						} else if int(params.Option) < len(prevCommittedSeal.Sealers) {
-							// Omit first cnt sealers
-							prevCommittedSeal = &types.WBFTAggregatedSeal{
-								Sealers:   prevCommittedSeal.Sealers[params.Option:],
-								Signature: prevCommittedSeal.Signature,
-							}
-						}
-						log.Info("[BYZ] Omitted prev commit seals from PrePrepare",
-							"attack_uid", config.UID,
-							"original_count", originalCommittedCount,
-							"remaining_count", func() int {
-								if prevCommittedSeal == nil {
-									return 0
-								}
-								return len(prevCommittedSeal.Sealers)
-							}(),
-							"block_number", header.Number.Uint64())
-					}
-
-					// Mark attack as executed
-					hook.MarkAttackExecuted(config.UID, header.Number.Uint64())
-				}
-			}
-		}
 
 		// add lastBlock committers to extraData's prevCommittedSeal section
 		// validators are stored in genesis block
