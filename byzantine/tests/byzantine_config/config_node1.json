@@ -143,7 +143,7 @@
     {
       "name": "broadcast_invalid_reward_preprepare",
       "type": "tamper",
-      "enabled": false,
+      "enabled": true,
       "seq_s": 30,
       "seq_e": 33,
       "round": 0,
