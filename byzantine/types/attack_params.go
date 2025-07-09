@@ -435,7 +435,6 @@ func (p *FakeAttackParams) Validate(params interface{}) error {
 type OmitAttackParams struct {
 	Code    MessageCode      `json:"code"`
 	Cmd     uint64           `json:"cmd"`
-	Option  uint64           `json:"option"`
 	Targets []common.Address `json:"targets,omitempty"`
 }
 
@@ -484,19 +483,6 @@ func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 		params.Cmd = v
 	default:
 		params.Cmd = 0
-	}
-
-	switch v := raw["option"].(type) {
-	case float64:
-		params.Option = uint64(v)
-	case int:
-		params.Option = uint64(v)
-	case uint:
-		params.Option = uint64(v)
-	case uint64:
-		params.Option = v
-	default:
-		params.Option = 0
 	}
 
 	params.Targets = ParseTargets(raw["targets"])

@@ -170,7 +170,6 @@
       "parameters": {
         "code": 1,
         "cmd": 2,
-        "options": 0,
         "targets": []
       }
     },
@@ -184,21 +183,6 @@
       "parameters": {
         "code": 1,
         "cmd": 1,
-        "option": 1,
-        "targets": []
-      }
-    },
-    {
-      "name": "broadcast_missing_prevseal_preprepare#3",
-      "type": "omit",
-      "enabled": true,
-      "seq_s": 44,
-      "seq_e": 47,
-      "round": 0,
-      "parameters": {
-        "code": 1,
-        "cmd": 1,
-        "option": 2,
         "targets": []
       }
     },
@@ -206,8 +190,8 @@
       "name": "broadcast_invalid_prevseal_preprepare",
       "type": "fake",
       "enabled": true,
-      "seq_s": 48,
-      "seq_e": 51,
+      "seq_s": 44,
+      "seq_e": 47,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -218,6 +202,26 @@
           }
         ],
         "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_prevseal_preprepare#2",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 48,
+      "seq_e": 51,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fakeMessage": [
+          {
+            "fakeTarget": "prevCommitSeal",
+            "value": {
+              "sealer": 999,
+              "signature": "0x83a28ebe2335a941a82197196f9d8c9122782375eabc27c844f37ff4a3cd78c4fa2f3789f776d3a6cac130be100a557204091eba480c18f77faf2d3c974dd946d301cf622bcd5d1c4a3f68fef5769c0c628ce664fc810d6f4650b3f60634106d"
+            }
+          }
+        ]
       }
     },
     {

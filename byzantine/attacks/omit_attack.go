@@ -15,7 +15,6 @@ import (
 type OmitMessageAttack struct {
 	*registry.BaseAttack
 	cmd     uint64
-	cnt     uint64
 	targets []common.Address
 }
 
@@ -36,7 +35,6 @@ func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error)
 	attack := &OmitMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
 		cmd:        params.Cmd,
-		cnt:        params.Option,
 		targets:    params.Targets,
 	}
 	return attack, nil
@@ -141,7 +139,6 @@ func (a *OmitMessageAttack) Execute(ctx context.Context, event types.Event) (*ty
 		Details: map[string]interface{}{
 			"message_code": config.Parameters["code"],
 			"omit_command": a.cmd,
-			"omit_count":   a.cnt,
 			"targets":      len(a.targets),
 			"action":       "omitted_message_sent",
 		},
@@ -173,7 +170,6 @@ func (a *OmitMessageAttack) omitPrePrepareFields(event types.Event) ([]byte, err
 
 	log.Info("[BYZ] Omitting fields from PrePrepare",
 		"cmd", a.cmd,
-		"cnt", a.cnt,
 		"sequence", event.Sequence,
 		"round", event.Round)
 
@@ -200,7 +196,6 @@ func (a *OmitMessageAttack) omitPropagationFields(event types.Event) ([]byte, er
 
 	log.Info("[BYZ] Omitting fields from Propagation",
 		"cmd", a.cmd,
-		"cnt", a.cnt,
 		"sequence", event.Sequence)
 
 	// TODO: In real implementation, this would:
@@ -226,7 +221,6 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 
 	log.Info("[BYZ] Omitting justification from RoundChange-PrePrepare",
 		"cmd", a.cmd,
-		"cnt", a.cnt,
 		"sequence", event.Sequence,
 		"round", event.Round)
 
