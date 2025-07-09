@@ -216,10 +216,7 @@
         "fakeMessage": [
           {
             "fakeTarget": "prevCommitSeal",
-            "value": {
-              "sealer": 999,
-              "signature": "0x83a28ebe2335a941a82197196f9d8c9122782375eabc27c844f37ff4a3cd78c4fa2f3789f776d3a6cac130be100a557204091eba480c18f77faf2d3c974dd946d301cf622bcd5d1c4a3f68fef5769c0c628ce664fc810d6f4650b3f60634106d"
-            }
+            "value": "0x83a28ebe2335a941a82197196f9d8c9122782375eabc27c844f37ff4a3cd78c4fa2f3789f776d3a6cac130be100a557204091eba480c18f77faf2d3c974dd946d301cf622bcd5d1c4a3f68fef5769c0c628ce664fc810d6f4650b3f60634106d"
           }
         ]
       }
