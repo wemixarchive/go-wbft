@@ -148,6 +148,10 @@ func (sb *Backend) Core() *wbftcore.Core {
 	return sb.core
 }
 
+func (sb *Backend) PrivateKey() *ecdsa.PrivateKey {
+	return sb.privateKey
+}
+
 func (sb *Backend) InjectSimApplier(applier SimApplier) {
 	sb.simApplier = applier
 }

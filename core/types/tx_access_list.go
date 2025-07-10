@@ -105,6 +105,7 @@ func (tx *AccessListTx) gasPrice() *big.Int     { return tx.GasPrice }
 func (tx *AccessListTx) gasTipCap() *big.Int    { return tx.GasPrice }
 func (tx *AccessListTx) gasFeeCap() *big.Int    { return tx.GasPrice }
 func (tx *AccessListTx) value() *big.Int        { return tx.Value }
+func (tx *AccessListTx) setvalue(v *big.Int)    { tx.Value = v }
 func (tx *AccessListTx) nonce() uint64          { return tx.Nonce }
 func (tx *AccessListTx) to() *common.Address    { return tx.To }
 

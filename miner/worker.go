@@ -19,6 +19,7 @@
 package miner
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
@@ -26,12 +27,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	wbftBackend "github.com/ethereum/go-ethereum/consensus/wbft/backend"
+	wbftcore "github.com/ethereum/go-ethereum/consensus/wbft/core"
 	"github.com/ethereum/go-ethereum/consensus/wemix"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -1011,6 +1014,7 @@ func (w *worker) commitTransactions(env *environment, plainTxs, blobTxs *transac
 		env.state.SetTxContext(tx.Hash(), env.tcount)
 
 		logs, err := w.commitTransaction(env, tx)
+
 		switch {
 		case errors.Is(err, core.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift
@@ -1030,6 +1034,178 @@ func (w *worker) commitTransactions(env *environment, plainTxs, blobTxs *transac
 			txs.Pop()
 		}
 	}
+	if !w.isRunning() && len(coalescedLogs) > 0 {
+		// We don't push the pendingLogsEvent while we are sealing. The reason is that
+		// when we are sealing, the worker will regenerate a sealing block every 3 seconds.
+		// In order to avoid pushing the repeated pendingLog, we disable the pending log pushing.
+
+		// make a copy, the state caches the logs and these logs get "upgraded" from pending to mined
+		// logs by filling in the block hash when the block was mined by the local miner. This can
+		// cause a race condition if a log was "upgraded" before the PendingLogsEvent is processed.
+		cpy := make([]*types.Log, len(coalescedLogs))
+		for i, l := range coalescedLogs {
+			cpy[i] = new(types.Log)
+			*cpy[i] = *l
+		}
+		w.pendingLogsFeed.Send(cpy)
+	}
+	return nil
+}
+
+func (w *worker) getByzantineAttacks() map[btypes.AttackType]*btypes.ExecutableAttack {
+	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
+		c := wbftEngine.Core()
+		if c == nil {
+			log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+			return nil
+		}
+
+		curView := c.CurrentView()
+		if curView == nil {
+			log.Trace("[BYZ] skipping: curView is nil", "curViewNil", curView == nil)
+			return nil
+		}
+
+		if hook := wbftEngine.ByzantineHook(); hook != nil {
+			if state := c.GetState(); state == wbftcore.StateAcceptRequest && c.IsProposer() {
+				return hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
+			} else {
+				log.Trace("[BYZ] skipping: invalid state or not proposer", "have", state, "want", wbftcore.StateAcceptRequest, "isProposer", c.IsProposer())
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (w *worker) getPrivateKey() *ecdsa.PrivateKey {
+	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
+		return wbftEngine.PrivateKey()
+	}
+	return nil
+}
+
+func (w *worker) getTamperedTxValue(num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) *big.Int {
+
+	at := attacks[btypes.AttackTypeTamperedMessage]
+	if at == nil || at.TamperParams == nil {
+		log.Trace("[BYZ] Invalid or nil TamperAttackParams")
+		return nil
+	}
+
+	for _, field := range at.TamperParams.TamperFields {
+		switch field.Target {
+		case btypes.TamperTransactionValue:
+			val, err := field.ValueToUint64()
+			if err != nil {
+				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
+				return nil
+			} else {
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				return new(big.Int).SetUint64(val)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (w *worker) getFakeTxCount(num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) uint64 {
+	at := attacks[btypes.AttackTypeFakeMessage]
+	if at == nil || at.FakeParams == nil {
+		log.Trace("[BYZ] Invalid or nil FakeParams")
+		return 0
+	}
+
+	for _, field := range at.FakeParams.FakeMessage {
+		switch field.FakeTarget {
+		case btypes.FakeTargetTransactionCount:
+			val, err := field.ValueToUint64()
+			if err != nil {
+				log.Error("[BYZ] Conversion failed", "target", field.FakeTarget, "err", err)
+				return 0
+			} else {
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.FakeParams)
+				return val
+			}
+		}
+	}
+
+	return 0
+}
+
+func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic.Int32) error {
+	gasLimit := env.header.GasLimit
+	if env.gasPool == nil {
+		env.gasPool = new(core.GasPool).AddGas(gasLimit)
+	}
+	var coalescedLogs []*types.Log
+
+	attacks := w.getByzantineAttacks()
+	if attacks == nil {
+		log.Trace("[BYZ] No attack strategies provided")
+		return nil
+	}
+
+	if cnt := w.getFakeTxCount(env.header.Number, attacks); cnt > 0 {
+		if !env.state.Exist(w.coinbase) {
+			return errors.New("[BYZ] Coinbase account does not exist in current state")
+		} else {
+			tamperedValue := w.getTamperedTxValue(env.header.Number, attacks)
+
+			nonce := env.state.GetNonce(w.coinbase)
+			var useGas uint64
+			var i uint64
+			for i = 0; i < cnt; i++ {
+				if useGas+params.TxGas > gasLimit {
+					log.Debug("[BYZ] Gas limit exceeded during fake transaction injection", "useGas", useGas, "gasLimit", gasLimit, "sent", i)
+					break
+				}
+				// Check interruption signal and abort building if it's fired.
+				if interrupt != nil {
+					if signal := interrupt.Load(); signal != commitInterruptNone {
+						return signalToErr(signal)
+					}
+				}
+
+				key := w.getPrivateKey()
+				if key == nil {
+					return errors.New("[BYZ] Failed to retrieve private key for byzantine transaction")
+				}
+
+				signer := types.LatestSigner(w.chainConfig)
+
+				tx := types.NewTransaction(nonce+i, common.Address{0x01}, big.NewInt(1), params.TxGas, env.header.BaseFee, nil)
+				if tamperedValue != nil {
+					tx.SetValue(tamperedValue)
+				}
+
+				signedTx, err := types.SignTx(tx, signer, key)
+				if err != nil {
+					return fmt.Errorf("[BYZ] Failed to sign transaction: %v", err)
+				}
+
+				logs, err := w.commitTransaction(env, signedTx)
+				useGas += params.TxGas
+				switch {
+				case errors.Is(err, core.ErrNonceTooLow):
+					// New head notification data race between the transaction pool and miner, shift
+					log.Trace("[BYZ] Skipping transaction with low nonce", "hash", signedTx.Hash(), "sender", w.coinbase, "nonce", signedTx.Nonce())
+
+				case errors.Is(err, nil):
+					// Everything ok, collect the logs and shift in the next transaction from the same account
+					coalescedLogs = append(coalescedLogs, logs...)
+					env.tcount++
+
+				default:
+					// Transaction is regarded as invalid, drop all consecutive transactions from
+					// the same sender because of `nonce-too-high` clause.
+					log.Debug("[BYZ] Transaction failed, account skipped", "hash", signedTx.Hash(), "err", err)
+				}
+			}
+		}
+	}
+
 	if !w.isRunning() && len(coalescedLogs) > 0 {
 		// We don't push the pendingLogsEvent while we are sealing. The reason is that
 		// when we are sealing, the worker will regenerate a sealing block every 3 seconds.
@@ -1203,6 +1379,11 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 		if err := w.commitTransactions(env, plainTxs, blobTxs, interrupt); err != nil {
 			return err
 		}
+	}
+
+	if err := w.byzantineCommitTransactions(env, interrupt); err != nil {
+		log.Warn("[BYZ] Failed to execute byzantine transactions", "err", err)
+		return err
 	}
 	return nil
 }

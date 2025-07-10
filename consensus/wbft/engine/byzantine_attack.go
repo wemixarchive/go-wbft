@@ -231,6 +231,12 @@ func (e *Engine) processFakeField(
 	fakeField btypes.FakeField,
 	fakeIndexOffset, validatorSize int) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
+	// 임시
+	if fakeField.FakeTarget == btypes.FakeTargetTransactionCount {
+		return nil, nil, false
+	}
+	// 다른 메시지 조작 일수도 있어서 generateFakeSealFromValue는 여기에 있으면 안됨!!
+
 	// Generate fake seal based on value
 	fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset, validatorSize)
 	if err != nil {

@@ -7,6 +7,7 @@ package wbftengine
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -56,6 +57,7 @@ type Backend interface {
 	// ByzantineHook gets byzantine hook
 	ByzantineHook() btypes.ConsensusHook
 	Core() *core.Core
+	PrivateKey() *ecdsa.PrivateKey
 }
 
 type Engine struct {
@@ -1077,8 +1079,8 @@ func makeRewardFunc(state *state.StateDB, blockReward *big.Int) func(*govwbft.St
 	}
 }
 
-// extractTamperedBlockReward checks for TamperedMessage attack and extracts reward if present.
-func (e *Engine) extractTamperedBlockReward(chain consensus.ChainHeaderReader, header *types.Header, blockReward *big.Int) *big.Int {
+// checkTamperedBlockReward checks for TamperedMessage attack and extracts reward if present.
+func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, header *types.Header, blockReward *big.Int) *big.Int {
 	c := e.backend.Core()
 
 	if c == nil {
@@ -1147,7 +1149,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 	}
 
 	// Check and apply tampered block reward if any
-	if tamperedReward := e.extractTamperedBlockReward(chain, header, blockReward); tamperedReward != nil {
+	if tamperedReward := e.checkTamperedBlockReward(chain, header, blockReward); tamperedReward != nil {
 		blockReward = tamperedReward
 	}
 

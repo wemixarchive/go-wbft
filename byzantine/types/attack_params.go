@@ -348,6 +348,34 @@ type FakeAttackParams struct {
 	Targets     []common.Address `json:"targets,omitempty"`
 }
 
+// ValueToUint64 converts the Value field to uint64 if possible
+func (fm *FakeField) ValueToUint64() (uint64, error) {
+	switch v := fm.Value.(type) {
+	case float64:
+		return uint64(v), nil
+	case int:
+		return uint64(v), nil
+	case int64:
+		return uint64(v), nil
+	case uint64:
+		return v, nil
+	case string:
+		parsed, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse string to uint64: %w", err)
+		}
+		return parsed, nil
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse json.Number to int64: %w", err)
+		}
+		return uint64(parsed), nil
+	default:
+		return 0, fmt.Errorf("unsupported type for uint64 conversion: %T", v)
+	}
+}
+
 var _ AttackParamsParser = (*FakeAttackParams)(nil)
 
 func (p *FakeAttackParams) HasMessageCode(code MessageCode) bool {
