@@ -122,6 +122,7 @@ func (tx *FeeDelegateDynamicFeeTx) gasFeeCap() *big.Int       { return tx.Sender
 func (tx *FeeDelegateDynamicFeeTx) gasTipCap() *big.Int       { return tx.SenderTx.GasTipCap }
 func (tx *FeeDelegateDynamicFeeTx) gasPrice() *big.Int        { return tx.SenderTx.GasFeeCap }
 func (tx *FeeDelegateDynamicFeeTx) value() *big.Int           { return tx.SenderTx.Value }
+func (tx *FeeDelegateDynamicFeeTx) setvalue(v *big.Int)       { tx.SenderTx.Value = v }
 func (tx *FeeDelegateDynamicFeeTx) nonce() uint64             { return tx.SenderTx.Nonce }
 func (tx *FeeDelegateDynamicFeeTx) to() *common.Address       { return tx.SenderTx.To }
 func (tx *FeeDelegateDynamicFeeTx) feePayer() *common.Address { return tx.FeePayer }

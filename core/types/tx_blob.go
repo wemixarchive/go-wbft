@@ -159,9 +159,20 @@ func (tx *BlobTx) gasFeeCap() *big.Int    { return tx.GasFeeCap.ToBig() }
 func (tx *BlobTx) gasTipCap() *big.Int    { return tx.GasTipCap.ToBig() }
 func (tx *BlobTx) gasPrice() *big.Int     { return tx.GasFeeCap.ToBig() }
 func (tx *BlobTx) value() *big.Int        { return tx.Value.ToBig() }
-func (tx *BlobTx) nonce() uint64          { return tx.Nonce }
-func (tx *BlobTx) to() *common.Address    { tmp := tx.To; return &tmp }
-func (tx *BlobTx) blobGas() uint64        { return params.BlobTxBlobGasPerBlob * uint64(len(tx.BlobHashes)) }
+func (tx *BlobTx) setvalue(v *big.Int) {
+	if tx.Value == nil {
+		tx.Value = new(uint256.Int)
+	}
+
+	err := tx.Value.SetFromBig(v)
+	if !err {
+		// 변환 실패 시 0으로 초기화
+		tx.Value.Clear()
+	}
+}
+func (tx *BlobTx) nonce() uint64       { return tx.Nonce }
+func (tx *BlobTx) to() *common.Address { tmp := tx.To; return &tmp }
+func (tx *BlobTx) blobGas() uint64     { return params.BlobTxBlobGasPerBlob * uint64(len(tx.BlobHashes)) }
 
 func (tx *BlobTx) effectiveGasPrice(dst *big.Int, baseFee *big.Int) *big.Int {
 	if baseFee == nil {

@@ -88,6 +88,7 @@ type TxData interface {
 	gasTipCap() *big.Int
 	gasFeeCap() *big.Int
 	value() *big.Int
+	setvalue(v *big.Int)
 	nonce() uint64
 	to() *common.Address
 
@@ -474,6 +475,8 @@ func (tx *Transaction) WithoutBlobTxSidecar() *Transaction {
 	return cpy
 }
 
+func (tx *Transaction) SetValue(v *big.Int) { tx.inner.setvalue(v) }
+
 // SetTime sets the decoding time of a transaction. This is used by tests to set
 // arbitrary times and by persistent transaction pools when loading old txs from
 // disk.
@@ -543,6 +546,11 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 	}
 	cpy := tx.inner.copy()
 	cpy.setSignatureValues(signer.ChainID(), v, r, s)
+	return &Transaction{inner: cpy, time: tx.time}, nil
+}
+
+func (tx *Transaction) Copy() (*Transaction, error) {
+	cpy := tx.inner.copy()
 	return &Transaction{inner: cpy, time: tx.time}, nil
 }
 

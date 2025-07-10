@@ -204,6 +204,7 @@ const (
 	TamperTransactionBalance TamperTarget = "Transaction.Balance"
 	TamperTransactionNonce   TamperTarget = "Transaction.Nonce"
 	TamperTransactionData    TamperTarget = "Transaction.Data"
+	TamperTransactionValue   TamperTarget = "Transaction.Value"
 
 	// Common message targets
 	TamperMessageRound     TamperTarget = "Message.Round"
