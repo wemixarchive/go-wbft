@@ -212,6 +212,29 @@ func (tf *TamperField) ValueToHash() (common.Hash, error) {
 	}
 }
 
+// ValueHexToBytes converts a hex string in the Value field (e.g., "0x1234") to []byte
+func (tf *TamperField) ValueHexToBytes() ([]byte, error) {
+	str, ok := tf.Value.(string)
+	if !ok {
+		return nil, fmt.Errorf("value is not a string: %T", tf.Value)
+	}
+
+	// Remove "0x" or "0X" prefix if present
+	trimmed := strings.TrimPrefix(strings.ToLower(str), "0x")
+
+	// Hex strings must have even length
+	if len(trimmed)%2 != 0 {
+		return nil, fmt.Errorf("hex string has odd length: %d", len(trimmed))
+	}
+
+	// Decode the hex string to []byte
+	bz, err := hex.DecodeString(trimmed)
+	if err != nil {
+		return nil, fmt.Errorf("invalid hex string: %w", err)
+	}
+	return bz, nil
+}
+
 // TamperAttackParams handles parsing for tamper attack parameters
 type TamperAttackParams struct {
 	Code             MessageCode      `json:"code"`
