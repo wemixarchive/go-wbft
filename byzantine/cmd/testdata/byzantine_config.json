@@ -25,7 +25,7 @@
       "round": 0,
       "params": {
         "code": "PrePrepare",
-        "tamperFields": [
+        "fields": [
           {
             "target": "Header.Coinbase",
             "value": "0x0000000000000000000000000000000000000000"

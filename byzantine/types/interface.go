@@ -42,9 +42,6 @@ type Attack interface {
 	// CheckExecuteCondition checks if the attack should be executed
 	CheckExecuteCondition(ctx context.Context, event Event) bool
 
-	// Execute performs the attack
-	Execute(ctx context.Context, event Event) (*AttackResult, error)
-
 	// SetStatus updates the attack status
 	SetStatus(status AttackStatus)
 
@@ -101,9 +98,6 @@ type AttackManager interface {
 
 	// GetActiveAttacks returns attacks in active status
 	GetActiveAttacks() []Attack
-
-	// EvaluateAndExecuteAttacks evaluates and executes attacks based on the event
-	EvaluateAndExecuteAttacks(ctx context.Context, event Event) (AttackDecision, error)
 
 	// GetUIDGenerator returns the UID generator
 	GetUIDGenerator() UIDGenerator

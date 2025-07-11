@@ -97,7 +97,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 
 		// add fake seal
 		fakedPreparedSeal, fakedCommittedSeal, attackApplied := e.applyFakeSealAttackIfExists(
-			preparedSeal, committedSeal, at.FakeParams.FakeMessage, validators)
+			preparedSeal, committedSeal, at.FakeParams.Fields, validators)
 
 		if attackApplied {
 			preparedSeal = fakedPreparedSeal
@@ -197,7 +197,7 @@ func (e *Engine) logSealStatus(preparedSeal, committedSeal *types.WBFTAggregated
 // applyFakeSealAttack applies fake seal attack by adding non-validator signatures
 func (e *Engine) applyFakeSealAttackIfExists(
 	preparedSeal, committedSeal *types.WBFTAggregatedSeal,
-	fakeMessage []btypes.FakeField, validators wbft.ValidatorSet) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
+	fakeMessage []btypes.Field, validators wbft.ValidatorSet) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
 	attackCount := 0
 	resultPreparedSeal := preparedSeal
@@ -230,11 +230,11 @@ func (e *Engine) applyFakeSealAttackIfExists(
 // processFakeField processes a single fake field and returns updated seals
 func (e *Engine) processFakeField(
 	preparedSeal, committedSeal *types.WBFTAggregatedSeal,
-	fakeField btypes.FakeField,
+	fakeField btypes.Field,
 	fakeIndexOffset, validatorSize int) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
 	// 임시
-	if fakeField.FakeTarget == btypes.FakeTargetTransactionCount {
+	if fakeField.Target == btypes.FakeTargetTransactionCount {
 		return nil, nil, false
 	}
 	// 다른 메시지 조작 일수도 있어서 generateFakeSealFromValue는 여기에 있으면 안됨!!
@@ -246,7 +246,7 @@ func (e *Engine) processFakeField(
 		return preparedSeal, committedSeal, false
 	}
 
-	switch fakeField.FakeTarget {
+	switch fakeField.Target {
 	case btypes.FakeTargetPrevPrePareSeal:
 		// Only modify prepared seal for PrevPrePareSeal
 		if preparedSeal != nil {

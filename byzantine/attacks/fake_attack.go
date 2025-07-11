@@ -3,8 +3,6 @@ package attacks
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,9 +11,9 @@ import (
 // FakeMessageAttack implements fake message attack
 type FakeMessageAttack struct {
 	*registry.BaseAttack
-	fakeFields []types.FakeField
-	targets    []common.Address
-	params     *types.FakeAttackParams
+	fields  []types.Field
+	targets []common.Address
+	params  *types.FakeAttackParams
 }
 
 var _ (types.Attack) = (*FakeMessageAttack)(nil)
@@ -34,7 +32,7 @@ func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error)
 
 	attack := &FakeMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
-		fakeFields: params.FakeMessage,
+		fields:     params.Fields,
 		targets:    params.Targets,
 		params:     params,
 	}
@@ -84,103 +82,6 @@ func (a *FakeMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 	}
 
 	return messageEvent.MessageCode == attackCode
-}
-
-// Execute performs the fake message attack
-func (a *FakeMessageAttack) Execute(ctx context.Context, event types.Event) (*types.AttackResult, error) {
-	startTime := time.Now()
-	config := a.GetConfig()
-
-	// Check if FakeFields contains specific attack type information
-	if a.params != nil && len(a.fakeFields) > 0 {
-		// Check for consensus layer attacks
-		for _, field := range a.fakeFields {
-			if field.FakeTarget == "fakeSeal" || field.FakeTarget == "invalidProposal" {
-				// These attacks are executed in consensus layer via hooks
-				// Just return success here to mark the attack as triggered
-				return &types.AttackResult{
-					UID:        a.GetUID(),
-					Success:    true,
-					ExecutedAt: time.Now(),
-					Duration:   time.Since(startTime),
-					Details: map[string]interface{}{
-						"fake_target":  field.FakeTarget,
-						"message_code": a.params.Code,
-						"action":       "consensus_layer_attack",
-					},
-				}, nil
-			}
-		}
-	}
-
-	// Original fake message attack logic
-	var messageToSend []byte
-	
-	// Check if we have fake fields to process
-	if len(a.fakeFields) > 0 {
-		// For now, generate a fake message based on fakeFields
-		// This can be extended to handle different fake scenarios
-		messageToSend = []byte(fmt.Sprintf("fake_message_with_fields:%v", a.fakeFields))
-	} else {
-		// Generate a fake message based on a message type
-		var err error
-		// Safe type conversion for code parameter
-		var messageCode types.MessageCode
-		if a.params != nil {
-			messageCode = a.params.Code
-		} else {
-			switch v := config.Parameters["code"].(type) {
-			case float64:
-				messageCode = types.MessageCode(v)
-			case int:
-				messageCode = types.MessageCode(v)
-			case types.MessageCode:
-				messageCode = v
-			default:
-				return &types.AttackResult{
-					UID:        a.GetUID(),
-					Success:    false,
-					Error:      fmt.Errorf("invalid message code type: %T", config.Parameters["code"]),
-					ExecutedAt: time.Now(),
-					Duration:   time.Since(startTime),
-				}, nil
-			}
-		}
-		messageToSend, err = a.generateFakeMessage(messageCode, event)
-		if err != nil {
-			return &types.AttackResult{
-				UID:        a.GetUID(),
-				Success:    false,
-				Error:      err,
-				ExecutedAt: time.Now(),
-				Duration:   time.Since(startTime),
-			}, err
-		}
-	}
-
-	// Send a fake message
-	if err := a.sendMessage(messageToSend, a.targets); err != nil {
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      err,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, err
-	}
-
-	return &types.AttackResult{
-		UID:        a.GetUID(),
-		Success:    true,
-		ExecutedAt: time.Now(),
-		Duration:   time.Since(startTime),
-		Details: map[string]interface{}{
-			"message_code":      config.Parameters["code"],
-			"fake_message_size": len(messageToSend),
-			"targets":           len(a.targets),
-			"action":            "fake_message_sent",
-		},
-	}, nil
 }
 
 // generateFakeMessage generates a fake message based on type

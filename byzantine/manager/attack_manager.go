@@ -186,11 +186,6 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 	if config.ExecutionCount >= uint64(1) {
 		config.Status = types.AttackStatusCompleted
 		attack.SetStatus(types.AttackStatusCompleted)
-		log.Debug("[BYZ] Attack completed after reaching max executions",
-			"uid", uid,
-			"executed", config.ExecutionCount,
-			"status", config.Status,
-			"executed_")
 	}
 
 	// Update the attack's config
@@ -204,7 +199,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 		m.updateStatusTracking(uid, types.AttackStatusExecuted, config.Status)
 	}
 
-	log.Debug("[BYZ] Attack executed",
+	log.Debug("[BYZ] Mark executed attack to completed",
 		"uid", uid,
 		"sequence", sequence,
 		"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
@@ -366,67 +361,6 @@ func (m *AttackManager) UpdateStatusMap(attack types.Attack, newStatus types.Att
 		(newStatus == types.AttackStatusPending || newStatus == types.AttackStatusActive) {
 		m.activeAttacks++
 	}
-}
-
-// EvaluateAndExecuteAttacks evaluates all active attacks and executes them if conditions are met
-// Returns true if any attack indicates the message should be blocked
-func (m *AttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event types.Event) (types.AttackDecision, error) {
-	// Extract message details from event
-	msgEvent, ok := event.Data.(*types.MessageEvent)
-	if !ok {
-		return types.AttackDecision{
-			ShouldAttack: false,
-			Reason:       "Not a message event",
-		}, nil
-	}
-
-	// Get direction from metadata
-	direction := event.Metadata["direction"].(string)
-
-	// Try each applicable attack type
-	applicableTypes := m.getApplicableAttackTypes(msgEvent.MessageCode, direction)
-
-	for _, attackType := range applicableTypes {
-		attack, found := m.FindAttackForExecution(attackType,
-			event.Sequence, event.Round)
-		if !found {
-			continue
-		}
-
-		config := attack.GetConfig()
-		if !m.isAttackEligible(config) {
-			continue
-		}
-
-		// Check execution condition
-		if !attack.CheckExecuteCondition(ctx, event) {
-			continue
-		}
-
-		// Execute attack
-		result, err := m.executeAttack(ctx, attack, event)
-		if err != nil {
-			log.Error("Failed to execute attack", "uid", attack.GetUID(), "error", err)
-			continue
-		}
-
-		// Check if message should be blocked
-		if result != nil && result.BlockMessage {
-			return types.AttackDecision{
-				ShouldAttack: true,
-				AttackUID:    attack.GetUID(),
-				AttackType:   attackType,
-				Reason:       result.BlockReason,
-				Result:       result,
-			}, nil
-		}
-	}
-
-	// No attack blocked the message
-	return types.AttackDecision{
-		ShouldAttack: false,
-		Reason:       "No attack conditions met",
-	}, nil
 }
 
 // ProcessEvent processes an event through the chain handler
@@ -667,27 +601,4 @@ func (m *AttackManager) getApplicableAttackTypes(msgCode types.MessageCode, dire
 	}
 
 	return attackTypes
-}
-
-// executeAttack executes an attack and handles status updates
-func (m *AttackManager) executeAttack(ctx context.Context, attack types.Attack, event types.Event) (*types.AttackResult, error) {
-	startTime := time.Now()
-
-	// Execute the attack
-	result, err := attack.Execute(ctx, event)
-
-	// Update status based on result
-	if err != nil {
-		m.UpdateStatusMap(attack, types.AttackStatusFailed)
-		return nil, err
-	}
-
-	m.UpdateStatusMap(attack, types.AttackStatusExecuted)
-
-	// Add execution time to result
-	if result != nil {
-		result.Duration = time.Since(startTime)
-	}
-
-	return result, nil
 }

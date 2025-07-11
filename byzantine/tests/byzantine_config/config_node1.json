@@ -49,7 +49,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Header.Number",
             "value": 100
@@ -69,7 +69,7 @@
       "round": 0,
       "parameters": {
         "code": 2,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
@@ -89,7 +89,7 @@
       "round": 0,
       "parameters": {
         "code": 4,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
@@ -109,7 +109,7 @@
       "round": 1,
       "parameters": {
         "code": 1,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Header.Number",
             "value": 100
@@ -129,7 +129,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Header.Number",
             "value": 100
@@ -149,7 +149,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Reward",
             "value": 100000
@@ -195,9 +195,9 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "fakeMessage": [
+        "fields": [
           {
-            "fakeTarget": "prevPrePareSeal",
+            "target": "prevPrePareSeal",
             "value": "nil"
           }
         ],
@@ -213,9 +213,9 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "fakeMessage": [
+        "fields": [
           {
-            "fakeTarget": "prevCommitSeal",
+            "target": "prevCommitSeal",
             "value": "0x83a28ebe2335a941a82197196f9d8c9122782375eabc27c844f37ff4a3cd78c4fa2f3789f776d3a6cac130be100a557204091eba480c18f77faf2d3c974dd946d301cf622bcd5d1c4a3f68fef5769c0c628ce664fc810d6f4650b3f60634106d"
           }
         ]
@@ -230,7 +230,7 @@
       "round": 0,
       "parameters": {
         "code": 2,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
@@ -250,7 +250,7 @@
       "round": 0,
       "parameters": {
         "code": 4,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
@@ -270,7 +270,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Transaction.Value",
             "value": 100
@@ -290,9 +290,9 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "fakeMessage": [
+        "fields": [
           {
-            "fakeTarget": "Transaction.Count",
+            "target": "Transaction.Count",
             "value": 10
           }
         ],
@@ -310,7 +310,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [
+        "fields": [
           {
             "target": "Transaction.Sign"
           }
@@ -329,9 +329,9 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "fakeMessage": [
+        "fields": [
           {
-            "fakeTarget": "Transaction.Count",
+            "target": "Transaction.Count",
             "value": 1
           }
         ],

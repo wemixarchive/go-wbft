@@ -131,7 +131,7 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 	commit.SetSource(c.Address())
 
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
-		for _, field := range at.TamperParams.TamperFields {
+		for _, field := range at.TamperParams.Fields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
 			switch field.Target {

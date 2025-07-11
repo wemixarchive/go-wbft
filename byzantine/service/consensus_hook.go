@@ -350,35 +350,6 @@ func (h *ConsensusHookImpl) shouldExecuteAttack(attackType types.AttackType, dir
 	return false
 }
 
-// evaluateAttack evaluates a single attack
-func (h *ConsensusHookImpl) evaluateAttack(ctx context.Context, attack types.Attack, event types.Event) types.AttackDecision {
-	result, err := attack.Execute(ctx, event)
-	if err != nil {
-		log.Error("Failed to execute attack",
-			"uid", attack.GetUID(),
-			"error", err)
-		return types.AttackDecision{
-			ShouldAttack: false,
-			Reason:       "Attack execution failed",
-		}
-	}
-
-	if result != nil && result.BlockMessage {
-		return types.AttackDecision{
-			ShouldAttack: true,
-			AttackUID:    attack.GetUID(),
-			AttackType:   attack.GetType(),
-			Reason:       result.BlockReason,
-			Result:       result,
-		}
-	}
-
-	return types.AttackDecision{
-		ShouldAttack: false,
-		Reason:       "Attack executed but no blocking required",
-	}
-}
-
 // generateWildcardPatterns generates wildcard patterns for flexible matching
 func (h *ConsensusHookImpl) generateWildcardPatterns(ctx types.ConsensusContext) []string {
 	// For now, we'll generate basic wildcard patterns

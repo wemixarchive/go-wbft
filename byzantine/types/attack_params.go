@@ -146,15 +146,15 @@ func (p *SilentAttackParams) Validate(params interface{}) error {
 	return nil
 }
 
-// TamperField represents a field to be tampered with in a message
-type TamperField struct {
-	Target TamperTarget `json:"target"` // e.g., "Header.Coinbase"
-	Value  interface{}  `json:"value"`  // New value for the field
+// Field represents a generic field with target and value
+type Field struct {
+	Target string      `json:"target"` // e.g., "Header.Coinbase"
+	Value  interface{} `json:"value"`  // Value for the field
 }
 
 // ValueToUint64 converts the Value field to uint64 if possible
-func (tf *TamperField) ValueToUint64() (uint64, error) {
-	switch v := tf.Value.(type) {
+func (f *Field) ValueToUint64() (uint64, error) {
+	switch v := f.Value.(type) {
 	case float64:
 		return uint64(v), nil
 	case int:
@@ -181,8 +181,8 @@ func (tf *TamperField) ValueToUint64() (uint64, error) {
 }
 
 // ValueToHash converts the Value field to common.Hash if possible
-func (tf *TamperField) ValueToHash() (common.Hash, error) {
-	switch v := tf.Value.(type) {
+func (f *Field) ValueToHash() (common.Hash, error) {
+	switch v := f.Value.(type) {
 	case string:
 		// Accepts "0x..." or raw hex
 		str := strings.TrimPrefix(v, "0x")
@@ -213,10 +213,10 @@ func (tf *TamperField) ValueToHash() (common.Hash, error) {
 }
 
 // ValueHexToBytes converts a hex string in the Value field (e.g., "0x1234") to []byte
-func (tf *TamperField) ValueHexToBytes() ([]byte, error) {
-	str, ok := tf.Value.(string)
+func (f *Field) ValueHexToBytes() ([]byte, error) {
+	str, ok := f.Value.(string)
 	if !ok {
-		return nil, fmt.Errorf("value is not a string: %T", tf.Value)
+		return nil, fmt.Errorf("value is not a string: %T", f.Value)
 	}
 
 	// Remove "0x" or "0X" prefix if present
@@ -238,7 +238,7 @@ func (tf *TamperField) ValueHexToBytes() ([]byte, error) {
 // TamperAttackParams handles parsing for tamper attack parameters
 type TamperAttackParams struct {
 	Code             MessageCode      `json:"code"`
-	TamperFields     []TamperField    `json:"tamperFields"`
+	Fields           []Field          `json:"fields"`
 	WithValidMessage bool             `json:"withValidMessage"`
 	Delay            uint64           `json:"delay"`
 	Targets          []common.Address `json:"targets,omitempty"`
@@ -278,17 +278,24 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 
 	params.Code = ParseMessageCode(raw["code"])
 
-	// Parse tamperFieldsAdd commentMore actions
-	if tamperFields, ok := raw["tamperFields"].([]interface{}); ok {
-		params.TamperFields = make([]TamperField, 0, len(tamperFields))
-		for _, field := range tamperFields {
+	// Parse fields (supports both 'fields' and 'tamperFields' for backward compatibility)
+	var fields []interface{}
+	if f, ok := raw["fields"].([]interface{}); ok {
+		fields = f
+	} else if f, ok := raw["tamperFields"].([]interface{}); ok {
+		fields = f
+	}
+
+	if fields != nil {
+		params.Fields = make([]Field, 0, len(fields))
+		for _, field := range fields {
 			if fieldMap, ok := field.(map[string]interface{}); ok {
-				tamperTargetStr := fmt.Sprintf("%v", fieldMap["target"])
-				tamperField := TamperField{
-					Target: TamperTarget(tamperTargetStr),
+				targetStr := fmt.Sprintf("%v", fieldMap["target"])
+				f := Field{
+					Target: targetStr,
 					Value:  fieldMap["value"],
 				}
-				params.TamperFields = append(params.TamperFields, tamperField)
+				params.Fields = append(params.Fields, f)
 			}
 		}
 	}
@@ -333,9 +340,9 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid message code: %d", tamperParams.Code)
 	}
 
-	for i, field := range tamperParams.TamperFields {
+	for i, field := range tamperParams.Fields {
 		if field.Target == "" {
-			return fmt.Errorf("tamperField[%d] target is empty", i)
+			return fmt.Errorf("field[%d] target is empty", i)
 		}
 
 		// Check if field.Value is a hex string and validate its length
@@ -345,12 +352,12 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 
 			// Check if it's a valid hex string
 			if _, err := hex.DecodeString(hexStr); err != nil {
-				return fmt.Errorf("tamperField[%d] value is not a valid hex string: %v", i, err)
+				return fmt.Errorf("field[%d] value is not a valid hex string: %v", i, err)
 			}
 
 			// Check if it's 32 bytes (64 hex characters)
 			if len(hexStr) != 64 {
-				return fmt.Errorf("tamperField[%d] value must be 32 bytes (64 hex characters), got %d", i, len(hexStr)/2)
+				return fmt.Errorf("field[%d] value must be 32 bytes (64 hex characters), got %d", i, len(hexStr)/2)
 			}
 		}
 	}
@@ -358,45 +365,11 @@ func (p *TamperAttackParams) Validate(params interface{}) error {
 	return nil
 }
 
-// FakeField represents a field to be faked with in a message
-type FakeField struct {
-	FakeTarget string      `json:"fakeTarget"` // e.g., "fakeSeal", "invalidProposal"
-	Value      interface{} `json:"value"`      // Value for the fake field
-}
-
 // FakeAttackParams handles parsing for fake attack parameters
 type FakeAttackParams struct {
-	Code        MessageCode      `json:"code"`
-	FakeMessage []FakeField      `json:"fakeMessage,omitempty"`
-	Targets     []common.Address `json:"targets,omitempty"`
-}
-
-// ValueToUint64 converts the Value field to uint64 if possible
-func (fm *FakeField) ValueToUint64() (uint64, error) {
-	switch v := fm.Value.(type) {
-	case float64:
-		return uint64(v), nil
-	case int:
-		return uint64(v), nil
-	case int64:
-		return uint64(v), nil
-	case uint64:
-		return v, nil
-	case string:
-		parsed, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("cannot parse string to uint64: %w", err)
-		}
-		return parsed, nil
-	case json.Number:
-		parsed, err := v.Int64()
-		if err != nil {
-			return 0, fmt.Errorf("cannot parse json.Number to int64: %w", err)
-		}
-		return uint64(parsed), nil
-	default:
-		return 0, fmt.Errorf("unsupported type for uint64 conversion: %T", v)
-	}
+	Code    MessageCode      `json:"code"`
+	Fields  []Field          `json:"fields,omitempty"`
+	Targets []common.Address `json:"targets,omitempty"`
 }
 
 var _ AttackParamsParser = (*FakeAttackParams)(nil)
@@ -433,17 +406,31 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 
 	params.Code = ParseMessageCode(raw["code"])
 
-	// Parse fakeMessage
-	if fakeMessage, ok := raw["fakeMessage"].([]interface{}); ok {
-		params.FakeMessage = make([]FakeField, 0, len(fakeMessage))
-		for _, field := range fakeMessage {
+	// Parse fields (supports both 'fields' and 'fakeMessage' for backward compatibility)
+	var fields []interface{}
+	if f, ok := raw["fields"].([]interface{}); ok {
+		fields = f
+	} else if f, ok := raw["fakeMessage"].([]interface{}); ok {
+		fields = f
+	}
+
+	if fields != nil {
+		params.Fields = make([]Field, 0, len(fields))
+		for _, field := range fields {
 			if fieldMap, ok := field.(map[string]interface{}); ok {
-				fakeTarget := fmt.Sprintf("%v", fieldMap["fakeTarget"])
-				fakeField := FakeField{
-					FakeTarget: fakeTarget,
-					Value:      fieldMap["value"],
+				// Support both 'target' and 'fakeTarget' for backward compatibility
+				var target string
+				if t, ok := fieldMap["target"]; ok {
+					target = fmt.Sprintf("%v", t)
+				} else if t, ok := fieldMap["fakeTarget"]; ok {
+					target = fmt.Sprintf("%v", t)
 				}
-				params.FakeMessage = append(params.FakeMessage, fakeField)
+
+				f := Field{
+					Target: target,
+					Value:  fieldMap["value"],
+				}
+				params.Fields = append(params.Fields, f)
 			}
 		}
 	}
@@ -471,10 +458,10 @@ func (p *FakeAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid message code: %d", fakeParams.Code)
 	}
 
-	// Validate FakeMessage fields
-	for i, field := range fakeParams.FakeMessage {
-		if field.FakeTarget == "" {
-			return fmt.Errorf("fakeMessage[%d] fakeTarget is empty", i)
+	// Validate Fields
+	for i, field := range fakeParams.Fields {
+		if field.Target == "" {
+			return fmt.Errorf("field[%d] target is empty", i)
 		}
 		// Value can be empty/nil as it might be set dynamically
 	}

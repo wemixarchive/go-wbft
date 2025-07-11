@@ -34,7 +34,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [
+        "fields": [
           {
             "target":"Digest",
             "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -62,7 +62,7 @@
       "round": 0,
       "parameters": {
         "code": 8,
-        "fakeMessage": "",
+        "fields": [],
         "targets": []
       }
     },
@@ -89,7 +89,7 @@
       "round": 0,
       "parameters": {
         "code": 2,
-        "fakeMessage": "",
+        "fields": [],
         "targets": []
       }
     },

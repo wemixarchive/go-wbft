@@ -3,8 +3,6 @@ package attacks
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -83,66 +81,6 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 	}
 
 	return messageEvent.MessageCode == attackCode
-}
-
-// Execute performs the omit message attack
-func (a *OmitMessageAttack) Execute(ctx context.Context, event types.Event) (*types.AttackResult, error) {
-	startTime := time.Now()
-	config := a.GetConfig()
-
-	// Determine what to omit based on message code and command
-	// Safe type conversion for code parameter
-	var messageCode types.MessageCode
-	switch v := config.Parameters["code"].(type) {
-	case float64:
-		messageCode = types.MessageCode(v)
-	case int:
-		messageCode = types.MessageCode(v)
-	case types.MessageCode:
-		messageCode = v
-	default:
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      fmt.Errorf("invalid message code type: %T", config.Parameters["code"]),
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, nil
-	}
-	omittedMessage, err := a.createOmittedMessage(messageCode, event)
-	if err != nil {
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      err,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, err
-	}
-
-	// Send message with omitted fields
-	if err := a.sendMessage(omittedMessage, a.targets); err != nil {
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      err,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, err
-	}
-
-	return &types.AttackResult{
-		UID:        a.GetUID(),
-		Success:    true,
-		ExecutedAt: time.Now(),
-		Duration:   time.Since(startTime),
-		Details: map[string]interface{}{
-			"message_code": config.Parameters["code"],
-			"omit_command": a.cmd,
-			"targets":      len(a.targets),
-			"action":       "omitted_message_sent",
-		},
-	}, nil
 }
 
 // createOmittedMessage creates a message with omitted fields
