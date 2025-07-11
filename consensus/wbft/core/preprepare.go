@@ -60,18 +60,24 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 		var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 
-		if hook := c.backend.ByzantineHook(); hook != nil {
+		hook := c.backend.ByzantineHook()
+		if hook != nil {
 			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
 		}
 
-		if c.sendByzantinePreprepareMsg(request, attacks) {
+		if c.sendByzantinePreprepareMsg(hook, request, attacks) {
 			if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 				if !at.TamperParams.WithValidMessage {
+					log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64())
+					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 					return // skip the normal message
 				}
-				// Wait for the configured delay
-				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 
+				if at.TamperParams.Delay > 0 {
+					// Wait for the configured delay
+					log.Info("[BYZ] delaying before sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64())
+					time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+				}
 			}
 		}
 
@@ -145,6 +151,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 			if at.SilentParams.Direction == 1 {
 				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				return
 			}
 		}
@@ -162,7 +169,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 	}
 }
 
-func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
+func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Request, attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
 	if len(attacks) == 0 {
 		return false
 	}
@@ -194,6 +201,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 				} else {
 					send = true
 					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", proposal.Number(), "parmas", at.TamperParams)
+					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 					proposal.SetNumber(val)
 				}
 			}

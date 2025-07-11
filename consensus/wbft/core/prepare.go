@@ -54,17 +54,24 @@ func (c *Core) broadcastPrepare() {
 
 	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 
-	if hook := c.backend.ByzantineHook(); hook != nil {
+	hook := c.backend.ByzantineHook()
+	if hook != nil {
 		attacks = hook.GetExecutableAttacks(btypes.MessageCodePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
 	}
 
-	if c.broadcastByzantinePrepare(attacks) {
+	if c.broadcastByzantinePrepare(hook, attacks) {
 		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 			if !at.TamperParams.WithValidMessage {
+				log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64())
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				return // skip the normal message
 			}
-			// Wait for the configured delay
-			time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+
+			if at.TamperParams.Delay > 0 {
+				// Wait for the configured delay
+				log.Info("[BYZ] delaying before sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64())
+				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+			}
 		}
 	}
 
@@ -91,6 +98,7 @@ func (c *Core) broadcastPrepare() {
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 		if at.SilentParams.Direction == 1 {
 			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
+			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			return
 		}
 	}
@@ -104,7 +112,7 @@ func (c *Core) broadcastPrepare() {
 	}
 }
 
-func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
+func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
 	if len(attacks) == 0 {
 		return false
 	}
@@ -136,6 +144,7 @@ func (c *Core) broadcastByzantinePrepare(attacks map[btypes.AttackType]*btypes.E
 				} else {
 					send = true
 					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", prepare.Digest.Hex(), "params", at.TamperParams)
+					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 					prepare.Digest = val
 				}
 			}
