@@ -64,16 +64,12 @@ func (c *Core) broadcastCommit() {
 	if c.broadcastByzantineCommit(hook, attacks) {
 		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 			if !at.TamperParams.WithValidMessage {
-				log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64())
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				return // skip the normal message
 			}
-
-			if at.TamperParams.Delay > 0 {
-				// Wait for the configured delay
-				log.Info("[BYZ] delaying before sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64())
-				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
-			}
+			log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
+			// Wait for the configured delay
+			time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 		}
 	}
 
