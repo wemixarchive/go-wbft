@@ -3,8 +3,6 @@ package attacks
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -84,66 +82,6 @@ func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event typ
 	}
 
 	return messageEvent.MessageCode == attackCode
-}
-
-// Execute performs the role spoofed attack
-func (a *RoleSpoofedAttack) Execute(ctx context.Context, event types.Event) (*types.AttackResult, error) {
-	startTime := time.Now()
-	config := a.GetConfig()
-
-	// Generate spoofed message based on message type
-	// Safe type conversion for code parameter
-	var messageCode types.MessageCode
-	switch v := config.Parameters["code"].(type) {
-	case float64:
-		messageCode = types.MessageCode(v)
-	case int:
-		messageCode = types.MessageCode(v)
-	case types.MessageCode:
-		messageCode = v
-	default:
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      fmt.Errorf("invalid message code type: %T", config.Parameters["code"]),
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, nil
-	}
-	spoofedMessage, spoofedRole, err := a.createSpoofedMessage(messageCode, event)
-	if err != nil {
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      err,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, err
-	}
-
-	// Send spoofed message
-	if err := a.sendMessage(spoofedMessage, a.targets); err != nil {
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      err,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, err
-	}
-
-	return &types.AttackResult{
-		UID:        a.GetUID(),
-		Success:    true,
-		ExecutedAt: time.Now(),
-		Duration:   time.Since(startTime),
-		Details: map[string]interface{}{
-			"message_code": config.Parameters["code"],
-			"spoofed_role": spoofedRole,
-			"targets":      len(a.targets),
-			"action":       "role_spoofed_message_sent",
-		},
-	}, nil
 }
 
 // createSpoofedMessage creates a message spoofing a different role

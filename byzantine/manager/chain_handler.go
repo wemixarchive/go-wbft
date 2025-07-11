@@ -2,10 +2,9 @@ package manager
 
 import (
 	"context"
-	"sync"
-	"time"
-
 	"github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/log"
+	"sync"
 )
 
 // ChainHandler implements chain of responsibility pattern for attack processing
@@ -35,30 +34,7 @@ func (h *ChainHandler) ProcessEvent(ctx context.Context, event types.Event) erro
 
 			// Check if attack should be executed
 			if attack.CheckExecuteCondition(ctx, event) {
-				startTime := time.Now()
-
-				// Execute attack
-				result, err := attack.Execute(ctx, event)
-				if err != nil {
-					errors <- err
-
-					// Update status to failed
-					h.manager.UpdateStatusMap(attack, types.AttackStatusFailed)
-
-					// Save failure result
-					if result == nil {
-						result = &types.AttackResult{
-							UID:        attack.GetUID(),
-							Success:    false,
-							Error:      err,
-							ExecutedAt: time.Now(),
-							Duration:   time.Since(startTime),
-						}
-					}
-				} else {
-					// Update status to executed
-					h.manager.UpdateStatusMap(attack, types.AttackStatusExecuted)
-				}
+				log.Debug("Processing event", "event", event)
 			}
 		}(attack)
 	}

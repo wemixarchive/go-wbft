@@ -167,14 +167,14 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	case types.AttackTypeTamperedMessage:
 		if params, ok := parsedParams.(*types.TamperAttackParams); ok {
 			result["code"] = params.Code
-			tamperFields := make([]map[string]interface{}, len(params.TamperFields))
-			for i, field := range params.TamperFields {
-				tamperFields[i] = map[string]interface{}{
+			fields := make([]map[string]interface{}, len(params.Fields))
+			for i, field := range params.Fields {
+				fields[i] = map[string]interface{}{
 					"target": field.Target,
 					"value":  field.Value,
 				}
 			}
-			result["tamperFields"] = tamperFields
+			result["fields"] = fields
 			result["withValidMessage"] = params.WithValidMessage
 			result["delay"] = params.Delay
 			result["targets"] = params.Targets
@@ -183,14 +183,14 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	case types.AttackTypeFakeMessage:
 		if params, ok := parsedParams.(*types.FakeAttackParams); ok {
 			result["code"] = params.Code
-			fakeFields := make([]map[string]interface{}, len(params.FakeMessage))
-			for i, field := range params.FakeMessage {
-				fakeFields[i] = map[string]interface{}{
-					"fakeTarget": field.FakeTarget,
-					"value":      field.Value,
+			fields := make([]map[string]interface{}, len(params.Fields))
+			for i, field := range params.Fields {
+				fields[i] = map[string]interface{}{
+					"target": field.Target,
+					"value":  field.Value,
 				}
 			}
-			result["fakeMessage"] = fakeFields
+			result["fields"] = fields
 			result["targets"] = params.Targets
 		}
 

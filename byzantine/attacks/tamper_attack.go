@@ -13,7 +13,7 @@ import (
 // TamperedMessageAttack implements tampered message attack
 type TamperedMessageAttack struct {
 	*registry.BaseAttack
-	tamperFields     []types.TamperField
+	tamperFields     []types.Field
 	withValidMessage bool
 	delay            time.Duration
 	targets          []common.Address
@@ -35,7 +35,7 @@ func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack
 
 	attack := &TamperedMessageAttack{
 		BaseAttack:       registry.NewBaseAttack(config),
-		tamperFields:     params.TamperFields,
+		tamperFields:     params.Fields,
 		withValidMessage: params.WithValidMessage,
 		delay:            time.Duration(int64(params.Delay)),
 		targets:          params.Targets,
@@ -86,66 +86,6 @@ func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event
 	}
 
 	return messageEvent.MessageCode == attackCode
-}
-
-// Execute performs the tampered message attack
-func (a *TamperedMessageAttack) Execute(ctx context.Context, event types.Event) (*types.AttackResult, error) {
-	startTime := time.Now()
-
-	messageEvent, ok := event.Data.(*types.MessageEvent)
-	if !ok {
-		return nil, fmt.Errorf("invalid event data type")
-	}
-
-	// Apply tampering
-	tamperedContent, err := a.applyTampering(messageEvent.Content)
-	if err != nil {
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      err,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, err
-	}
-
-	// Send tampered message
-	if err := a.sendMessage(tamperedContent, a.targets); err != nil {
-		return &types.AttackResult{
-			UID:        a.GetUID(),
-			Success:    false,
-			Error:      err,
-			ExecutedAt: time.Now(),
-			Duration:   time.Since(startTime),
-		}, err
-	}
-
-	// Send valid message if configured
-	if a.withValidMessage {
-		time.Sleep(a.delay)
-
-		if err := a.sendMessage(messageEvent.Content, a.targets); err != nil {
-			return &types.AttackResult{
-				UID:        a.GetUID(),
-				Success:    false,
-				Error:      err,
-				ExecutedAt: time.Now(),
-				Duration:   time.Since(startTime),
-			}, err
-		}
-	}
-
-	return &types.AttackResult{
-		UID:        a.GetUID(),
-		Success:    true,
-		ExecutedAt: time.Now(),
-		Duration:   time.Since(startTime),
-		Details: map[string]interface{}{
-			"fields_tampered":    len(a.tamperFields),
-			"valid_message_sent": a.withValidMessage,
-			"targets":            len(a.targets),
-		},
-	}, nil
 }
 
 // applyTampering applies tampering to message content

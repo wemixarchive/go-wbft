@@ -73,6 +73,51 @@ const (
 	FakeTargetTransactionCount string = "Transaction.Count"
 )
 
+// TamperTarget represents fields that can be tampered
+const (
+	// PrePrepare message targets
+	TamperProposalHeaderCoinbase    string = "Header.Coinbase"
+	TamperProposalHeaderNumber      string = "Header.Number"
+	TamperProposalHeaderTime        string = "Header.Time"
+	TamperProposalHeaderParentHash  string = "Header.ParentHash"
+	TamperProposalHeaderStateRoot   string = "Header.StateRoot"
+	TamperProposalHeaderTxHash      string = "Header.TxHash"
+	TamperProposalHeaderReceiptHash string = "Header.ReceiptHash"
+	TamperProposalHeaderBloom       string = "Header.Bloom"
+	TamperProposalHeaderDifficulty  string = "Header.Difficulty"
+	TamperProposalHeaderGasLimit    string = "Header.GasLimit"
+	TamperProposalHeaderGasUsed     string = "Header.GasUsed"
+	TamperProposalHeaderExtra       string = "Header.Extra"
+	TamperProposalHeaderMixDigest   string = "Header.MixDigest"
+	TamperProposalHeaderNonce       string = "Header.Nonce"
+
+	TamperDigest string = "Digest"
+	TamperReward string = "Reward"
+
+	// Transaction targets
+	TamperTransactionSign    string = "Transaction.Sign"
+	TamperTransactionBalance string = "Transaction.Balance"
+	TamperTransactionNonce   string = "Transaction.Nonce"
+	TamperTransactionData    string = "Transaction.Data"
+	TamperTransactionValue   string = "Transaction.Value"
+
+	// Common message targets
+	TamperMessageRound     string = "Message.Round"
+	TamperMessageSequence  string = "Message.Sequence"
+	TamperMessageSealType  string = "Message.SealType"
+	TamperMessageHeader    string = "Message.Header"
+	TamperMessageSignature string = "Message.Signature"
+
+	// RoundChange specific
+	TamperRoundChangePreparedRound  string = "RoundChange.PreparedRound"
+	TamperRoundChangePreparedDigest string = "RoundChange.PreparedDigest"
+
+	// Seal targets
+	TamperSealPrepare  string = "Seal.Prepare"
+	TamperSealCommit   string = "Seal.Commit"
+	TamperSealPrevious string = "Seal.Previous"
+)
+
 // Node roles
 const (
 	RoleValidator = "validator"

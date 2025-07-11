@@ -80,7 +80,6 @@ func (m *MockByzantineService) GetAttackManager() types.AttackManager {
 	return nil
 }
 
-
 // GetConsensusHook implements types.ByzantineService
 func (m *MockByzantineService) GetConsensusHook() types.ConsensusHook {
 	args := m.Called()
@@ -150,11 +149,6 @@ func (m *MockAttackManager) ProcessEvent(ctx context.Context, event types.Event)
 func (m *MockAttackManager) GetActiveAttacks() []types.Attack {
 	args := m.Called()
 	return args.Get(0).([]types.Attack)
-}
-
-func (m *MockAttackManager) EvaluateAndExecuteAttacks(ctx context.Context, event types.Event) (types.AttackDecision, error) {
-	args := m.Called(ctx, event)
-	return args.Get(0).(types.AttackDecision), args.Error(1)
 }
 
 func (m *MockAttackManager) ProcessEventAsync(ctx context.Context, event types.Event) error {

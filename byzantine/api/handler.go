@@ -113,9 +113,9 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		return fmt.Errorf("invalid parameters: %w", err)
 	}
 
-	tamperFieldsMaps := make([]map[string]interface{}, len(params.TamperFields))
-	for i, field := range params.TamperFields {
-		tamperFieldsMaps[i] = map[string]interface{}{
+	fieldsMap := make([]map[string]interface{}, len(params.Fields))
+	for i, field := range params.Fields {
+		fieldsMap[i] = map[string]interface{}{
 			"target": field.Target,
 			"value":  field.Value,
 		}
@@ -131,7 +131,7 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":             params.Code,
-			"tamperFields":     tamperFieldsMaps,
+			"fields":           fieldsMap,
 			"withValidMessage": params.WithValidMessage,
 			"delay":            params.Delay,
 			"targets":          params.Targets,
@@ -317,8 +317,8 @@ func (h *Handler) validateTamperedMessageParams(params types.TamperedMessagePara
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
 	}
-	if len(params.TamperFields) == 0 {
-		return fmt.Errorf("at least one tamper field is required")
+	if len(params.Fields) == 0 {
+		return fmt.Errorf("at least one field is required")
 	}
 	return nil
 }

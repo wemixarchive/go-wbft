@@ -10,7 +10,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [],
+        "fields": [],
         "withValidMessage": true,
         "delay": 1000,
         "targets": []
@@ -25,7 +25,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [],
+        "fields": [],
         "withValidMessage": true,
         "delay": 1000,
         "targets": []
@@ -40,7 +40,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [],
+        "fields": [],
         "withValidMessage": true,
         "delay": 1000,
         "targets": []
@@ -55,7 +55,7 @@
       "round": 0,
       "parameters": {
         "code": 1,
-        "tamperFields": [],
+        "fields": [],
         "withValidMessage": true,
         "delay": 1000,
         "targets": []
@@ -70,7 +70,7 @@
       "round": 0,
       "parameters": {
         "code": 2,
-        "tamperFields": [
+        "fields": [
           {
             "target":"Digest",
             "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -90,7 +90,7 @@
       "round": 0,
       "parameters": {
         "code": 4,
-        "tamperFields": [],
+        "fields": [],
         "withValidMessage": true,
         "delay": 1000,
         "targets": []

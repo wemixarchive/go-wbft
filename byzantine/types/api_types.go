@@ -16,7 +16,7 @@ type TamperedMessageParams struct {
 	Sequence         uint64           `json:"sequence"`
 	Round            uint64           `json:"round"`
 	Code             uint64           `json:"code"`
-	TamperFields     []TamperField    `json:"tamperFields"`
+	Fields           []Field          `json:"fields"`
 	WithValidMessage bool             `json:"withValidMessage"`
 	Delay            uint64           `json:"delay"`
 	Targets          []common.Address `json:"targets,omitempty"`

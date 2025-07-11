@@ -364,7 +364,7 @@ func validateSilentParams(params *SilentAttackParams) error {
 }
 
 func validateTamperParams(params *TamperAttackParams) error {
-	for i, field := range params.TamperFields {
+	for i, field := range params.Fields {
 		if field.Target == "" {
 			return fmt.Errorf("tamperField[%d] target is empty", i)
 		}

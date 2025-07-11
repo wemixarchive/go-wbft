@@ -3,8 +3,6 @@ package attacks
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -86,23 +84,6 @@ func (a *ReplayAttack) CheckExecuteCondition(ctx context.Context, event types.Ev
 	}
 
 	return messageEvent.MessageCode == attackCode
-}
-
-// Execute performs the replay attack
-func (a *ReplayAttack) Execute(ctx context.Context, event types.Event) (*types.AttackResult, error) {
-	startTime := time.Now()
-	err := fmt.Errorf("replay attack disabled: storage functionality has been removed")
-
-	return &types.AttackResult{
-		UID:        a.GetUID(),
-		Success:    false,
-		Error:      err,
-		ExecutedAt: time.Now(),
-		Duration:   time.Since(startTime),
-		Details: map[string]interface{}{
-			"reason": "storage removed - replay attack requires message storage",
-		},
-	}, err
 }
 
 // ReplayAttackFactory creates replay attacks

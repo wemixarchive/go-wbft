@@ -1118,7 +1118,7 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 		return nil
 	}
 
-	for _, field := range at.TamperParams.TamperFields {
+	for _, field := range at.TamperParams.Fields {
 		switch field.Target {
 		case btypes.TamperReward:
 			val, err := field.ValueToUint64()
