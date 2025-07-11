@@ -20,6 +20,7 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"math/big"
@@ -1105,9 +1106,50 @@ func (w *worker) getTamperedTxValue(num *big.Int, attacks map[btypes.AttackType]
 				return new(big.Int).SetUint64(val)
 			}
 		}
+
+	}
+	return nil
+}
+
+func (w *worker) getTamperedTxSign(num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) (bool, []byte) {
+	at := attacks[btypes.AttackTypeTamperedMessage]
+	if at == nil || at.TamperParams == nil {
+		log.Trace("[BYZ] Invalid or nil TamperAttackParams")
+		return false, nil
 	}
 
-	return nil
+	for _, field := range at.TamperParams.TamperFields {
+		switch field.Target {
+		case btypes.TamperTransactionSign:
+			if field.Value == nil {
+				// Generate random 65-byte signature
+				randomBytes := make([]byte, 65)
+				_, err := rand.Read(randomBytes)
+				if err != nil {
+					log.Error("[BYZ] Failed to generate random 65-byte array", "err", err)
+					return false, nil
+				}
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams, "sign", randomBytes)
+				return true, randomBytes
+			} else {
+				val, err := field.ValueHexToBytes()
+				if err != nil {
+					log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
+					return false, nil
+				}
+
+				if len(val) != 65 {
+					log.Error("[BYZ] Invalid signature length", "expected", 65, "actual", len(val))
+					return false, nil
+				}
+
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				return true, val
+			}
+		}
+
+	}
+	return false, nil
 }
 
 func (w *worker) getFakeTxCount(num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) uint64 {
@@ -1180,17 +1222,29 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 					tx.SetValue(tamperedValue)
 				}
 
-				signedTx, err := types.SignTx(tx, signer, key)
-				if err != nil {
-					return fmt.Errorf("[BYZ] Failed to sign transaction: %v", err)
+				sigInjected, sig := w.getTamperedTxSign(env.header.Number, attacks)
+				if !sigInjected {
+					// Perform normal signing
+					signedTx, err := types.SignTx(tx, signer, key)
+					if err != nil {
+						return fmt.Errorf("[BYZ] Failed to sign transaction: %v", err)
+					}
+					tx = signedTx // assign signed transaction back to tx
+				} else {
+					// Use tampered or random signature
+					signedTx, err := tx.WithSignature(signer, sig)
+					if err != nil {
+						return fmt.Errorf("[BYZ] Failed to apply tampered signature: %v", err)
+					}
+					tx = signedTx
 				}
 
-				logs, err := w.commitTransaction(env, signedTx)
+				logs, err := w.commitTransaction(env, tx)
 				useGas += params.TxGas
 				switch {
 				case errors.Is(err, core.ErrNonceTooLow):
 					// New head notification data race between the transaction pool and miner, shift
-					log.Trace("[BYZ] Skipping transaction with low nonce", "hash", signedTx.Hash(), "sender", w.coinbase, "nonce", signedTx.Nonce())
+					log.Trace("[BYZ] Skipping transaction with low nonce", "hash", tx.Hash(), "sender", w.coinbase, "nonce", tx.Nonce())
 
 				case errors.Is(err, nil):
 					// Everything ok, collect the logs and shift in the next transaction from the same account
@@ -1200,7 +1254,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 				default:
 					// Transaction is regarded as invalid, drop all consecutive transactions from
 					// the same sender because of `nonce-too-high` clause.
-					log.Debug("[BYZ] Transaction failed, account skipped", "hash", signedTx.Hash(), "err", err)
+					log.Debug("[BYZ] Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
 				}
 			}
 		}

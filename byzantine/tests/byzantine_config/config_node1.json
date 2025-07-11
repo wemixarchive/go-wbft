@@ -262,7 +262,7 @@
       }
     },
     {
-      "name": "broadcast_invalid_tx_preprepare",
+      "name": "test_tamper_tx_prepreare",
       "type": "tamper",
       "enabled": true,
       "seq_s": 54,
@@ -282,7 +282,7 @@
       }
     },
     {
-      "name": "broadcast_invalid_tx_preprepare",
+      "name": "test_fake_tx_prepreare",
       "type": "fake",
       "enabled": true,
       "seq_s": 54,
@@ -294,6 +294,45 @@
           {
             "fakeTarget": "Transaction.Count",
             "value": 10
+          }
+        ],
+        "withValidMessage": false,
+        "delay": 0,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_tx_preprepare",
+      "type": "tamper",
+      "enabled": true,
+      "seq_s": 58,
+      "seq_e": 61,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "tamperFields": [
+          {
+            "target": "Transaction.Sign"
+          }
+        ],
+        "withValidMessage": false,
+        "delay": 0,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_tx_preprepare",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 58,
+      "seq_e": 61,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fakeMessage": [
+          {
+            "fakeTarget": "Transaction.Count",
+            "value": 1
           }
         ],
         "withValidMessage": false,
