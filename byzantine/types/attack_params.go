@@ -148,7 +148,7 @@ func (p *SilentAttackParams) Validate(params interface{}) error {
 
 // TamperField represents a field to be tampered with in a message
 type TamperField struct {
-	Target TamperTarget `json:"target"` // e.g., "Proposal.Header.Coinbase"
+	Target TamperTarget `json:"target"` // e.g., "Header.Coinbase"
 	Value  interface{}  `json:"value"`  // New value for the field
 }
 

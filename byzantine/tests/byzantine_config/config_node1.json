@@ -51,7 +51,7 @@
         "code": 1,
         "tamperFields": [
           {
-            "target": "Proposal.Header.Number",
+            "target": "Header.Number",
             "value": 100
           }
         ],
@@ -111,7 +111,7 @@
         "code": 1,
         "tamperFields": [
           {
-            "target": "Proposal.Header.Number",
+            "target": "Header.Number",
             "value": 100
           }
         ],
@@ -131,7 +131,7 @@
         "code": 1,
         "tamperFields": [
           {
-            "target": "Proposal.Header.Number",
+            "target": "Header.Number",
             "value": 100
           }
         ],
@@ -338,6 +338,19 @@
         "withValidMessage": false,
         "delay": 0,
         "targets": []
+      }
+    },
+    {
+      "name": "no_broadcast_prepare",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 62,
+      "seq_e": 63,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "direction": 1,
+        "targets":[]
       }
     }
   ]

@@ -80,6 +80,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 				}(),
 				"params", at.OmitParams,
 			)
+			hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64())
 		}
 	} else {
 		log.Trace("[BYZ] Invalid or nil OmitAttackParams")
@@ -121,6 +122,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 				}(),
 				"params", at.FakeParams,
 			)
+			hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64())
 		}
 	} else {
 		log.Trace("[BYZ] Invalid or nil FakeAttackParams")
@@ -167,7 +169,7 @@ func (e *Engine) applyOmitAttackIfExists(
 		}
 	case btypes.MessageCodePropagation:
 	default:
-		log.Error("[BYZ] attack omit: unknown omit param code", "code", at.OmitParams.Code)
+		log.Error("[BYZ] omit: unknown omit param code", "code", at.OmitParams.Code)
 	}
 
 	return mergedPreparedSeal, mergedCommittedSeal, attackExecute

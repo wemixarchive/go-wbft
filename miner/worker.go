@@ -1053,30 +1053,31 @@ func (w *worker) commitTransactions(env *environment, plainTxs, blobTxs *transac
 	return nil
 }
 
-func (w *worker) getByzantineAttacks() map[btypes.AttackType]*btypes.ExecutableAttack {
+func (w *worker) getByzantineAttacks() (btypes.ConsensusHook, map[btypes.AttackType]*btypes.ExecutableAttack) {
 	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
 		c := wbftEngine.Core()
 		if c == nil {
 			log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
-			return nil
+			return nil, nil
 		}
 
 		curView := c.CurrentView()
 		if curView == nil {
 			log.Trace("[BYZ] skipping: curView is nil", "curViewNil", curView == nil)
-			return nil
+			return nil, nil
 		}
 
-		if hook := wbftEngine.ByzantineHook(); hook != nil {
+		hook := wbftEngine.ByzantineHook()
+		if hook != nil {
 			if state := c.GetState(); state == wbftcore.StateAcceptRequest && c.IsProposer() {
-				return hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
+				return hook, hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
 			} else {
 				log.Trace("[BYZ] skipping: invalid state or not proposer", "have", state, "want", wbftcore.StateAcceptRequest, "isProposer", c.IsProposer())
-				return nil
+				return nil, nil
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (w *worker) getPrivateKey() *ecdsa.PrivateKey {
@@ -1086,7 +1087,7 @@ func (w *worker) getPrivateKey() *ecdsa.PrivateKey {
 	return nil
 }
 
-func (w *worker) getTamperedTxValue(num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) *big.Int {
+func (w *worker) getTamperedTxValue(hook btypes.ConsensusHook, num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) *big.Int {
 
 	at := attacks[btypes.AttackTypeTamperedMessage]
 	if at == nil || at.TamperParams == nil {
@@ -1103,6 +1104,7 @@ func (w *worker) getTamperedTxValue(num *big.Int, attacks map[btypes.AttackType]
 				return nil
 			} else {
 				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return new(big.Int).SetUint64(val)
 			}
 		}
@@ -1111,7 +1113,7 @@ func (w *worker) getTamperedTxValue(num *big.Int, attacks map[btypes.AttackType]
 	return nil
 }
 
-func (w *worker) getTamperedTxSign(num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) (bool, []byte) {
+func (w *worker) getTamperedTxSign(hook btypes.ConsensusHook, num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) (bool, []byte) {
 	at := attacks[btypes.AttackTypeTamperedMessage]
 	if at == nil || at.TamperParams == nil {
 		log.Trace("[BYZ] Invalid or nil TamperAttackParams")
@@ -1130,6 +1132,7 @@ func (w *worker) getTamperedTxSign(num *big.Int, attacks map[btypes.AttackType]*
 					return false, nil
 				}
 				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams, "sign", randomBytes)
+				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return true, randomBytes
 			} else {
 				val, err := field.ValueHexToBytes()
@@ -1144,6 +1147,7 @@ func (w *worker) getTamperedTxSign(num *big.Int, attacks map[btypes.AttackType]*
 				}
 
 				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return true, val
 			}
 		}
@@ -1152,7 +1156,7 @@ func (w *worker) getTamperedTxSign(num *big.Int, attacks map[btypes.AttackType]*
 	return false, nil
 }
 
-func (w *worker) getFakeTxCount(num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) uint64 {
+func (w *worker) getFakeTxCount(hook btypes.ConsensusHook, num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) uint64 {
 	at := attacks[btypes.AttackTypeFakeMessage]
 	if at == nil || at.FakeParams == nil {
 		log.Trace("[BYZ] Invalid or nil FakeParams")
@@ -1168,6 +1172,7 @@ func (w *worker) getFakeTxCount(num *big.Int, attacks map[btypes.AttackType]*bty
 				return 0
 			} else {
 				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.FakeParams)
+				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return val
 			}
 		}
@@ -1183,17 +1188,17 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 	}
 	var coalescedLogs []*types.Log
 
-	attacks := w.getByzantineAttacks()
+	hook, attacks := w.getByzantineAttacks()
 	if attacks == nil {
 		log.Trace("[BYZ] No attack strategies provided")
 		return nil
 	}
 
-	if cnt := w.getFakeTxCount(env.header.Number, attacks); cnt > 0 {
+	if cnt := w.getFakeTxCount(hook, env.header.Number, attacks); cnt > 0 {
 		if !env.state.Exist(w.coinbase) {
 			return errors.New("[BYZ] Coinbase account does not exist in current state")
 		} else {
-			tamperedValue := w.getTamperedTxValue(env.header.Number, attacks)
+			tamperedValue := w.getTamperedTxValue(hook, env.header.Number, attacks)
 
 			nonce := env.state.GetNonce(w.coinbase)
 			var useGas uint64
@@ -1222,7 +1227,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 					tx.SetValue(tamperedValue)
 				}
 
-				sigInjected, sig := w.getTamperedTxSign(env.header.Number, attacks)
+				sigInjected, sig := w.getTamperedTxSign(hook, env.header.Number, attacks)
 				if !sigInjected {
 					// Perform normal signing
 					signedTx, err := types.SignTx(tx, signer, key)

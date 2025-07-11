@@ -62,7 +62,8 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	seq := view.Sequence.Uint64()
 	round := view.Round.Uint64()
 	var attackGroups []map[btypes.AttackType]*btypes.ExecutableAttack
-	if hook := c.backend.ByzantineHook(); hook != nil {
+	hook := c.backend.ByzantineHook()
+	if hook != nil {
 		attackGroups = []map[btypes.AttackType]*btypes.ExecutableAttack{
 			hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, seq, round),
 			hook.GetExecutableAttacks(btypes.MessageCodePrepare, seq, round),
@@ -82,6 +83,7 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	for _, group := range attackGroups {
 		if params, name, uid, ok := isSilentMessage(group[btypes.AttackTypeSilentMessage]); ok {
 			log.Info("[BYZ] attack", "name", name, "uid", uid, "seq", seq, "params", params)
+			hook.MarkAttackExecuted(uid, seq)
 			return errInvalidMessage
 		}
 	}

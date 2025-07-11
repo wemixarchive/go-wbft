@@ -1102,7 +1102,8 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 		return nil
 	}
 
-	if hook := e.backend.ByzantineHook(); hook != nil {
+	hook := e.backend.ByzantineHook()
+	if hook != nil {
 		if state := c.GetState(); state == core.StateAcceptRequest && c.IsProposer() {
 			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
 		} else {
@@ -1126,6 +1127,7 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 				return nil
 			} else {
 				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", curView.Sequence.Uint64(), "original", blockReward, "params", at.TamperParams)
+				hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64())
 				return new(big.Int).SetUint64(val)
 			}
 		}

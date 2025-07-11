@@ -27,11 +27,11 @@
         "code": "PrePrepare",
         "tamperFields": [
           {
-            "target": "Proposal.Header.Coinbase",
+            "target": "Header.Coinbase",
             "value": "0x0000000000000000000000000000000000000000"
           },
           {
-            "target": "Proposal.Header.Time",
+            "target": "Header.Time",
             "value": 1234567890
           }
         ],

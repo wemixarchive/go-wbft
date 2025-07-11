@@ -51,7 +51,7 @@ func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event
 	if !config.IsInSequenceRange(event.Sequence) {
 		return false
 	}
-	
+
 	// Check round (0 means any round)
 	if config.Round != 0 && event.Round != config.Round {
 		return false
@@ -161,12 +161,12 @@ func (a *TamperedMessageAttack) applyTampering(content []byte) ([]byte, error) {
 		// Implementation depends on actual message structure
 		// This is just a placeholder
 		switch field.Target {
-		case "Proposal.Header.Coinbase":
+		case "Header.Coinbase":
 			// Modify coinbase field
 			if len(tamperedContent) > 20 {
 				copy(tamperedContent[10:30], field.Value.([]byte))
 			}
-		case "Proposal.Header.Number":
+		case "Header.Number":
 			// Modify block number
 			if len(tamperedContent) > 40 {
 				// Convert value to bytes and copy
