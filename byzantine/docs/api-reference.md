@@ -203,7 +203,7 @@ Modifies message fields before sending.
 #### Parameters
 ```typescript
 {
-  tamperFields: Array<{
+  fields: Array<{
     target: string           // Field path (e.g., "Proposal.Header.Coinbase")
     value: any              // New value
   }>
@@ -220,7 +220,10 @@ Creates and sends fake messages.
 #### Parameters
 ```typescript
 {
-  fakeMessage?: string      // Hex-encoded message (auto-generated if not provided)
+  fields?: Array<{
+    target: string          // Target field (e.g., "Transaction.Count")
+    value: any             // Value for the field
+  }>
   targets?: string[]        // Optional target addresses
 }
 ```
@@ -253,7 +256,10 @@ Sends messages while impersonating a different role.
 #### Parameters
 ```typescript
 {
-  fakeMessage?: string      // Optional fake message
+  fields?: Array<{
+    target: string          // Target field
+    value: any             // Value for the field
+  }>
   targets?: string[]        // Optional target addresses
 }
 ```
