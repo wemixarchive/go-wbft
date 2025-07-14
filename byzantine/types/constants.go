@@ -71,6 +71,7 @@ const (
 	FakeTargetCommitSeal       string = "commitSeal"
 	FakeTargetPrePareSeal      string = "prePareSeal"
 	FakeTargetTransactionCount string = "Transaction.Count"
+	FakeTargetRound            string = "Round"
 )
 
 // TamperTarget represents fields that can be tampered
