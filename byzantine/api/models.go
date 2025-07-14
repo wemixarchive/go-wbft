@@ -91,7 +91,7 @@ type ReplayMessageRequest struct {
 	Targets         []common.Address  `json:"targets,omitempty"`
 }
 
-// ReplayMessageRequest represents a request for replay message attack
+// StoreMessageRequest represents a request for store message
 type StoreMessageRequest struct {
 	Sequence uint64            `json:"sequence"`
 	Round    uint64            `json:"round"`
