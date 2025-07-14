@@ -78,7 +78,7 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 	} else if v, ok := raw["tamperFields"].([]interface{}); ok {
 		fields = v
 	}
-	
+
 	if fields != nil {
 		params.Fields = make([]types.Field, 0, len(fields))
 
@@ -262,19 +262,6 @@ func ConvertToRoleSpoofParams(raw map[string]interface{}) (types.RoleSpoofParams
 
 func ConvertToReplayMessageParams(raw map[string]interface{}) (types.ReplayMessageParams, error) {
 	params := types.ReplayMessageParams{}
-
-	if v, ok := raw["oriSequence"].(uint64); ok {
-		params.OriSequence = v
-	} else {
-		return params, fmt.Errorf("invalid oriSequence")
-	}
-
-	if v, ok := raw["oriRound"].(uint64); ok {
-		params.OriRound = v
-	} else {
-		return params, fmt.Errorf("invalid oriRound")
-	}
-
 	if v, ok := raw["sequence"].(uint64); ok {
 		params.Sequence = v
 	} else {
@@ -287,14 +274,14 @@ func ConvertToReplayMessageParams(raw map[string]interface{}) (types.ReplayMessa
 		return params, fmt.Errorf("invalid round")
 	}
 
-	if v, ok := raw["useOriginalView"].(bool); ok {
-		params.UseOriginalView = v
-	}
-
 	if v, ok := raw["code"].(uint64); ok {
 		params.Code = v
 	} else {
 		return params, fmt.Errorf("invalid code")
+	}
+
+	if v, ok := raw["useOriginalView"].(bool); ok {
+		params.UseOriginalView = v
 	}
 
 	// Convert targets
@@ -307,5 +294,27 @@ func ConvertToReplayMessageParams(raw map[string]interface{}) (types.ReplayMessa
 		}
 	}
 
+	return params, nil
+}
+
+func ConvertToStoreMessageParams(raw map[string]interface{}) (types.StoreMessageParams, error) {
+	params := types.StoreMessageParams{}
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
+	} else {
+		return params, fmt.Errorf("invalid sequence")
+	}
+
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
+	} else {
+		return params, fmt.Errorf("invalid round")
+	}
+
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
+	} else {
+		return params, fmt.Errorf("invalid code")
+	}
 	return params, nil
 }

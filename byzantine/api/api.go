@@ -102,6 +102,18 @@ func (api *PublicByzantineAPI) SendReplayMessage(params map[string]interface{}) 
 	return api.handler.RegisterReplayMessage(typedParams)
 }
 
+// StoreMessage stores messages that can later be reused to perform Byzantine attacks.
+func (api *PublicByzantineAPI) StoreMessage(params map[string]interface{}) error {
+	log.Info("[Byzantine API] StoreMessage called")
+
+	typedParams, err := ConvertToStoreMessageParams(params)
+	if err != nil {
+		return err
+	}
+
+	return api.handler.RegisterStoreMessage(typedParams)
+}
+
 // UpgradeGovContract upgrades governance contract
 func (api *PublicByzantineAPI) UpgradeGovContract() error {
 	log.Info("[Byzantine API] UpgradeGovContract called")

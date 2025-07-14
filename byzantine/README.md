@@ -89,6 +89,7 @@ byzantine.registerAttack({
 - **Omit Message**: Remove required fields
 - **Role Spoofing**: Impersonate other roles
 - **Replay Attack**: Reuse old messages
+- **Store Message**: Store messages and reuse them to perform Byzantine attacks
 - **Message Flooding**: DDoS with excessive messages
 
 ### Integration Points

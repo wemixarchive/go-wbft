@@ -129,12 +129,10 @@ func byzantineRoleSpoof(ctx *cli.Context) error {
 
 func byzantineReplay(ctx *cli.Context) error {
 	params := map[string]interface{}{
-		"ori_sequence":    ctx.Uint64("orig-sequence"),
-		"ori_round":       ctx.Uint64("orig-round"),
 		"sequence":        ctx.Uint64("sequence"),
 		"round":           ctx.Uint64("round"),
-		"useOriginalView": ctx.Bool("use-original-view"),
 		"code":            ctx.String("code"),
+		"useOriginalView": ctx.Bool("use-original-view"),
 		"targets":         parseTargets(ctx.StringSlice("targets")),
 	}
 

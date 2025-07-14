@@ -170,6 +170,15 @@ func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types
 			},
 			errMsg: "ReplayParams is nil",
 		},
+		types.AttackTypeStoreMessage: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) {
+				return cfg.GetStoreParams()
+			},
+			assign: func(v interface{}) {
+				attacks.StoreMessageParams = v.(*types.StoreAttackParams)
+			},
+			errMsg: "StoreMessageParams is nil",
+		},
 	}
 
 	handler, ok := handlers[cfg.Type]
@@ -210,6 +219,9 @@ func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode
 
 	case types.AttackTypeReplay:
 		return attacks.ReplayParams != nil && attacks.ReplayParams.HasMessageCode(msgCode)
+
+	case types.AttackTypeStoreMessage:
+		return attacks.StoreMessageParams != nil && attacks.StoreMessageParams.HasMessageCode(msgCode)
 	}
 	return false
 }
@@ -290,13 +302,13 @@ func (h *ConsensusHookImpl) getApplicableAttackTypes(msgCode types.MessageCode, 
 	// Add message-specific attack types
 	switch msgCode {
 	case types.MessageCodePrePrepare:
-		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeFakeMessage)
+		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeFakeMessage, types.AttackTypeStoreMessage)
 	case types.MessageCodePrepare:
-		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage)
+		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage, types.AttackTypeStoreMessage)
 	case types.MessageCodeCommit:
-		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage)
+		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage, types.AttackTypeStoreMessage)
 	case types.MessageCodeRoundChange:
-		attackTypes = append(attackTypes, types.AttackTypeFakeMessage)
+		attackTypes = append(attackTypes, types.AttackTypeFakeMessage, types.AttackTypeStoreMessage)
 	}
 
 	// Add direction-specific types

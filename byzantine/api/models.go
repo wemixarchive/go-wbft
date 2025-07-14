@@ -84,13 +84,18 @@ type RoleSpoofedMessageRequest struct {
 
 // ReplayMessageRequest represents a request for replay message attack
 type ReplayMessageRequest struct {
-	OriginalSequence uint64            `json:"ori_sequence"`
-	OriginalRound    uint64            `json:"ori_round"`
-	Sequence         uint64            `json:"sequence"`
-	Round            uint64            `json:"round"`
-	UseOriginalView  bool              `json:"useOriginalView"`
-	Code             types.MessageCode `json:"code"`
-	Targets          []common.Address  `json:"targets,omitempty"`
+	Sequence        uint64            `json:"sequence"`
+	Round           uint64            `json:"round"`
+	Code            types.MessageCode `json:"code"`
+	UseOriginalView bool              `json:"useOriginalView"`
+	Targets         []common.Address  `json:"targets,omitempty"`
+}
+
+// ReplayMessageRequest represents a request for replay message attack
+type StoreMessageRequest struct {
+	Sequence uint64            `json:"sequence"`
+	Round    uint64            `json:"round"`
+	Code     types.MessageCode `json:"code"`
 }
 
 // ServiceStatusResponse represents service status response
