@@ -270,8 +270,6 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":            params.Code,
-			"oriSequence":     params.OriSequence,
-			"oriRound":        params.OriRound,
 			"useOriginalView": params.UseOriginalView,
 			"targets":         params.Targets,
 		},
@@ -286,6 +284,38 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 	}
 
 	log.Info("Replay attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	return nil
+}
+
+// RegisterStoreMessage registers a store message
+func (h *Handler) RegisterStoreMessage(params types.StoreMessageParams) error {
+	// Validate parameters
+	if err := h.validateStoreMessageParams(params); err != nil {
+		return fmt.Errorf("invalid parameters: %w", err)
+	}
+
+	// Create attack configuration
+	config := types.AttackConfig{
+		Name:          fmt.Sprintf("store_%d_%d", params.Sequence, params.Round),
+		Type:          types.AttackTypeStoreMessage,
+		SequenceStart: params.Sequence,
+		SequenceEnd:   0, // 0 means single sequence
+		Round:         params.Round,
+		//Targets:  params.Targets,
+		Parameters: map[string]interface{}{
+			"code": params.Code,
+		},
+		Status:    types.AttackStatusPending,
+		CreatedAt: time.Now(),
+	}
+
+	// Register attack
+	uid, err := h.service.RegisterAttack(config)
+	if err != nil {
+		return fmt.Errorf("failed to register store attack: %w", err)
+	}
+
+	log.Info("Store attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
 	return nil
 }
 
@@ -357,11 +387,18 @@ func (h *Handler) validateRoleSpoofParams(params types.RoleSpoofParams) error {
 }
 
 func (h *Handler) validateReplayMessageParams(params types.ReplayMessageParams) error {
-	if params.OriSequence == 0 {
-		return fmt.Errorf("original sequence number is required")
-	}
 	if params.Sequence == 0 {
-		return fmt.Errorf("target sequence number is required")
+		return fmt.Errorf("sequence number is required")
+	}
+	if params.Code == 0 {
+		return fmt.Errorf("message code is required")
+	}
+	return nil
+}
+
+func (h *Handler) validateStoreMessageParams(params types.StoreMessageParams) error {
+	if params.Sequence == 0 {
+		return fmt.Errorf("sequence number is required")
 	}
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")

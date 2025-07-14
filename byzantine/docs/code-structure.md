@@ -266,6 +266,7 @@ const (
     AttackTypeRoleSpoofed     AttackType = "roleSpoofed"
     AttackTypeReplay          AttackType = "replayAttack"
     AttackTypeMessageFlooding AttackType = "messageFlooding"
+    AttackTypeStoreMessage    AttakType = "storeMessage"
 )
 ```
 

@@ -19,6 +19,7 @@ const (
 	AttackTypeOmitMessage     AttackType = AttackOmit
 	AttackTypeRoleSpoofed     AttackType = AttackRoleSpoof
 	AttackTypeReplay          AttackType = AttackReplay
+	AttackTypeStoreMessage    AttackType = AttackStore
 )
 
 // Slice of all AttackType constants for iteration
@@ -29,6 +30,7 @@ var AllAttackTypes = []AttackType{
 	AttackTypeOmitMessage,
 	AttackTypeRoleSpoofed,
 	AttackTypeReplay,
+	AttackTypeStoreMessage,
 }
 
 // AttackStatus represents the status of an attack
@@ -58,6 +60,8 @@ func StringToAttackType(s string) AttackType {
 		return AttackTypeRoleSpoofed
 	case "replay":
 		return AttackTypeReplay
+	case "store":
+		return AttackTypeStoreMessage
 	default:
 		return AttackType(s) // fallback
 	}
@@ -77,6 +81,8 @@ func AttackTypeToString(attackType AttackType) string {
 		return AttackRoleSpoof
 	case AttackTypeReplay:
 		return AttackReplay
+	case AttackTypeStoreMessage:
+		return AttackStore
 	default:
 		return "unknown"
 	}
@@ -283,6 +289,18 @@ func (ac *AttackConfig) GetReplayParams() (*ReplayAttackParams, error) {
 	return params, nil
 }
 
+// GetReplayParams returns parsed parameters for replay attack
+func (ac *AttackConfig) GetStoreParams() (*StoreMessageParams, error) {
+	if ac.Type != AttackTypeStoreMessage {
+		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeStoreMessage, ac.Type)
+	}
+	params, ok := ac.ParsedParameters.(*StoreMessageParams)
+	if !ok {
+		return nil, errors.New("parameters not properly parsed")
+	}
+	return params, nil
+}
+
 // Validate validates the attack configuration including type-specific parameters
 func (ac *AttackConfig) Validate() error {
 	// Basic validation
@@ -341,6 +359,13 @@ func (ac *AttackConfig) Validate() error {
 		}
 		return validateReplayParams(params)
 
+	case AttackTypeStoreMessage:
+		params, err := ac.GetStoreParams()
+		if err != nil {
+			return err
+		}
+		return validateStoreParams(params)
+
 	default:
 		return fmt.Errorf("unknown attack type: %s", ac.Type)
 	}
@@ -391,10 +416,11 @@ func validateRoleSpoofParams(params *RoleSpoofAttackParams) error {
 }
 
 func validateReplayParams(params *ReplayAttackParams) error {
-	if params.OriSequence == 0 {
-		return errors.New("original sequence must be specified")
-	}
 	return validateTargets(params.Targets)
+}
+
+func validateStoreParams(params *StoreMessageParams) error {
+	return nil
 }
 
 func validateTargets(targets []common.Address) error {
@@ -480,14 +506,15 @@ type AttackContext struct {
 // ExecutableAttack bundles the original AttackConfig with its
 // concrete parameter struct (TamperAttackParams, FakeAttackParams, …).
 type ExecutableAttack struct {
-	Enabled         bool
-	UID             string
-	NAME            string
-	Status          AttackStatus
-	SilentParams    *SilentAttackParams
-	TamperParams    *TamperAttackParams
-	FakeParams      *FakeAttackParams
-	OmitParams      *OmitAttackParams
-	RoleSpoofParams *RoleSpoofAttackParams
-	ReplayParams    *ReplayAttackParams
+	Enabled            bool
+	UID                string
+	NAME               string
+	Status             AttackStatus
+	SilentParams       *SilentAttackParams
+	TamperParams       *TamperAttackParams
+	FakeParams         *FakeAttackParams
+	OmitParams         *OmitAttackParams
+	RoleSpoofParams    *RoleSpoofAttackParams
+	ReplayParams       *ReplayAttackParams
+	StoreMessageParams *StoreAttackParams
 }

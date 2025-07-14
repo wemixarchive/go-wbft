@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/byzantine/types"
 )
 
@@ -23,7 +24,7 @@ func NewParameterParserRegistry() *ParameterParserRegistry {
 	registry.RegisterParser(types.AttackTypeOmitMessage, &types.OmitAttackParams{})
 	registry.RegisterParser(types.AttackTypeRoleSpoofed, &types.RoleSpoofAttackParams{})
 	registry.RegisterParser(types.AttackTypeReplay, &types.ReplayAttackParams{})
-
+	registry.RegisterParser(types.AttackTypeStoreMessage, &types.StoreAttackParams{})
 	return registry
 }
 

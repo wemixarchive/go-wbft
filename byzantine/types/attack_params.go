@@ -627,8 +627,6 @@ func (p *RoleSpoofAttackParams) Validate(params interface{}) error {
 // ReplayAttackParams handles parsing for replay attack parameters
 type ReplayAttackParams struct {
 	Code            MessageCode      `json:"code"`
-	OriSequence     uint64           `json:"ori_sequence"`
-	OriRound        uint64           `json:"ori_round"`
 	UseOriginalView bool             `json:"useOriginalView"`
 	Targets         []common.Address `json:"targets,omitempty"`
 }
@@ -667,32 +665,6 @@ func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 
 	params.Code = ParseMessageCode(raw["code"])
 
-	switch v := raw["ori_sequence"].(type) {
-	case float64:
-		params.OriSequence = uint64(v)
-	case int:
-		params.OriSequence = uint64(v)
-	case uint:
-		params.OriSequence = uint64(v)
-	case uint64:
-		params.OriSequence = v
-	default:
-		params.OriSequence = 0
-	}
-
-	switch v := raw["ori_round"].(type) {
-	case float64:
-		params.OriRound = uint64(v)
-	case int:
-		params.OriRound = uint64(v)
-	case uint:
-		params.OriRound = uint64(v)
-	case uint64:
-		params.OriRound = v
-	default:
-		params.OriRound = 0
-	}
-
 	if useOrigView, ok := raw["useOriginalView"].(bool); ok {
 		params.UseOriginalView = useOrigView
 	}
@@ -716,12 +688,64 @@ func (p *ReplayAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid parameter type")
 	}
 
-	if replayParams.OriSequence == 0 {
-		return fmt.Errorf("original sequence must be specified")
-	}
-
 	if !ValidateMessageCode(replayParams.Code) {
 		return fmt.Errorf("invalid message code: %d", replayParams.Code)
+	}
+
+	return nil
+}
+
+// ReplayAttackParams handles parsing for replay attack parameters
+type StoreAttackParams struct {
+	Code MessageCode `json:"code"`
+}
+
+var _ AttackParamsParser = (*StoreAttackParams)(nil)
+
+func (p *StoreAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
+}
+
+func (p *StoreAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias StoreAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *StoreAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
+	params := &StoreAttackParams{}
+
+	params.Code = ParseMessageCode(raw["code"])
+
+	return params, nil
+}
+
+func (p *StoreAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &StoreAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
+
+func (p *StoreAttackParams) Validate(params interface{}) error {
+	storeParams, ok := params.(*StoreAttackParams)
+	if !ok {
+		return fmt.Errorf("invalid parameter type")
+	}
+
+	if !ValidateMessageCode(storeParams.Code) {
+		return fmt.Errorf("invalid message code: %d", storeParams.Code)
 	}
 
 	return nil

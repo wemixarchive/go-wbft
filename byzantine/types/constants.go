@@ -13,6 +13,7 @@ const (
 	AttackOmit      = "omit"
 	AttackRoleSpoof = "roleSpoof"
 	AttackReplay    = "replay"
+	AttackStore     = "store"
 )
 
 // QBFTMessage codes mapping

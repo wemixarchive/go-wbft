@@ -9,5 +9,6 @@ package attacks
 // - OmitMessageAttack: Omits parts of messages
 // - RoleSpoofAttack: Spoofs validator roles
 // - ReplayAttack: Replays old messages (currently disabled due to storage removal)
-//
+// - Store message: Store messages and reuse them to perform Byzantine attacks
+
 // Each attack registers itself via init() functions in their respective files.

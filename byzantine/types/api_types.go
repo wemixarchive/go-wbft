@@ -52,13 +52,18 @@ type RoleSpoofParams struct {
 
 // ReplayMessageParams represents parameters for replay attacks
 type ReplayMessageParams struct {
-	OriSequence     uint64           `json:"ori_sequence"`
-	OriRound        uint64           `json:"ori_round"`
 	Sequence        uint64           `json:"sequence"`
 	Round           uint64           `json:"round"`
-	UseOriginalView bool             `json:"useOriginalView"`
 	Code            uint64           `json:"code"`
+	UseOriginalView bool             `json:"useOriginalView"`
 	Targets         []common.Address `json:"targets,omitempty"`
+}
+
+// StoreMessageParams represents parameters for replay attacks
+type StoreMessageParams struct {
+	Sequence uint64 `json:"sequence"`
+	Round    uint64 `json:"round"`
+	Code     uint64 `json:"code"`
 }
 
 // UpgradeGovContractMessageParams represents parameters for gov contract upgrade

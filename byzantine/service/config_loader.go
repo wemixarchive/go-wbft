@@ -213,10 +213,12 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	case types.AttackTypeReplay:
 		if params, ok := parsedParams.(*types.ReplayAttackParams); ok {
 			result["code"] = params.Code
-			result["ori_sequence"] = params.OriSequence
-			result["ori_round"] = params.OriRound
 			result["useOriginalView"] = params.UseOriginalView
 			result["targets"] = params.Targets
+		}
+	case types.AttackTypeStoreMessage:
+		if params, ok := parsedParams.(*types.StoreAttackParams); ok {
+			result["code"] = params.Code
 		}
 	default:
 		log.Debug("[BYZ] error", "restructureParameters", attackType)

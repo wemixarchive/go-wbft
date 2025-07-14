@@ -3,6 +3,7 @@ package attacks
 import (
 	"context"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -11,8 +12,6 @@ import (
 // ReplayAttack implements replay attack
 type ReplayAttack struct {
 	*registry.BaseAttack
-	oriSequence     uint64
-	oriRound        uint64
 	useOriginalView bool
 	targets         []common.Address
 }
@@ -33,8 +32,6 @@ func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
 
 	attack := &ReplayAttack{
 		BaseAttack:      registry.NewBaseAttack(config),
-		oriSequence:     params.OriSequence,
-		oriRound:        params.OriRound,
 		useOriginalView: params.UseOriginalView,
 		targets:         params.Targets,
 	}

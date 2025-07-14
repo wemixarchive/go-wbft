@@ -15,6 +15,17 @@
       }
     },
     {
+      "name": "store test",
+      "type": "store",
+      "enabled": true,
+      "seq_s": 9,
+      "seq_e": 10,
+      "round": 0,
+      "parameters": {
+        "code": 2
+      }
+    },
+    {
       "name": "no_broadcast_prepare",
       "type": "silent",
       "enabled": true,

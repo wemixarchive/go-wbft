@@ -429,6 +429,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 			attackCode = params.Code
 		case *types.ReplayAttackParams:
 			attackCode = params.Code
+		case *types.StoreAttackParams:
 		default:
 			// Fallback to Parameters map
 			if codeVal, ok := config.Parameters["code"]; ok {
@@ -584,13 +585,13 @@ func (m *AttackManager) getApplicableAttackTypes(msgCode types.MessageCode, dire
 	// Add message-specific attack types
 	switch msgCode {
 	case types.MessageCodePrePrepare:
-		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeFakeMessage)
+		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeFakeMessage, types.AttackTypeStoreMessage)
 	case types.MessageCodePrepare:
-		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage)
+		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage, types.AttackTypeStoreMessage)
 	case types.MessageCodeCommit:
-		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage)
+		attackTypes = append(attackTypes, types.AttackTypeTamperedMessage, types.AttackTypeOmitMessage, types.AttackTypeStoreMessage)
 	case types.MessageCodeRoundChange:
-		attackTypes = append(attackTypes, types.AttackTypeFakeMessage)
+		attackTypes = append(attackTypes, types.AttackTypeFakeMessage, types.AttackTypeStoreMessage)
 	}
 
 	// Add direction-specific types
