@@ -26,6 +26,37 @@
         "direction": 1,
         "targets":[]
       }
+    },
+    {
+      "name": "no_broadcast_preprepare",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 22,
+      "seq_e": 25,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_invalid_roundchange",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 65,
+      "seq_e": 65,
+      "round": 0,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "Round",
+            "value": 5
+          }
+        ],
+        "targets": []
+      }
     }
   ]
 }

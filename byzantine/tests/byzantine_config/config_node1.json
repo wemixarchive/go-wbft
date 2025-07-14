@@ -52,7 +52,7 @@
         "fields": [
           {
             "target": "Header.Number",
-            "value": 100
+            "value": 88
           }
         ],
         "withValidMessage": true,
@@ -352,6 +352,44 @@
         "direction": 1,
         "targets":[]
       }
+    }, 
+    {
+      "name": "broadcast_invalid_roundchange",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 64,
+      "seq_e": 64,
+      "round": 0,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "Round",
+            "value": 3
+          }
+        ],
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_roundchange",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 65,
+      "seq_e": 65,
+      "round": 0,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "Round",
+            "value": 5
+          }
+        ],
+        "targets": []
+      }
     }
   ]
 }
+
+
