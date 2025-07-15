@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 
+	"github.com/ethereum/go-ethereum/consensus/wbft"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbftcommon "github.com/ethereum/go-ethereum/consensus/wbft/common"
@@ -42,11 +44,19 @@ func Genesis(validators []common.Address, blsPublicKeys [][]byte) *core.Genesis 
 	genesis.Config.Ethash = nil
 	genesis.Difficulty = types.WBFTDefaultDifficulty
 	genesis.Nonce = wbftcommon.EmptyBlockNonce.Uint64()
+	// Set genesis config as given validators and blsPubkeys
+	genesis.Config.Croissant.Init.Validators = validators
+	blsPubKeysStr := make([]string, len(blsPublicKeys))
+	for i, b := range blsPublicKeys {
+		blsPubKeysStr[i] = hexutil.Encode(b)
+	}
+	genesis.Config.Croissant.Init.BLSPublicKeys = blsPubKeysStr
 
-	_ = core.InjectContracts(genesis, genesis.Config)
+	if genesis.Config.CroissantEnabled() && genesis.Config.CroissantBlock.Sign() == 0 {
+		genesis.ExtraData, _ = wbft.CreateInitialExtraData(genesis.Config.Croissant)
 
-	appendValidators(genesis, validators, blsPublicKeys)
-
+		_ = core.InjectContracts(genesis, genesis.Config)
+	}
 	return genesis
 }
 

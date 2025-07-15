@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/wbft"
 	"math/big"
 	"time"
 
@@ -425,6 +426,12 @@ func GenerateChainWithGenesis(genesis *Genesis, engine consensus.Engine, n int, 
 	db := rawdb.NewMemoryDatabase()
 	triedb := triedb.NewDatabase(db, triedb.HashDefaults)
 	defer triedb.Close()
+	// before committing genesis, generate contract allocation and extraData for croissant config
+	if genesis.Config.CroissantEnabled() && genesis.Config.CroissantBlock.Sign() == 0 {
+		genesis.ExtraData, _ = wbft.CreateInitialExtraData(genesis.Config.Croissant)
+
+		_ = InjectContracts(genesis, genesis.Config)
+	}
 	_, err := genesis.Commit(db, triedb)
 	if err != nil {
 		panic(err)

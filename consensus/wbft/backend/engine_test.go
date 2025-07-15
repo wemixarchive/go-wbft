@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
 	"reflect"
 	"sync"
@@ -49,7 +50,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/ethereum/go-ethereum/triedb"
 )
 
 var blockEnqueueChannel chan *types.Block
@@ -109,7 +109,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	// Use the first key as private key
 	backend := New(cfg, nodeKeys[0], memDB)
 
-	genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
+	//genesis.MustCommit(memDB, triedb.NewDatabase(memDB, triedb.HashDefaults))
 
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis, nil, backend, vm.Config{}, nil, nil)
 	if err != nil {
@@ -147,6 +147,7 @@ func newBlockchainFromConfig(genesis *core.Genesis, nodeKeys []*ecdsa.PrivateKey
 	// find proposer key
 	for i, key := range nodeKeys {
 		addr := crypto.PubkeyToAddress(key.PublicKey)
+		fmt.Println(addr.String())
 		if addr.String() == proposerAddr.String() {
 			backend.privateKey = key
 			backend.address = addr
