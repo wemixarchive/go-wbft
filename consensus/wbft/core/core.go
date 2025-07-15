@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
+	"github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	wbftmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -115,6 +116,8 @@ type Core struct {
 	pendingRequestsMu *sync.Mutex
 
 	consensusTimestamp time.Time
+
+	storedPreprepare *messages.StoredPrePrepare
 }
 
 func (c *Core) currentView() *wbft.View {

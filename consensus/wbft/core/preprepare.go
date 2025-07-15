@@ -26,6 +26,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -65,15 +66,22 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
 		}
 
+		if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
+			if at.StoreMessageParams.Code == btypes.MessageCodePrePrepare {
+				c.storePreprepareMessage(hook, at, request)
+			}
+		}
+
 		if c.sendByzantinePreprepareMsg(hook, request, attacks) {
 			if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 				if !at.TamperParams.WithValidMessage {
 					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					return // skip the normal message
 				}
 				log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
 				// Wait for the configured delay
 				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+			} else {
+				return // skip the normal message
 			}
 		}
 
@@ -182,6 +190,21 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 	proposal := request.Proposal.DeepCopy()
 
 	preprepare := wbfmessage.NewPreprepare(sequence, round, proposal)
+
+	if at := attacks[btypes.AttackTypeReplay]; at != nil && at.ReplayParams != nil {
+		send = true
+		proposal := c.storedPreprepare.Proposal.DeepCopy()
+		if at.ReplayParams.UseOriginalView {
+			preprepare = wbfmessage.NewPreprepare(curView.Sequence, curView.Round, proposal)
+		} else {
+			sequence := new(big.Int).Set(c.storedPreprepare.Seq)
+			round := new(big.Int).Set(c.storedPreprepare.Round)
+			preprepare = wbfmessage.NewPreprepare(sequence, round, proposal)
+		}
+		preprepare.SetSource(c.Address())
+		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
+	}
 	preprepare.SetSource(c.Address())
 
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
@@ -354,4 +377,26 @@ func (c *Core) createNewProposal(originalProposal *types.Block) *types.Block {
 		"original_hash", originalProposal.Hash())
 
 	return newBlock
+}
+
+func (c *Core) storePreprepareMessage(hook btypes.ConsensusHook, attack *btypes.ExecutableAttack, request *Request) {
+	// Creates PRE-PREPARE message
+	curView := c.currentView()
+
+	sequence := new(big.Int).Set(curView.Sequence)
+	round := new(big.Int).Set(curView.Round)
+
+	c.storedPreprepare = &messages.StoredPrePrepare{
+		Seq:      new(big.Int).Set(sequence),
+		Round:    new(big.Int).Set(round),
+		Proposal: request.Proposal.DeepCopy(),
+	}
+	log.Info("[BYZ] store",
+		"name", attack.NAME,
+		"uid", attack.UID,
+		"seq", sequence.Uint64(),
+		"params", attack.StoreMessageParams,
+		"hash", c.storedPreprepare.Proposal.Hash())
+
+	hook.MarkAttackExecuted(attack.UID, sequence.Uint64())
 }

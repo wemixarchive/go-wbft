@@ -290,11 +290,11 @@ func (ac *AttackConfig) GetReplayParams() (*ReplayAttackParams, error) {
 }
 
 // GetReplayParams returns parsed parameters for replay attack
-func (ac *AttackConfig) GetStoreParams() (*StoreMessageParams, error) {
+func (ac *AttackConfig) GetStoreParams() (*StoreAttackParams, error) {
 	if ac.Type != AttackTypeStoreMessage {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeStoreMessage, ac.Type)
 	}
-	params, ok := ac.ParsedParameters.(*StoreMessageParams)
+	params, ok := ac.ParsedParameters.(*StoreAttackParams)
 	if !ok {
 		return nil, errors.New("parameters not properly parsed")
 	}
@@ -419,7 +419,7 @@ func validateReplayParams(params *ReplayAttackParams) error {
 	return validateTargets(params.Targets)
 }
 
-func validateStoreParams(params *StoreMessageParams) error {
+func validateStoreParams(params *StoreAttackParams) error {
 	return nil
 }
 
