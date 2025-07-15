@@ -74,8 +74,9 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 		if c.sendByzantinePreprepareMsg(hook, request, attacks) {
 			if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				if !at.TamperParams.WithValidMessage {
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+					return // skip the normal message
 				}
 				log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
 				// Wait for the configured delay
@@ -202,8 +203,8 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 			preprepare = wbfmessage.NewPreprepare(sequence, round, proposal)
 		}
 		preprepare.SetSource(c.Address())
-		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
+		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 	}
 	preprepare.SetSource(c.Address())
 
@@ -213,16 +214,23 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 			// This is just a placeholder
 			switch field.Target {
 			case btypes.TamperProposalHeaderNumber:
-				val, err := field.ValueToUint64()
-				if err != nil {
-					withMsg(logger, preprepare).Error("[BYZ] Conversion failed", "err", err)
-					return false
+				var val uint64
+				var err error
+				if field.Value == nil {
+					// use the current view's sequence if Value is nil
+					val = curView.Sequence.Uint64()
+
 				} else {
-					send = true
-					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", proposal.Number(), "parmas", at.TamperParams)
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					proposal.SetNumber(val)
+					val, err = field.ValueToUint64()
+					if err != nil {
+						withMsg(logger, preprepare).Error("[BYZ] Conversion failed", "err", err)
+						return false
+					}
 				}
+				send = true
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+				preprepare.Proposal.SetNumber(val)
 			}
 		}
 	}
