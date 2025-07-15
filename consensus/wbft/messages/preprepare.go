@@ -15,6 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+type StoredPrePrepare struct {
+	Seq      *big.Int
+	Round    *big.Int
+	Proposal *types.Block
+}
+
 type Preprepare struct {
 	CommonPayload
 	Proposal                  wbft.Proposal
