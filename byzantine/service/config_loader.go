@@ -204,9 +204,14 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	case types.AttackTypeRoleSpoofed:
 		if params, ok := parsedParams.(*types.RoleSpoofAttackParams); ok {
 			result["code"] = params.Code
-			if len(params.FakeMessage) > 0 {
-				result["fakeMessage"] = string(params.FakeMessage)
+			fields := make([]map[string]interface{}, len(params.Fields))
+			for i, field := range params.Fields {
+				fields[i] = map[string]interface{}{
+					"target": field.Target,
+					"value":  field.Value,
+				}
 			}
+			result["fields"] = fields
 			result["targets"] = params.Targets
 		}
 

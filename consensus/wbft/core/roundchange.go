@@ -188,6 +188,13 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 	} else {
 		logger.Debug("WBFT: accepted ROUND-CHANGE messages")
 	}
+
+	if currentRoundMessages >= c.valSet.QuorumSize() && !c.IsProposer() {
+		err := c.byzantineSendPreprepareFromNonProposer()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

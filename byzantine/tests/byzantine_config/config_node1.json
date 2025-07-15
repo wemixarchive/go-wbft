@@ -363,7 +363,7 @@
         "direction": 1,
         "targets":[]
       }
-    }, 
+    },
     {
       "name": "broadcast_invalid_roundchange",
       "type": "fake",
@@ -403,13 +403,32 @@
     {
       "name": "repaly_attack_preprepare",
       "type": "replay",
-      "enabled": true,
+      "enabled": false,
       "seq_s": 66,
       "seq_e": 69,
       "round": 0,
       "parameters": {
         "code": 1,
         "useOriginalView": true,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_roundchange_preprepare_nonproposer",
+      "type": "tamper",
+      "enabled": true,
+      "seq_s": 70,
+      "seq_e": 73,
+      "round": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "Only.Delay"
+          }
+        ],
+        "withValidMessage": true,
+        "delay": 200,
         "targets": []
       }
     }

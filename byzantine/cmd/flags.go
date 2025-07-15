@@ -24,7 +24,7 @@ var (
 	}
 	MessageCodeFlag = &cli.Uint64Flag{
 		Name:     "code",
-		Usage:    "Message code bitmap (1=PrePrepare, 2=Prepare, 4=Commit, 8=RoundChange, 16=RoundChange-PrePrepare, 32=Propagation)",
+		Usage:    "Message code bitmap (1=PrePrepare, 2=Prepare, 4=Commit, 8=RoundChange, 16=Propagation)",
 		Required: true,
 	}
 	TargetFlag = &cli.StringSliceFlag{

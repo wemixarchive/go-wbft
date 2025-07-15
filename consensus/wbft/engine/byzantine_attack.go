@@ -233,26 +233,24 @@ func (e *Engine) processFakeField(
 	fakeField btypes.Field,
 	fakeIndexOffset, validatorSize int) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
-	// Generate fake seal based on value
-	fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset, validatorSize)
-	if err != nil {
-		log.Debug("[BYZ] Failed to generate fake seal", "err", err, "value", fakeField.Value)
-		return preparedSeal, committedSeal, false
-	}
-
 	switch fakeField.Target {
-	case btypes.FakeTargetPrevPrePareSeal:
-		// Only modify prepared seal for PrevPrePareSeal
-		if preparedSeal != nil {
+	case btypes.FakeTargetPrevPrePareSeal, btypes.FakeTargetPrevCommitSeal:
+		// Generate fake seal based on value
+		fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset, validatorSize)
+		if err != nil {
+			log.Debug("[BYZ] Failed to generate fake seal", "err", err, "value", fakeField.Value)
+			return preparedSeal, committedSeal, false
+		}
+
+		if fakeField.Target == btypes.FakeTargetPrevPrePareSeal && preparedSeal != nil {
+			// Only modify prepared seal for PrevPrePareSeal
 			return e.addFakeSealToAggregated(preparedSeal, fakeSeal, validatorSize), committedSeal, true
 		}
 
-	case btypes.FakeTargetPrevCommitSeal:
-		// Only modify committed seal for PrevCommitSeal
-		if committedSeal != nil {
+		if fakeField.Target == btypes.FakeTargetCommitSeal && committedSeal != nil {
+			// Only modify committed seal for PrevCommitSeal
 			return preparedSeal, e.addFakeSealToAggregated(committedSeal, fakeSeal, validatorSize), true
 		}
-
 	case btypes.FakeTargetPrePareSeal:
 	case btypes.FakeTargetCommitSeal:
 	}

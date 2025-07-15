@@ -16,7 +16,7 @@ type FakeMessageAttack struct {
 	params  *types.FakeAttackParams
 }
 
-var _ (types.Attack) = (*FakeMessageAttack)(nil)
+var _ types.Attack = (*FakeMessageAttack)(nil)
 
 // NewFakeMessageAttack creates a new fake message attack
 func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error) {
