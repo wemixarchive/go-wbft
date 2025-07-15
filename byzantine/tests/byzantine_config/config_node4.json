@@ -57,6 +57,37 @@
         ],
         "targets": []
       }
+    },
+    {
+      "name": "broadcast_roundchange_preprepare_nonproposer",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 70,
+      "seq_e": 73,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_roundchange_preprepare_nonproposer",
+      "type": "roleSpoof",
+      "enabled": true,
+      "seq_s": 70,
+      "seq_e": 73,
+      "round": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "proposer",
+            "value": ""
+          }
+        ],
+        "targets":[]
+      }
     }
   ]
 }
