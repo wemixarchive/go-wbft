@@ -53,138 +53,124 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 	logger := c.currentLogger(true, nil)
 
 	// If I'm the proposer and I have the same sequence with the proposal
-	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
-		if c.IsProposer() {
-			// Creates PRE-PREPARE message
-			curView := c.currentView()
-			preprepare := wbfmessage.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
-			preprepare.SetSource(c.Address())
+	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
+		// Creates PRE-PREPARE message
+		curView := c.currentView()
+		preprepare := wbfmessage.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
+		preprepare.SetSource(c.Address())
 
-			var attacks map[btypes.AttackType]*btypes.ExecutableAttack
+		var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 
-			hook := c.backend.ByzantineHook()
-			if hook != nil {
-				attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
-			}
+		hook := c.backend.ByzantineHook()
+		if hook != nil {
+			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+		}
 
-			if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
-				if at.StoreMessageParams.Code == btypes.MessageCodePrePrepare {
-					c.storePreprepareMessage(hook, at, request)
-				}
-			}
-
-			if c.sendByzantinePreprepareMsg(hook, request, attacks) {
-				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					if !at.TamperParams.WithValidMessage {
-						return // skip the normal message
-					}
-					log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
-					// Wait for the configured delay
-					time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
-				} else {
-					return // skip the normal message
-				}
-			}
-
-			// Sign payload
-			encodedPayload, err := preprepare.EncodePayloadForSigning()
-			if err != nil {
-				withMsg(logger, preprepare).Error("WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
-				return
-			}
-			signature, err := c.backend.Sign(encodedPayload)
-			if err != nil {
-				withMsg(logger, preprepare).Error("WBFT: failed to sign PRE-PREPARE message", "err", err)
-				return
-			}
-			preprepare.SetSignature(signature)
-
-			// Extend PRE-PREPARE message with ROUND-CHANGE justification
-			if request.RCMessages != nil {
-				preprepare.JustificationRoundChanges = make([]*wbfmessage.SignedRoundChangePayload, 0)
-				for _, m := range request.RCMessages.Values() {
-					preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
-					withMsg(logger, preprepare).Trace("WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
-				}
-				withMsg(logger, preprepare).Trace("WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
-			}
-
-			// Extend PRE-PREPARE message with PREPARE justification
-			if request.PrepareMessages != nil {
-				preprepare.JustificationPrepares = request.PrepareMessages
-				withMsg(logger, preprepare).Trace("WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
-			}
-
-			// Byzantine hook for fake attack - Invalid PrePrepare
-			//if hook := c.backend.ByzantineHook(); hook != nil {
-			//	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
-			//		if at.FakeParams.FakeType == "invalidProposal" && at.FakeParams.IgnorePrepared {
-			//			// Round > 0이고 prepared proposal이 있어도 무시
-			//			if c.current.Round().Uint64() > 0 && request.PrepareMessages != nil {
-			//				originalPrepares := len(request.PrepareMessages)
-			//				request.PrepareMessages = nil
-			//				preprepare.JustificationPrepares = nil
-			//
-			//				// Create new proposal ignoring the prepared one
-			//				if block, ok := request.Proposal.(*types.Block); ok {
-			//					newProposal := c.createNewProposal(block)
-			//					request.Proposal = newProposal
-			//					preprepare.Proposal = newProposal
-			//				}
-			//
-			//				logger.Info("[BYZ] Ignoring prepared proposal, creating new one",
-			//					"attack_uid", at.UID,
-			//					"round", c.current.Round(),
-			//					"ignored_prepares", originalPrepares)
-			//
-			//				// Mark attack as executed
-			//				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-			//			}
-			//		}
-			//	}
-			//}
-
-			// RLP-encode message
-			payload, err := rlp.EncodeToBytes(&preprepare)
-			if err != nil {
-				withMsg(logger, preprepare).Error("WBFT: failed to encode PRE-PREPARE message", "err", err)
-				return
-			}
-
-			logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
-
-			if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
-				if at.SilentParams.Direction == 1 {
-					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					return
-				}
-			}
-
-			logger.Info("WBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
-
-			// Broadcast RLP-encoded message
-			if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
-				logger.Error("WBFT: failed to broadcast PRE-PREPARE message", "err", err)
-				return
-			}
-
-			// Set the preprepareSent to the current round
-			c.current.preprepareSent = curView.Round
-		} else {
-			// Non proposer
-			var attacks map[btypes.AttackType]*btypes.ExecutableAttack
-
-			hook := c.backend.ByzantineHook()
-			if hook != nil {
-				attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
-			}
-
-			if c.sendByzantinePreprepareMsg(hook, request, attacks) {
-
+		if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
+			if at.StoreMessageParams.Code == btypes.MessageCodePrePrepare {
+				c.storePreprepareMessage(hook, at, request)
 			}
 		}
+
+		if c.sendByzantinePreprepareMsg(hook, request, attacks) {
+			if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+				if !at.TamperParams.WithValidMessage {
+					return // skip the normal message
+				}
+				log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
+				// Wait for the configured delay
+				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+			} else {
+				return // skip the normal message
+			}
+		}
+
+		// Sign payload
+		encodedPayload, err := preprepare.EncodePayloadForSigning()
+		if err != nil {
+			withMsg(logger, preprepare).Error("WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
+			return
+		}
+		signature, err := c.backend.Sign(encodedPayload)
+		if err != nil {
+			withMsg(logger, preprepare).Error("WBFT: failed to sign PRE-PREPARE message", "err", err)
+			return
+		}
+		preprepare.SetSignature(signature)
+
+		// Extend PRE-PREPARE message with ROUND-CHANGE justification
+		if request.RCMessages != nil {
+			preprepare.JustificationRoundChanges = make([]*wbfmessage.SignedRoundChangePayload, 0)
+			for _, m := range request.RCMessages.Values() {
+				preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+				withMsg(logger, preprepare).Trace("WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+			}
+			withMsg(logger, preprepare).Trace("WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+		}
+
+		// Extend PRE-PREPARE message with PREPARE justification
+		if request.PrepareMessages != nil {
+			preprepare.JustificationPrepares = request.PrepareMessages
+			withMsg(logger, preprepare).Trace("WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+		}
+
+		// Byzantine hook for fake attack - Invalid PrePrepare
+		//if hook := c.backend.ByzantineHook(); hook != nil {
+		//	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+		//		if at.FakeParams.FakeType == "invalidProposal" && at.FakeParams.IgnorePrepared {
+		//			// Round > 0이고 prepared proposal이 있어도 무시
+		//			if c.current.Round().Uint64() > 0 && request.PrepareMessages != nil {
+		//				originalPrepares := len(request.PrepareMessages)
+		//				request.PrepareMessages = nil
+		//				preprepare.JustificationPrepares = nil
+		//
+		//				// Create new proposal ignoring the prepared one
+		//				if block, ok := request.Proposal.(*types.Block); ok {
+		//					newProposal := c.createNewProposal(block)
+		//					request.Proposal = newProposal
+		//					preprepare.Proposal = newProposal
+		//				}
+		//
+		//				logger.Info("[BYZ] Ignoring prepared proposal, creating new one",
+		//					"attack_uid", at.UID,
+		//					"round", c.current.Round(),
+		//					"ignored_prepares", originalPrepares)
+		//
+		//				// Mark attack as executed
+		//				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		//			}
+		//		}
+		//	}
+		//}
+
+		// RLP-encode message
+		payload, err := rlp.EncodeToBytes(&preprepare)
+		if err != nil {
+			withMsg(logger, preprepare).Error("WBFT: failed to encode PRE-PREPARE message", "err", err)
+			return
+		}
+
+		logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
+
+		if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
+			if at.SilentParams.Direction == 1 {
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+				return
+			}
+		}
+
+		logger.Info("WBFT: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
+
+		// Broadcast RLP-encoded message
+		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
+			logger.Error("WBFT: failed to broadcast PRE-PREPARE message", "err", err)
+			return
+		}
+
+		// Set the preprepareSent to the current round
+		c.current.preprepareSent = curView.Round
 	}
 }
 
@@ -222,45 +208,6 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 	}
 	preprepare.SetSource(c.Address())
 
-	// Byzantine - Check for role spoof attack first
-	if at := attacks[btypes.AttackTypeRoleSpoofed]; at != nil && at.RoleSpoofParams != nil {
-		// Check if fields specify non-proposer attack behavior
-		shouldExecute := false
-
-		// Check fields for specific attack behavior
-		for _, field := range at.RoleSpoofParams.Fields {
-			switch field.Target {
-			case btypes.RoleProposer:
-				if !c.IsProposer() {
-					if request.RCMessages != nil {
-						shouldExecute = true
-						// When attacked with a tamper attack, the value exists in value.
-						switch field.Value {
-						case "":
-							send = true
-						}
-					}
-				}
-			}
-		}
-
-		if shouldExecute {
-			log.Info("[BYZ] attack",
-				"name", at.NAME,
-				"uid", at.UID,
-				"seq", c.current.Sequence().Uint64(),
-				"params", at.RoleSpoofParams,
-				"actual_proposer", c.valSet.GetProposer().Address(),
-				"byzantine_node", c.Address(),
-				"has_rc_messages", request.RCMessages != nil)
-
-			err := hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-			if err != nil {
-				log.Warn("[BYZ] Attack Executed Mark Error", "err", err)
-			}
-		}
-	}
-
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 		for _, field := range at.TamperParams.Fields {
 			// Implementation depends on actual message structure
@@ -284,8 +231,6 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				preprepare.Proposal.SetNumber(val)
-			case btypes.TamperDelayForComplexAttack:
-				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 			}
 		}
 	}
@@ -339,9 +284,6 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				// Set the preprepareSent to the current round
 				c.current.preprepareSent = curView.Round
 			}
-		}
-		if at := attacks[btypes.AttackTypeRoleSpoofed]; at != nil && at.RoleSpoofParams != nil {
-			c.current.preprepareSent = curView.Round
 		}
 	}
 	return true && send
