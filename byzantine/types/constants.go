@@ -118,9 +118,6 @@ const (
 	TamperSealPrepare  string = "Seal.Prepare"
 	TamperSealCommit   string = "Seal.Commit"
 	TamperSealPrevious string = "Seal.Previous"
-
-	// Action
-	TamperDelayForComplexAttack = "Only.Delay"
 )
 
 // Node roles

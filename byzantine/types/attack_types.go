@@ -149,7 +149,7 @@ func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
 
 // IsInSequenceRange checks if given sequence is in attack's range
 func (ac *AttackConfig) IsInSequenceRange(sequence uint64) bool {
-	if ac.SequenceEnd == ac.SequenceStart {
+	if ac.SequenceEnd == 0 || ac.SequenceEnd == ac.SequenceStart {
 		// Single sequence case
 		return sequence == ac.SequenceStart
 	}

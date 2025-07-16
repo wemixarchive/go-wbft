@@ -57,6 +57,7 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
+	ctx := context.Background()
 	result := make(map[types.AttackType]*types.ExecutableAttack)
 
 	// ───────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		if !ok {
 			continue
 		}
-		
+
 		cfg := attack.GetConfig()
 		if !h.isAttackEligible(cfg) {
 			continue
@@ -88,6 +89,14 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 		}
 
 		if !h.IsMessageCodeMatched(cfg, msgCode, result[at]) {
+			delete(result, at)
+			continue
+		}
+
+		// Create event
+		evt := h.createEvent(types.EventTypeMessageSent, types.MessageCodeToWBFT[msgCode], sequence, round, types.DirectionSend)
+		// Check execution condition
+		if !attack.CheckExecuteCondition(ctx, evt) {
 			delete(result, at)
 			continue
 		}

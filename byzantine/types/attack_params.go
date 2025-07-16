@@ -552,9 +552,9 @@ func (p *OmitAttackParams) Validate(params interface{}) error {
 
 // RoleSpoofAttackParams handles parsing for role spoof attack parameters
 type RoleSpoofAttackParams struct {
-	Code    MessageCode      `json:"code"`
-	Fields  []Field          `json:"fields,omitempty"`
-	Targets []common.Address `json:"targets,omitempty"`
+	Code        MessageCode      `json:"code"`
+	FakeMessage []byte           `json:"fakeMessage,omitempty"`
+	Targets     []common.Address `json:"targets,omitempty"`
 }
 
 var _ AttackParamsParser = (*RoleSpoofAttackParams)(nil)
@@ -591,29 +591,14 @@ func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, 
 
 	params.Code = ParseMessageCode(raw["code"])
 
-	// Parse fields
-	var fields []interface{}
-	if f, ok := raw["fields"].([]interface{}); ok {
-		fields = f
-	}
-
-	if fields != nil {
-		params.Fields = make([]Field, 0, len(fields))
-		for _, field := range fields {
-			if fieldMap, ok := field.(map[string]interface{}); ok {
-				targetStr := fmt.Sprintf("%v", fieldMap["target"])
-
-				f := Field{
-					Target: targetStr,
-					Value:  fieldMap["value"],
-				}
-				params.Fields = append(params.Fields, f)
-			}
-		}
+	if fakeMsg, ok := raw["fakeMessage"].(string); ok {
+		params.FakeMessage = []byte(fakeMsg)
+	} else if fakeMsg, ok := raw["fakeMessage"].([]byte); ok {
+		params.FakeMessage = fakeMsg
 	}
 
 	params.Targets = ParseTargets(raw["targets"])
-	
+
 	return params, nil
 }
 
@@ -635,14 +620,7 @@ func (p *RoleSpoofAttackParams) Validate(params interface{}) error {
 		return fmt.Errorf("invalid message code: %d", roleSpoofParams.Code)
 	}
 
-	// Validate Fields
-	for i, field := range roleSpoofParams.Fields {
-		if field.Target == "" {
-			return fmt.Errorf("field[%d] target is empty", i)
-		}
-		// Value can be empty/nil as it might be set dynamically
-	}
-
+	// FakeMessage can be empty
 	return nil
 }
 
@@ -717,7 +695,7 @@ func (p *ReplayAttackParams) Validate(params interface{}) error {
 	return nil
 }
 
-// StoreAttackParams handles parsing for replay attack parameters
+// ReplayAttackParams handles parsing for replay attack parameters
 type StoreAttackParams struct {
 	Code MessageCode `json:"code"`
 }

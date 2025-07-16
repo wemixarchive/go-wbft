@@ -3,25 +3,20 @@ package attacks
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // RoleSpoofedAttack implements role spoofed attack
 type RoleSpoofedAttack struct {
 	*registry.BaseAttack
-	fields  []types.Field
-	targets []common.Address
-	params  *types.RoleSpoofAttackParams
-
-	mu                  sync.RWMutex
+	fakeMessage []byte
+	targets     []common.Address
+	nodeAddress common.Address
 }
 
-var _ types.Attack = (*RoleSpoofedAttack)(nil)
+var _ (types.Attack) = (*RoleSpoofedAttack)(nil)
 
 // NewRoleSpoofedAttack creates a new role spoofed attack
 func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error) {
@@ -36,10 +31,10 @@ func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error)
 	params := parsedParams.(*types.RoleSpoofAttackParams)
 
 	attack := &RoleSpoofedAttack{
-		BaseAttack:          registry.NewBaseAttack(config),
-		fields:              params.Fields,
-		targets:             params.Targets,
-		params:              params,
+		BaseAttack:  registry.NewBaseAttack(config),
+		fakeMessage: params.FakeMessage,
+		targets:     params.Targets,
+		//nodeAddress: params.nodeAddress,
 	}
 	return attack, nil
 }
@@ -105,15 +100,11 @@ func (a *RoleSpoofedAttack) createSpoofedMessage(messageCode types.MessageCode, 
 
 // spoofProposerMessage creates a PrePrepare message while not being the proposer
 func (a *RoleSpoofedAttack) spoofProposerMessage(event types.Event) ([]byte, string, error) {
-	// This method handles both regular PrePrepare and PrePrepare after round change
-	// The context (presence of RCMessages) is checked in the consensus layer
+	// Create a PrePrepare message as if we were the proposer
+	// In reality, we're not the designated proposer for this round
 
-	log.Info("[BYZ] Spoofing PrePrepare message",
-		"sequence", event.Sequence,
-		"round", event.Round)
-
-	if a.fields != nil {
-		return []byte(fmt.Sprintf("%+v", a.fields)), "proposer", nil
+	if a.fakeMessage != nil {
+		return a.fakeMessage, "proposer", nil
 	}
 
 	// Generate fake proposal
@@ -121,12 +112,12 @@ func (a *RoleSpoofedAttack) spoofProposerMessage(event types.Event) ([]byte, str
 		Code:     types.MessageCodePrePrepare,
 		Sequence: event.Sequence,
 		Round:    event.Round,
-		Address:  common.HexToAddress("0x0000000000000000000000000000000000000001"),
-		// In real implementation, this would include:
-		// - Block proposal
-		// - RoundChange justification if round > 0
-		// - Prepare messages if applicable
+		Address:  a.nodeAddress, // Our address, but we're not the proposer
+		// Proposal would be included here
 	}
+
+	// Add fake block proposal
+	// In real implementation, this would include a proper block
 
 	return serializeQBFTMessage(fakeProposal), "proposer", nil
 }
@@ -140,7 +131,7 @@ func (a *RoleSpoofedAttack) spoofValidatorMessage(messageCode types.MessageCode,
 		Code:      messageCode,
 		Sequence:  event.Sequence,
 		Round:     event.Round,
-		Address:   common.HexToAddress("0x0000000000000000000000000000000000000001"),
+		Address:   a.nodeAddress, // Our address, but we might not be a validator
 		Signature: []byte("spoofed_validator_signature"),
 	}
 
