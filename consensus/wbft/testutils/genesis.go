@@ -54,8 +54,7 @@ func Genesis(validators []common.Address, blsPublicKeys [][]byte) *core.Genesis 
 
 	if genesis.Config.CroissantEnabled() && genesis.Config.CroissantBlock.Sign() == 0 {
 		genesis.ExtraData, _ = wbft.CreateInitialExtraData(genesis.Config.Croissant)
-
-		_ = core.InjectContracts(genesis, genesis.Config)
+		core.InjectContracts(genesis, genesis.Config)
 	}
 	return genesis
 }
@@ -110,10 +109,6 @@ func GenesisAndFixedKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey, []common.Ad
 	genesis := Genesis(addrs, blsPubKeys)
 
 	return genesis, nodeKeys, addrs
-}
-
-func appendValidators(genesis *core.Genesis, addrs []common.Address, blsPublicKeys [][]byte) {
-	setWBFTExtra(genesis, addrs, blsPublicKeys, false)
 }
 
 func appendValidatorsAndPrevSeals(genesis *core.Genesis, validators []common.Address, blsPublicKeys [][]byte) {
