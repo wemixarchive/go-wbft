@@ -1244,12 +1244,12 @@ func (e *Engine) decideValidators(header *types.Header, newStakers []Candidate, 
 	validators := make([]uint32, len(indices))
 	for i, idx := range indices {
 		// Convert the index to uint32 and store it in the validators slice.
-		shuffledIdx, err := computeShuffledIndex(uint64(idx), uint64(len(validators)), [32]byte(header.MixDigest), true)
+		shuffledIdx, err := computeShuffledIndex(uint64(i), uint64(len(validators)), [32]byte(header.MixDigest), true)
 		if err != nil {
 			log.Error("Failed to compute shuffled index", "index", idx, "err", err)
 			return nil, err
 		}
-		validators[i] = uint32(shuffledIdx)
+		validators[i] = uint32(indices[shuffledIdx])
 	}
 	return validators, nil
 }
