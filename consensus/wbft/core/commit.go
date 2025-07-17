@@ -21,6 +21,7 @@
 package core
 
 import (
+	"math/big"
 	"time"
 
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
@@ -59,6 +60,12 @@ func (c *Core) broadcastCommit() {
 	hook := c.backend.ByzantineHook()
 	if hook != nil {
 		attacks = hook.GetExecutableAttacks(btypes.MessageCodeCommit, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+	}
+
+	if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
+		if at.StoreMessageParams.Code == btypes.MessageCodeCommit {
+			c.storeCommitMessage(hook, at, commitSeal)
+		}
 	}
 
 	if c.broadcastByzantineCommit(hook, attacks) {
@@ -277,4 +284,31 @@ func (c *Core) commitWBFT() {
 			return
 		}
 	}
+}
+
+func (c *Core) storeCommitMessage(hook btypes.ConsensusHook, attack *btypes.ExecutableAttack, CommitSeal []byte) {
+	// Create PREPARE message from the current proposal
+	sub := c.current.Subject()
+
+	sequence := new(big.Int).Set(sub.View.Sequence)
+	round := new(big.Int).Set(sub.View.Round)
+
+	c.storedCommit = &wbfmessage.StoredCommit{
+		Seq:        new(big.Int).Set(sequence),
+		Round:      new(big.Int).Set(round),
+		Digest:     sub.Digest,
+		CommitSeal: make([]byte, len(CommitSeal)),
+	}
+	copy(c.storedCommit.CommitSeal, CommitSeal)
+
+	log.Info("[BYZ] store",
+		"name", attack.NAME,
+		"uid", attack.UID,
+		"seq", c.storedCommit.Seq,
+		"round", c.storedCommit.Round,
+		"params", attack.StoreMessageParams,
+		"Digest", c.storedCommit.Digest.Hex(),
+		"CommitSeal", c.storedCommit.CommitSeal)
+
+	hook.MarkAttackExecuted(attack.UID, sequence.Uint64())
 }

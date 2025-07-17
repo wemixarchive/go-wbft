@@ -13,6 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+type StoredCommit struct {
+	Seq        *big.Int
+	Round      *big.Int
+	Digest     common.Hash
+	CommitSeal []byte
+}
+
 // A WBFT COMMIT message.
 type Commit struct {
 	CommonPayload
