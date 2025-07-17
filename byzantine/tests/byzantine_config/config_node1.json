@@ -447,12 +447,25 @@
     {
       "name": "repaly_attack_preprepare",
       "type": "replay",
-      "enabled": false,
+      "enabled": true,
       "seq_s": 66,
       "seq_e": 69,
       "round": 0,
       "parameters": {
         "code": 1,
+        "useOriginalView": true,
+        "targets": []
+      }
+    },
+    {
+      "name": "repaly_attack_prepare",
+      "type": "replay",
+      "enabled": true,
+      "seq_s": 70,
+      "seq_e": 70,
+      "round": 0,
+      "parameters": {
+        "code": 2,
         "useOriginalView": true,
         "targets": []
       }

@@ -2,6 +2,17 @@
   "enabled": true,
   "attacks": [
     {
+      "name": "store_prepare",
+      "type": "store",
+      "enabled": true,
+      "seq_s": 8,
+      "seq_e": 8,
+      "round": 0,
+      "parameters": {
+        "code": 2
+      }
+    },
+    {
       "name": "no_broadcast_prepare",
       "type": "silent",
       "enabled": true,
@@ -55,6 +66,19 @@
             "value": 5
           }
         ],
+        "targets": []
+      }
+    },
+    {
+      "name": "repaly_attack_prepare",
+      "type": "replay",
+      "enabled": true,
+      "seq_s": 70,
+      "seq_e": 70,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "useOriginalView": true,
         "targets": []
       }
     }

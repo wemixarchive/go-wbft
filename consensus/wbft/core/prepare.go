@@ -21,10 +21,12 @@
 package core
 
 import (
+	"encoding/hex"
 	"math/big"
 	"time"
 
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -73,6 +75,8 @@ func (c *Core) broadcastPrepare() {
 			log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
 			// Wait for the configured delay
 			time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+		} else {
+			return // skip the normal message
 		}
 	}
 
@@ -130,24 +134,49 @@ func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[
 	// Create Prepare Seal
 	prepareSeal := c.backend.SignWithoutHashing(PrepareSeal(header, uint32(c.currentView().Round.Uint64()), SealTypePrepare))
 	prepare := wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, sub.Digest, prepareSeal)
-	prepare.SetSource(c.Address())
 
+	if at := attacks[btypes.AttackTypeReplay]; at != nil && at.ReplayParams != nil {
+		if c.storedPrepare != nil {
+			send = true
+			storedPrepareSeal := make([]byte, len(c.storedPrepare.PrepareSeal))
+			copy(storedPrepareSeal, c.storedPrepare.PrepareSeal)
+
+			if at.ReplayParams.UseOriginalView {
+				prepare = wbfmessage.NewPrepare(sub.View.Sequence, sub.View.Round, c.storedPrepare.Digest, storedPrepareSeal)
+			} else {
+				sequence := new(big.Int).Set(c.storedPrepare.Seq)
+				round := new(big.Int).Set(c.storedPrepare.Round)
+				prepare = wbfmessage.NewPrepare(sequence, round, c.storedPrepare.Digest, storedPrepareSeal)
+			}
+			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(prepareSeal), "changed_seal", hex.EncodeToString(storedPrepareSeal))
+			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		} else {
+			log.Warn("[BYZ] No prepare message found in storage")
+		}
+	}
+	prepare.SetSource(c.Address())
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 		for _, field := range at.TamperParams.Fields {
 			// Implementation depends on actual message structure
 			// This is just a placeholder
 			switch field.Target {
 			case btypes.TamperDigest:
-				val, err := field.ValueToHash()
-				if err != nil {
-					withMsg(logger, prepare).Error("[BYZ] Conversion failed", "err", err)
-					return false
+				var val common.Hash
+				var err error
+				if field.Value == nil {
+					// use the current Digest if Value is nil
+					val = sub.Digest
 				} else {
-					send = true
-					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", prepare.Digest.Hex(), "params", at.TamperParams)
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					prepare.Digest = val
+					val, err = field.ValueToHash()
+					if err != nil {
+						withMsg(logger, prepare).Error("[BYZ] Conversion failed", "err", err)
+						return false
+					}
 				}
+				send = true
+				prepare.Digest = val
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", prepare.Digest.Hex(), "params", at.TamperParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
 	}
@@ -201,13 +230,13 @@ func (c *Core) handlePrepareMsg(prepare *wbfmessage.Prepare) error {
 		return errInvalidMessage
 	}
 
-	// Check prepareSeal
 	block, ok := c.current.Proposal().(*types.Block)
 	if !ok {
 		logger.Error("WBFT: failed to cast proposal from PREPARE message to *types.Block")
 		return errInvalidMessage
 	}
 
+	// Check prepareSeal
 	if verifySeal(c.valSet, block.Header(), uint32(prepare.CommonPayload.Round.Uint64()), SealTypePrepare,
 		prepare.PrepareSeal, prepare.Source()) != nil {
 		logger.Error("WBFT: failed to verify seal from PREPARE message", "from", prepare.Source())
