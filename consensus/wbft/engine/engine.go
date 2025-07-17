@@ -1242,7 +1242,7 @@ func (e *Engine) decideValidators(header *types.Header, newStakers []Candidate, 
 		indices = indices[:targetValidators]
 	}
 	validators := make([]uint32, len(indices))
-	for i, _ := range indices {
+	for i := range indices {
 		// Convert the index to uint32 and store it in the validators slice.
 		shuffledIdx, err := computeShuffledIndex(uint64(i), uint64(len(validators)), [32]byte(header.MixDigest), true)
 		if err != nil {
