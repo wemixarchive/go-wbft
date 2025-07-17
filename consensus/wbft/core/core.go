@@ -119,6 +119,7 @@ type Core struct {
 
 	storedPreprepare *messages.StoredPrePrepare
 	storedPrepare    *messages.StoredPrepare
+	storedCommit     *messages.StoredCommit
 }
 
 func (c *Core) currentView() *wbft.View {
