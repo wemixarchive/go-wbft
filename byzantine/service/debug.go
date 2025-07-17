@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,4 +88,47 @@ func GetGoroutineID() string {
 	n := runtime.Stack(buf[:], false)
 	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine"))[0]
 	return idField
+}
+
+const (
+	functionSplit = "."
+	traceSplit    = "/"
+)
+
+func FTrace(fname string, fCount int) string {
+	var fn string
+	fn = fTrace(2)
+	for i := 1; i < fCount; i++ {
+		temp := fTrace(2 + i)
+		if len(temp) == 0 {
+			break
+		}
+		fn = temp + "\n" + fn
+	}
+	fn = fname + " Function Trace\n" + fn + "\n"
+	return fn
+}
+
+func fTrace(depth int) string {
+	functionSplit := func(function string) string {
+		functions := strings.Split(function, functionSplit)
+		return functions[len(functions)-1]
+	}
+
+	fileSplit := func(file string) []string {
+		return strings.Split(file, traceSplit)
+	}
+
+	// pc, file, line, ok := runtime.Caller(depth)
+	pc, file, line, ok := runtime.Caller(depth)
+	files := fileSplit(file)
+
+	if ok {
+		f := runtime.FuncForPC(pc)
+		function := functionSplit(f.Name())
+		// return f.Name() + "()" + ":" + file + "/" + linestr
+		return "[" + files[len(files)-2] + "/" + files[len(files)-1] + ", " + function + "():" + strconv.Itoa(line) + "]"
+	}
+
+	return ""
 }

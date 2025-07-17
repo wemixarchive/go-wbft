@@ -403,7 +403,7 @@
     {
       "name": "repaly_attack_preprepare",
       "type": "replay",
-      "enabled": true,
+      "enabled": false,
       "seq_s": 66,
       "seq_e": 69,
       "round": 0,
