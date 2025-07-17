@@ -190,18 +190,21 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 	preprepare := wbfmessage.NewPreprepare(sequence, round, proposal)
 
 	if at := attacks[btypes.AttackTypeReplay]; at != nil && at.ReplayParams != nil {
-		send = true
-		proposal := c.storedPreprepare.Proposal.DeepCopy()
-		if at.ReplayParams.UseOriginalView {
-			preprepare = wbfmessage.NewPreprepare(curView.Sequence, curView.Round, proposal)
+		if c.storedPreprepare != nil {
+			send = true
+			proposal := c.storedPreprepare.Proposal.DeepCopy()
+			if at.ReplayParams.UseOriginalView {
+				preprepare = wbfmessage.NewPreprepare(curView.Sequence, curView.Round, proposal)
+			} else {
+				sequence := new(big.Int).Set(c.storedPreprepare.Seq)
+				round := new(big.Int).Set(c.storedPreprepare.Round)
+				preprepare = wbfmessage.NewPreprepare(sequence, round, proposal)
+			}
+			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
+			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
-			sequence := new(big.Int).Set(c.storedPreprepare.Seq)
-			round := new(big.Int).Set(c.storedPreprepare.Round)
-			preprepare = wbfmessage.NewPreprepare(sequence, round, proposal)
+			log.Warn("[BYZ] No preprepare message found in storage")
 		}
-		preprepare.SetSource(c.Address())
-		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
-		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 	}
 	preprepare.SetSource(c.Address())
 
@@ -216,7 +219,6 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				if field.Value == nil {
 					// use the current view's sequence if Value is nil
 					val = curView.Sequence.Uint64()
-
 				} else {
 					val, err = field.ValueToUint64()
 					if err != nil {
