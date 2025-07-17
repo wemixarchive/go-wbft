@@ -61,9 +61,7 @@ func (c *Core) broadcastPrepare() {
 	}
 
 	if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
-		if at.StoreMessageParams.Code == btypes.MessageCodePrepare {
-			c.storePrepareMessage(hook, at, prepareSeal)
-		}
+		c.storePrepareMessage(hook, at, prepareSeal)
 	}
 
 	if c.broadcastByzantinePrepare(hook, attacks) {
@@ -257,12 +255,9 @@ func (c *Core) storePrepareMessage(hook btypes.ConsensusHook, attack *btypes.Exe
 	// Create PREPARE message from the current proposal
 	sub := c.current.Subject()
 
-	sequence := new(big.Int).Set(sub.View.Sequence)
-	round := new(big.Int).Set(sub.View.Round)
-
 	c.storedPrepare = &wbfmessage.StoredPrepare{
-		Seq:         new(big.Int).Set(sequence),
-		Round:       new(big.Int).Set(round),
+		Seq:         new(big.Int).Set(sub.View.Sequence),
+		Round:       new(big.Int).Set(sub.View.Round),
 		Digest:      sub.Digest,
 		PrepareSeal: make([]byte, len(PrepareSeal)),
 	}
@@ -277,5 +272,5 @@ func (c *Core) storePrepareMessage(hook btypes.ConsensusHook, attack *btypes.Exe
 		"Digest", c.storedPrepare.Digest.Hex(),
 		"PrepareSeal", c.storedPrepare.PrepareSeal)
 
-	hook.MarkAttackExecuted(attack.UID, sequence.Uint64())
+	hook.MarkAttackExecuted(attack.UID, sub.View.Sequence.Uint64())
 }

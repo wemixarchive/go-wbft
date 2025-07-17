@@ -117,9 +117,10 @@ type Core struct {
 
 	consensusTimestamp time.Time
 
-	storedPreprepare *messages.StoredPrePrepare
-	storedPrepare    *messages.StoredPrepare
-	storedCommit     *messages.StoredCommit
+	storedPreprepare  *messages.StoredPrePrepare
+	storedPrepare     *messages.StoredPrepare
+	storedCommit      *messages.StoredCommit
+	storedRoundChange *messages.StoredRoundChange
 }
 
 func (c *Core) currentView() *wbft.View {

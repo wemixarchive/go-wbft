@@ -19,6 +19,14 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+type StoredRoundChange struct {
+	Seq                  *big.Int
+	Round                *big.Int
+	PreparedRound        *big.Int
+	PreparedBlock        *types.Block
+	WBFTPreparedPrepares []*Prepare
+}
+
 // ROUND-CHANGE
 type RoundChange struct {
 	SignedRoundChangePayload

@@ -63,9 +63,7 @@ func (c *Core) broadcastCommit() {
 	}
 
 	if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
-		if at.StoreMessageParams.Code == btypes.MessageCodeCommit {
-			c.storeCommitMessage(hook, at, commitSeal)
-		}
+		c.storeCommitMessage(hook, at, commitSeal)
 	}
 
 	if c.broadcastByzantineCommit(hook, attacks) {
@@ -290,12 +288,9 @@ func (c *Core) storeCommitMessage(hook btypes.ConsensusHook, attack *btypes.Exec
 	// Create PREPARE message from the current proposal
 	sub := c.current.Subject()
 
-	sequence := new(big.Int).Set(sub.View.Sequence)
-	round := new(big.Int).Set(sub.View.Round)
-
 	c.storedCommit = &wbfmessage.StoredCommit{
-		Seq:        new(big.Int).Set(sequence),
-		Round:      new(big.Int).Set(round),
+		Seq:        new(big.Int).Set(sub.View.Sequence),
+		Round:      new(big.Int).Set(sub.View.Round),
 		Digest:     sub.Digest,
 		CommitSeal: make([]byte, len(CommitSeal)),
 	}
@@ -310,5 +305,5 @@ func (c *Core) storeCommitMessage(hook btypes.ConsensusHook, attack *btypes.Exec
 		"Digest", c.storedCommit.Digest.Hex(),
 		"CommitSeal", c.storedCommit.CommitSeal)
 
-	hook.MarkAttackExecuted(attack.UID, sequence.Uint64())
+	hook.MarkAttackExecuted(attack.UID, sub.View.Sequence.Uint64())
 }

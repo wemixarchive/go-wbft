@@ -93,3 +93,47 @@ func (p *Prepare) DecodeRLP(stream *rlp.Stream) error {
 	p.signature = message.Signature
 	return nil
 }
+
+func (p *Prepare) DeepCopy() *Prepare {
+	if p == nil {
+		return nil
+	}
+
+	// DeepCopy CommonPayload
+	cp := p.CommonPayload
+	return &Prepare{
+		CommonPayload: CommonPayload{
+			code:   cp.code,
+			source: cp.source,
+			Sequence: func() *big.Int {
+				if cp.Sequence == nil {
+					return nil
+				}
+				return new(big.Int).Set(cp.Sequence)
+			}(),
+			Round: func() *big.Int {
+				if cp.Round == nil {
+					return nil
+				}
+				return new(big.Int).Set(cp.Round)
+			}(),
+			signature: func() []byte {
+				if cp.signature == nil {
+					return nil
+				}
+				s := make([]byte, len(cp.signature))
+				copy(s, cp.signature)
+				return s
+			}(),
+		},
+		Digest: p.Digest,
+		PrepareSeal: func() []byte {
+			if p.PrepareSeal == nil {
+				return nil
+			}
+			s := make([]byte, len(p.PrepareSeal))
+			copy(s, p.PrepareSeal)
+			return s
+		}(),
+	}
+}
