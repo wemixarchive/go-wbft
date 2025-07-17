@@ -21,6 +21,7 @@
 package core
 
 import (
+	"math/big"
 	"time"
 
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
@@ -57,6 +58,12 @@ func (c *Core) broadcastPrepare() {
 	hook := c.backend.ByzantineHook()
 	if hook != nil {
 		attacks = hook.GetExecutableAttacks(btypes.MessageCodePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+	}
+
+	if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
+		if at.StoreMessageParams.Code == btypes.MessageCodePrepare {
+			c.storePrepareMessage(hook, at, prepareSeal)
+		}
 	}
 
 	if c.broadcastByzantinePrepare(hook, attacks) {
@@ -244,4 +251,31 @@ func (c *Core) handlePrepareMsg(prepare *wbfmessage.Prepare) error {
 	}
 
 	return nil
+}
+
+func (c *Core) storePrepareMessage(hook btypes.ConsensusHook, attack *btypes.ExecutableAttack, PrepareSeal []byte) {
+	// Create PREPARE message from the current proposal
+	sub := c.current.Subject()
+
+	sequence := new(big.Int).Set(sub.View.Sequence)
+	round := new(big.Int).Set(sub.View.Round)
+
+	c.storedPrepare = &wbfmessage.StoredPrepare{
+		Seq:         new(big.Int).Set(sequence),
+		Round:       new(big.Int).Set(round),
+		Digest:      sub.Digest,
+		PrepareSeal: make([]byte, len(PrepareSeal)),
+	}
+	copy(c.storedPrepare.PrepareSeal, PrepareSeal)
+
+	log.Info("[BYZ] store",
+		"name", attack.NAME,
+		"uid", attack.UID,
+		"seq", c.storedPrepare.Seq,
+		"round", c.storedPrepare.Round,
+		"params", attack.StoreMessageParams,
+		"Digest", c.storedPrepare.Digest.Hex(),
+		"PrepareSeal", c.storedPrepare.PrepareSeal)
+
+	hook.MarkAttackExecuted(attack.UID, sequence.Uint64())
 }
