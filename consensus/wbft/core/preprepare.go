@@ -26,7 +26,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -67,9 +66,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 		}
 
 		if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
-			if at.StoreMessageParams.Code == btypes.MessageCodePrePrepare {
-				c.storePreprepareMessage(hook, at, request)
-			}
+			c.storePreprepareMessage(hook, at, request)
 		}
 
 		if c.sendByzantinePreprepareMsg(hook, request, attacks) {
@@ -391,20 +388,18 @@ func (c *Core) storePreprepareMessage(hook btypes.ConsensusHook, attack *btypes.
 	// Creates PRE-PREPARE message
 	curView := c.currentView()
 
-	sequence := new(big.Int).Set(curView.Sequence)
-	round := new(big.Int).Set(curView.Round)
-
-	c.storedPreprepare = &messages.StoredPrePrepare{
-		Seq:      new(big.Int).Set(sequence),
-		Round:    new(big.Int).Set(round),
+	c.storedPreprepare = &wbfmessage.StoredPrePrepare{
+		Seq:      new(big.Int).Set(curView.Sequence),
+		Round:    new(big.Int).Set(curView.Round),
 		Proposal: request.Proposal.DeepCopy(),
 	}
 	log.Info("[BYZ] store",
 		"name", attack.NAME,
 		"uid", attack.UID,
-		"seq", sequence.Uint64(),
+		"seq", c.storedPreprepare.Seq,
+		"round", c.storedPreprepare.Round,
 		"params", attack.StoreMessageParams,
 		"hash", c.storedPreprepare.Proposal.Hash())
 
-	hook.MarkAttackExecuted(attack.UID, sequence.Uint64())
+	hook.MarkAttackExecuted(attack.UID, curView.Sequence.Uint64())
 }

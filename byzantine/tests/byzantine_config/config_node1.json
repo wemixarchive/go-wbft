@@ -48,6 +48,17 @@
       }
     },
     {
+      "name": "store_roundchangeWithoutPreparedPrepares",
+      "type": "store",
+      "enabled": true,
+      "seq_s": 14,
+      "seq_e": 14,
+      "round": 1,
+      "parameters": {
+        "code": 8
+      }
+    },
+    {
       "name": "no_broadcast_prepare",
       "type": "silent",
       "enabled": true,
@@ -58,6 +69,17 @@
         "code": 2,
         "direction": 1,
         "targets":[]
+      }
+    },
+    {
+      "name": "store_roundchangeWithPreparedPrepares",
+      "type": "store",
+      "enabled": true,
+      "seq_s": 15,
+      "seq_e": 15,
+      "round": 1,
+      "parameters": {
+        "code": 8
       }
     },
     {

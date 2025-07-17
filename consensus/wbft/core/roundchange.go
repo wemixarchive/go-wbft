@@ -26,6 +26,7 @@ import (
 	"sort"
 	"sync"
 
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
@@ -60,6 +61,17 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 	}
 
 	roundChange := wbfmessage.NewRoundChange(c.current.Sequence(), round, c.current.preparedRound, c.current.preparedBlock)
+
+	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
+
+	hook := c.backend.ByzantineHook()
+	if hook != nil {
+		attacks = hook.GetExecutableAttacks(btypes.MessageCodeRoundChange, c.current.Sequence().Uint64(), round.Uint64())
+	}
+
+	if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
+		c.storeRoundChagneMessage(hook, at)
+	}
 
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
@@ -333,4 +345,62 @@ func (rcs *roundChangeSet) MaxRound(num int) *big.Int {
 		}
 	}
 	return maxRound
+}
+
+func (c *Core) storeRoundChagneMessage(hook btypes.ConsensusHook, attack *btypes.ExecutableAttack) {
+	// Creates PRE-PREPARE message
+	curView := c.currentView()
+
+	var (
+		preparedRound *big.Int
+		preparedBlock *types.Block
+	)
+
+	if c.current.preparedRound == nil {
+		preparedRound = nil
+	} else {
+		preparedRound = new(big.Int).Set(c.current.preparedRound)
+	}
+
+	if c.current.preparedBlock == nil {
+		preparedBlock = nil
+	} else {
+		preparedBlock = c.current.preparedBlock.DeepCopy()
+	}
+
+	var wBFTPreparedPrepares []*wbfmessage.Prepare
+	if c.WBFTPreparedPrepares == nil {
+		wBFTPreparedPrepares = nil
+	} else {
+		wBFTPreparedPrepares = make([]*wbfmessage.Prepare, 0, len(c.WBFTPreparedPrepares))
+		for _, p := range c.WBFTPreparedPrepares {
+			wBFTPreparedPrepares = append(wBFTPreparedPrepares, p.DeepCopy())
+		}
+	}
+
+	c.storedRoundChange = &wbfmessage.StoredRoundChange{
+		Seq:                  new(big.Int).Set(curView.Sequence),
+		Round:                new(big.Int).Set(curView.Round),
+		PreparedRound:        preparedRound,
+		PreparedBlock:        preparedBlock,
+		WBFTPreparedPrepares: wBFTPreparedPrepares,
+	}
+
+	log.Info("[BYZ] store",
+		"name", attack.NAME,
+		"uid", attack.UID,
+		"seq", c.storedRoundChange.Seq,
+		"round", c.storedRoundChange.Round,
+		"params", attack.StoreMessageParams,
+		"preparedRound", c.storedRoundChange.PreparedRound,
+		"hash", func() interface{} {
+			if c.storedRoundChange.PreparedBlock != nil {
+				return c.storedRoundChange.PreparedBlock.Hash().Hex()
+			}
+			return "nil"
+		}(),
+		"preparedPrepares_len", len(c.storedRoundChange.WBFTPreparedPrepares),
+	)
+
+	hook.MarkAttackExecuted(attack.UID, curView.Sequence.Uint64())
 }
