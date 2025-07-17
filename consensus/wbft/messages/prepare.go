@@ -14,6 +14,13 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+type StoredPrepare struct {
+	Seq         *big.Int
+	Round       *big.Int
+	Digest      common.Hash
+	PrepareSeal []byte
+}
+
 // A WBFT PREPARE message.
 type Prepare struct {
 	CommonPayload

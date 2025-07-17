@@ -121,6 +121,7 @@ type Core struct {
 	consensusTimestamp time.Time
 
 	storedPreprepare *messages.StoredPrePrepare
+	storedPrepare    *messages.StoredPrepare
 }
 
 func (c *Core) currentView() *wbft.View {
