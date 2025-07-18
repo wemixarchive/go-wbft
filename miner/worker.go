@@ -1249,7 +1249,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 				switch {
 				case errors.Is(err, core.ErrNonceTooLow):
 					// New head notification data race between the transaction pool and miner, shift
-					log.Trace("[BYZ] Skipping transaction with low nonce", "hash", tx.Hash(), "sender", w.coinbase, "nonce", tx.Nonce())
+					log.Trace("[BYZ] Skipping transaction with low nonce", "num", env.header.Number, "hash", tx.Hash(), "sender", w.coinbase, "nonce", tx.Nonce())
 
 				case errors.Is(err, nil):
 					// Everything ok, collect the logs and shift in the next transaction from the same account
@@ -1259,7 +1259,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 				default:
 					// Transaction is regarded as invalid, drop all consecutive transactions from
 					// the same sender because of `nonce-too-high` clause.
-					log.Debug("[BYZ] Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
+					log.Debug("[BYZ] Transaction failed, account skipped", "num", env.header.Number, "hash", tx.Hash(), "err", err)
 				}
 			}
 		}
