@@ -469,6 +469,19 @@
         "useOriginalView": true,
         "targets": []
       }
+    },
+    {
+      "name": "repaly_attack_commit",
+      "type": "replay",
+      "enabled": true,
+      "seq_s": 71,
+      "seq_e": 71,
+      "round": 0,
+      "parameters": {
+        "code": 4,
+        "useOriginalView": true,
+        "targets": []
+      }
     }
   ]
 }
