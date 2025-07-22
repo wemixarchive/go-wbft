@@ -21,10 +21,12 @@
 package core
 
 import (
+	"encoding/hex"
 	"math/big"
 	"time"
 
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
@@ -75,6 +77,8 @@ func (c *Core) broadcastCommit() {
 			log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
 			// Wait for the configured delay
 			time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
+		} else {
+			return // skip the normal message
 		}
 	}
 
@@ -133,6 +137,26 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 	// Create Commit Seal
 	commitSeal := c.backend.SignWithoutHashing(PrepareSeal(header, uint32(c.currentView().Round.Uint64()), SealTypeCommit))
 	commit := wbfmessage.NewCommit(sub.View.Sequence, sub.View.Round, sub.Digest, commitSeal)
+
+	if at := attacks[btypes.AttackTypeReplay]; at != nil && at.ReplayParams != nil {
+		if c.storedCommit != nil {
+			send = true
+			storedCommitSeal := make([]byte, len(c.storedCommit.CommitSeal))
+			copy(storedCommitSeal, c.storedCommit.CommitSeal)
+
+			if at.ReplayParams.UseOriginalView {
+				commit = wbfmessage.NewCommit(sub.View.Sequence, sub.View.Round, c.storedCommit.Digest, storedCommitSeal)
+			} else {
+				sequence := new(big.Int).Set(c.storedCommit.Seq)
+				round := new(big.Int).Set(c.storedCommit.Round)
+				commit = wbfmessage.NewCommit(sequence, round, c.storedCommit.Digest, storedCommitSeal)
+			}
+			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(commitSeal), "changed_seal", hex.EncodeToString(storedCommitSeal))
+			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		} else {
+			log.Warn("[BYZ] No commit message found in storage")
+		}
+	}
 	commit.SetSource(c.Address())
 
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
@@ -141,16 +165,22 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 			// This is just a placeholder
 			switch field.Target {
 			case btypes.TamperDigest:
-				val, err := field.ValueToHash()
-				if err != nil {
-					withMsg(logger, commit).Error("[BYZ] Conversion failed", "err", err)
-					return false
+				var val common.Hash
+				var err error
+				if field.Value == nil {
+					// use the current Digest if Value is nil
+					val = sub.Digest
 				} else {
-					send = true
-					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", commit.Digest.Hex(), "params", at.TamperParams)
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					commit.Digest = val
+					val, err = field.ValueToHash()
+					if err != nil {
+						withMsg(logger, commit).Error("[BYZ] Conversion failed", "err", err)
+						return false
+					}
 				}
+				send = true
+				commit.Digest = val
+				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", commit.Digest.Hex(), "params", at.TamperParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
 	}
@@ -204,13 +234,13 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 		return errInvalidMessage
 	}
 
-	// Check commitSeal
 	block, ok := c.current.Proposal().(*types.Block)
 	if !ok {
 		logger.Error("WBFT: failed to cast proposal from COMMIT message to *types.Block")
 		return errInvalidMessage
 	}
 
+	// Check commitSeal
 	if verifySeal(c.valSet, block.Header(), uint32(commit.CommonPayload.Round.Uint64()), SealTypeCommit,
 		commit.CommitSeal, commit.Source()) != nil {
 		logger.Error("WBFT: failed to verify seal from COMMIT message", "from", commit.Source())

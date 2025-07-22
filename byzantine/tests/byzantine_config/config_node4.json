@@ -13,6 +13,17 @@
       }
     },
     {
+      "name": "store_commit",
+      "type": "store",
+      "enabled": true,
+      "seq_s": 9,
+      "seq_e": 9,
+      "round": 0,
+      "parameters": {
+        "code": 4
+      }
+    },
+    {
       "name": "no_broadcast_prepare",
       "type": "silent",
       "enabled": true,
@@ -78,6 +89,19 @@
       "round": 0,
       "parameters": {
         "code": 2,
+        "useOriginalView": true,
+        "targets": []
+      }
+    },
+    {
+      "name": "repaly_attack_commit",
+      "type": "replay",
+      "enabled": true,
+      "seq_s": 71,
+      "seq_e": 71,
+      "round": 0,
+      "parameters": {
+        "code": 4,
         "useOriginalView": true,
         "targets": []
       }
