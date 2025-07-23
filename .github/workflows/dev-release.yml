@@ -3,7 +3,7 @@ name: "Dev Branch Release"
 on:
   push:
     tags:
-      - w*  # action for tag starts with w
+      - v*  # action for tag starts with v
 
 jobs:
   build:
