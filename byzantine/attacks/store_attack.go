@@ -2,6 +2,7 @@ package attacks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
@@ -10,15 +11,26 @@ import (
 // StoreMessage implements store message
 type StoreMessage struct {
 	*registry.BaseAttack
+	params *types.StoreAttackParams
 }
 
-var _ (types.Attack) = (*StoreMessage)(nil)
+var _ types.Attack = (*StoreMessage)(nil)
 
 // NewStoreMessage creates a new store message
 func NewStoreMessage(config types.AttackConfig) (*StoreMessage, error) {
+	paramRegistry := registry.NewParameterParserRegistry()
+
+	// Parse parameters for the specific attack type
+	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse parameters: %w", err)
+	}
+
+	params := parsedParams.(*types.StoreAttackParams)
 
 	attack := &StoreMessage{
 		BaseAttack: registry.NewBaseAttack(config),
+		params:     params,
 	}
 	return attack, nil
 }

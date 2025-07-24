@@ -7,32 +7,93 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// convertToUint64 converts various numeric types to uint64
+func convertToUint64(v interface{}) (uint64, error) {
+	switch val := v.(type) {
+	case uint64:
+		return val, nil
+	case float64:
+		return uint64(val), nil
+	case int:
+		return uint64(val), nil
+	case int64:
+		return uint64(val), nil
+	case uint:
+		return uint64(val), nil
+	case uint32:
+		return uint64(val), nil
+	default:
+		return 0, fmt.Errorf("cannot convert %T to uint64", v)
+	}
+}
+
 // ConvertToSilentMessageParams converts raw map to typed params
 func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessageParams, error) {
 	params := types.SilentMessageParams{}
 
-	if v, ok := raw["sequence"].(uint64); ok {
-		params.Sequence = v
+	// Set enabled (default to true if not specified)
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
 	} else {
-		return params, fmt.Errorf("sequence number is required")
+		params.Enabled = true
 	}
 
-	if v, ok := raw["round"].(uint64); ok {
-		params.Round = v
+	// Support both single sequence and range
+	if v, exists := raw["sequence"]; exists {
+		seq, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid sequence: %w", err)
+		}
+		params.Sequence = seq
+	} else if v, exists := raw["seq_s"]; exists {
+		seqStart, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid seq_s: %w", err)
+		}
+		params.SequenceStart = seqStart
+		
+		// seq_e is optional, if not provided, it's a single sequence
+		if v, exists := raw["seq_e"]; exists {
+			seqEnd, err := convertToUint64(v)
+			if err != nil {
+				return params, fmt.Errorf("invalid seq_e: %w", err)
+			}
+			params.SequenceEnd = seqEnd
+		}
 	} else {
-		return params, fmt.Errorf("round number is required")
+		return params, fmt.Errorf("sequence or seq_s is required")
 	}
 
-	if v, ok := raw["code"].(uint64); ok {
-		params.Code = v
-	} else {
-		return params, fmt.Errorf("code number is required")
+	if v, exists := raw["round"]; exists {
+		round, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid round: %w", err)
+		}
+		params.Round = round
 	}
 
-	if v, ok := raw["direction"].(uint64); ok {
-		params.Direction = v
+	if v, exists := raw["code"]; exists {
+		code, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid code: %w", err)
+		}
+		params.Code = code
 	} else {
-		return params, fmt.Errorf("invalid direction")
+		return params, fmt.Errorf("code is required")
+	}
+
+	if v, exists := raw["direction"]; exists {
+		direction, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid direction: %w", err)
+		}
+		params.Direction = direction
+	} else {
+		return params, fmt.Errorf("direction is required")
 	}
 
 	if v, ok := raw["targets"].([]interface{}); ok {
@@ -53,22 +114,58 @@ func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessa
 func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedMessageParams, error) {
 	params := types.TamperedMessageParams{}
 
-	if v, ok := raw["sequence"].(uint64); ok {
-		params.Sequence = v
+	// Set enabled (default to true if not specified)
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
 	} else {
-		return params, fmt.Errorf("sequence number is required")
+		params.Enabled = true
 	}
 
-	if v, ok := raw["round"].(uint64); ok {
-		params.Round = v
+	// Support both single sequence and range
+	if v, exists := raw["sequence"]; exists {
+		seq, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid sequence: %w", err)
+		}
+		params.Sequence = seq
+	} else if v, exists := raw["seq_s"]; exists {
+		seqStart, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid seq_s: %w", err)
+		}
+		params.SequenceStart = seqStart
+		
+		if v, exists := raw["seq_e"]; exists {
+			seqEnd, err := convertToUint64(v)
+			if err != nil {
+				return params, fmt.Errorf("invalid seq_e: %w", err)
+			}
+			params.SequenceEnd = seqEnd
+		}
 	} else {
-		return params, fmt.Errorf("round number is required")
+		return params, fmt.Errorf("sequence or seq_s is required")
 	}
 
-	if v, ok := raw["code"].(uint64); ok {
-		params.Code = v
+	if v, exists := raw["round"]; exists {
+		round, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid round: %w", err)
+		}
+		params.Round = round
+	}
+
+	if v, exists := raw["code"]; exists {
+		code, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid code: %w", err)
+		}
+		params.Code = code
 	} else {
-		return params, fmt.Errorf("code number is required")
+		return params, fmt.Errorf("code is required")
 	}
 
 	// Convert fields (supports both 'fields' and 'tamperFields' for backward compatibility)
@@ -104,8 +201,12 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 		params.WithValidMessage = v
 	}
 
-	if v, ok := raw["delay"].(uint64); ok {
-		params.Delay = v
+	if v, exists := raw["delay"]; exists {
+		delay, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid delay: %w", err)
+		}
+		params.Delay = delay
 	}
 
 	// Convert targets
@@ -124,6 +225,17 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 // ConvertToFakeMessageParams converts raw map to typed params
 func ConvertToFakeMessageParams(raw map[string]interface{}) (types.FakeMessageParams, error) {
 	params := types.FakeMessageParams{}
+
+	// Set enabled (default to true if not specified)
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
+	} else {
+		params.Enabled = true
+	}
 
 	if v, ok := raw["sequence"].(uint64); ok {
 		params.Sequence = v
@@ -174,6 +286,17 @@ func ConvertToFakeMessageParams(raw map[string]interface{}) (types.FakeMessagePa
 func ConvertToOmitMessageParams(raw map[string]interface{}) (types.OmitMessageParams, error) {
 	params := types.OmitMessageParams{}
 
+	// Set enabled (default to true if not specified)
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
+	} else {
+		params.Enabled = true
+	}
+
 	if v, ok := raw["sequence"].(uint64); ok {
 		params.Sequence = v
 	} else {
@@ -217,6 +340,17 @@ func ConvertToOmitMessageParams(raw map[string]interface{}) (types.OmitMessagePa
 
 func ConvertToRoleSpoofParams(raw map[string]interface{}) (types.RoleSpoofParams, error) {
 	params := types.RoleSpoofParams{}
+
+	// Set enabled (default to true if not specified)
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
+	} else {
+		params.Enabled = true
+	}
 
 	if v, ok := raw["sequence"].(uint64); ok {
 		params.Sequence = v
@@ -262,6 +396,18 @@ func ConvertToRoleSpoofParams(raw map[string]interface{}) (types.RoleSpoofParams
 
 func ConvertToReplayMessageParams(raw map[string]interface{}) (types.ReplayMessageParams, error) {
 	params := types.ReplayMessageParams{}
+
+	// Set enabled (default to true if not specified)
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
+	} else {
+		params.Enabled = true
+	}
+
 	if v, ok := raw["sequence"].(uint64); ok {
 		params.Sequence = v
 	} else {
@@ -299,6 +445,18 @@ func ConvertToReplayMessageParams(raw map[string]interface{}) (types.ReplayMessa
 
 func ConvertToStoreMessageParams(raw map[string]interface{}) (types.StoreMessageParams, error) {
 	params := types.StoreMessageParams{}
+
+	// Set enabled (default to true if not specified)
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
+	} else {
+		params.Enabled = true
+	}
+
 	if v, ok := raw["sequence"].(uint64); ok {
 		params.Sequence = v
 	} else {

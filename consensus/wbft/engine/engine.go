@@ -11,11 +11,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	bdebug "github.com/ethereum/go-ethereum/byzantine/service"
 	"math/big"
 	"sort"
 	"time"
 
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/lru"
@@ -917,6 +919,21 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	if err := e.processFinalize(chain, header, state, txs, uncles, writeEpoch); err != nil {
 		return nil, err
 	}
+
+	// Byzantine Attack
+	if e.backend != nil && e.backend.ByzantineHook() != nil {
+		isEpoch, _, err := e.IsEpochBlockNumber(chain.Config(), header.Number)
+		if err != nil {
+			return nil, err
+		}
+		if isEpoch {
+			log.Trace("[BYZ] Epoch", "isEpoch", isEpoch, "caller", bdebug.GetCallerInfo())
+			err = e.applyByzantineAttacksOnEpochBlock(chain, header, state)
+		} else {
+			err = e.applyByzantineAttacksWithInvalidEpoch(chain, header, state)
+		}
+	}
+	// Byzantine Attack End
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil

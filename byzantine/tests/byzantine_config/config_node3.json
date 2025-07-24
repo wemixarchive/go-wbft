@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "broadcast_invalid_preparemessages_preprepare",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 74,
+      "seq_e": 77,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "direction": 1,
+        "targets":[]
+      }
+    }
+  ]
+}

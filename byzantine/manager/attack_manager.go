@@ -176,6 +176,20 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 
 	config := attack.GetConfig()
 
+	// TODO:
+	// check if sequence is already marked as executed
+	if config.LastExecutedSeq == sequence {
+		log.Debug("[BYZ] Mark executed attack to completed",
+			"uid", uid,
+			"sequence", sequence,
+			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
+			"execution_count", config.ExecutionCount,
+			"max_execution_count", config.MaxExecutionCount,
+			"status", config.Status,
+			"last_executed_seq", config.LastExecutedSeq)
+		return nil
+	}
+
 	// Update execution count and sequence
 	config.ExecutionCount++
 	config.LastExecutedSeq = sequence
@@ -183,9 +197,22 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 	config.ExecutedAt = &now
 
 	// Check if max executions reached
-	if config.ExecutionCount >= uint64(1) {
-		config.Status = types.AttackStatusCompleted
-		attack.SetStatus(types.AttackStatusCompleted)
+	// For range attacks with MaxExecutionCount, check against that limit
+	if config.MaxExecutionCount > 0 && config.SequenceStart != config.SequenceEnd {
+		if config.ExecutionCount >= config.MaxExecutionCount {
+			config.Status = types.AttackStatusCompleted
+			attack.SetStatus(types.AttackStatusCompleted)
+		} else {
+			// For range attacks, keep status as executed
+			config.Status = types.AttackStatusExecuted
+			attack.SetStatus(types.AttackStatusExecuted)
+		}
+	} else {
+		// For single sequence attacks or attacks without MaxExecutionCount, use default limit of 1
+		if config.ExecutionCount >= uint64(1) {
+			config.Status = types.AttackStatusCompleted
+			attack.SetStatus(types.AttackStatusCompleted)
+		}
 	}
 
 	// Update the attack's config
@@ -204,6 +231,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 		"sequence", sequence,
 		"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
 		"execution_count", config.ExecutionCount,
+		"max_execution_count", config.MaxExecutionCount,
 		"status", config.Status,
 		"last_executed_seq", config.LastExecutedSeq)
 
@@ -394,6 +422,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 	for _, attack := range m.attacksByUID {
 		config := attack.GetConfig()
 
+		// check enabled, status and execution limits
 		if !config.CanExecute() {
 			continue
 		}
@@ -482,24 +511,19 @@ func (m *AttackManager) isAttackEligible(config types.AttackConfig) bool {
 func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) bool {
 	config := attack.GetConfig()
 
-	// Check max executions
-	if config.ExecutionCount >= uint64(1) {
-		log.Trace("[BYZ] Attack execution limit reached",
+	if !config.IsInSequenceRange(sequence) {
+		log.Trace("[BYZ] Attack sequence out of range",
 			"uid", config.UID,
-			"executed", config.ExecutionCount)
+			"sequence", sequence)
 		return false
 	}
 
-	// For attacks with sequence range, skip LastExecutedSeq check
-	// They should be able to execute once per sequence within the range
-	if config.SequenceStart != config.SequenceEnd {
-		log.Trace("[BYZ] Sequence range attack",
+	if config.ExecutionCount >= config.MaxExecutionCount && config.MaxExecutionCount > 0 {
+		log.Trace("[BYZ] Attack execution limit reached",
 			"uid", config.UID,
-			"type", config.Type,
-			"sequence", sequence,
-			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-			"execution_count", config.ExecutionCount)
-		return true
+			"executed", config.ExecutionCount,
+			"max_executions", config.MaxExecutionCount)
+		return false
 	}
 
 	// For single sequence attacks, check if already executed at this sequence

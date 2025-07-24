@@ -40,7 +40,7 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 
 	log.Info("=== Attack configurations ===")
 	for i, attack := range config.Attacks {
-		log.Info(fmt.Sprintf("→ [%d] uid=%s name=%s type=%s enabled=%v sequence=%d-%d round=%d parameters=%v",
+		log.Info(fmt.Sprintf("→ [%d] uid=%s name=%s type=%s enabled=%v sequence=%d-%d round=%d parameters=%v max_executions=%d",
 			i,
 			attack.UID,
 			attack.Name,
@@ -50,6 +50,7 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 			attack.SequenceEnd,
 			attack.Round,
 			attack.Parameters,
+			attack.MaxExecutionCount,
 		))
 	}
 

@@ -14,9 +14,10 @@ type OmitMessageAttack struct {
 	*registry.BaseAttack
 	cmd     uint64
 	targets []common.Address
+	params  *types.OmitAttackParams
 }
 
-var _ (types.Attack) = (*OmitMessageAttack)(nil)
+var _ types.Attack = (*OmitMessageAttack)(nil)
 
 // NewOmitMessageAttack creates a new omit message attack
 func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error) {
@@ -34,6 +35,7 @@ func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error)
 		BaseAttack: registry.NewBaseAttack(config),
 		cmd:        params.Cmd,
 		targets:    params.Targets,
+		params:     params,
 	}
 	return attack, nil
 }

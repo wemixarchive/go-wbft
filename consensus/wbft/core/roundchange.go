@@ -73,6 +73,13 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 		c.storeRoundChagneMessage(hook, at)
 	}
 
+	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+		if success := c.sendByzantineRoundChangeMsg(at, roundChange); success {
+			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+			return
+		}
+	}
+
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
 	if err != nil {
@@ -199,7 +206,14 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 		c.sendPreprepareMsg(r)
 	} else {
 		logger.Debug("WBFT: accepted ROUND-CHANGE messages")
+		if currentRoundMessages >= c.valSet.QuorumSize() && !c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
+			err := c.byzantineSendPreprepareFromNonProposer()
+			if err != nil {
+				logger.Error("[BYZ] WBFT: failed to send PRE-PREPARE message from non-proposer", "err", err)
+			}
+		}
 	}
+
 	return nil
 }
 

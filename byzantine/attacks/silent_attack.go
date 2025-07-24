@@ -15,9 +15,10 @@ type SilentMessageAttack struct {
 	code      types.MessageCode
 	direction types.MessageDirection
 	targets   []common.Address
+	params    *types.SilentAttackParams
 }
 
-var _ (types.Attack) = (*SilentMessageAttack)(nil)
+var _ types.Attack = (*SilentMessageAttack)(nil)
 
 // NewSilentMessageAttack creates a new silent proposer attack
 func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, error) {
@@ -36,6 +37,7 @@ func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, er
 		code:       params.Code,
 		direction:  types.MessageDirection(params.Direction),
 		targets:    params.Targets,
+		params:     params,
 	}
 
 	return attack, nil

@@ -104,7 +104,7 @@ func (c *Core) broadcastCommit() {
 	}
 
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
-		if at.SilentParams.Direction == 1 {
+		if at.SilentParams.Direction == uint64(btypes.MessageDirectionSend) {
 			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			return

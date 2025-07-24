@@ -73,6 +73,9 @@ const (
 	FakeTargetPrePareSeal      string = "prePareSeal"
 	FakeTargetTransactionCount string = "Transaction.Count"
 	FakeTargetRound            string = "Round"
+	FakeTargetProposal         string = "Proposal"
+	FakeTargetJustification    string = "Justification"
+	FakeTargetEpochBlock       string = "epochBlock"
 )
 
 // TamperTarget represents fields that can be tampered
@@ -118,6 +121,9 @@ const (
 	TamperSealPrepare  string = "Seal.Prepare"
 	TamperSealCommit   string = "Seal.Commit"
 	TamperSealPrevious string = "Seal.Previous"
+
+	// Action
+	TamperDelayForComplexAttack = "Only.Delay"
 )
 
 // Node roles

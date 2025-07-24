@@ -407,7 +407,7 @@
         "direction": 1,
         "targets":[]
       }
-    }, 
+    },
     {
       "name": "broadcast_invalid_roundchange",
       "type": "fake",
@@ -447,7 +447,7 @@
     {
       "name": "repaly_attack_preprepare",
       "type": "replay",
-      "enabled": true,
+      "enabled": false,
       "seq_s": 66,
       "seq_e": 69,
       "round": 0,
@@ -467,7 +467,7 @@
       "parameters": {
         "code": 2,
         "useOriginalView": true,
-        "targets": []
+        "target": []
       }
     },
     {
@@ -481,6 +481,135 @@
         "code": 4,
         "useOriginalView": true,
         "targets": []
+      }
+    },
+    {
+      "name": "broadcast_roundchange_preprepare_nonproposer",
+      "type": "tamper",
+      "enabled": true,
+      "seq_s": 72,
+      "seq_e": 75,
+      "round": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "Only.Delay"
+          }
+        ],
+        "withValidMessage": true,
+        "delay": 200,
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_preparemessages_preprepare",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 76,
+      "seq_e": 79,
+      "round": 1,
+      "parameters": {
+        "code": 4,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_invalid_preparemessages_preprepare",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 76,
+      "seq_e": 79,
+      "round": 2,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "Proposal",
+            "value": ""
+          }
+        ],
+        "targets": []
+      }
+    },
+    {
+      "name": "broadcast_invalid_roundchange_preparedBlock",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 80,
+      "seq_e": 83,
+      "round": 0,
+      "parameters": {
+        "code": 4,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_invalid_roundchange_preparedBlock",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 80,
+      "seq_e": 83,
+      "round": 1,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "Proposal",
+            "value": 0
+          }
+        ],
+        "targets": []
+      }
+    },
+    {
+      "name": "multiple no broadcast preprepare",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 84,
+      "seq_e": 91,
+      "round": 0,
+      "max_execution_count": 2,
+      "parameters": {
+        "code": 1,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_invalid_epoch_preprepare",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 92,
+      "seq_e": 109,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fakeMessage": [
+          {
+            "fakeTarget": "epochBlock",
+            "value": "nil"
+          }
+        ]
+      }
+    },
+    {
+      "name": "broadcast_invalid_epoch_preprepare#2",
+      "type": "fake",
+      "enabled": false,
+      "seq_s": 110,
+      "seq_e": 130,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fakeMessage": [
+          {
+            "fakeTarget": "epochBlock",
+            "value": "dos_binary"
+          }
+        ]
       }
     }
   ]

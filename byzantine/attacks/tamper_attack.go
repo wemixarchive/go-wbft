@@ -17,9 +17,10 @@ type TamperedMessageAttack struct {
 	withValidMessage bool
 	delay            time.Duration
 	targets          []common.Address
+	params           *types.TamperAttackParams
 }
 
-var _ (types.Attack) = (*TamperedMessageAttack)(nil)
+var _ types.Attack = (*TamperedMessageAttack)(nil)
 
 // NewTamperedMessageAttack creates a new tampered message attack
 func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack, error) {
@@ -39,6 +40,7 @@ func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack
 		withValidMessage: params.WithValidMessage,
 		delay:            time.Duration(int64(params.Delay)),
 		targets:          params.Targets,
+		params:           params,
 	}
 	return attack, nil
 }

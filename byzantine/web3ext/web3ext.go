@@ -51,6 +51,28 @@ web3._extend({
 			call: 'byzantine_upgradeGovContract',
 			params: 0
 		}),
+		new web3._extend.Method({
+			name: 'registerAttacks',
+			call: 'byzantine_registerAttacks',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getActiveAttacks',
+			call: 'byzantine_getActiveAttacks',
+			params: 0
+		}),
+		new web3._extend.Method({
+			name: 'getAttackStatus',
+			call: 'byzantine_getAttackStatus',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getAttackMetrics',
+			call: 'byzantine_getAttackMetrics',
+			params: 0
+		}),
 	],
 	properties:
 	[

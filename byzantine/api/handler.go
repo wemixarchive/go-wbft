@@ -81,17 +81,17 @@ func (h *Handler) RegisterSilentMessage(params types.SilentMessageParams) error 
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("silent_%d_%d", params.Sequence, params.Round),
+		Name:          fmt.Sprintf("silent_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeSilentMessage,
-		SequenceStart: params.Sequence,
-		SequenceEnd:   0, // 0 means single sequence
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
 			"code":      params.Code,
 			"direction": params.Direction,
 			"targets":   params.Targets,
 		},
-		//Targets:   params.Targets,
+		Enabled:   params.Enabled,
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
 	}
@@ -102,7 +102,7 @@ func (h *Handler) RegisterSilentMessage(params types.SilentMessageParams) error 
 		return fmt.Errorf("failed to register silent attack: %w", err)
 	}
 
-	log.Info("Silent message attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Silent message attack registered", "uid", uid)
 	return nil
 }
 
@@ -123,12 +123,11 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("tampered_%d_%d", params.Sequence, params.Round),
+		Name:          fmt.Sprintf("tampered_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeTamperedMessage,
-		SequenceStart: params.Sequence,
-		SequenceEnd:   0, // 0 means single sequence
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
-		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":             params.Code,
 			"fields":           fieldsMap,
@@ -136,6 +135,7 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 			"delay":            params.Delay,
 			"targets":          params.Targets,
 		},
+		Enabled:   params.Enabled,
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
 	}
@@ -146,7 +146,7 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		return fmt.Errorf("failed to register tampered attack: %w", err)
 	}
 
-	log.Info("Tampered message attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Tampered message attack registered", "uid", uid)
 	return nil
 }
 
@@ -159,17 +159,17 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("fake_%d_%d", params.Sequence, params.Round),
+		Name:          fmt.Sprintf("fake_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeFakeMessage,
-		SequenceStart: params.Sequence,
-		SequenceEnd:   0, // 0 means single sequence
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
-		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":        params.Code,
 			"fakeMessage": params.FakeMessage,
 			"targets":     params.Targets,
 		},
+		Enabled:   params.Enabled,
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
 	}
@@ -180,7 +180,7 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 		return fmt.Errorf("failed to register fake attack: %w", err)
 	}
 
-	log.Info("Fake message attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Fake message attack registered", "uid", uid)
 	return nil
 }
 
@@ -193,12 +193,11 @@ func (h *Handler) RegisterOmitMessage(params types.OmitMessageParams) error {
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("omit_%d_%d", params.Sequence, params.Round),
+		Name:          fmt.Sprintf("omit_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeOmitMessage,
 		SequenceStart: params.Sequence,
-		SequenceEnd:   0, // 0 means single sequence
+		SequenceEnd:   params.Sequence,
 		Round:         params.Round,
-		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":    params.Code,
 			"cmd":     params.Cmd,
@@ -228,12 +227,11 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("rolespoof_%d_%d", params.Sequence, params.Round),
+		Name:          fmt.Sprintf("rolespoof_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeRoleSpoofed,
-		SequenceStart: params.Sequence,
-		SequenceEnd:   0, // 0 means single sequence
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
-		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":        params.Code,
 			"fakeMessage": params.FakeMessage,
@@ -249,7 +247,7 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 		return fmt.Errorf("failed to register role spoof attack: %w", err)
 	}
 
-	log.Info("Role spoof attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Role spoof attack registered", "uid", uid)
 	return nil
 }
 
@@ -262,12 +260,11 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("replay_%d_%d", params.Sequence, params.Round),
+		Name:          fmt.Sprintf("replay_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeReplay,
-		SequenceStart: params.Sequence,
-		SequenceEnd:   0, // 0 means single sequence
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
-		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code":            params.Code,
 			"useOriginalView": params.UseOriginalView,
@@ -283,7 +280,7 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 		return fmt.Errorf("failed to register replay attack: %w", err)
 	}
 
-	log.Info("Replay attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Replay attack registered", "uid", uid)
 	return nil
 }
 
@@ -296,12 +293,11 @@ func (h *Handler) RegisterStoreMessage(params types.StoreMessageParams) error {
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("store_%d_%d", params.Sequence, params.Round),
+		Name:          fmt.Sprintf("store_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeStoreMessage,
-		SequenceStart: params.Sequence,
-		SequenceEnd:   0, // 0 means single sequence
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
-		//Targets:  params.Targets,
 		Parameters: map[string]interface{}{
 			"code": params.Code,
 		},
@@ -326,10 +322,121 @@ func (h *Handler) UpgradeGovContract() error {
 	return nil
 }
 
+// RegisterAttacks registers multiple attacks at once
+func (h *Handler) RegisterAttacks(params types.RegisterAttacksParams) (*types.BatchRegisterResponse, error) {
+	response := &types.BatchRegisterResponse{
+		Results: make([]types.RegisterAttackResponse, 0, len(params.Attacks)),
+		Total:   len(params.Attacks),
+	}
+
+	for _, attackAPI := range params.Attacks {
+		// Convert AttackAPIConfig to AttackConfig
+		config := types.AttackConfig{
+			Name:              attackAPI.Name,
+			Type:              types.StringToAttackType(attackAPI.Type),
+			Enabled:           attackAPI.Enabled,
+			SequenceStart:     attackAPI.SequenceStart,
+			SequenceEnd:       attackAPI.SequenceEnd,
+			Round:             attackAPI.Round,
+			MaxExecutionCount: attackAPI.MaxExecutionCount,
+			Parameters:        attackAPI.Parameters,
+			Status:            types.AttackStatusPending,
+			CreatedAt:         time.Now(),
+		}
+
+		// Register attack
+		uid, err := h.service.RegisterAttack(config)
+		result := types.RegisterAttackResponse{
+			UID:     uid,
+			Success: err == nil,
+		}
+		if err != nil {
+			result.Error = err.Error()
+			response.Failed++
+		} else {
+			response.Success++
+		}
+		response.Results = append(response.Results, result)
+	}
+
+	return response, nil
+}
+
+// GetActiveAttacks returns all active attacks
+func (h *Handler) GetActiveAttacks() ([]types.AttackStatusResponse, error) {
+	attacks := h.service.ListAttacks()
+	activeAttacks := make([]types.AttackStatusResponse, 0)
+
+	for _, attack := range attacks {
+		// Filter for active attacks
+		if attack.Status == types.AttackStatusActive || attack.Status == types.AttackStatusPending {
+			statusResp := h.convertToStatusResponse(attack)
+			activeAttacks = append(activeAttacks, statusResp)
+		}
+	}
+
+	return activeAttacks, nil
+}
+
+// GetAttackStatus returns the status of a specific attack
+func (h *Handler) GetAttackStatus(uid string) (*types.AttackStatusResponse, error) {
+	attack, err := h.attackManager.GetAttack(uid)
+	if err != nil {
+		return nil, fmt.Errorf("attack not found: %w", err)
+	}
+
+	config := attack.GetConfig()
+	statusResp := h.convertToStatusResponse(config)
+	return &statusResp, nil
+}
+
+// GetAttackMetrics returns metrics about attacks
+func (h *Handler) GetAttackMetrics() (*types.Metrics, error) {
+	status := h.service.GetStatus()
+
+	metrics := &types.Metrics{
+		AttacksRegistered: int64(len(h.service.ListAttacks())),
+		AttacksExecuted:   int64(status.ExecutedAttacks),
+		AttacksFailed:     int64(status.FailedAttacks),
+		MessagesStored:    int64(status.StoredMessages),
+	}
+
+	// Calculate uptime if service is running
+	if status.Running && status.StartedAt != nil {
+		metrics.Uptime = int64(time.Since(*status.StartedAt).Seconds())
+	}
+
+	return metrics, nil
+}
+
+// convertToStatusResponse converts AttackConfig to AttackStatusResponse
+func (h *Handler) convertToStatusResponse(attack types.AttackConfig) types.AttackStatusResponse {
+	resp := types.AttackStatusResponse{
+		UID:            attack.UID,
+		Name:           attack.Name,
+		Type:           string(attack.Type),
+		Status:         string(attack.Status),
+		Enabled:        attack.Enabled,
+		SequenceRange:  attack.GetSequenceRange(),
+		Round:          attack.Round,
+		ExecutionCount: attack.ExecutionCount,
+		Parameters:     attack.Parameters,
+		CreatedAt:      attack.CreatedAt.Unix(),
+	}
+
+	if attack.ExecutedAt != nil {
+		executedAt := attack.ExecutedAt.Unix()
+		resp.ExecutedAt = &executedAt
+	}
+
+	return resp
+}
+
 // Validation methods
 func (h *Handler) validateSilentMessageParams(params types.SilentMessageParams) error {
-	if params.Sequence == 0 {
-		return fmt.Errorf("sequence number is required")
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
+		return fmt.Errorf("sequence number or sequence range is required")
 	}
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
@@ -341,8 +448,9 @@ func (h *Handler) validateSilentMessageParams(params types.SilentMessageParams) 
 }
 
 func (h *Handler) validateTamperedMessageParams(params types.TamperedMessageParams) error {
-	if params.Sequence == 0 {
-		return fmt.Errorf("sequence number is required")
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
+		return fmt.Errorf("sequence number or sequence range is required")
 	}
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
@@ -354,8 +462,9 @@ func (h *Handler) validateTamperedMessageParams(params types.TamperedMessagePara
 }
 
 func (h *Handler) validateFakeMessageParams(params types.FakeMessageParams) error {
-	if params.Sequence == 0 {
-		return fmt.Errorf("sequence number is required")
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
+		return fmt.Errorf("sequence number or sequence range is required")
 	}
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
@@ -364,9 +473,11 @@ func (h *Handler) validateFakeMessageParams(params types.FakeMessageParams) erro
 }
 
 func (h *Handler) validateOmitMessageParams(params types.OmitMessageParams) error {
-	if params.Sequence == 0 {
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
 		return fmt.Errorf("sequence number is required")
 	}
+
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
 	}
@@ -377,7 +488,8 @@ func (h *Handler) validateOmitMessageParams(params types.OmitMessageParams) erro
 }
 
 func (h *Handler) validateRoleSpoofParams(params types.RoleSpoofParams) error {
-	if params.Sequence == 0 {
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
 		return fmt.Errorf("sequence number is required")
 	}
 	if params.Code == 0 {
@@ -387,7 +499,8 @@ func (h *Handler) validateRoleSpoofParams(params types.RoleSpoofParams) error {
 }
 
 func (h *Handler) validateReplayMessageParams(params types.ReplayMessageParams) error {
-	if params.Sequence == 0 {
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
 		return fmt.Errorf("sequence number is required")
 	}
 	if params.Code == 0 {
@@ -397,7 +510,8 @@ func (h *Handler) validateReplayMessageParams(params types.ReplayMessageParams) 
 }
 
 func (h *Handler) validateStoreMessageParams(params types.StoreMessageParams) error {
-	if params.Sequence == 0 {
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
 		return fmt.Errorf("sequence number is required")
 	}
 	if params.Code == 0 {

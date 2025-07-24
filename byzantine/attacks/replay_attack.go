@@ -14,9 +14,10 @@ type ReplayAttack struct {
 	*registry.BaseAttack
 	useOriginalView bool
 	targets         []common.Address
+	params          *types.ReplayAttackParams
 }
 
-var _ (types.Attack) = (*ReplayAttack)(nil)
+var _ types.Attack = (*ReplayAttack)(nil)
 
 // NewReplayAttack creates a new replay attack
 func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
@@ -34,6 +35,7 @@ func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
 		BaseAttack:      registry.NewBaseAttack(config),
 		useOriginalView: params.UseOriginalView,
 		targets:         params.Targets,
+		params:          params,
 	}
 	return attack, nil
 }

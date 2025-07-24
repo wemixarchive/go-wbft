@@ -119,3 +119,27 @@ func (api *PublicByzantineAPI) UpgradeGovContract() error {
 	log.Info("[Byzantine API] UpgradeGovContract called")
 	return api.handler.UpgradeGovContract()
 }
+
+// RegisterAttacks registers multiple attacks at once (like loadAttacksFromConfig)
+func (api *PublicByzantineAPI) RegisterAttacks(params types.RegisterAttacksParams) (*types.BatchRegisterResponse, error) {
+	log.Info("[Byzantine API] RegisterAttacks called", "count", len(params.Attacks))
+	return api.handler.RegisterAttacks(params)
+}
+
+// GetActiveAttacks returns all active attacks
+func (api *PublicByzantineAPI) GetActiveAttacks() ([]types.AttackStatusResponse, error) {
+	log.Info("[Byzantine API] GetActiveAttacks called")
+	return api.handler.GetActiveAttacks()
+}
+
+// GetAttackStatus returns the status of a specific attack
+func (api *PublicByzantineAPI) GetAttackStatus(uid string) (*types.AttackStatusResponse, error) {
+	log.Info("[Byzantine API] GetAttackStatus called", "uid", uid)
+	return api.handler.GetAttackStatus(uid)
+}
+
+// GetAttackMetrics returns metrics about attacks
+func (api *PublicByzantineAPI) GetAttackMetrics() (*types.Metrics, error) {
+	log.Info("[Byzantine API] GetAttackMetrics called")
+	return api.handler.GetAttackMetrics()
+}

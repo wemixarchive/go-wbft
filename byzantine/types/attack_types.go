@@ -90,21 +90,22 @@ func AttackTypeToString(attackType AttackType) string {
 
 // AttackConfig represents the configuration for an attack
 type AttackConfig struct {
-	UID              string                 `json:"uid"`
-	Name             string                 `json:"name"`
-	Type             AttackType             `json:"type"`
-	Enabled          bool                   `json:"enabled"`
-	SequenceStart    uint64                 `json:"seq_s"`
-	SequenceEnd      uint64                 `json:"seq_e"`
-	Round            uint64                 `json:"round"`
-	ExecutionCount   uint64                 `json:"-"`
-	Status           AttackStatus           `json:"status,omitempty"`
-	Parameters       map[string]interface{} `json:"parameters,omitempty"`
-	RawParameters    json.RawMessage        `json:"-"`
-	ParsedParameters interface{}            `json:"-"`
-	CreatedAt        time.Time              `json:"created_at"`
-	ExecutedAt       *time.Time             `json:"executed_at,omitempty"`
-	LastExecutedSeq  uint64                 `json:"-"`
+	UID               string                 `json:"uid"`
+	Name              string                 `json:"name"`
+	Type              AttackType             `json:"type"`
+	Enabled           bool                   `json:"enabled"`
+	SequenceStart     uint64                 `json:"seq_s"`
+	SequenceEnd       uint64                 `json:"seq_e"`
+	Round             uint64                 `json:"round"`
+	ExecutionCount    uint64                 `json:"-"`
+	MaxExecutionCount uint64                 `json:"max_execution_count,omitempty"`
+	Status            AttackStatus           `json:"status,omitempty"`
+	Parameters        map[string]interface{} `json:"parameters,omitempty"`
+	RawParameters     json.RawMessage        `json:"-"`
+	ParsedParameters  interface{}            `json:"-"`
+	CreatedAt         time.Time              `json:"created_at"`
+	ExecutedAt        *time.Time             `json:"executed_at,omitempty"`
+	LastExecutedSeq   uint64                 `json:"-"`
 }
 
 func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
@@ -144,12 +145,17 @@ func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
 	}
 	ac.CreatedAt = time.Now()
 
+	// Default MaxExecutionCount for range attacks if not specified
+	if ac.MaxExecutionCount == 0 && ac.SequenceStart != ac.SequenceEnd {
+		ac.MaxExecutionCount = 1 // Default to 1 if not specified
+	}
+
 	return nil
 }
 
 // IsInSequenceRange checks if given sequence is in attack's range
 func (ac *AttackConfig) IsInSequenceRange(sequence uint64) bool {
-	if ac.SequenceEnd == 0 || ac.SequenceEnd == ac.SequenceStart {
+	if ac.SequenceEnd == ac.SequenceStart {
 		// Single sequence case
 		return sequence == ac.SequenceStart
 	}
@@ -172,13 +178,10 @@ func (ac *AttackConfig) CanExecute() bool {
 		// Continue with execution limit check
 	}
 
-	// NOTE:
-	// Currently not checking ExecutionCount.
-	// Activated after byzantine attack development is complete.
-	// Check already execution
-	//if ac.ExecutionCount > uint64(0) {
-	//	return false
-	//}
+	// Check if attack reached its execution limit
+	if ac.ExecutionCount >= ac.MaxExecutionCount {
+		return false
+	}
 
 	return true
 }
@@ -188,8 +191,18 @@ func (ac *AttackConfig) IncrementExecutionCount(sequence uint64) {
 	ac.ExecutionCount++
 	ac.LastExecutedSeq = sequence
 
-	if ac.ExecutionCount >= uint64(1) {
-		ac.Status = AttackStatusCompleted
+	// For range attacks with MaxExecutionCount, check against that limit
+	if ac.MaxExecutionCount > 0 && ac.SequenceStart != ac.SequenceEnd {
+		if ac.ExecutionCount >= ac.MaxExecutionCount {
+			ac.Status = AttackStatusCompleted
+		} else {
+			ac.Status = AttackStatusExecuted
+		}
+	} else {
+		// For single sequence attacks or attacks without MaxExecutionCount, use default limit of 1
+		if ac.ExecutionCount >= uint64(1) {
+			ac.Status = AttackStatusCompleted
+		}
 	}
 }
 
@@ -225,7 +238,14 @@ func (ac *AttackConfig) GetSilentParams() (*SilentAttackParams, error) {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeSilentMessage, ac.Type)
 	}
 
-	params := ac.ParsedParameters.(*SilentAttackParams)
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
+	params, ok := ac.ParsedParameters.(*SilentAttackParams)
+	if !ok {
+		return nil, errors.New("invalid parameter type")
+	}
 
 	return params, nil
 }
@@ -236,7 +256,14 @@ func (ac *AttackConfig) GetTamperParams() (*TamperAttackParams, error) {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeTamperedMessage, ac.Type)
 	}
 
-	params := ac.ParsedParameters.(*TamperAttackParams)
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
+	params, ok := ac.ParsedParameters.(*TamperAttackParams)
+	if !ok {
+		return nil, errors.New("invalid parameter type")
+	}
 
 	return params, nil
 }
@@ -246,9 +273,14 @@ func (ac *AttackConfig) GetFakeParams() (*FakeAttackParams, error) {
 	if ac.Type != AttackTypeFakeMessage {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeFakeMessage, ac.Type)
 	}
+
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
 	params, ok := ac.ParsedParameters.(*FakeAttackParams)
 	if !ok {
-		return nil, errors.New("parameters not properly parsed")
+		return nil, errors.New("invalid parameter type")
 	}
 	return params, nil
 }
@@ -258,6 +290,11 @@ func (ac *AttackConfig) GetOmitParams() (*OmitAttackParams, error) {
 	if ac.Type != AttackTypeOmitMessage {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeOmitMessage, ac.Type)
 	}
+
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
 	params, ok := ac.ParsedParameters.(*OmitAttackParams)
 	if !ok {
 		return nil, errors.New("parameters not properly parsed")
@@ -270,6 +307,11 @@ func (ac *AttackConfig) GetRoleSpoofParams() (*RoleSpoofAttackParams, error) {
 	if ac.Type != AttackTypeRoleSpoofed {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeRoleSpoofed, ac.Type)
 	}
+
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
 	params, ok := ac.ParsedParameters.(*RoleSpoofAttackParams)
 	if !ok {
 		return nil, errors.New("parameters not properly parsed")
@@ -282,6 +324,11 @@ func (ac *AttackConfig) GetReplayParams() (*ReplayAttackParams, error) {
 	if ac.Type != AttackTypeReplay {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeReplay, ac.Type)
 	}
+
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
 	params, ok := ac.ParsedParameters.(*ReplayAttackParams)
 	if !ok {
 		return nil, errors.New("parameters not properly parsed")
@@ -294,6 +341,11 @@ func (ac *AttackConfig) GetStoreParams() (*StoreAttackParams, error) {
 	if ac.Type != AttackTypeStoreMessage {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeStoreMessage, ac.Type)
 	}
+
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
 	params, ok := ac.ParsedParameters.(*StoreAttackParams)
 	if !ok {
 		return nil, errors.New("parameters not properly parsed")

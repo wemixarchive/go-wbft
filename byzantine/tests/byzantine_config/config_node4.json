@@ -105,6 +105,63 @@
         "useOriginalView": true,
         "targets": []
       }
+    },
+    {
+      "name": "broadcast_roundchange_preprepare_nonproposer",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 72,
+      "seq_e": 75,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_roundchange_preprepare_nonproposer",
+      "type": "roleSpoof",
+      "enabled": true,
+      "seq_s": 72,
+      "seq_e": 75,
+      "round": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "proposer",
+            "value": ""
+          }
+        ],
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_invalid_preparemessages_preprepare",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 76,
+      "seq_e": 79,
+      "round": 1,
+      "parameters": {
+        "code": 4,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_invalid_roundchange_preparedBlock",
+      "type": "silent",
+      "enabled": true,
+      "seq_s": 80,
+      "seq_e": 83,
+      "round": 0,
+      "parameters": {
+        "code": 4,
+        "direction": 1,
+        "targets":[]
+      }
     }
   ]
 }

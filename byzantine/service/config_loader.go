@@ -73,15 +73,15 @@ func (cl *ConfigLoader) LoadConfigFromReader(reader io.Reader) (*types.Byzantine
 // parseAttackConfig parses a single attack configuration
 func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConfig, error) {
 	var basicConfig struct {
-		UID           string                 `json:"uid"`
-		Name          string                 `json:"name"`
-		Type          string                 `json:"type"`
-		Enabled       bool                   `json:"enabled"`
-		SequenceStart uint64                 `json:"seq_s"`
-		SequenceEnd   uint64                 `json:"seq_e"`
-		Round         uint64                 `json:"round"`
-		MaxExecutions uint64                 `json:"max_executions,omitempty"`
-		Parameters    map[string]interface{} `json:"parameters,omitempty"`
+		UID               string                 `json:"uid"`
+		Name              string                 `json:"name"`
+		Type              string                 `json:"type"`
+		Enabled           bool                   `json:"enabled"`
+		SequenceStart     uint64                 `json:"seq_s"`
+		SequenceEnd       uint64                 `json:"seq_e"`
+		Round             uint64                 `json:"round"`
+		MaxExecutionCount uint64                 `json:"max_execution_count,omitempty"`
+		Parameters        map[string]interface{} `json:"parameters,omitempty"`
 	}
 
 	if err := json.Unmarshal(raw, &basicConfig); err != nil {
@@ -90,15 +90,16 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 
 	// Create attack config
 	config := types.AttackConfig{
-		Name:          basicConfig.Name,
-		Type:          types.StringToAttackType(basicConfig.Type),
-		Enabled:       basicConfig.Enabled,
-		SequenceStart: basicConfig.SequenceStart,
-		SequenceEnd:   basicConfig.SequenceEnd,
-		Round:         basicConfig.Round,
-		Parameters:    basicConfig.Parameters,
-		Status:        types.AttackStatusPending,
-		CreatedAt:     time.Now(),
+		Name:              basicConfig.Name,
+		Type:              types.StringToAttackType(basicConfig.Type),
+		Enabled:           basicConfig.Enabled,
+		SequenceStart:     basicConfig.SequenceStart,
+		SequenceEnd:       basicConfig.SequenceEnd,
+		Round:             basicConfig.Round,
+		Parameters:        basicConfig.Parameters,
+		MaxExecutionCount: basicConfig.MaxExecutionCount,
+		Status:            types.AttackStatusPending,
+		CreatedAt:         time.Now(),
 	}
 
 	uid := types.NewUIDGenerator().GenerateWithRange(
@@ -204,9 +205,14 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	case types.AttackTypeRoleSpoofed:
 		if params, ok := parsedParams.(*types.RoleSpoofAttackParams); ok {
 			result["code"] = params.Code
-			if len(params.FakeMessage) > 0 {
-				result["fakeMessage"] = string(params.FakeMessage)
+			fields := make([]map[string]interface{}, len(params.Fields))
+			for i, field := range params.Fields {
+				fields[i] = map[string]interface{}{
+					"target": field.Target,
+					"value":  field.Value,
+				}
 			}
+			result["fields"] = fields
 			result["targets"] = params.Targets
 		}
 

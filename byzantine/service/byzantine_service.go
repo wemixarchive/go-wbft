@@ -164,6 +164,9 @@ func (s *ByzantineService) RegisterAttack(config types.AttackConfig) (string, er
 	// Set initial status
 	config.Status = types.AttackStatusPending
 	config.CreatedAt = time.Now()
+	if config.MaxExecutionCount == uint64(0) {
+		config.MaxExecutionCount = uint64(1) // Default to 1 if not specified
+	}
 
 	// Create attack instance
 	attack, err := s.attackRegistry.CreateAttack(config)
@@ -177,7 +180,18 @@ func (s *ByzantineService) RegisterAttack(config types.AttackConfig) (string, er
 		return "", fmt.Errorf("failed to register attack: %w", err)
 	}
 
-	return config.UID, nil
+	uid := attack.GetUID()
+	log.Debug("[BYZ] Attack registered successfully",
+		"name", config.Name,
+		"uid", uid,
+		"type", config.Type,
+		"enabled", config.Enabled,
+		"code", config.Parameters["code"],
+		"seq_start", config.SequenceStart,
+		"seq_end", config.SequenceEnd,
+		"max_executions", config.MaxExecutionCount)
+
+	return uid, nil
 }
 
 // CancelAttack cancels an attack
@@ -242,13 +256,6 @@ func (s *ByzantineService) loadAttacksFromConfig() error {
 		if _, err := s.RegisterAttack(attackConfig); err != nil {
 			return fmt.Errorf("failed to register attack %s: %w", attackConfig.Name, err)
 		}
-		log.Debug("[BYZ] Attack registered successfully",
-			"name", attackConfig.Name,
-			"uid", attackConfig.UID,
-			"type", attackConfig.Type,
-			"code", attackConfig.Parameters["code"],
-			"sequence start", attackConfig.SequenceStart,
-			"sequence end", attackConfig.SequenceEnd)
 	}
 	return nil
 }
