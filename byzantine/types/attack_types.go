@@ -145,11 +145,6 @@ func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
 	}
 	ac.CreatedAt = time.Now()
 
-	// Default MaxExecutionCount for range attacks if not specified
-	if ac.MaxExecutionCount == 0 && ac.SequenceStart != ac.SequenceEnd {
-		ac.MaxExecutionCount = 1 // Default to 1 if not specified
-	}
-
 	return nil
 }
 
@@ -179,7 +174,9 @@ func (ac *AttackConfig) CanExecute() bool {
 	}
 
 	// Check if attack reached its execution limit
-	if ac.ExecutionCount >= ac.MaxExecutionCount {
+	if ac.MaxExecutionCount == 0 {
+		return true
+	} else if ac.ExecutionCount >= ac.MaxExecutionCount {
 		return false
 	}
 

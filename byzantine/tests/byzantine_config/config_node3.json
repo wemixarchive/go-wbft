@@ -8,6 +8,7 @@
       "seq_s": 74,
       "seq_e": 77,
       "round": 0,
+      "max_execution_count": 1,
       "parameters": {
         "code": 1,
         "direction": 1,
