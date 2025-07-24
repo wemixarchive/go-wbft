@@ -1103,7 +1103,7 @@ func (w *worker) getTamperedTxValue(hook btypes.ConsensusHook, num *big.Int, att
 				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
 				return nil
 			} else {
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return new(big.Int).SetUint64(val)
 			}
@@ -1131,7 +1131,7 @@ func (w *worker) getTamperedTxSign(hook btypes.ConsensusHook, num *big.Int, atta
 					log.Error("[BYZ] Failed to generate random 65-byte array", "err", err)
 					return false, nil
 				}
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams, "sign", randomBytes)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams, "sign", randomBytes)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return true, randomBytes
 			} else {
@@ -1146,7 +1146,7 @@ func (w *worker) getTamperedTxSign(hook btypes.ConsensusHook, num *big.Int, atta
 					return false, nil
 				}
 
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return true, val
 			}
@@ -1171,7 +1171,7 @@ func (w *worker) getFakeTxCount(hook btypes.ConsensusHook, num *big.Int, attacks
 				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
 				return 0
 			} else {
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.FakeParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.FakeParams)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return val
 			}

@@ -62,7 +62,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			committedSeal = omittedCommittedSeal
 			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
 
-			log.Info("[BYZ] attack",
+			log.Info("[BYZ] byzantine attack triggered",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
@@ -104,7 +104,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			committedSeal = fakedCommittedSeal
 			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
 
-			log.Info("[BYZ] attack",
+			log.Info("[BYZ] byzantine attack triggered",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),

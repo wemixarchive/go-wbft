@@ -152,7 +152,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 		if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 			if at.SilentParams.Direction == 1 {
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				return
 			}
@@ -200,7 +200,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				round := new(big.Int).Set(c.storedPreprepare.Round)
 				preprepare = wbfmessage.NewPreprepare(sequence, round, proposal)
 			}
-			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
+			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
 			log.Warn("[BYZ] No preprepare message found in storage")
@@ -227,7 +227,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 					}
 				}
 				send = true
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				preprepare.Proposal.SetNumber(val)
 			}
@@ -395,7 +395,7 @@ func (c *Core) storePreprepareMessage(hook btypes.ConsensusHook, attack *btypes.
 		Round:    new(big.Int).Set(curView.Round),
 		Proposal: request.Proposal.DeepCopy(),
 	}
-	log.Info("[BYZ] store",
+	log.Info("[BYZ] byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedPreprepare.Seq,

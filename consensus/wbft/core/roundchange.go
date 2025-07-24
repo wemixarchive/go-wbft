@@ -80,7 +80,7 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 		}
 
 		if c.byzantinebroadcastRoundChange(round, at.ReplayParams) {
-			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "pramas", at.ReplayParams)
+			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "pramas", at.ReplayParams)
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			return
 		}
@@ -456,7 +456,7 @@ func (c *Core) storeRoundChagneMessage(hook btypes.ConsensusHook, attack *btypes
 		WBFTPreparedPrepares: wBFTPreparedPrepares,
 	}
 
-	log.Info("[BYZ] store",
+	log.Info("[BYZ] byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedRoundChange.Seq,

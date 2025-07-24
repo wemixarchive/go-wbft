@@ -102,7 +102,7 @@ func (c *Core) broadcastPrepare() {
 
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 		if at.SilentParams.Direction == 1 {
-			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
+			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			return
 		}
@@ -148,7 +148,7 @@ func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[
 				round := new(big.Int).Set(c.storedPrepare.Round)
 				prepare = wbfmessage.NewPrepare(sequence, round, c.storedPrepare.Digest, storedPrepareSeal)
 			}
-			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(prepareSeal), "changed_seal", hex.EncodeToString(storedPrepareSeal))
+			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(prepareSeal), "changed_seal", hex.EncodeToString(storedPrepareSeal))
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
 			log.Warn("[BYZ] No prepare message found in storage")
@@ -175,7 +175,7 @@ func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[
 				}
 				send = true
 				prepare.Digest = val
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", prepare.Digest.Hex(), "params", at.TamperParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", prepare.Digest.Hex(), "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
@@ -292,7 +292,7 @@ func (c *Core) storePrepareMessage(hook btypes.ConsensusHook, attack *btypes.Exe
 	}
 	copy(c.storedPrepare.PrepareSeal, PrepareSeal)
 
-	log.Info("[BYZ] store",
+	log.Info("[BYZ] byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedPrepare.Seq,

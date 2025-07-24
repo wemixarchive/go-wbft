@@ -326,7 +326,7 @@ func (c *Core) storeCommitMessage(hook btypes.ConsensusHook, attack *btypes.Exec
 	}
 	copy(c.storedCommit.CommitSeal, CommitSeal)
 
-	log.Info("[BYZ] store",
+	log.Info("[BYZ] byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedCommit.Seq,
