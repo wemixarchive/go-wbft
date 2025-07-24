@@ -72,6 +72,20 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 		c.storeRoundChagneMessage(hook, at)
 	}
 
+	// Check and execute replay attack using stored ROUND-CHANGE message
+	if at := attacks[btypes.AttackTypeReplay]; at != nil && at.ReplayParams != nil {
+		if c.storedRoundChange == nil {
+			log.Warn("[BYZ] No roundchange message found in storage")
+			return
+		}
+
+		if c.byzantinebroadcastRoundChange(round, at.ReplayParams) {
+			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "pramas", at.ReplayParams)
+			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+			return
+		}
+	}
+
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
 	if err != nil {
@@ -200,6 +214,65 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 		logger.Debug("WBFT: accepted ROUND-CHANGE messages")
 	}
 	return nil
+}
+
+// byzantinebroadcastRoundChange is a Byzantine test hook that simulates
+// a replay attack by broadcasting a previously stored ROUND-CHANGE message.
+//
+// It is triggered when:
+// - A replay attack is configured (AttackTypeReplay)
+// - A valid stored ROUND-CHANGE message exists
+//
+// The goal is to simulate the propagation of stale or malicious round-change signals
+// to test the protocol's resilience against view replay attacks.
+func (c *Core) byzantinebroadcastRoundChange(round *big.Int, params *btypes.ReplayAttackParams) bool {
+	logger := c.currentLogger(true, nil)
+
+	var roundChange *wbfmessage.RoundChange
+
+	if params.UseOriginalView {
+		roundChange = wbfmessage.NewRoundChange(c.current.Sequence(), round, c.storedRoundChange.PreparedRound, c.storedRoundChange.PreparedBlock)
+	} else {
+		sequence := new(big.Int).Set(c.storedRoundChange.Seq)
+		storedRound := new(big.Int).Set(c.storedRoundChange.Round)
+		roundChange = wbfmessage.NewRoundChange(sequence, storedRound, c.storedRoundChange.PreparedRound, c.storedRoundChange.PreparedBlock)
+	}
+
+	// Sign message
+	encodedPayload, err := roundChange.EncodePayloadForSigning()
+	if err != nil {
+		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to encode ROUND-CHANGE message", "err", err)
+		return false
+	}
+	signature, err := c.backend.Sign(encodedPayload)
+	if err != nil {
+		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to sign ROUND-CHANGE message", "err", err)
+		return false
+	}
+	roundChange.SetSignature(signature)
+
+	// Extend ROUND-CHANGE message with PREPARE justification
+	if c.storedRoundChange.WBFTPreparedPrepares != nil {
+		roundChange.Justification = c.storedRoundChange.WBFTPreparedPrepares
+		withMsg(logger, roundChange).Debug("[BYZ] WBFT: extended ROUND-CHANGE message with PREPARE justification", "justification", roundChange.Justification)
+	}
+
+	// RLP-encode message
+	data, err := rlp.EncodeToBytes(roundChange)
+	if err != nil {
+		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to encode ROUND-CHANGE message", "err", err)
+		return false
+	}
+
+	withMsg(logger, roundChange).Info("[BYZ] WBFT: broadcast ROUND-CHANGE message", "payload", hexutil.Encode(data))
+
+	// Broadcast RLP-encoded message
+	if err = c.backend.Broadcast(c.valSet, roundChange.Code(), data); err != nil {
+		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to broadcast ROUND-CHANGE message", "err", err)
+		return false
+	}
+
+	return true
 }
 
 // highestPrepared returns the highest Prepared Round and the corresponding Prepared Block
@@ -361,9 +434,7 @@ func (c *Core) storeRoundChagneMessage(hook btypes.ConsensusHook, attack *btypes
 		preparedRound = new(big.Int).Set(c.current.preparedRound)
 	}
 
-	if c.current.preparedBlock == nil {
-		preparedBlock = nil
-	} else {
+	if c.current.preparedBlock != nil {
 		preparedBlock = c.current.preparedBlock.DeepCopy()
 	}
 
