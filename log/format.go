@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"time"
 	"unicode/utf8"
@@ -63,6 +65,8 @@ func (h *TerminalHandler) format(buf []byte, r slog.Record, usecolor bool) []byt
 	}
 	b.WriteString("[")
 	writeTimeTermFormat(b, r.Time)
+	b.WriteString("|")
+	writeCallsiteTermFormat(b, r.PC)
 	b.WriteString("] ")
 	b.WriteString(msg)
 
@@ -342,6 +346,33 @@ func writeTimeTermFormat(buf *bytes.Buffer, t time.Time) {
 	ns := t.Nanosecond()
 	buf.WriteByte('.')
 	writePosIntWidth(buf, ns/1e6, 3)
+}
+
+func padRight(s string, width int) string {
+	var spaces = "                                        "
+
+	if len(s) >= width {
+		return s
+	}
+	return s + spaces[:width-len(s)]
+}
+
+// writeCallsiteTermFormat writes the caller location in the format "file.go:123",
+// right-padded to a fixed width for terminal log alignment.
+func writeCallsiteTermFormat(buf *bytes.Buffer, pc uintptr) {
+	var callsiteFieldWidth = 25
+
+	fn := runtime.FuncForPC(pc - 1)
+	if fn == nil {
+		buf.WriteString(padRight("unknown:0", callsiteFieldWidth))
+		return
+	}
+
+	file, line := fn.FileLine(pc - 1)
+	file = filepath.Base(file)
+	formatted := fmt.Sprintf("%s:%d", file, line)
+
+	buf.WriteString(padRight(formatted, callsiteFieldWidth))
 }
 
 // writePosIntWidth writes non-negative integer i to the buffer, padded on the left
