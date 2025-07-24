@@ -82,7 +82,7 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	// check silent
 	for _, group := range attackGroups {
 		if params, name, uid, ok := isSilentMessage(group[btypes.AttackTypeSilentMessage]); ok {
-			log.Info("[BYZ] attack", "name", name, "uid", uid, "seq", seq, "params", params)
+			log.Info("[BYZ] byzantine attack triggered", "name", name, "uid", uid, "seq", seq, "params", params)
 			hook.MarkAttackExecuted(uid, seq)
 			return errInvalidMessage
 		}

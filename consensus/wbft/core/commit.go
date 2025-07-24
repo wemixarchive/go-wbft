@@ -105,7 +105,7 @@ func (c *Core) broadcastCommit() {
 
 	if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
 		if at.SilentParams.Direction == 1 {
-			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
+			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			return
 		}
@@ -151,7 +151,7 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 				round := new(big.Int).Set(c.storedCommit.Round)
 				commit = wbfmessage.NewCommit(sequence, round, c.storedCommit.Digest, storedCommitSeal)
 			}
-			log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(commitSeal), "changed_seal", hex.EncodeToString(storedCommitSeal))
+			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(commitSeal), "changed_seal", hex.EncodeToString(storedCommitSeal))
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
 			log.Warn("[BYZ] No commit message found in storage")
@@ -179,7 +179,7 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 				}
 				send = true
 				commit.Digest = val
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", commit.Digest.Hex(), "params", at.TamperParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", commit.Digest.Hex(), "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
