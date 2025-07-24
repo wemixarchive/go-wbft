@@ -21,9 +21,6 @@ type AttackManager struct {
 	// Status tracking - stores UIDs instaed of Attack objects
 	uidsByStatus map[types.AttackStatus]map[string]bool
 
-	// Pattern index for wildcard matching
-	patternIndex map[string][]string
-
 	// UID generator
 	uidGenerator types.UIDGenerator
 
@@ -43,7 +40,6 @@ func NewAttackManager(registry *registry.AttackRegistry) *AttackManager {
 	manager := &AttackManager{
 		attacksByUID: make(map[string]types.Attack),
 		uidsByStatus: make(map[types.AttackStatus]map[string]bool),
-		patternIndex: make(map[string][]string),
 		uidGenerator: types.NewUIDGenerator(),
 		registry:     registry,
 	}
@@ -96,9 +92,6 @@ func (m *AttackManager) RegisterAttack(attack types.Attack) error {
 
 	// Update status tracking
 	m.updateStatusTracking(uid, types.AttackStatusPending, "")
-
-	// Update pattern index for wildcard matching
-	m.updatePatternIndex(uid, config)
 
 	// Update metrics
 	m.totalAttacks++
@@ -293,9 +286,6 @@ func (m *AttackManager) UnregisterAttack(uid string) error {
 
 	// Update status to cancelled first
 	m.updateStatusTracking(uid, types.AttackStatusCancelled, config.Status)
-
-	// Remove from pattern index
-	m.removeFromPatternIndex(uid, config)
 
 	// Update metrics
 	if config.Status == types.AttackStatusPending || config.Status == types.AttackStatusActive {
@@ -548,57 +538,6 @@ func (m *AttackManager) updateStatusTracking(uid string, newStatus, oldStatus ty
 
 	// Add to new status
 	m.uidsByStatus[newStatus][uid] = true
-}
-
-// updatePatternIndex updates the pattern index for wildcard matching
-func (m *AttackManager) updatePatternIndex(uid string, config types.AttackConfig) {
-	// Index exact pattern
-	exactPattern := m.uidGenerator.GenerateWithRange(config.Type, config.SequenceStart, config.SequenceEnd, config.Round)
-	m.patternIndex[exactPattern] = append(m.patternIndex[exactPattern], uid)
-
-	// Index wildcard patterns for flexible matching
-	// Pattern for any round: "type-seq_s-seq_e-*"
-	anyRoundPattern := fmt.Sprintf("%s-%d-%d-*",
-		types.AttackTypeToString(config.Type), config.SequenceStart, config.SequenceEnd)
-	if m.patternIndex[anyRoundPattern] == nil {
-		m.patternIndex[anyRoundPattern] = append(m.patternIndex[anyRoundPattern], uid)
-	} else {
-		log.Error("Duplicated pattern", "uid", uid, "pattern", anyRoundPattern)
-	}
-
-	// Pattern for any sequence and round: "type-seq_s-*-*"
-	globalPattern := fmt.Sprintf("%s-%d-*-*",
-		types.AttackTypeToString(config.Type), config.SequenceStart)
-	if m.patternIndex[globalPattern] == nil {
-		m.patternIndex[globalPattern] = append(m.patternIndex[globalPattern], uid)
-	} else {
-		log.Error("Duplicated global pattern", "uid", uid, "pattern", globalPattern)
-	}
-}
-
-// removeFromPatternIndex removes UID from pattern index
-func (m *AttackManager) removeFromPatternIndex(uid string, config types.AttackConfig) {
-	patterns := []string{
-		m.uidGenerator.GenerateWithRange(config.Type, config.SequenceStart, config.SequenceEnd, config.Round),
-		fmt.Sprintf("%s-%d-%d-*", types.AttackTypeToString(config.Type), config.SequenceStart, config.SequenceEnd),
-		fmt.Sprintf("%s-%d-*-*", types.AttackTypeToString(config.Type), config.SequenceStart),
-	}
-
-	for _, pattern := range patterns {
-		if uids, exists := m.patternIndex[pattern]; exists {
-			// Remove uid from slice
-			for i, u := range uids {
-				if u == uid {
-					m.patternIndex[pattern] = append(uids[:i], uids[i+1:]...)
-					break
-				}
-			}
-			// Clean up empty entries
-			if len(m.patternIndex[pattern]) == 0 {
-				delete(m.patternIndex, pattern)
-			}
-		}
-	}
 }
 
 // getApplicableAttackTypes returns attack types applicable to the message and direction
