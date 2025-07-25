@@ -47,7 +47,7 @@ func NewRoundChange(sequence *big.Int, round *big.Int, preparedRound *big.Int, p
 		},
 	}
 
-	if preparedBlock != nil {
+	if block, ok := preparedBlock.(*types.Block); ok && block != nil {
 		roundChange.PreparedBlock = preparedBlock.(*types.Block)
 		roundChange.PreparedDigest = preparedBlock.Hash()
 	}

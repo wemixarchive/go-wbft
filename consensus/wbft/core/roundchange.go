@@ -245,13 +245,16 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 			log.Warn("[BYZ] No roundchange message found in storage")
 			return false
 		}
-
+		var preparedBlock *types.Block
+		if c.storedRoundChange.PreparedBlock != nil {
+			preparedBlock = c.storedRoundChange.PreparedBlock.DeepCopy()
+		}
 		if at.ReplayParams.UseOriginalView {
-			roundChange = wbfmessage.NewRoundChange(c.current.Sequence(), round, c.storedRoundChange.PreparedRound, c.storedRoundChange.PreparedBlock)
+			roundChange = wbfmessage.NewRoundChange(c.current.Sequence(), round, c.storedRoundChange.PreparedRound, preparedBlock)
 		} else {
 			sequence := new(big.Int).Set(c.storedRoundChange.Seq)
 			storedRound := new(big.Int).Set(c.storedRoundChange.Round)
-			roundChange = wbfmessage.NewRoundChange(sequence, storedRound, c.storedRoundChange.PreparedRound, c.storedRoundChange.PreparedBlock)
+			roundChange = wbfmessage.NewRoundChange(sequence, storedRound, c.storedRoundChange.PreparedRound, preparedBlock)
 		}
 		log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
@@ -296,6 +299,27 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				roundChange.Round = new(big.Int).SetUint64(val)
+			case btypes.TargetHeaderNumber:
+				var val uint64
+				var err error
+				if field.Value == nil {
+					// use the current view's sequence if Value is nil
+					val = c.current.Sequence().Uint64()
+				} else {
+					val, err = field.ValueToUint64()
+					if err != nil {
+						withMsg(logger, roundChange).Error("[BYZ] Conversion failed", "err", err)
+						return false
+					}
+				}
+				if roundChange.PreparedBlock == nil {
+					log.Warn("[BYZ] Byzantine attack skipped: no prepared block in RoundChange message")
+					break
+				}
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", roundChange.PreparedBlock.Number(), "new", val, "parmas", at.TamperParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+				roundChange.PreparedBlock.SetNumber(val)
+
 			}
 		}
 	}
