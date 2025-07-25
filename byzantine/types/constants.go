@@ -65,59 +65,48 @@ func ParseOmitCommand(code MessageCode, cmd uint64) string {
 	return ""
 }
 
-// FakeTarget constants for fake attack
+// Target defines the common set of fields that can be manipulated
+// across various Byzantine attack scenarios.
 const (
-	FakeTargetPrevCommitSeal   string = "prevCommitSeal"
-	FakeTargetPrevPrePareSeal  string = "prevPrePareSeal"
-	FakeTargetCommitSeal       string = "commitSeal"
-	FakeTargetPrePareSeal      string = "prePareSeal"
-	FakeTargetTransactionCount string = "Transaction.Count"
-	FakeTargetRound            string = "Round"
-)
+	// Block targets
+	TargetBlockReward string = "block.reward"
 
-// TamperTarget represents fields that can be tampered
-const (
-	// PrePrepare message targets
-	TamperProposalHeaderCoinbase    string = "Header.Coinbase"
-	TamperProposalHeaderNumber      string = "Header.Number"
-	TamperProposalHeaderTime        string = "Header.Time"
-	TamperProposalHeaderParentHash  string = "Header.ParentHash"
-	TamperProposalHeaderStateRoot   string = "Header.StateRoot"
-	TamperProposalHeaderTxHash      string = "Header.TxHash"
-	TamperProposalHeaderReceiptHash string = "Header.ReceiptHash"
-	TamperProposalHeaderBloom       string = "Header.Bloom"
-	TamperProposalHeaderDifficulty  string = "Header.Difficulty"
-	TamperProposalHeaderGasLimit    string = "Header.GasLimit"
-	TamperProposalHeaderGasUsed     string = "Header.GasUsed"
-	TamperProposalHeaderExtra       string = "Header.Extra"
-	TamperProposalHeaderMixDigest   string = "Header.MixDigest"
-	TamperProposalHeaderNonce       string = "Header.Nonce"
-
-	TamperDigest string = "Digest"
-	TamperReward string = "Reward"
+	// Header targets
+	TargetHeaderParentHash  string = "header.parentHash"
+	TargetHeaderUncleHash   string = "header.uncleHash"
+	TargetHeaderCoinbase    string = "header.coinbase"
+	TargetHeaderRoot        string = "header.root"
+	TargetHeaderTxHash      string = "header.txHash"
+	TargetHeaderReceiptHash string = "header.receiptHash"
+	TargetHeaderBloom       string = "header.bloom"
+	TargetHeaderDifficulty  string = "header.difficulty"
+	TargetHeaderNumber      string = "header.number"
+	TargetHeaderGasLimit    string = "header.gasLimit"
+	TargetHeaderGasUsed     string = "header.gasUsed"
+	TargetHeaderTime        string = "header.time"
+	TargetHeaderExtra       string = "header.extra"
+	TargetHeaderMixDigest   string = "header.mixDigest"
+	TargetHeaderNonce       string = "header.nonce"
 
 	// Transaction targets
-	TamperTransactionSign    string = "Transaction.Sign"
-	TamperTransactionBalance string = "Transaction.Balance"
-	TamperTransactionNonce   string = "Transaction.Nonce"
-	TamperTransactionData    string = "Transaction.Data"
-	TamperTransactionValue   string = "Transaction.Value"
+	TargetTxCount string = "tx.count"
+	TargetTxSign  string = "tx.sign"
+	TargetTxNonce string = "tx.nonce"
+	TargetTxData  string = "tx.data"
+	TargetTxValue string = "tx.value"
 
-	// Common message targets
-	TamperMessageRound     string = "Message.Round"
-	TamperMessageSequence  string = "Message.Sequence"
-	TamperMessageSealType  string = "Message.SealType"
-	TamperMessageHeader    string = "Message.Header"
-	TamperMessageSignature string = "Message.Signature"
-
-	// RoundChange specific
-	TamperRoundChangePreparedRound  string = "RoundChange.PreparedRound"
-	TamperRoundChangePreparedDigest string = "RoundChange.PreparedDigest"
+	// Consensus message targets
+	TargetMsgRound          string = "msg.round"
+	TargetMsgSequence       string = "msg.sequence"
+	TargetMsgPreparedRound  string = "msg.pr"
+	TargetMsgPreparedDigest string = "msg.pd"
+	TargetMsgDigest         string = "msg.digest"
 
 	// Seal targets
-	TamperSealPrepare  string = "Seal.Prepare"
-	TamperSealCommit   string = "Seal.Commit"
-	TamperSealPrevious string = "Seal.Previous"
+	TargetPrevCommitSeal  string = "seal.prevcommit"
+	TargetPrevPrePareSeal string = "seal.prevprepare"
+	TargetCommitSeal      string = "seal.commit"
+	TargetPrePareSeal     string = "seal.prepare"
 )
 
 // Node roles

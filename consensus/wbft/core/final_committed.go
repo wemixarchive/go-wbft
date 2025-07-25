@@ -46,7 +46,7 @@ func (c *Core) byzantineFakeRoundChange() {
 	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
 		for _, field := range at.FakeParams.Fields {
 			switch field.Target {
-			case btypes.FakeTargetRound:
+			case btypes.TargetMsgRound:
 				val, err := field.ValueToUint64()
 				if err != nil {
 					log.Error("[BYZ] Conversion failed", "err", err)

@@ -213,7 +213,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 			// Implementation depends on actual message structure
 			// This is just a placeholder
 			switch field.Target {
-			case btypes.TamperProposalHeaderNumber:
+			case btypes.TargetHeaderNumber:
 				var val uint64
 				var err error
 				if field.Value == nil {

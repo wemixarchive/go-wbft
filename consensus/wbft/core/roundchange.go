@@ -262,7 +262,7 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 			// Implementation depends on actual message structure
 			// This is just a placeholder
 			switch field.Target {
-			case btypes.TamperMessageSequence:
+			case btypes.TargetMsgSequence:
 				var val uint64
 				var err error
 				if field.Value == nil {
@@ -279,7 +279,7 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				roundChange.Sequence = new(big.Int).SetUint64(val)
-			case btypes.TamperMessageRound:
+			case btypes.TargetMsgRound:
 				var val uint64
 				var err error
 				if field.Value == nil {

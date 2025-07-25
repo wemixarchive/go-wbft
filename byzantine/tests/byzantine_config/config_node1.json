@@ -106,7 +106,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Header.Number",
+            "target": "header.number",
             "value": 88
           }
         ],
@@ -126,7 +126,7 @@
         "code": 2,
         "fields": [
           {
-            "target": "Digest",
+            "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
@@ -146,7 +146,7 @@
         "code": 4,
         "fields": [
           {
-            "target": "Digest",
+            "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
@@ -166,7 +166,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Header.Number",
+            "target": "header.number",
             "value": 100
           }
         ],
@@ -186,7 +186,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Header.Number",
+            "target": "header.number",
             "value": 100
           }
         ],
@@ -206,7 +206,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Reward",
+            "target": "block.reward",
             "value": 100000
           }
         ],
@@ -252,7 +252,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "prevPrePareSeal",
+            "target": "seal.prevprepare",
             "value": "nil"
           }
         ],
@@ -270,7 +270,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "prevCommitSeal",
+            "target": "seal.prevcommit",
             "value": "0x83a28ebe2335a941a82197196f9d8c9122782375eabc27c844f37ff4a3cd78c4fa2f3789f776d3a6cac130be100a557204091eba480c18f77faf2d3c974dd946d301cf622bcd5d1c4a3f68fef5769c0c628ce664fc810d6f4650b3f60634106d"
           }
         ]
@@ -287,7 +287,7 @@
         "code": 2,
         "fields": [
           {
-            "target": "Digest",
+            "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
@@ -307,7 +307,7 @@
         "code": 4,
         "fields": [
           {
-            "target": "Digest",
+            "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
@@ -327,7 +327,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Transaction.Value",
+            "target": "tx.value",
             "value": 100
           }
         ],
@@ -347,7 +347,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Transaction.Count",
+            "target": "tx.count",
             "value": 10
           }
         ],
@@ -367,7 +367,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Transaction.Sign"
+            "target": "tx.sign"
           }
         ],
         "withValidMessage": false,
@@ -386,7 +386,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Transaction.Count",
+            "target": "tx.count",
             "value": 1
           }
         ],
@@ -419,7 +419,7 @@
         "code": 8,
         "fields": [
           {
-            "target": "Round",
+            "target": "msg.round",
             "value": 3
           }
         ],
@@ -437,7 +437,7 @@
         "code": 8,
         "fields": [
           {
-            "target": "Round",
+            "target": "msg.round",
             "value": 5
           }
         ],

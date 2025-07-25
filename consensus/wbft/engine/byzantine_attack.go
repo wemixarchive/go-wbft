@@ -241,20 +241,20 @@ func (e *Engine) processFakeField(
 	}
 
 	switch fakeField.Target {
-	case btypes.FakeTargetPrevPrePareSeal:
+	case btypes.TargetPrevPrePareSeal:
 		// Only modify prepared seal for PrevPrePareSeal
 		if preparedSeal != nil {
 			return e.addFakeSealToAggregated(preparedSeal, fakeSeal, validatorSize), committedSeal, true
 		}
 
-	case btypes.FakeTargetPrevCommitSeal:
+	case btypes.TargetPrevCommitSeal:
 		// Only modify committed seal for PrevCommitSeal
 		if committedSeal != nil {
 			return preparedSeal, e.addFakeSealToAggregated(committedSeal, fakeSeal, validatorSize), true
 		}
 
-	case btypes.FakeTargetPrePareSeal:
-	case btypes.FakeTargetCommitSeal:
+	case btypes.TargetPrePareSeal:
+	case btypes.TargetCommitSeal:
 	}
 
 	return preparedSeal, committedSeal, false

@@ -164,7 +164,7 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 			// Implementation depends on actual message structure
 			// This is just a placeholder
 			switch field.Target {
-			case btypes.TamperDigest:
+			case btypes.TargetMsgDigest:
 				var val common.Hash
 				var err error
 				if field.Value == nil {

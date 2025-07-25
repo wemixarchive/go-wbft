@@ -1097,7 +1097,7 @@ func (w *worker) getTamperedTxValue(hook btypes.ConsensusHook, num *big.Int, att
 
 	for _, field := range at.TamperParams.Fields {
 		switch field.Target {
-		case btypes.TamperTransactionValue:
+		case btypes.TargetTxValue:
 			val, err := field.ValueToUint64()
 			if err != nil {
 				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
@@ -1122,7 +1122,7 @@ func (w *worker) getTamperedTxSign(hook btypes.ConsensusHook, num *big.Int, atta
 
 	for _, field := range at.TamperParams.Fields {
 		switch field.Target {
-		case btypes.TamperTransactionSign:
+		case btypes.TargetTxSign:
 			if field.Value == nil {
 				// Generate random 65-byte signature
 				randomBytes := make([]byte, 65)
@@ -1165,7 +1165,7 @@ func (w *worker) getFakeTxCount(hook btypes.ConsensusHook, num *big.Int, attacks
 
 	for _, field := range at.FakeParams.Fields {
 		switch field.Target {
-		case btypes.FakeTargetTransactionCount:
+		case btypes.TargetTxCount:
 			val, err := field.ValueToUint64()
 			if err != nil {
 				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)

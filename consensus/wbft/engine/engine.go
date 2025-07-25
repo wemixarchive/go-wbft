@@ -1120,7 +1120,7 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 
 	for _, field := range at.TamperParams.Fields {
 		switch field.Target {
-		case btypes.TamperReward:
+		case btypes.TargetBlockReward:
 			val, err := field.ValueToUint64()
 			if err != nil {
 				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
