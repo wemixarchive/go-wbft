@@ -68,6 +68,15 @@ func (c *Core) broadcastCommit() {
 		c.storeCommitMessage(hook, at, commitSeal)
 	}
 
+	// Check for DOS attack
+	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
+		c.executeDosAttack(at, btypes.MessageCodeCommit, commit)
+		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
+			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
+		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		// Continue with normal commit after DOS attack
+	}
+
 	if c.broadcastByzantineCommit(hook, attacks) {
 		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 			if !at.TamperParams.WithValidMessage {

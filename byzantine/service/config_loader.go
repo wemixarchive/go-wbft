@@ -222,10 +222,26 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 			result["useOriginalView"] = params.UseOriginalView
 			result["targets"] = params.Targets
 		}
+
 	case types.AttackTypeStoreMessage:
 		if params, ok := parsedParams.(*types.StoreAttackParams); ok {
 			result["code"] = params.Code
 		}
+
+	case types.AttackTypeDos:
+		if params, ok := parsedParams.(*types.DosAttackParams); ok {
+			result["code"] = params.Code
+			fields := make([]map[string]interface{}, len(params.Fields))
+			for i, field := range params.Fields {
+				fields[i] = map[string]interface{}{
+					"target": field.Target,
+					"value":  field.Value,
+				}
+			}
+			result["fields"] = fields
+			result["targets"] = params.Targets
+		}
+
 	default:
 		log.Debug("[BYZ] error", "restructureParameters", attackType)
 	}

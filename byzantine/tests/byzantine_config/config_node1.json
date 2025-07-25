@@ -600,7 +600,7 @@
       }
     },
     {
-      "name": "multiple no broadcast preprepare",
+      "name": "multiple_no_broadcast_preprepare",
       "type": "silent",
       "enabled": true,
       "seq_s": 84,
@@ -614,9 +614,40 @@
       }
     },
     {
+      "name": "dos_valid_messages",
+      "type": "silent",
+      "enabled": false,
+      "seq_s": 92,
+      "seq_e": 100,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "direction": 1,
+        "targets":[]
+      }
+    },
+    {
+      "name": "dos_valid_messages",
+      "type": "dos",
+      "enabled": false,
+      "seq_s": 92,
+      "seq_e": 100,
+      "round": 1,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "valid",
+            "value": "round"
+          }
+        ],
+        "targets": []
+      }
+    },
+    {
       "name": "broadcast_invalid_epoch_preprepare",
       "type": "fake",
-      "enabled": true,
+      "enabled": false,
       "seq_s": 92,
       "seq_e": 109,
       "round": 0,

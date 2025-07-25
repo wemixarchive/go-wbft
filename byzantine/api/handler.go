@@ -520,6 +520,75 @@ func (h *Handler) validateStoreMessageParams(params types.StoreMessageParams) er
 	return nil
 }
 
+// RegisterDosMessage registers a DoS message attack
+func (h *Handler) RegisterDosMessage(params types.DosMessageParams) error {
+	// Validate parameters
+	if err := h.validateDosMessageParams(params); err != nil {
+		return fmt.Errorf("invalid parameters: %w", err)
+	}
+
+	// Create attack configuration
+	config := types.AttackConfig{
+		Name:          fmt.Sprintf("dos_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
+		Type:          types.AttackTypeDos,
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
+		Round:         params.Round,
+		Parameters: map[string]interface{}{
+			"code":    params.Code,
+			"targets": params.Targets,
+			"fields":  params.Fields,
+		},
+		MaxExecutionCount: params.MaxExecutionCount,
+		Enabled:           params.Enabled,
+		Status:            types.AttackStatusPending,
+		CreatedAt:         time.Now(),
+	}
+
+	// Register attack
+	uid, err := h.service.RegisterAttack(config)
+	if err != nil {
+		return fmt.Errorf("failed to register DoS attack: %w", err)
+	}
+
+	log.Info("DoS message attack registered", "uid", uid, "fields", len(params.Fields))
+	return nil
+}
+
+func (h *Handler) validateDosMessageParams(params types.DosMessageParams) error {
+	// Check sequence
+	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
+		return fmt.Errorf("sequence number is required")
+	}
+	if params.Code == 0 {
+		return fmt.Errorf("message code is required")
+	}
+	
+	// Validate fields if provided
+	for _, field := range params.Fields {
+		if field.Target != "valid" && field.Target != "invalid" {
+			return fmt.Errorf("invalid target: %s, must be 'valid' or 'invalid'", field.Target)
+		}
+		
+		// Validate value
+		if strValue, ok := field.Value.(string); ok {
+			validValues := []string{"sequence", "round", "random", "signature", "blockHash"}
+			valid := false
+			for _, vv := range validValues {
+				if strValue == vv {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				return fmt.Errorf("invalid value: %s", strValue)
+			}
+		}
+	}
+	
+	return nil
+}
+
 // Helper methods
 func (h *Handler) getFakeMessageFromOptions(options map[string]interface{}) string {
 	if options == nil {

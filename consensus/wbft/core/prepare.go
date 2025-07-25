@@ -66,6 +66,15 @@ func (c *Core) broadcastPrepare() {
 		c.storePrepareMessage(hook, at, prepareSeal)
 	}
 
+	// Check for DOS attack
+	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
+		c.executeDosAttack(at, btypes.MessageCodePrepare, prepare)
+		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
+			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
+		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		// Continue with normal prepare after DOS attack
+	}
+
 	if c.broadcastByzantinePrepare(hook, attacks) {
 		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 			if !at.TamperParams.WithValidMessage {

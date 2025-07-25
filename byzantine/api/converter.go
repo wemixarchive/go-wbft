@@ -55,7 +55,7 @@ func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessa
 			return params, fmt.Errorf("invalid seq_s: %w", err)
 		}
 		params.SequenceStart = seqStart
-		
+
 		// seq_e is optional, if not provided, it's a single sequence
 		if v, exists := raw["seq_e"]; exists {
 			seqEnd, err := convertToUint64(v)
@@ -138,7 +138,7 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 			return params, fmt.Errorf("invalid seq_s: %w", err)
 		}
 		params.SequenceStart = seqStart
-		
+
 		if v, exists := raw["seq_e"]; exists {
 			seqEnd, err := convertToUint64(v)
 			if err != nil {
@@ -474,5 +474,63 @@ func ConvertToStoreMessageParams(raw map[string]interface{}) (types.StoreMessage
 	} else {
 		return params, fmt.Errorf("invalid code")
 	}
+	return params, nil
+}
+
+// ConvertToDosMessageParams converts API parameters to DosAttackParams
+func ConvertToDosMessageParams(raw map[string]interface{}) (types.DosMessageParams, error) {
+	params := types.DosMessageParams{}
+
+	if v, exists := raw["enabled"]; exists {
+		if enabled, ok := v.(bool); ok {
+			params.Enabled = enabled
+		} else {
+			params.Enabled = true
+		}
+	} else {
+		params.Enabled = true
+	}
+
+	if v, ok := raw["seq_s"].(uint64); ok {
+		params.SequenceStart = v
+	} else {
+		return params, fmt.Errorf("invalid seq_s")
+	}
+
+	if v, ok := raw["seq_e"].(uint64); ok {
+		params.SequenceEnd = v
+	} else {
+		return params, fmt.Errorf("invalid seq_e")
+	}
+
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
+	} else {
+		return params, fmt.Errorf("round number is required")
+	}
+
+	if v, ok := raw["code"].(uint64); ok {
+		params.Code = v
+	} else {
+		return params, fmt.Errorf("invalid code")
+	}
+
+	// Parse fields
+	if fieldsValue, ok := raw["fields"].([]interface{}); ok {
+		params.Fields = make([]types.Field, 0, len(fieldsValue))
+		for _, f := range fieldsValue {
+			if fieldMap, ok := f.(map[string]interface{}); ok {
+				field := types.Field{}
+				if target, ok := fieldMap["target"].(string); ok {
+					field.Target = target
+				}
+				if value, ok := fieldMap["value"]; ok {
+					field.Value = value
+				}
+				params.Fields = append(params.Fields, field)
+			}
+		}
+	}
+
 	return params, nil
 }

@@ -137,3 +137,15 @@ type StoreMessageParams struct {
 
 // UpgradeGovContractMessageParams represents parameters for gov contract upgrade
 type UpgradeGovContractMessageParams struct{}
+
+// DosMessageParams represents parameters for DoS message attack
+type DosMessageParams struct {
+	Enabled           bool     `json:"enabled"`
+	SequenceStart     uint64   `json:"seq_s"`
+	SequenceEnd       uint64   `json:"seq_e"`
+	Round             uint64   `json:"round"`
+	Code              uint64   `json:"code"`
+	Fields            []Field  `json:"fields,omitempty"`
+	Targets           []string `json:"targets,omitempty"`
+	MaxExecutionCount uint64   `json:"maxExecutionCount,omitempty"`
+}

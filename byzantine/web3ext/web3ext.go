@@ -46,7 +46,19 @@ web3._extend({
 			params: 1,
 			inputFormatter: [null]
 		}),
-			new web3._extend.Method({
+		new web3._extend.Method({
+			name: 'storeMessage',
+			call: 'byzantine_storeMessage',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'sendDosMessage',
+			call: 'byzantine_sendDosMessage',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
 			name: 'upgradeGovContract',
 			call: 'byzantine_upgradeGovContract',
 			params: 0

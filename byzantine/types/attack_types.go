@@ -20,6 +20,7 @@ const (
 	AttackTypeRoleSpoofed     AttackType = AttackRoleSpoof
 	AttackTypeReplay          AttackType = AttackReplay
 	AttackTypeStoreMessage    AttackType = AttackStore
+	AttackTypeDos             AttackType = AttackDos
 )
 
 // Slice of all AttackType constants for iteration
@@ -31,6 +32,7 @@ var AllAttackTypes = []AttackType{
 	AttackTypeRoleSpoofed,
 	AttackTypeReplay,
 	AttackTypeStoreMessage,
+	AttackTypeDos,
 }
 
 // AttackStatus represents the status of an attack
@@ -62,6 +64,8 @@ func StringToAttackType(s string) AttackType {
 		return AttackTypeReplay
 	case "store":
 		return AttackTypeStoreMessage
+	case "dos":
+		return AttackTypeDos
 	default:
 		return AttackType(s) // fallback
 	}
@@ -83,6 +87,8 @@ func AttackTypeToString(attackType AttackType) string {
 		return AttackReplay
 	case AttackTypeStoreMessage:
 		return AttackStore
+	case AttackTypeDos:
+		return AttackDos
 	default:
 		return "unknown"
 	}
@@ -333,7 +339,7 @@ func (ac *AttackConfig) GetReplayParams() (*ReplayAttackParams, error) {
 	return params, nil
 }
 
-// GetReplayParams returns parsed parameters for replay attack
+// GetStoreParams GetReplayParams returns parsed parameters for replay attack
 func (ac *AttackConfig) GetStoreParams() (*StoreAttackParams, error) {
 	if ac.Type != AttackTypeStoreMessage {
 		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeStoreMessage, ac.Type)
@@ -344,6 +350,23 @@ func (ac *AttackConfig) GetStoreParams() (*StoreAttackParams, error) {
 	}
 
 	params, ok := ac.ParsedParameters.(*StoreAttackParams)
+	if !ok {
+		return nil, errors.New("parameters not properly parsed")
+	}
+	return params, nil
+}
+
+// GetDosParams returns parsed parameters for DoS attack
+func (ac *AttackConfig) GetDosParams() (*DosAttackParams, error) {
+	if ac.Type != AttackTypeDos {
+		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeDos, ac.Type)
+	}
+
+	if ac.ParsedParameters == nil {
+		return nil, errors.New("parameters not parsed")
+	}
+
+	params, ok := ac.ParsedParameters.(*DosAttackParams)
 	if !ok {
 		return nil, errors.New("parameters not properly parsed")
 	}
@@ -415,6 +438,13 @@ func (ac *AttackConfig) Validate() error {
 		}
 		return validateStoreParams(params)
 
+	case AttackTypeDos:
+		params, err := ac.GetDosParams()
+		if err != nil {
+			return err
+		}
+		return validateDosParams(params)
+
 	default:
 		return fmt.Errorf("unknown attack type: %s", ac.Type)
 	}
@@ -470,6 +500,18 @@ func validateReplayParams(params *ReplayAttackParams) error {
 
 func validateStoreParams(params *StoreAttackParams) error {
 	return nil
+}
+
+func validateDosParams(params *DosAttackParams) error {
+	for i, field := range params.Fields {
+		if field.Target == "" {
+			return fmt.Errorf("tamperField[%d] target is empty", i)
+		}
+		if field.Value == nil {
+			return fmt.Errorf("tamperField[%d] value is nil", i)
+		}
+	}
+	return validateTargets(params.Targets)
 }
 
 func validateTargets(targets []common.Address) error {
@@ -536,22 +578,6 @@ type AttackResult struct {
 	BlockReason  string        `json:"block_reason,omitempty"`
 }
 
-// AttackDecision represents the consolidated decision from attack evaluation
-type AttackDecision struct {
-	ShouldAttack bool
-	AttackUID    string
-	AttackType   AttackType
-	Reason       string
-	Result       *AttackResult
-}
-
-// AttackContext provides context for attacks execution
-type AttackContext struct {
-	CurrentSequence uint64
-	CurrentRound    uint64
-	MessageCode     uint64
-}
-
 // ExecutableAttack bundles the original AttackConfig with its
 // concrete parameter struct (TamperAttackParams, FakeAttackParams, …).
 type ExecutableAttack struct {
@@ -566,4 +592,5 @@ type ExecutableAttack struct {
 	RoleSpoofParams    *RoleSpoofAttackParams
 	ReplayParams       *ReplayAttackParams
 	StoreMessageParams *StoreAttackParams
+	DosParams          *DosAttackParams
 }

@@ -81,6 +81,13 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 			Status:  cfg.Status,
 		}
 		err := h.extractParams(cfg, result[at])
+		if at == types.AttackTypeDos {
+			if err != nil {
+				log.Error("[BYZ] GetExecutableAttacks failed", "err", err)
+			} else {
+				log.Trace("[BYZ] GetExecutableAttacks succeeded", "attack", result[at].UID, "type", at)
+			}
+		}
 		if err != nil {
 			delete(result, at)
 			continue
@@ -169,6 +176,13 @@ func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types
 			},
 			errMsg: "StoreMessageParams is nil",
 		},
+		types.AttackTypeDos: {
+			extract: func(cfg types.AttackConfig) (interface{}, error) { return cfg.GetDosParams() },
+			assign: func(v interface{}) {
+				attacks.DosParams = v.(*types.DosAttackParams)
+			},
+			errMsg: "DosParams is nil",
+		},
 	}
 
 	handler, ok := handlers[cfg.Type]
@@ -212,7 +226,11 @@ func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode
 
 	case types.AttackTypeStoreMessage:
 		return attacks.StoreMessageParams != nil && attacks.StoreMessageParams.HasMessageCode(msgCode)
+
+	case types.AttackTypeDos:
+		return attacks.DosParams != nil && attacks.DosParams.HasMessageCode(msgCode)
 	}
+
 	return false
 }
 

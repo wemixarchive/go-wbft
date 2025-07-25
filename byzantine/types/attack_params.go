@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -613,7 +615,7 @@ func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, 
 	}
 
 	params.Targets = ParseTargets(raw["targets"])
-	
+
 	return params, nil
 }
 
@@ -796,4 +798,128 @@ func ParseTargets(rawTargets interface{}) []common.Address {
 	}
 
 	return targets
+}
+
+// DosAttackParams represents parameters for DoS attack
+type DosAttackParams struct {
+	Code    MessageCode      `json:"code"`
+	Fields  []Field          `json:"fields"` // DOS type configuration
+	Targets []common.Address `json:"targets"`
+}
+
+var _ AttackParamsParser = (*DosAttackParams)(nil)
+
+// HasMessageCode checks if the given message code matches
+func (p *DosAttackParams) HasMessageCode(code MessageCode) bool {
+	return p.Code.Has(code)
+}
+
+func (p *DosAttackParams) UnmarshalJSON(data []byte) error {
+	type Alias DosAttackParams
+	aux := &struct {
+		*Alias
+		Targets []string `json:"targets,omitempty"`
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	p.Targets = make([]common.Address, 0, len(aux.Targets))
+	for _, addr := range aux.Targets {
+		if common.IsHexAddress(addr) {
+			p.Targets = append(p.Targets, common.HexToAddress(addr))
+		}
+	}
+
+	return nil
+}
+
+// Parse parses raw parameters into DosAttackParams
+func (p *DosAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
+	params := &DosAttackParams{}
+	params.Code = ParseMessageCode(raw["code"])
+
+	// Parse fields - handle both []interface{} and []map[string]interface{}
+	switch fields := raw["fields"].(type) {
+	case []interface{}:
+		params.Fields = make([]Field, 0, len(fields))
+		for _, f := range fields {
+			if fieldMap, ok := f.(map[string]interface{}); ok {
+				targetStr := fmt.Sprintf("%v", fieldMap["target"])
+				field := Field{
+					Target: targetStr,
+					Value:  fieldMap["value"],
+				}
+				params.Fields = append(params.Fields, field)
+			}
+		}
+	case []map[string]interface{}:
+		params.Fields = make([]Field, 0, len(fields))
+		for _, fieldMap := range fields {
+			targetStr := fmt.Sprintf("%v", fieldMap["target"])
+			field := Field{
+				Target: targetStr,
+				Value:  fieldMap["value"],
+			}
+			params.Fields = append(params.Fields, field)
+		}
+	default:
+		log.Error("[BYZ] invalid field type", "type", reflect.TypeOf(raw["fields"]))
+	}
+
+	params.Targets = ParseTargets(raw["targets"])
+
+	return params, nil
+}
+
+// ParseJSON parses JSON data into DosAttackParams
+func (p *DosAttackParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &DosAttackParams{}
+	if err := json.Unmarshal(data, params); err != nil {
+		return nil, err
+	}
+	return params, nil
+}
+
+// Validate validates DosAttackParams
+func (p *DosAttackParams) Validate(params interface{}) error {
+	dosParams, ok := params.(*DosAttackParams)
+	if !ok {
+		return fmt.Errorf("invalid params type: expected *DosAttackParams")
+	}
+
+	if !ValidateMessageCode(dosParams.Code) {
+		return fmt.Errorf("invalid message code: %d", dosParams.Code)
+	}
+
+	// Validate fields
+	for _, field := range dosParams.Fields {
+		// Validate target
+		if field.Target != "valid" && field.Target != "invalid" {
+			return fmt.Errorf("invalid target: %s, must be 'valid' or 'invalid'", field.Target)
+		}
+
+		// Validate value
+		switch v := field.Value.(type) {
+		case string:
+			validValues := []string{"sequence", "round", "random", "signature", "blockHash"}
+			valid := false
+			for _, vv := range validValues {
+				if v == vv {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				return fmt.Errorf("invalid value: %s", v)
+			}
+		default:
+			// Allow other types for flexibility
+		}
+	}
+
+	return nil
 }

@@ -49,8 +49,8 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 		return false
 	}
 
-	// Check round (0 means any round)
-	if config.Round != 0 && event.Round != config.Round {
+	// Check round
+	if event.Round != config.Round {
 		return false
 	}
 

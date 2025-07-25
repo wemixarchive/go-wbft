@@ -450,6 +450,8 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 			attackCode = params.Code
 		case *types.StoreAttackParams:
 			attackCode = params.Code
+		case *types.DosAttackParams:
+			attackCode = params.Code
 		default:
 			// Fallback to Parameters map
 			if codeVal, ok := config.Parameters["code"]; ok {

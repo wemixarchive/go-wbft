@@ -25,6 +25,7 @@ func NewParameterParserRegistry() *ParameterParserRegistry {
 	registry.RegisterParser(types.AttackTypeRoleSpoofed, &types.RoleSpoofAttackParams{})
 	registry.RegisterParser(types.AttackTypeReplay, &types.ReplayAttackParams{})
 	registry.RegisterParser(types.AttackTypeStoreMessage, &types.StoreAttackParams{})
+	registry.RegisterParser(types.AttackTypeDos, &types.DosAttackParams{})
 	return registry
 }
 

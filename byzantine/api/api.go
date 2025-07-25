@@ -114,6 +114,18 @@ func (api *PublicByzantineAPI) StoreMessage(params map[string]interface{}) error
 	return api.handler.RegisterStoreMessage(typedParams)
 }
 
+// SendDosMessage configures a DoS message flooding attack
+func (api *PublicByzantineAPI) SendDosMessage(params map[string]interface{}) error {
+	log.Info("[Byzantine API] SendDosMessage called")
+
+	typedParams, err := ConvertToDosMessageParams(params)
+	if err != nil {
+		return err
+	}
+
+	return api.handler.RegisterDosMessage(typedParams)
+}
+
 // UpgradeGovContract upgrades governance contract
 func (api *PublicByzantineAPI) UpgradeGovContract() error {
 	log.Info("[Byzantine API] UpgradeGovContract called")
