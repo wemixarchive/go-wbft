@@ -221,7 +221,7 @@ Creates and sends fake messages.
 ```typescript
 {
   fields?: Array<{
-    target: string          // Target field (e.g., "Transaction.Count")
+    target: string          // Target field (e.g., "Tx.Count")
     value: any             // Value for the field
   }>
   targets?: string[]        // Optional target addresses

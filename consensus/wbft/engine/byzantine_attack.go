@@ -123,7 +123,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			committedSeal = omittedCommittedSeal
 			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
 
-			log.Info("[BYZ] attack",
+			log.Info("[BYZ] byzantine attack triggered",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
@@ -165,7 +165,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			committedSeal = fakedCommittedSeal
 			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
 
-			log.Info("[BYZ] attack",
+			log.Info("[BYZ] byzantine attack triggered",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
@@ -300,7 +300,7 @@ func (e *Engine) processFakeField(
 	fakeIndexOffset, validatorSize int) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, bool) {
 
 	switch fakeField.Target {
-	case btypes.FakeTargetPrevPrePareSeal, btypes.FakeTargetPrevCommitSeal:
+	case btypes.TargetPrevPrePareSeal, btypes.TargetPrevCommitSeal:
 		// Generate fake seal based on value
 		fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset, validatorSize)
 		if err != nil {
@@ -317,8 +317,8 @@ func (e *Engine) processFakeField(
 			// Only modify committed seal for PrevCommitSeal
 			return preparedSeal, e.addFakeSealToAggregated(committedSeal, fakeSeal, validatorSize), true
 		}
-	case btypes.FakeTargetPrePareSeal:
-	case btypes.FakeTargetCommitSeal:
+	case btypes.TargetPrePareSeal:
+	case btypes.TargetCommitSeal
 	}
 
 	return preparedSeal, committedSeal, false

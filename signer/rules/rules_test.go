@@ -156,10 +156,10 @@ func TestSignTxRequest(t *testing.T) {
 	t.Parallel()
 	js := `
 	function ApproveTx(r){
-		console.log("transaction.from", r.transaction.from);
-		console.log("transaction.to", r.transaction.to);
-		console.log("transaction.value", r.transaction.value);
-		console.log("transaction.nonce", r.transaction.nonce);
+		console.log("Tx.from", r.transaction.from);
+		console.log("Tx.to", r.transaction.to);
+		console.log("Tx.value", r.transaction.value);
+		console.log("Tx.nonce", r.transaction.nonce);
 		if(r.transaction.from.toLowerCase()=="0x0000000000000000000000000000000000001337"){ return "Approve"}
 		if(r.transaction.from.toLowerCase()=="0x000000000000000000000000000000000000dead"){ return "Reject"}
 	}`

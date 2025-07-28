@@ -1137,13 +1137,13 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 
 	for _, field := range at.TamperParams.Fields {
 		switch field.Target {
-		case btypes.TamperReward:
+		case btypes.TargetBlockReward:
 			val, err := field.ValueToUint64()
 			if err != nil {
 				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
 				return nil
 			} else {
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", curView.Sequence.Uint64(), "original", blockReward, "params", at.TamperParams)
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", curView.Sequence.Uint64(), "original", blockReward, "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64())
 				return new(big.Int).SetUint64(val)
 			}

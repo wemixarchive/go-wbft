@@ -44,12 +44,12 @@ func (c *Core) byzantineFakeRoundChange() {
 	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
 		for _, field := range at.FakeParams.Fields {
 			switch field.Target {
-			case btypes.FakeTargetRound:
+			case btypes.TargetMsgRound:
 				val, err := field.ValueToUint64()
 				if err != nil {
 					log.Error("[BYZ] Conversion failed", "err", err)
 				} else {
-					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.FakeParams)
+					log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.FakeParams)
 					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 					round := new(big.Int).SetUint64(val)
 					c.broadcastRoundChange(round)
