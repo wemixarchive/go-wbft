@@ -268,7 +268,7 @@ func (e *Engine) applyFakeSealAttackIfExists(
 	// Process each fake field and accumulate results
 	for i, fakeField := range fakeMessage {
 		switch fakeField.Target {
-		case btypes.FakeTargetPrevPrePareSeal, btypes.FakeTargetPrevCommitSeal:
+		case btypes.TargetPrevPrePareSeal, btypes.TargetPrevCommitSeal:
 			// Use incremental indices for each fake seal to avoid conflicts
 			fakeIndexOffset := baseValidatorCount + i
 
@@ -285,8 +285,8 @@ func (e *Engine) applyFakeSealAttackIfExists(
 				resultCommittedSeal = updatedCommitted
 				attackCount++
 			}
-		case btypes.FakeTargetPrePareSeal:
-		case btypes.FakeTargetCommitSeal:
+		case btypes.TargetPrePareSeal:
+		case btypes.TargetCommitSeal:
 		}
 	}
 
@@ -308,17 +308,17 @@ func (e *Engine) processFakeField(
 			return preparedSeal, committedSeal, false
 		}
 
-		if fakeField.Target == btypes.FakeTargetPrevPrePareSeal && preparedSeal != nil {
+		if fakeField.Target == btypes.TargetPrevPrePareSeal && preparedSeal != nil {
 			// Only modify prepared seal for PrevPrePareSeal
 			return e.addFakeSealToAggregated(preparedSeal, fakeSeal, validatorSize), committedSeal, true
 		}
 
-		if fakeField.Target == btypes.FakeTargetCommitSeal && committedSeal != nil {
+		if fakeField.Target == btypes.TargetPrevCommitSeal && committedSeal != nil {
 			// Only modify committed seal for PrevCommitSeal
 			return preparedSeal, e.addFakeSealToAggregated(committedSeal, fakeSeal, validatorSize), true
 		}
 	case btypes.TargetPrePareSeal:
-	case btypes.TargetCommitSeal
+	case btypes.TargetCommitSeal:
 	}
 
 	return preparedSeal, committedSeal, false
@@ -458,7 +458,7 @@ func (e *Engine) applyByzantineAttacksWithInvalidEpoch(chain consensus.ChainHead
 	if at != nil && at.FakeParams != nil {
 		for _, fakeField := range at.FakeParams.Fields {
 			switch fakeField.Target {
-			case btypes.FakeTargetEpochBlock:
+			case btypes.TargetHeaderEpochInfo:
 				// Generate fake epoch info based on the value
 				fakeEpochInfo, err := e.generateFakeEpochInfo(chain, header, govState, fakeField.Value)
 				if err != nil {

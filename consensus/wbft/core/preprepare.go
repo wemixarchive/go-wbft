@@ -207,7 +207,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
 		for _, field := range at.FakeParams.Fields {
 			switch field.Target {
-			case btypes.FakeTargetProposal:
+			case btypes.TargetMsgProposal:
 				if field.Value == "" {
 					newProposal := c.createNewProposal(proposal)
 					preprepare.Proposal = newProposal
@@ -242,8 +242,6 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				preprepare.Proposal.SetNumber(val)
-			case btypes.TamperDelayForComplexAttack:
-				time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
 			}
 		}
 	}

@@ -3,12 +3,13 @@ package core
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	mrand "math/rand"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
@@ -197,7 +198,7 @@ func (c *Core) sendByzantineRoundChangeMsg(at *btypes.ExecutableAttack, originRo
 		if c.WBFTPreparedPrepares != nil {
 			for _, field := range at.FakeParams.Fields {
 				switch field.Target {
-				case btypes.FakeTargetJustification:
+				case btypes.TargetMsgJustification:
 					value, err := field.ValueToUint64()
 					if err != nil {
 						log.Error("[BYZ] Failed to parse field value for ROUND-CHANGE", "err", err)
@@ -292,7 +293,7 @@ func (c *Core) applyByzantineRoundChangeMsg(at *btypes.ExecutableAttack, originR
 	if at != nil && at.FakeParams != nil {
 		for _, field := range at.FakeParams.Fields {
 			switch field.Target {
-			case btypes.FakeTargetProposal:
+			case btypes.TargetMsgProposal:
 				value, err := field.ValueToUint64()
 				if err != nil {
 					log.Error("[BYZ] Failed to parse field value for ROUND-CHANGE", "err", err)

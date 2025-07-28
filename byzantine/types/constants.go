@@ -88,6 +88,7 @@ const (
 	TargetHeaderExtra       string = "header.extra"
 	TargetHeaderMixDigest   string = "header.mixDigest"
 	TargetHeaderNonce       string = "header.nonce"
+	TargetHeaderEpochInfo   string = "header.epochinfo"
 
 	// Transaction targets
 	TargetTxCount string = "tx.count"
@@ -102,6 +103,8 @@ const (
 	TargetMsgPreparedRound  string = "msg.pr"
 	TargetMsgPreparedDigest string = "msg.pd"
 	TargetMsgDigest         string = "msg.digest"
+	TargetMsgJustification  string = "msg.justification"
+	TargetMsgProposal       string = "msg.proposal"
 
 	// Seal targets
 	TargetPrevCommitSeal  string = "seal.prevcommit"

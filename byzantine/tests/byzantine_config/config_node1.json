@@ -523,11 +523,6 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "fields": [
-          {
-            "target": "Only.Delay"
-          }
-        ],
         "withValidMessage": true,
         "delay": 200,
         "targets": []
@@ -559,7 +554,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "Proposal",
+            "target": "msg.proposal",
             "value": ""
           }
         ],
@@ -592,7 +587,7 @@
         "code": 8,
         "fields": [
           {
-            "target": "Proposal",
+            "target": "msg.proposal",
             "value": 0
           }
         ],
@@ -656,7 +651,7 @@
         "code": 1,
         "fakeMessage": [
           {
-            "fakeTarget": "epochBlock",
+            "fakeTarget": "header.epochinfo",
             "value": "nil"
           }
         ]
@@ -674,7 +669,7 @@
         "code": 1,
         "fakeMessage": [
           {
-            "fakeTarget": "epochBlock",
+            "fakeTarget": "header.epochinfo",
             "value": "dos_binary"
           }
         ]
