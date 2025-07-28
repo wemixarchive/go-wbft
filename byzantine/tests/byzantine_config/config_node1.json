@@ -515,17 +515,16 @@
     },
     {
       "name": "broadcast_roundchange_preprepare_nonproposer",
-      "type": "tamper",
+      "type": "silent",
       "enabled": true,
       "seq_s": 72,
       "seq_e": 75,
-      "round": 1,
+      "round": 0,
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "withValidMessage": true,
-        "delay": 200,
-        "targets": []
+        "direction": 1,
+        "targets":[]
       }
     },
     {

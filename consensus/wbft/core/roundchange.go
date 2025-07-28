@@ -98,13 +98,6 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 		}
 	}
 
-	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
-		if success := c.sendByzantineRoundChangeMsg(at, roundChange); success {
-			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-			return
-		}
-	}
-
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
 	if err != nil {
@@ -285,6 +278,36 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 	}
 
+	fakeAttackExecution := false
+	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+		for _, field := range at.FakeParams.Fields {
+			switch field.Target {
+			case btypes.TargetMsgProposal:
+				value, err := field.ValueToUint64()
+				if err != nil {
+					withMsg(logger, roundChange).Error("[BYZ] Failed to parse field value for ROUND-CHANGE", "err", err)
+					continue
+				}
+
+				switch value {
+				case 0:
+					if roundChange != nil {
+						proposal := c.current.Proposal().DeepCopy()
+						fakedRequest := c.createNewProposal(proposal)
+						if fakedRequest != nil {
+							roundChange.PreparedBlock = fakedRequest
+							fakeAttackExecution = true
+						}
+					} else {
+						withMsg(logger, roundChange).Error("[BYZ] ROUND-CHANGE message is nil, cannot set proposal")
+						continue
+					}
+				}
+			default:
+			}
+		}
+	}
+
 	if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 		for _, field := range at.TamperParams.Fields {
 			// Implementation depends on actual message structure
@@ -365,6 +388,69 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 	if c.WBFTPreparedPrepares != nil {
 		roundChange.Justification = c.WBFTPreparedPrepares
 		withMsg(logger, roundChange).Debug("WBFT: extended ROUND-CHANGE message with PREPARE justification", "justification", roundChange.Justification)
+
+		// Byzantine attack: fake with PREPARE justification
+		if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+			for _, field := range at.FakeParams.Fields {
+				switch field.Target {
+				case btypes.TargetMsgJustification:
+					value, err := field.ValueToUint64()
+					if err != nil {
+						withMsg(logger, roundChange).Error("[BYZ] Failed to parse field value for ROUND-CHANGE", "err", err)
+						continue
+					}
+					switch value {
+					case 0: // Remove justification entirely
+						roundChange.Justification = nil
+						log.Trace("[BYZ] Removed PREPARE justification from ROUND-CHANGE message")
+						fakeAttackExecution = true
+					case 1: // Reduce justification (remove some PREPARE messages)
+						if len(c.WBFTPreparedPrepares) > 1 {
+							// Keep only first PREPARE message (insufficient for quorum)
+							roundChange.Justification = c.WBFTPreparedPrepares[:1]
+							log.Trace("[BYZ] Reduced PREPARE justification",
+								"original_count", len(c.WBFTPreparedPrepares),
+								"reduced_count", 1)
+							fakeAttackExecution = true
+						}
+					case 2: // Tamper with justification (modify digest in PREPARE messages)
+						tamperedJustification := make([]*wbfmessage.Prepare, 0, len(c.WBFTPreparedPrepares))
+						for _, prepare := range c.WBFTPreparedPrepares {
+							// Create a copy and modify the digest
+							tamperedPrepare := prepare.DeepCopy()
+							// Flip some bits in the digest
+							for i := 0; i < 4; i++ {
+								tamperedPrepare.Digest[i] = ^tamperedPrepare.Digest[i]
+							}
+							tamperedJustification = append(tamperedJustification, tamperedPrepare)
+						}
+						roundChange.Justification = tamperedJustification
+						fakeAttackExecution = true
+						log.Trace("[BYZ] Tampered with PREPARE justification digests")
+					case 3:
+						// Create fake justification when there's none
+						// This creates invalid justification with wrong sequence/round
+						fakeJustification := make([]*wbfmessage.Prepare, 0, c.valSet.QuorumSize())
+						for i := 0; i < c.valSet.QuorumSize(); i++ {
+							fakePrepare := &wbfmessage.Prepare{
+								CommonPayload: wbfmessage.CommonPayload{
+									Sequence: roundChange.Sequence,
+									Round:    roundChange.Round, // Wrong round for justification
+								},
+								Digest: roundChange.PreparedDigest,
+							}
+							fakeJustification = append(fakeJustification, fakePrepare)
+						}
+						roundChange.Justification = fakeJustification
+						fakeAttackExecution = true
+						log.Trace("[BYZ] Created fake PREPARE justification")
+					default:
+						withMsg(logger, roundChange).Error("[BYZ] Unknown field value for ROUND-CHANGE justification", "value", value)
+					}
+				default:
+				}
+			}
+		}
 	}
 
 	// Check and execute replay attack using stored ROUND-CHANGE message
@@ -393,6 +479,17 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 	if err = c.backend.Broadcast(c.valSet, roundChange.Code(), data); err != nil {
 		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to broadcast ROUND-CHANGE message", "err", err)
 		return false
+	}
+
+	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil && fakeAttackExecution && roundChange != nil {
+		log.Info("[BYZ] byzantine attack triggered", "name", at.NAME,
+			"uid", at.UID,
+			"seq", c.current.Sequence().Uint64(),
+			"code", at.FakeParams.Code,
+			"parmas", at.FakeParams,
+			"origin digest", roundChange.PreparedDigest,
+			"fake digest", roundChange.PreparedBlock.Hash())
+		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 	}
 
 	return true
