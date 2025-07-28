@@ -73,6 +73,7 @@ func (c *Core) broadcastPrepare() {
 			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		// Continue with normal prepare after DOS attack
+		return
 	}
 
 	if c.broadcastByzantinePrepare(hook, attacks) {

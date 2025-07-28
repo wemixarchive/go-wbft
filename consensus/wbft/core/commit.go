@@ -75,6 +75,7 @@ func (c *Core) broadcastCommit() {
 			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		// Continue with normal commit after DOS attack
+		return
 	}
 
 	if c.broadcastByzantineCommit(hook, attacks) {

@@ -74,6 +74,16 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 		c.storeRoundChagneMessage(hook, at)
 	}
 
+	// Check for DOS attack
+	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
+		c.executeDosAttack(at, btypes.MessageCodeRoundChange, roundChange)
+		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
+			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
+		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+		// After DOS attack, continue with normal round change if configured
+		return
+	}
+
 	if c.byzantinebroadcastRoundChange(hook, attacks, round) {
 		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
@@ -87,21 +97,12 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 			return // skip the normal message
 		}
 	}
-  
+
 	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
 		if success := c.sendByzantineRoundChangeMsg(at, roundChange); success {
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			return
 		}
-	}
-	
-	// Check for DOS attack
-	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
-		c.executeDosAttack(at, btypes.MessageCodeRoundChange, roundChange)
-		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
-			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
-		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-		// After DOS attack, continue with normal round change if configured
 	}
 
 	// Sign message

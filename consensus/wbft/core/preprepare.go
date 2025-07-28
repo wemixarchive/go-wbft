@@ -77,6 +77,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 					"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				// Continue with normal preprepare after DOS attack
+				return
 			}
 
 			if c.sendByzantinePreprepareMsg(hook, request, attacks) {
