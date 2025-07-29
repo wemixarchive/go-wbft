@@ -81,16 +81,10 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			}
 
 			if c.sendByzantinePreprepareMsg(hook, request, attacks) {
-				if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					if !at.TamperParams.WithValidMessage {
-						return // skip the normal message
-					}
-					log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
-					// Wait for the configured delay
-					time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
-				} else {
-					return // skip the normal message
+				if !c.handleMessagePolicyAttack(hook, attacks) {
+					// Set the preprepareSent to the current round
+					c.current.preprepareSent = curView.Round
+					return // skip the original message
 				}
 			}
 
@@ -299,12 +293,6 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
 			logger.Error("[BYZ] WBFT: failed to broadcast PRE-PREPARE message", "err", err)
 			return false
-		}
-		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
-			if !at.TamperParams.WithValidMessage {
-				// Set the preprepareSent to the current round
-				c.current.preprepareSent = curView.Round
-			}
 		}
 
 		if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil && fakeAttackExecute {

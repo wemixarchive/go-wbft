@@ -134,9 +134,30 @@
             "value": 88
           }
         ],
-        "withValidMessage": true,
-        "delay": 10,
         "targets": []
+      }
+    },
+    {
+      "name": "send_original_message",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 16,
+      "seq_e": 19,
+      "round": 0,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "policy.original_send",
+            "value": true
+          },
+          {
+            "target": "policy.delay",
+            "value": 10
+          }
+        ],
+        "targets":[]
       }
     },
     {
@@ -155,9 +176,30 @@
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
-        "withValidMessage": true,
-        "delay": 10,
         "targets": []
+      }
+    },
+    {
+      "name": "send_original_message",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 20,
+      "seq_e": 20,
+      "round": 0,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 2,
+        "fields": [
+          {
+            "target": "policy.original_send",
+            "value": true
+          },
+          {
+            "target": "policy.delay",
+            "value": 10
+          }
+        ],
+        "targets":[]
       }
     },
     {
@@ -176,9 +218,30 @@
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
-        "withValidMessage": true,
-        "delay": 10,
         "targets": []
+      }
+    },
+    {
+      "name": "send_original_message",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 21,
+      "seq_e": 21,
+      "round": 0,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.original_send",
+            "value": true
+          },
+          {
+            "target": "policy.delay",
+            "value": 10
+          }
+        ],
+        "targets":[]
       }
     },
     {
@@ -197,9 +260,30 @@
             "value": 100
           }
         ],
-        "withValidMessage": true,
-        "delay": 10,
         "targets": []
+      }
+    },
+    {
+      "name": "send_original_message",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 22,
+      "seq_e": 25,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "policy.original_send",
+            "value": true
+          },
+          {
+            "target": "policy.delay",
+            "value": 10
+          }
+        ],
+        "targets":[]
       }
     },
     {
@@ -218,8 +302,6 @@
             "value": 100
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -239,8 +321,6 @@
             "value": 100000
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -325,8 +405,6 @@
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -346,8 +424,6 @@
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -367,8 +443,6 @@
             "value": 100
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -388,8 +462,6 @@
             "value": 10
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -408,8 +480,6 @@
             "target": "tx.sign"
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -429,8 +499,6 @@
             "value": 1
           }
         ],
-        "withValidMessage": false,
-        "delay": 0,
         "targets": []
       }
     },
@@ -535,7 +603,7 @@
     },
     {
       "name": "broadcast_roundchange_preprepare_nonproposer",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 72,
       "seq_e": 75,
@@ -543,7 +611,12 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     },

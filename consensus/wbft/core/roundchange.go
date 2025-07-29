@@ -25,7 +25,6 @@ import (
 	"math/big"
 	"sort"
 	"sync"
-	"time"
 
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -85,16 +84,8 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 	}
 
 	if c.byzantinebroadcastRoundChange(hook, attacks, round) {
-		if at := attacks[btypes.AttackTypeTamperedMessage]; at != nil && at.TamperParams != nil {
-			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-			if !at.TamperParams.WithValidMessage {
-				return // skip the normal message
-			}
-			log.Info("[BYZ] sending valid message", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "delay(ms)", at.TamperParams.Delay)
-			// Wait for the configured delay
-			time.Sleep(time.Duration(at.TamperParams.Delay) * time.Millisecond)
-		} else {
-			return // skip the normal message
+		if !c.handleMessagePolicyAttack(hook, attacks) {
+			return // skip the original message
 		}
 	}
 

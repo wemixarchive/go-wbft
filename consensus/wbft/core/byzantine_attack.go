@@ -746,3 +746,56 @@ func (c *Core) signAndBroadcastMessage(msg wbfmessage.WBFTMessage) {
 		log.Error("[BYZ] Failed to broadcast message", "err", err)
 	}
 }
+
+func (c *Core) handleMessagePolicyAttack(hook btypes.ConsensusHook, attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
+	var at *btypes.ExecutableAttack
+
+	var (
+		shouldSend bool
+		delayMs    int
+	)
+
+	if at = attacks[btypes.AttackTypeMessagePolicy]; at == nil || at.MessagePolicyParams == nil {
+		return shouldSend
+	}
+
+	curView := c.currentView()
+	sequence := new(big.Int).Set(curView.Sequence)
+	round := new(big.Int).Set(curView.Round)
+
+	for _, field := range at.MessagePolicyParams.Fields {
+		switch field.Target {
+		case btypes.TargetMsgPolicySendOriginal:
+			if v, ok := field.Value.(bool); ok {
+				shouldSend = v
+			} else {
+				log.Error("[BYZ] Invalid value for policy.original_send", "value", field.Value)
+			}
+		case btypes.TargetMsgPolicyDelay:
+			if v, ok := field.Value.(float64); ok {
+				delayMs = int(v)
+			} else {
+				log.Error("[BYZ] Invalid value for policy.delay", "value", field.Value)
+			}
+		}
+	}
+
+	if !shouldSend {
+		return shouldSend // skip sending original message
+	}
+
+	log.Info("[BYZ] byzantine attack triggered",
+		"name", at.NAME,
+		"uid", at.UID,
+		"seq", sequence,
+		"round", round,
+		"delay(ms)", delayMs,
+	)
+
+	hook.MarkAttackExecuted(at.UID, sequence.Uint64())
+
+	if delayMs > 0 {
+		time.Sleep(time.Duration(delayMs) * time.Millisecond)
+	}
+	return shouldSend
+}
