@@ -4,7 +4,7 @@
   "attacks": [
     {
       "name": "SilentProposer_Block100",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       // sequence nubmer는 start, end
       // 실제 attack에서 수행된 sequence 값과, 설정 sequence 값을 둘다 저장

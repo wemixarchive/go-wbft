@@ -226,9 +226,9 @@ func TestAPI_ByzantineTests(t *testing.T) {
 
 	attacks := []types.AttackConfig{
 		{
-			UID:           "silent-100-100-0",
+			UID:           "policy-100-100-0",
 			Name:          "test_attack",
-			Type:          types.AttackTypeSilentMessage,
+			Type:          types.AttackTypeMessagePolicy,
 			SequenceStart: 100,
 			SequenceEnd:   100,
 			Round:         0,
@@ -278,7 +278,7 @@ func TestAPI_StopByzantineTests(t *testing.T) {
 	})
 }
 
-func TestAPI_SilentMessage(t *testing.T) {
+func TestAPI_MessagePolicy(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockService := setupMockService()
 		api := NewPublicByzantineAPI(mockService)
@@ -292,12 +292,12 @@ func TestAPI_SilentMessage(t *testing.T) {
 		}
 
 		mockService.On("RegisterAttack", mock.MatchedBy(func(config types.AttackConfig) bool {
-			return config.Type == types.AttackTypeSilentMessage &&
+			return config.Type == types.AttackTypeMessagePolicy &&
 				config.Sequence == 100 &&
 				config.Parameters["direction"] == uint64(1)
 		})).Return(uint64(1), nil)
 
-		err := api.SilentMessage(params)
+		err := api.SetMessagePolicy(params)
 		assert.NoError(t, err)
 	})
 
@@ -323,7 +323,7 @@ func TestAPI_SilentMessage(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				err := api.SilentMessage(tc.params)
+				err := api.SetMessagePolicy(tc.params)
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tc.errMsg)
 			})

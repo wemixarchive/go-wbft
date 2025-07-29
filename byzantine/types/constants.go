@@ -7,7 +7,7 @@ import (
 
 // AttackType by string
 const (
-	AttackSilent    = "silent"
+	AttackPolicy    = "policy"
 	AttackTamper    = "tamper"
 	AttackFake      = "fake"
 	AttackOmit      = "omit"
@@ -111,6 +111,8 @@ const (
 	TargetPrevPrePareSeal string = "seal.prevprepare"
 	TargetCommitSeal      string = "seal.commit"
 	TargetPrePareSeal     string = "seal.prepare"
+
+	TargetMsgPolicyDirection string = "policy.direction"
 )
 
 // Node roles

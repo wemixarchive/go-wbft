@@ -29,17 +29,17 @@ func (api *PublicByzantineAPI) StopByzantineTests(uids []string) error {
 	return api.handler.StopByzantineTests(uids)
 }
 
-// SilentMessage configures a silent message attack
-func (api *PublicByzantineAPI) SilentMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SilentMessage called")
+// SetMessagePolicy controls original message sending behavior per sequence/round,
+// allowing message drops or delays to simulate Byzantine scenarios.
+func (api *PublicByzantineAPI) SetMessagePolicy(params map[string]interface{}) error {
+	log.Info("[Byzantine API] SetMessagePolicy called")
 
-	// Convert raw params to typed struct
-	typedParams, err := ConvertToSilentMessageParams(params)
+	typedParams, err := ConvertToSetMessagePolicyParams(params)
 	if err != nil {
 		return err
 	}
 
-	return api.handler.RegisterSilentMessage(typedParams)
+	return api.handler.RegisterSetMessagePolicy(typedParams)
 }
 
 // SendTamperedMessage configures a tampered message attack

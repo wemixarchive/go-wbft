@@ -17,14 +17,19 @@ curl -X POST -H "Content-Type: application/json" \
       "attacks": [
         {
           "name": "silent_attack_range",
-          "type": "silent",
+          "type": "policy",
           "enabled": true,
           "seq_s": 100,
           "seq_e": 200,
           "round": 0,
           "parameters": {
-            "code": 1,
-            "direction": 1,
+            "code": 2,
+            "fields": [
+              {
+                "target": "policy.direction",
+                "value": 1
+              }
+            ],
             "targets": []
           }
         },
@@ -187,14 +192,20 @@ attacks:
 {
   "attacks": [{
     "name": "silent_attack",
-    "type": "silent",
+    "type": "policy",
     "enabled": true,
     "seq_s": 100,
     "seq_e": 200,
     "round": 0,
     "parameters": {
-      "code": 1,
-      "direction": 1
+    "code": 1,
+      "fields": [
+        {
+          "target": "policy.direction",
+          "value": 1
+        }
+      ],
+      "targets": []
     }
   }]
 }

@@ -4,40 +4,55 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// SilentAttackParams handles parsing for silent attack parameters
-type SilentAttackParams struct {
-	Code      MessageCode      `json:"code"`
-	Direction uint64           `json:"direction"`
-	Targets   []common.Address `json:"targets,omitempty"`
+// MessagePolicyParams handles parsing for message policy parameters
+type MessagePolicyParams struct {
+	Code    MessageCode      `json:"code"`
+	Fields  []Field          `json:"fields"`
+	Targets []common.Address `json:"targets,omitempty"`
 }
 
-var _ AttackParamsParser = (*SilentAttackParams)(nil)
+var _ AttackParamsParser = (*MessagePolicyParams)(nil)
 
 // HasMessageCode checks if the attack applies to a specific message code
-func (p *SilentAttackParams) HasMessageCode(code MessageCode) bool {
+func (p *MessagePolicyParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
 }
 
 // ShouldBlockSend checks if sending should be blocked
-func (p *SilentAttackParams) ShouldBlockSend() bool {
-	return p.Direction == uint64(1) || p.Direction == uint64(3)
+func (p *MessagePolicyParams) ShouldBlockSend() bool {
+	for _, field := range p.Fields {
+		if field.Target == "policy.direction" {
+			if v, ok := field.Value.(float64); ok {
+				return v == 1 || v == 3
+			}
+		}
+	}
+	return false
 }
 
 // ShouldBlockReceive checks if receiving should be blocked
-func (p *SilentAttackParams) ShouldBlockReceive() bool {
-	return p.Direction == uint64(2) || p.Direction == uint64(3)
+func (p *MessagePolicyParams) ShouldBlockReceive() bool {
+	for _, field := range p.Fields {
+		if field.Target == "policy.direction" {
+			if v, ok := field.Value.(float64); ok {
+				return v == 2 || v == 3
+			}
+		}
+	}
+	return false
 }
 
 // IsTargeted checks if a specific address is targeted
-func (p *SilentAttackParams) IsTargeted(addr common.Address) bool {
+func (p *MessagePolicyParams) IsTargeted(addr common.Address) bool {
 	if len(p.Targets) == 0 {
 		return true // No specific targets means all are targeted
 	}
@@ -51,7 +66,7 @@ func (p *SilentAttackParams) IsTargeted(addr common.Address) bool {
 }
 
 // GetBlockedTargets returns the list of addresses to block
-func (p *SilentAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
+func (p *MessagePolicyParams) GetBlockedTargets(valSet []common.Address) []common.Address {
 	if len(p.Targets) == 0 {
 		// Block all validators
 		return valSet
@@ -67,8 +82,8 @@ func (p *SilentAttackParams) GetBlockedTargets(valSet []common.Address) []common
 	return blocked
 }
 
-func (p *SilentAttackParams) UnmarshalJSON(data []byte) error {
-	type Alias SilentAttackParams
+func (p *MessagePolicyParams) UnmarshalJSON(data []byte) error {
+	type Alias MessagePolicyParams
 	aux := &struct {
 		*Alias
 		Targets []string `json:"targets,omitempty"`
@@ -90,32 +105,28 @@ func (p *SilentAttackParams) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *SilentAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
-	params := &SilentAttackParams{}
+func (p *MessagePolicyParams) Parse(raw map[string]interface{}) (interface{}, error) {
+	params := &MessagePolicyParams{}
 	params.Code = ParseMessageCode(raw["code"])
 
-	switch v := raw["direction"].(type) {
-	case float64:
-		params.Direction = uint64(v)
-	case int:
-		params.Direction = uint64(v)
-	case uint:
-		params.Direction = uint64(v)
-	case uint64:
-		params.Direction = v
-	case string:
-		switch strings.ToLower(v) {
-		case "send", "1":
-			params.Direction = 1
-		case "receive", "2":
-			params.Direction = 2
-		case "both", "3":
-			params.Direction = 3
-		default:
-			return nil, fmt.Errorf("invalid direction: %s", v)
+	// Parse fields (supports both 'fields' and 'tamperFields' for backward compatibility)
+	var fields []interface{}
+	if f, ok := raw["fields"].([]interface{}); ok {
+		fields = f
+	}
+
+	if fields != nil {
+		params.Fields = make([]Field, 0, len(fields))
+		for _, field := range fields {
+			if fieldMap, ok := field.(map[string]interface{}); ok {
+				targetStr := fmt.Sprintf("%v", fieldMap["target"])
+				f := Field{
+					Target: targetStr,
+					Value:  fieldMap["value"],
+				}
+				params.Fields = append(params.Fields, f)
+			}
 		}
-	default:
-		return nil, fmt.Errorf("invalid direction type: %T", v)
 	}
 
 	params.Targets = ParseTargets(raw["targets"])
@@ -123,26 +134,30 @@ func (p *SilentAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 	return params, nil
 }
 
-func (p *SilentAttackParams) ParseJSON(data []byte) (interface{}, error) {
-	params := &SilentAttackParams{}
+func (p *MessagePolicyParams) ParseJSON(data []byte) (interface{}, error) {
+	params := &MessagePolicyParams{}
 	if err := json.Unmarshal(data, params); err != nil {
 		return nil, err
 	}
 	return params, nil
 }
 
-func (p *SilentAttackParams) Validate(params interface{}) error {
-	silentParams, ok := params.(*SilentAttackParams)
+func (p *MessagePolicyParams) Validate(params interface{}) error {
+	messagePolicyParams, ok := params.(*MessagePolicyParams)
 	if !ok {
 		return fmt.Errorf("invalid parameter type")
 	}
 
-	if !ValidateMessageCode(silentParams.Code) {
-		return fmt.Errorf("invalid message code: %d", silentParams.Code)
+	if !ValidateMessageCode(messagePolicyParams.Code) {
+		return fmt.Errorf("invalid message code: %d", messagePolicyParams.Code)
 	}
 
-	if silentParams.Direction > 3 {
-		return fmt.Errorf("invalid direction: %d (must be 0-3)", silentParams.Direction)
+	// Validate Fields
+	for i, field := range messagePolicyParams.Fields {
+		if field.Target == "" {
+			return fmt.Errorf("field[%d] target is empty", i)
+		}
+		// Value can be empty/nil as it might be set dynamically
 	}
 
 	return nil

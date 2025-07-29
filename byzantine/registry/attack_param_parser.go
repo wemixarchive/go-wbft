@@ -18,7 +18,7 @@ func NewParameterParserRegistry() *ParameterParserRegistry {
 	}
 
 	// Register default parsers
-	registry.RegisterParser(types.AttackTypeSilentMessage, &types.SilentAttackParams{})
+	registry.RegisterParser(types.AttackTypeMessagePolicy, &types.MessagePolicyParams{})
 	registry.RegisterParser(types.AttackTypeTamperedMessage, &types.TamperAttackParams{})
 	registry.RegisterParser(types.AttackTypeFakeMessage, &types.FakeAttackParams{})
 	registry.RegisterParser(types.AttackTypeOmitMessage, &types.OmitAttackParams{})

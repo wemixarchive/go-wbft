@@ -113,14 +113,14 @@ func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types
 		assign  assignFunc
 		errMsg  string
 	}{
-		types.AttackTypeSilentMessage: {
+		types.AttackTypeMessagePolicy: {
 			extract: func(cfg types.AttackConfig) (interface{}, error) {
-				return cfg.GetSilentParams()
+				return cfg.GetMessagePolicyParams()
 			},
 			assign: func(v interface{}) {
-				attacks.SilentParams = v.(*types.SilentAttackParams)
+				attacks.MessagePolicyParams = v.(*types.MessagePolicyParams)
 			},
-			errMsg: "SilentParams is nil",
+			errMsg: "MessagePolicyParams is nil",
 		},
 		types.AttackTypeTamperedMessage: {
 			extract: func(cfg types.AttackConfig) (interface{}, error) {
@@ -206,8 +206,8 @@ func (h *ConsensusHookImpl) extractParams(cfg types.AttackConfig, attacks *types
 // matches the expected msgCode for the specified attack type.
 func (h *ConsensusHookImpl) IsMessageCodeMatched(cfg types.AttackConfig, msgCode types.MessageCode, attacks *types.ExecutableAttack) bool {
 	switch cfg.Type {
-	case types.AttackTypeSilentMessage:
-		return attacks.SilentParams != nil && attacks.SilentParams.HasMessageCode(msgCode)
+	case types.AttackTypeMessagePolicy:
+		return attacks.MessagePolicyParams != nil && attacks.MessagePolicyParams.HasMessageCode(msgCode)
 
 	case types.AttackTypeTamperedMessage:
 		return attacks.TamperParams != nil && attacks.TamperParams.HasMessageCode(msgCode)
@@ -303,7 +303,7 @@ func (h *ConsensusHookImpl) getApplicableAttackTypes(msgCode types.MessageCode, 
 
 	// Build attack type list
 	attackTypes := []types.AttackType{
-		types.AttackTypeSilentMessage, // Always applicable
+		types.AttackTypeMessagePolicy, // Always applicable
 	}
 
 	// Add message-specific attack types
@@ -344,7 +344,7 @@ func (h *ConsensusHookImpl) isAttackEligible(config types.AttackConfig) bool {
 // shouldExecuteAttack determines if an attack type should be executed for a direction
 func (h *ConsensusHookImpl) shouldExecuteAttack(attackType types.AttackType, direction string) bool {
 	// Silent attacks are handled separately for immediate blocking
-	if attackType == types.AttackTypeSilentMessage {
+	if attackType == types.AttackTypeMessagePolicy {
 		return false
 	}
 

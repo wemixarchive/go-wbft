@@ -158,10 +158,17 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	result := make(map[string]interface{})
 
 	switch attackType {
-	case types.AttackTypeSilentMessage:
-		if params, ok := parsedParams.(*types.SilentAttackParams); ok {
+	case types.AttackTypeMessagePolicy:
+		if params, ok := parsedParams.(*types.MessagePolicyParams); ok {
 			result["code"] = params.Code
-			result["direction"] = params.Direction
+			fields := make([]map[string]interface{}, len(params.Fields))
+			for i, field := range params.Fields {
+				fields[i] = map[string]interface{}{
+					"target": field.Target,
+					"value":  field.Value,
+				}
+			}
+			result["fields"] = fields
 			result["targets"] = params.Targets
 		}
 

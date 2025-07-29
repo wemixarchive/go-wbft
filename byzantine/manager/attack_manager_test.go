@@ -82,7 +82,7 @@ func TestRefactoredAttackManagerLookup(t *testing.T) {
 		},
 		{
 			Name:     "attack2",
-			Type:     types.AttackTypeSilentMessage,
+			Type:     types.AttackTypeMessagePolicy,
 			Code:     types.MessageCodePrepare,
 			Sequence: 200,
 			Round:    1,
@@ -182,7 +182,7 @@ func TestAttackStatusTracking(t *testing.T) {
 	// Register multiple attacks
 	configs := []types.AttackConfig{
 		{Name: "pending1", Type: types.AttackTypeTamperedMessage, Code: 1, Sequence: 1, Round: 0, Enabled: true},
-		{Name: "pending2", Type: types.AttackTypeSilentMessage, Code: 2, Sequence: 2, Round: 0, Enabled: true},
+		{Name: "pending2", Type: types.AttackTypeMessagePolicy, Code: 2, Sequence: 2, Round: 0, Enabled: true},
 		{Name: "active1", Type: types.AttackTypeFakeMessage, Code: 3, Sequence: 3, Round: 0, Enabled: true},
 	}
 
@@ -394,7 +394,7 @@ func TestEvaluateAndExecuteAttacks(t *testing.T) {
 	// Register a blocking attack
 	config := types.AttackConfig{
 		Name:     "blocker",
-		Type:     types.AttackTypeSilentMessage,
+		Type:     types.AttackTypeMessagePolicy,
 		Code:     types.MessageCodePrePrepare,
 		Sequence: 100,
 		Round:    0,
@@ -426,7 +426,7 @@ func TestEvaluateAndExecuteAttacks(t *testing.T) {
 
 	// Should decide to block
 	assert.True(t, decision.ShouldAttack)
-	assert.Equal(t, types.AttackTypeSilentMessage, decision.AttackType)
+	assert.Equal(t, types.AttackTypeMessagePolicy, decision.AttackType)
 	assert.NotEmpty(t, decision.Reason)
 	assert.NotNil(t, decision.Result)
 }

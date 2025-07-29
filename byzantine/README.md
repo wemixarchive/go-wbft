@@ -55,12 +55,20 @@ make geth
   "attacks": [
     {
       "name": "silent_validator",
-      "type": "silentMessage",
-      "sequence": 100,
+      "type": "policy",
+      "enabled": false,
+      "seq_s": 92,
+      "seq_e": 100,
       "round": 0,
-      "code": 2,
       "parameters": {
-        "direction": 1
+        "code": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
+        "targets":[]
       }
     }
   ]
@@ -72,18 +80,29 @@ make geth
 ```javascript
 // Register a new attack
 byzantine.registerAttack({
-  name: "test_attack",
-  type: "silentMessage",
-  sequence: 150,
+  name: "silent_validator",
+  type: "policy",
+  enabled: false,
+  seq_s: 92,
+  seq_e: 100,
   round: 0,
-  code: 1
+  parameters: {
+    code: 1,
+    fields: [
+      {
+        target: "policy.direction",
+        value: 1
+      }
+    ],
+    targets:[]
+  }
 })
 ```
 
 ## Key Features
 
 ### Attack Types
-- **Silent Message**: Drop messages without sending 
+- **Set Message Policy**: Control original message sending
 - **Tampered Message**: Modify message content
 - **Fake Message**: Generate invalid messages
 - **Omit Message**: Remove required fields

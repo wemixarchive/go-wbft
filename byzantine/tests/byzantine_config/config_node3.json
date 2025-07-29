@@ -3,7 +3,7 @@
   "attacks": [
     {
       "name": "broadcast_invalid_preparemessages_preprepare",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 76,
       "seq_e": 79,
@@ -11,7 +11,12 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     }

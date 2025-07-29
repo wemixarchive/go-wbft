@@ -57,8 +57,8 @@ func (e *Engine) getByzantineAttack(attackType btypes.AttackType,
 
 	// Check if attack has valid params based on attack type
 	switch attackType {
-	case btypes.AttackTypeSilentMessage:
-		return at, at.SilentParams != nil
+	case btypes.AttackTypeMessagePolicy:
+		return at, at.MessagePolicyParams != nil
 	case btypes.AttackTypeOmitMessage:
 		return at, at.OmitParams != nil
 	case btypes.AttackTypeFakeMessage:

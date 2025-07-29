@@ -27,9 +27,9 @@ func convertToUint64(v interface{}) (uint64, error) {
 	}
 }
 
-// ConvertToSilentMessageParams converts raw map to typed params
-func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessageParams, error) {
-	params := types.SilentMessageParams{}
+// ConvertToSetMessagePolicyParams converts raw map to typed params
+func ConvertToSetMessagePolicyParams(raw map[string]interface{}) (types.SetMessagePolicyParams, error) {
+	params := types.SetMessagePolicyParams{}
 
 	// Set enabled (default to true if not specified)
 	if v, exists := raw["enabled"]; exists {
@@ -42,38 +42,16 @@ func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessa
 		params.Enabled = true
 	}
 
-	// Support both single sequence and range
-	if v, exists := raw["sequence"]; exists {
-		seq, err := convertToUint64(v)
-		if err != nil {
-			return params, fmt.Errorf("invalid sequence: %w", err)
-		}
-		params.Sequence = seq
-	} else if v, exists := raw["seq_s"]; exists {
-		seqStart, err := convertToUint64(v)
-		if err != nil {
-			return params, fmt.Errorf("invalid seq_s: %w", err)
-		}
-		params.SequenceStart = seqStart
-
-		// seq_e is optional, if not provided, it's a single sequence
-		if v, exists := raw["seq_e"]; exists {
-			seqEnd, err := convertToUint64(v)
-			if err != nil {
-				return params, fmt.Errorf("invalid seq_e: %w", err)
-			}
-			params.SequenceEnd = seqEnd
-		}
+	if v, ok := raw["sequence"].(uint64); ok {
+		params.Sequence = v
 	} else {
-		return params, fmt.Errorf("sequence or seq_s is required")
+		return params, fmt.Errorf("invalid sequence")
 	}
 
-	if v, exists := raw["round"]; exists {
-		round, err := convertToUint64(v)
-		if err != nil {
-			return params, fmt.Errorf("invalid round: %w", err)
-		}
-		params.Round = round
+	if v, ok := raw["round"].(uint64); ok {
+		params.Round = v
+	} else {
+		return params, fmt.Errorf("invalid round")
 	}
 
 	if v, exists := raw["code"]; exists {
@@ -86,27 +64,45 @@ func ConvertToSilentMessageParams(raw map[string]interface{}) (types.SilentMessa
 		return params, fmt.Errorf("code is required")
 	}
 
-	if v, exists := raw["direction"]; exists {
-		direction, err := convertToUint64(v)
-		if err != nil {
-			return params, fmt.Errorf("invalid direction: %w", err)
-		}
-		params.Direction = direction
-	} else {
-		return params, fmt.Errorf("direction is required")
+	// Convert fields (supports both 'fields' and 'tamperFields' for backward compatibility)
+	var fields []interface{}
+	if v, ok := raw["fields"].([]interface{}); ok {
+		fields = v
 	}
 
+	if fields != nil {
+		params.Fields = make([]types.Field, 0, len(fields))
+
+		for i, field := range fields {
+			fieldMap, ok := field.(map[string]interface{})
+			if !ok {
+				return params, fmt.Errorf("invalid field at index %d", i)
+			}
+
+			targetStr, ok := fieldMap["target"].(string)
+			if !ok {
+				return params, fmt.Errorf("missing or invalid target at index %d", i)
+			}
+
+			f := types.Field{
+				Target: targetStr,
+				Value:  fieldMap["value"],
+			}
+			params.Fields = append(params.Fields, f)
+		}
+	} else {
+		return params, fmt.Errorf("fields is required")
+	}
+
+	// Convert targets
 	if v, ok := raw["targets"].([]interface{}); ok {
 		params.Targets = make([]common.Address, len(v))
 		for i, addr := range v {
 			if strAddr, ok := addr.(string); ok {
 				params.Targets[i] = common.HexToAddress(strAddr)
-			} else {
-				return params, fmt.Errorf("invalid target address at index %d", i)
 			}
 		}
 	}
-
 	return params, nil
 }
 

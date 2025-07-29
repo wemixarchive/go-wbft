@@ -132,11 +132,20 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 			logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
 
-			if at := attacks[btypes.AttackTypeSilentMessage]; at != nil && at.SilentParams != nil {
-				if at.SilentParams.Direction == uint64(btypes.MessageDirectionSend) {
-					log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.SilentParams)
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-					return
+			if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
+				for _, field := range at.MessagePolicyParams.Fields {
+					if field.Target == btypes.TargetMsgPolicyDirection {
+						v, err := field.ValueToUint64()
+						if err != nil {
+							log.Error("[BYZ] Failed to parse field value", "err", err)
+						}
+
+						if v == uint64(btypes.MessageDirectionSend) {
+							log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.MessagePolicyParams)
+							hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+							return
+						}
+					}
 				}
 			}
 

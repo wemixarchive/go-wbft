@@ -50,15 +50,15 @@ type AttackStatusResponse struct {
 	ExecutedAt     *int64                 `json:"executed_at,omitempty"`
 }
 
-// SilentMessageParams represents parameters for silent message attacks
-type SilentMessageParams struct {
+// SetMessagePolicyParams represents parameters for message policy
+type SetMessagePolicyParams struct {
 	Enabled       bool             `json:"enabled"`
 	Sequence      uint64           `json:"sequence,omitempty"`
 	SequenceStart uint64           `json:"seq_s,omitempty"`
 	SequenceEnd   uint64           `json:"seq_e,omitempty"`
 	Round         uint64           `json:"round"`
 	Code          uint64           `json:"code"`
-	Direction     uint64           `json:"direction"`
+	Fields        []Field          `json:"fields"`
 	Targets       []common.Address `json:"targets,omitempty"`
 }
 

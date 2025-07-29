@@ -3,7 +3,7 @@
   "attacks": [
     {
       "name": "silent_attack_1",
-      "type": "silent",
+      "type": "policy",
       "enabled": false,
       "seq_s": 10,
       "seq_e": 20,
@@ -16,7 +16,7 @@
     },
     {
       "name": "silent_attack_1",
-      "type": "silent",
+      "type": "policy",
       "enabled": false,
       "sequence": 400,
       "round": 0,

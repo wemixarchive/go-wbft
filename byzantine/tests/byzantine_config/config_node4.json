@@ -27,7 +27,7 @@
     },
     {
       "name": "no_broadcast_prepare",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 14,
       "seq_e": 14,
@@ -35,13 +35,18 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 2,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     },
     {
       "name": "no_broadcast_commit",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 15,
       "seq_e": 15,
@@ -49,13 +54,18 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 4,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     },
     {
       "name": "no_broadcast_preprepare",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 22,
       "seq_e": 25,
@@ -63,7 +73,12 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     },
@@ -116,7 +131,7 @@
     },
     {
       "name": "broadcast_roundchange_preprepare_nonproposer",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 72,
       "seq_e": 75,
@@ -124,7 +139,12 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     },
@@ -149,7 +169,7 @@
     },
     {
       "name": "broadcast_invalid_preparemessages_preprepare",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 76,
       "seq_e": 79,
@@ -157,13 +177,18 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 4,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     },
     {
       "name": "broadcast_invalid_roundchange_preparedBlock",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 80,
       "seq_e": 83,
@@ -171,20 +196,30 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 4,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     },
     {
       "name": "dos_valid_messages",
-      "type": "silent",
+      "type": "policy",
       "enabled": false,
       "seq_s": 92,
       "seq_e": 100,
       "round": 0,
       "parameters": {
         "code": 1,
-        "direction": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
         "targets":[]
       }
     }

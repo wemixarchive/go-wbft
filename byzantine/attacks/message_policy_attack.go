@@ -3,25 +3,26 @@ package attacks
 import (
 	"context"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// SilentMessageAttack implements silent proposer attack
-type SilentMessageAttack struct {
+// SetMessagePolicyAttack controls message sending per sequence/round for target nodes
+type SetMessagePolicyAttack struct {
 	*registry.BaseAttack
-	code      types.MessageCode
-	direction types.MessageDirection
-	targets   []common.Address
-	params    *types.SilentAttackParams
+	code    types.MessageCode
+	fields  []types.Field
+	targets []common.Address
+	params  *types.MessagePolicyParams
 }
 
-var _ types.Attack = (*SilentMessageAttack)(nil)
+var _ types.Attack = (*SetMessagePolicyAttack)(nil)
 
-// NewSilentMessageAttack creates a new silent proposer attack
-func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, error) {
+// NewSetMessagePolicyAttack creates a message control attack per sequence/round
+func NewSetMessagePolicyAttack(config types.AttackConfig) (*SetMessagePolicyAttack, error) {
 	paramRegistry := registry.NewParameterParserRegistry()
 
 	// Parse parameters for the specific attack type
@@ -30,12 +31,12 @@ func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, er
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	params := parsedParams.(*types.SilentAttackParams)
+	params := parsedParams.(*types.MessagePolicyParams)
 
-	attack := &SilentMessageAttack{
+	attack := &SetMessagePolicyAttack{
 		BaseAttack: registry.NewBaseAttack(config),
 		code:       params.Code,
-		direction:  types.MessageDirection(params.Direction),
+		fields:     params.Fields,
 		targets:    params.Targets,
 		params:     params,
 	}
@@ -44,12 +45,12 @@ func NewSilentMessageAttack(config types.AttackConfig) (*SilentMessageAttack, er
 }
 
 // CheckExecuteCondition checks if the attack should be executed
-func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
+func (a *SetMessagePolicyAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
 
 	// Check if sequence is in range
 	if !config.IsInSequenceRange(event.Sequence) {
-		//log.Debug("this silent attack is not matched ", "sequence", event.Sequence, "round", event.Round)
+		//log.Debug("this policy attack is not matched ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
@@ -71,7 +72,7 @@ func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event t
 	}
 
 	// Use ParsedParameters first
-	if params, ok := config.ParsedParameters.(*types.SilentAttackParams); ok {
+	if params, ok := config.ParsedParameters.(*types.MessagePolicyParams); ok {
 		return data.MessageCode == params.Code
 	}
 
@@ -89,14 +90,14 @@ func (a *SilentMessageAttack) CheckExecuteCondition(ctx context.Context, event t
 	return data.MessageCode == attackCode
 }
 
-// SilentAttackFactory creates silent attacks
-func SilentAttackFactory(config types.AttackConfig) (types.Attack, error) {
-	return NewSilentMessageAttack(config)
+// MessagePolicyAttackFactory creates sequence/round-based message control attacks
+func MessagPolicyAttackFactory(config types.AttackConfig) (types.Attack, error) {
+	return NewSetMessagePolicyAttack(config)
 }
 
 // Register the attack
 func init() {
-	err := registry.Register(types.AttackTypeSilentMessage, SilentAttackFactory)
+	err := registry.Register(types.AttackTypeMessagePolicy, MessagPolicyAttackFactory)
 	if err != nil {
 		panic(err)
 	}

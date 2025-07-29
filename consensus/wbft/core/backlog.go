@@ -110,7 +110,7 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	if c.isTooFarFutureMessage(view) {
 		return errFutureViewTooFar
 	}
-
+	/////////////////////////////////////
 	if msgCode == wbfmessage.RoundChangeCode {
 		// if ROUND-CHANGE message
 		// check that

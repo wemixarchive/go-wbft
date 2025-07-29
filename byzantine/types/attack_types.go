@@ -13,7 +13,7 @@ import (
 type AttackType string
 
 const (
-	AttackTypeSilentMessage   AttackType = AttackSilent
+	AttackTypeMessagePolicy   AttackType = AttackPolicy
 	AttackTypeTamperedMessage AttackType = AttackTamper
 	AttackTypeFakeMessage     AttackType = AttackFake
 	AttackTypeOmitMessage     AttackType = AttackOmit
@@ -25,7 +25,7 @@ const (
 
 // Slice of all AttackType constants for iteration
 var AllAttackTypes = []AttackType{
-	AttackTypeSilentMessage,
+	AttackTypeMessagePolicy,
 	AttackTypeTamperedMessage,
 	AttackTypeFakeMessage,
 	AttackTypeOmitMessage,
@@ -50,8 +50,8 @@ const (
 // StringToAttackType converts string to AttackType
 func StringToAttackType(s string) AttackType {
 	switch s {
-	case "silent":
-		return AttackTypeSilentMessage
+	case "policy":
+		return AttackTypeMessagePolicy
 	case "tamper":
 		return AttackTypeTamperedMessage
 	case "fake":
@@ -73,8 +73,8 @@ func StringToAttackType(s string) AttackType {
 
 func AttackTypeToString(attackType AttackType) string {
 	switch attackType {
-	case AttackTypeSilentMessage:
-		return AttackSilent
+	case AttackTypeMessagePolicy:
+		return AttackPolicy
 	case AttackTypeTamperedMessage:
 		return AttackTamper
 	case AttackTypeFakeMessage:
@@ -235,17 +235,17 @@ func (ac *AttackConfig) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// GetSilentParams returns parsed parameters for silent attack
-func (ac *AttackConfig) GetSilentParams() (*SilentAttackParams, error) {
-	if ac.Type != AttackTypeSilentMessage {
-		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeSilentMessage, ac.Type)
+// GetMessagePolicyParams returns parsed parameters for message policy
+func (ac *AttackConfig) GetMessagePolicyParams() (*MessagePolicyParams, error) {
+	if ac.Type != AttackTypeMessagePolicy {
+		return nil, fmt.Errorf("invalid attack type: expected %s, got %s", AttackTypeMessagePolicy, ac.Type)
 	}
 
 	if ac.ParsedParameters == nil {
 		return nil, errors.New("parameters not parsed")
 	}
 
-	params, ok := ac.ParsedParameters.(*SilentAttackParams)
+	params, ok := ac.ParsedParameters.(*MessagePolicyParams)
 	if !ok {
 		return nil, errors.New("invalid parameter type")
 	}
@@ -389,12 +389,12 @@ func (ac *AttackConfig) Validate() error {
 	}
 
 	switch ac.Type {
-	case AttackTypeSilentMessage:
-		params, err := ac.GetSilentParams()
+	case AttackTypeMessagePolicy:
+		params, err := ac.GetMessagePolicyParams()
 		if err != nil {
 			return err
 		}
-		return validateSilentParams(params)
+		return validateMessagePolicyParams(params)
 
 	case AttackTypeTamperedMessage:
 		params, err := ac.GetTamperParams()
@@ -460,9 +460,14 @@ func (ac *AttackConfig) GetTargetAddresses() []common.Address {
 }
 
 // Parameter validation functions
-func validateSilentParams(params *SilentAttackParams) error {
-	if params.Direction > 3 {
-		return fmt.Errorf("invalid direction: %d (must be 0-3)", params.Direction)
+func validateMessagePolicyParams(params *MessagePolicyParams) error {
+	for i, field := range params.Fields {
+		if field.Target == "" {
+			return fmt.Errorf("tamperField[%d] target is empty", i)
+		}
+		if field.Value == nil {
+			return fmt.Errorf("tamperField[%d] value is nil", i)
+		}
 	}
 	return validateTargets(params.Targets)
 }
@@ -581,16 +586,16 @@ type AttackResult struct {
 // ExecutableAttack bundles the original AttackConfig with its
 // concrete parameter struct (TamperAttackParams, FakeAttackParams, …).
 type ExecutableAttack struct {
-	Enabled            bool
-	UID                string
-	NAME               string
-	Status             AttackStatus
-	SilentParams       *SilentAttackParams
-	TamperParams       *TamperAttackParams
-	FakeParams         *FakeAttackParams
-	OmitParams         *OmitAttackParams
-	RoleSpoofParams    *RoleSpoofAttackParams
-	ReplayParams       *ReplayAttackParams
-	StoreMessageParams *StoreAttackParams
-	DosParams          *DosAttackParams
+	Enabled             bool
+	UID                 string
+	NAME                string
+	Status              AttackStatus
+	MessagePolicyParams *MessagePolicyParams
+	TamperParams        *TamperAttackParams
+	FakeParams          *FakeAttackParams
+	OmitParams          *OmitAttackParams
+	RoleSpoofParams     *RoleSpoofAttackParams
+	ReplayParams        *ReplayAttackParams
+	StoreMessageParams  *StoreAttackParams
+	DosParams           *DosAttackParams
 }

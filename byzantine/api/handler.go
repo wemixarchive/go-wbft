@@ -72,26 +72,33 @@ func (h *Handler) StopByzantineTests(uids []string) error {
 	return nil
 }
 
-// RegisterSilentMessage registers a silent message attack
-func (h *Handler) RegisterSilentMessage(params types.SilentMessageParams) error {
+// RegisterSetMessagePolicy registers a set message policy
+func (h *Handler) RegisterSetMessagePolicy(params types.SetMessagePolicyParams) error {
 	// Validate parameters
-	if err := h.validateSilentMessageParams(params); err != nil {
+	if err := h.validateMessagePolicyParams(params); err != nil {
 		return fmt.Errorf("invalid parameters: %w", err)
+	}
+
+	fieldsMap := make([]map[string]interface{}, len(params.Fields))
+	for i, field := range params.Fields {
+		fieldsMap[i] = map[string]interface{}{
+			"target": field.Target,
+			"value":  field.Value,
+		}
 	}
 
 	// Create attack configuration
 	config := types.AttackConfig{
-		Name:          fmt.Sprintf("silent_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
-		Type:          types.AttackTypeSilentMessage,
+		Name:          fmt.Sprintf("policy_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
+		Type:          types.AttackTypeMessagePolicy,
 		SequenceStart: params.SequenceStart,
 		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
-			"code":      params.Code,
-			"direction": params.Direction,
-			"targets":   params.Targets,
+			"code":    params.Code,
+			"fields":  fieldsMap,
+			"targets": params.Targets,
 		},
-		Enabled:   params.Enabled,
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
 	}
@@ -99,10 +106,10 @@ func (h *Handler) RegisterSilentMessage(params types.SilentMessageParams) error 
 	// Register attack
 	uid, err := h.service.RegisterAttack(config)
 	if err != nil {
-		return fmt.Errorf("failed to register silent attack: %w", err)
+		return fmt.Errorf("failed to register store attack: %w", err)
 	}
 
-	log.Info("Silent message attack registered", "uid", uid)
+	log.Info("Store attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
 	return nil
 }
 
@@ -433,16 +440,13 @@ func (h *Handler) convertToStatusResponse(attack types.AttackConfig) types.Attac
 }
 
 // Validation methods
-func (h *Handler) validateSilentMessageParams(params types.SilentMessageParams) error {
+func (h *Handler) validateMessagePolicyParams(params types.SetMessagePolicyParams) error {
 	// Check sequence
 	if params.SequenceStart == 0 || params.SequenceEnd == 0 {
-		return fmt.Errorf("sequence number or sequence range is required")
+		return fmt.Errorf("sequence number is required")
 	}
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
-	}
-	if params.Direction == 0 || params.Direction > 3 {
-		return fmt.Errorf("invalid direction: must be 1, 2, or 3")
 	}
 	return nil
 }
@@ -563,13 +567,13 @@ func (h *Handler) validateDosMessageParams(params types.DosMessageParams) error 
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
 	}
-	
+
 	// Validate fields if provided
 	for _, field := range params.Fields {
 		if field.Target != "valid" && field.Target != "invalid" {
 			return fmt.Errorf("invalid target: %s, must be 'valid' or 'invalid'", field.Target)
 		}
-		
+
 		// Validate value
 		if strValue, ok := field.Value.(string); ok {
 			validValues := []string{"sequence", "round", "random", "signature", "blockHash"}
@@ -585,7 +589,7 @@ func (h *Handler) validateDosMessageParams(params types.DosMessageParams) error 
 			}
 		}
 	}
-	
+
 	return nil
 }
 

@@ -43,7 +43,7 @@ func TestByzantineService(t *testing.T) {
 		defer service.Stop()
 
 		attackConfig := types.AttackConfig{
-			Type:     types.AttackTypeSilentMessage,
+			Type:     types.AttackTypeMessagePolicy,
 			Name:     "test_double_vote",
 			Sequence: 100,
 			Round:    1,
@@ -69,7 +69,7 @@ func TestByzantineService(t *testing.T) {
 
 		// Register attack
 		attackConfig := types.AttackConfig{
-			Type:     types.AttackTypeSilentMessage,
+			Type:     types.AttackTypeMessagePolicy,
 			Name:     "test_silent",
 			Sequence: 200,
 			Round:    2,

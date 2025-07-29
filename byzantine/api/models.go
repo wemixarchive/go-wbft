@@ -34,13 +34,13 @@ type CancelAttackRequest struct {
 	UIDs []uint64 `json:"uid"`
 }
 
-// SilentMessageRequest represents a request for silent message attack
-type SilentMessageRequest struct {
-	Sequence  uint64            `json:"sequence"`
-	Round     uint64            `json:"round"`
-	Code      types.MessageCode `json:"code"`
-	Direction uint64            `json:"direction"`
-	Targets   []common.Address  `json:"targets,omitempty"`
+// SetMessagePolicyRequest represents a request for set message policy
+type SetMessagePolicyRequest struct {
+	Sequence uint64            `json:"sequence"`
+	Round    uint64            `json:"round"`
+	Code     types.MessageCode `json:"code"`
+	Fields   []types.Field     `json:"Fields"`
+	Targets  []common.Address  `json:"targets,omitempty"`
 }
 
 // TamperedMessageRequest represents a request for tampered message attack

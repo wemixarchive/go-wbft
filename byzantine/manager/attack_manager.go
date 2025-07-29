@@ -436,7 +436,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 		// Extract code from ParsedParameters
 		var attackCode types.MessageCode
 		switch params := config.ParsedParameters.(type) {
-		case *types.SilentAttackParams:
+		case *types.MessagePolicyParams:
 			attackCode = params.Code
 		case *types.TamperAttackParams:
 			attackCode = params.Code
@@ -545,7 +545,7 @@ func (m *AttackManager) updateStatusTracking(uid string, newStatus, oldStatus ty
 // getApplicableAttackTypes returns attack types applicable to the message and direction
 func (m *AttackManager) getApplicableAttackTypes(msgCode types.MessageCode, direction string) []types.AttackType {
 	attackTypes := []types.AttackType{
-		types.AttackTypeSilentMessage, // Can apply to any message
+		types.AttackTypeMessagePolicy, // Can apply to any message
 	}
 
 	// Add message-specific attack types

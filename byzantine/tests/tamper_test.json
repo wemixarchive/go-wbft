@@ -3,15 +3,20 @@
   "attacks": [
     {
       "name": "silent_attack",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 10,
       "seq_e": 10,
       "round": 0,
       "parameters": {
         "code": 2,
-        "direction": 3,
-        "targets": []
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 3
+          }
+        ],
+        "targets":[]
       }
     },
     {

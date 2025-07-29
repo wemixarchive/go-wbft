@@ -98,7 +98,7 @@
     },
     {
       "name": "silent_attack",
-      "type": "silent",
+      "type": "policy",
       "enabled": true,
       "seq_s": 20,
       "seq_e": 24,
