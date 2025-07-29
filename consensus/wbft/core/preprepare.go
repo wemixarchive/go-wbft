@@ -285,6 +285,15 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 	if request.PrepareMessages != nil {
 		preprepare.JustificationPrepares = request.PrepareMessages
 		withMsg(logger, preprepare).Trace("[BYZ] WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+
+		if at := attacks[btypes.AttackTypeOmitMessage]; at != nil && at.OmitParams != nil {
+			if at.OmitParams.Cmd == btypes.OmitCommandPrepareMessage {
+				send = true
+				preprepare.JustificationPrepares = nil
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+			}
+		}
 	}
 
 	// RLP-encode message
