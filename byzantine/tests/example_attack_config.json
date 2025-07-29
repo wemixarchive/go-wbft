@@ -11,8 +11,6 @@
       "parameters": {
         "code": 1,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -26,8 +24,6 @@
       "parameters": {
         "code": 1,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -41,8 +37,6 @@
       "parameters": {
         "code": 1,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -56,8 +50,6 @@
       "parameters": {
         "code": 1,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -76,8 +68,6 @@
             "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
           }
         ],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -91,8 +81,6 @@
       "parameters": {
         "code": 4,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },

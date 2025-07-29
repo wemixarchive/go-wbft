@@ -193,17 +193,6 @@ func ConvertToTamperedMessageParams(raw map[string]interface{}) (types.TamperedM
 			params.Fields = append(params.Fields, f)
 		}
 	}
-	if v, ok := raw["withValidMessage"].(bool); ok {
-		params.WithValidMessage = v
-	}
-
-	if v, exists := raw["delay"]; exists {
-		delay, err := convertToUint64(v)
-		if err != nil {
-			return params, fmt.Errorf("invalid delay: %w", err)
-		}
-		params.Delay = delay
-	}
 
 	// Convert targets
 	if v, ok := raw["targets"].([]interface{}); ok {

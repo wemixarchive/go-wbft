@@ -45,13 +45,11 @@ type SetMessagePolicyRequest struct {
 
 // TamperedMessageRequest represents a request for tampered message attack
 type TamperedMessageRequest struct {
-	Sequence         uint64            `json:"sequence"`
-	Round            uint64            `json:"round"`
-	Code             types.MessageCode `json:"code"`
-	TamperFields     []types.Field     `json:"tamperFields"`
-	WithValidMessage bool              `json:"withValidMessage"`
-	Delay            uint64            `json:"delay,omitempty"`
-	Targets          []common.Address  `json:"targets,omitempty"`
+	Sequence     uint64            `json:"sequence"`
+	Round        uint64            `json:"round"`
+	Code         types.MessageCode `json:"code"`
+	TamperFields []types.Field     `json:"tamperFields"`
+	Targets      []common.Address  `json:"targets,omitempty"`
 }
 
 // FakeMessageRequest represents a request for fake message attack

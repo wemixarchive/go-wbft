@@ -190,8 +190,6 @@ Sends duplicate messages with potentially different content.
 #### Parameters
 ```typescript
 {
-  withValidMessage: boolean    // Also send valid message
-  delay?: number              // Delay between messages (ms)
   targets?: string[]          // Optional target addresses
 }
 ```
@@ -207,8 +205,6 @@ Modifies message fields before sending.
     target: string           // Field path (e.g., "Proposal.Header.Coinbase")
     value: any              // New value
   }>
-  withValidMessage: boolean  // Also send valid message
-  delay?: number            // Delay for valid message (ms)
   targets?: string[]        // Optional target addresses
 }
 ```
@@ -391,8 +387,6 @@ geth byzantine history [--uid 12345] [--limit 100]
       "round": 1,
       "code": 2,
       "parameters": {
-        "withValidMessage": true,
-        "delay": 1000
       },
       "targets": ["0x1234..."]
     }

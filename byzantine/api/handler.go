@@ -136,11 +136,9 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
-			"code":             params.Code,
-			"fields":           fieldsMap,
-			"withValidMessage": params.WithValidMessage,
-			"delay":            params.Delay,
-			"targets":          params.Targets,
+			"code":    params.Code,
+			"fields":  fieldsMap,
+			"targets": params.Targets,
 		},
 		Enabled:   params.Enabled,
 		Status:    types.AttackStatusPending,
@@ -602,14 +600,4 @@ func (h *Handler) getFakeMessageFromOptions(options map[string]interface{}) stri
 		return msg
 	}
 	return ""
-}
-
-func (h *Handler) getWithValidMessageFromOptions(options map[string]interface{}) bool {
-	if options == nil {
-		return false
-	}
-	if withValid, ok := options["withValidMessage"].(bool); ok {
-		return withValid
-	}
-	return false
 }

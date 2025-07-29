@@ -254,11 +254,9 @@ func (f *Field) ValueHexToBytes() ([]byte, error) {
 
 // TamperAttackParams handles parsing for tamper attack parameters
 type TamperAttackParams struct {
-	Code             MessageCode      `json:"code"`
-	Fields           []Field          `json:"fields"`
-	WithValidMessage bool             `json:"withValidMessage"`
-	Delay            uint64           `json:"delay"`
-	Targets          []common.Address `json:"targets,omitempty"`
+	Code    MessageCode      `json:"code"`
+	Fields  []Field          `json:"fields"`
+	Targets []common.Address `json:"targets,omitempty"`
 }
 
 var _ AttackParamsParser = (*TamperAttackParams)(nil)
@@ -315,23 +313,6 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 				params.Fields = append(params.Fields, f)
 			}
 		}
-	}
-
-	if withValid, ok := raw["withValidMessage"].(bool); ok {
-		params.WithValidMessage = withValid
-	}
-
-	switch v := raw["delay"].(type) {
-	case float64:
-		params.Delay = uint64(v)
-	case int:
-		params.Delay = uint64(v)
-	case uint:
-		params.Delay = uint64(v)
-	case uint64:
-		params.Delay = v
-	default:
-		params.Delay = 0
 	}
 
 	params.Targets = ParseTargets(raw["targets"])

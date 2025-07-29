@@ -183,8 +183,6 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 				}
 			}
 			result["fields"] = fields
-			result["withValidMessage"] = params.WithValidMessage
-			result["delay"] = params.Delay
 			result["targets"] = params.Targets
 		}
 

@@ -48,8 +48,6 @@
             "value": 1234567890
           }
         ],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },

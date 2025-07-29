@@ -72,13 +72,11 @@ func byzantineTamper(ctx *cli.Context) error {
 	tamperFields := parseTamperFields(ctx.StringSlice("fields"))
 
 	params := map[string]interface{}{
-		"sequence":         ctx.Uint64("sequence"),
-		"round":            ctx.Uint64("round"),
-		"code":             ctx.String("code"),
-		"tamperFields":     tamperFields,
-		"withValidMessage": ctx.Bool("with-valid"),
-		"delay":            ctx.Uint64("delay"),
-		"targets":          parseTargets(ctx.StringSlice("targets")),
+		"sequence":     ctx.Uint64("sequence"),
+		"round":        ctx.Uint64("round"),
+		"code":         ctx.String("code"),
+		"tamperFields": tamperFields,
+		"targets":      parseTargets(ctx.StringSlice("targets")),
 	}
 
 	return callByzantineAPI(ctx, "byzantine_sendTamperedMessage", params)

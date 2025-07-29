@@ -29,8 +29,6 @@
       "parameters": {
         "code": 2,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -44,8 +42,6 @@
       "parameters": {
         "code": 2,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -59,8 +55,6 @@
       "parameters": {
         "code": 1,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -74,8 +68,6 @@
       "parameters": {
         "code": 1,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -89,8 +81,6 @@
       "parameters": {
         "code": 2,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     },
@@ -104,8 +94,6 @@
       "parameters": {
         "code": 4,
         "fields": [],
-        "withValidMessage": true,
-        "delay": 1000,
         "targets": []
       }
     }

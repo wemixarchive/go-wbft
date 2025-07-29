@@ -3,7 +3,6 @@ package attacks
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
@@ -13,11 +12,9 @@ import (
 // TamperedMessageAttack implements tampered message attack
 type TamperedMessageAttack struct {
 	*registry.BaseAttack
-	tamperFields     []types.Field
-	withValidMessage bool
-	delay            time.Duration
-	targets          []common.Address
-	params           *types.TamperAttackParams
+	tamperFields []types.Field
+	targets      []common.Address
+	params       *types.TamperAttackParams
 }
 
 var _ types.Attack = (*TamperedMessageAttack)(nil)
@@ -35,12 +32,10 @@ func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack
 	params := parsedParams.(*types.TamperAttackParams)
 
 	attack := &TamperedMessageAttack{
-		BaseAttack:       registry.NewBaseAttack(config),
-		tamperFields:     params.Fields,
-		withValidMessage: params.WithValidMessage,
-		delay:            time.Duration(int64(params.Delay)),
-		targets:          params.Targets,
-		params:           params,
+		BaseAttack:   registry.NewBaseAttack(config),
+		tamperFields: params.Fields,
+		targets:      params.Targets,
+		params:       params,
 	}
 	return attack, nil
 }

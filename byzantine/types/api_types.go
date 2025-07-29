@@ -64,16 +64,14 @@ type SetMessagePolicyParams struct {
 
 // TamperedMessageParams represents parameters for tampered message attacks
 type TamperedMessageParams struct {
-	Enabled          bool             `json:"enabled"`
-	Sequence         uint64           `json:"sequence,omitempty"`
-	SequenceStart    uint64           `json:"seq_s,omitempty"`
-	SequenceEnd      uint64           `json:"seq_e,omitempty"`
-	Round            uint64           `json:"round"`
-	Code             uint64           `json:"code"`
-	Fields           []Field          `json:"fields"`
-	WithValidMessage bool             `json:"withValidMessage"`
-	Delay            uint64           `json:"delay"`
-	Targets          []common.Address `json:"targets,omitempty"`
+	Enabled       bool             `json:"enabled"`
+	Sequence      uint64           `json:"sequence,omitempty"`
+	SequenceStart uint64           `json:"seq_s,omitempty"`
+	SequenceEnd   uint64           `json:"seq_e,omitempty"`
+	Round         uint64           `json:"round"`
+	Code          uint64           `json:"code"`
+	Fields        []Field          `json:"fields"`
+	Targets       []common.Address `json:"targets,omitempty"`
 }
 
 // FakeMessageParams represents parameters for fake message attacks
