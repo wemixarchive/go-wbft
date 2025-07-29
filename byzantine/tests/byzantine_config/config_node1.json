@@ -819,6 +819,39 @@
         "cmd": 3,
         "targets": []
       }
+    },
+    {
+      "name": "silent_commit",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 135,
+      "seq_e": 138,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_incomplete_preparemessages_prepreare",
+      "type": "omit",
+      "enabled": true,
+      "seq_s": 135,
+      "seq_e": 138,
+      "round": 2,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 1,
+        "cmd": 4,
+        "targets": []
+      }
     }
   ]
 }
