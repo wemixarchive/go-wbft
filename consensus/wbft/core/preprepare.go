@@ -270,6 +270,15 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 			withMsg(logger, preprepare).Trace("[BYZ] WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
 		}
 		withMsg(logger, preprepare).Trace("[BYZ] WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+
+		if at := attacks[btypes.AttackTypeOmitMessage]; at != nil && at.OmitParams != nil {
+			if at.OmitParams.Cmd == btypes.OmitCommandRoundChange {
+				send = true
+				preprepare.JustificationRoundChanges = nil
+				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
+				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+			}
+		}
 	}
 
 	// Extend PRE-PREPARE message with PREPARE justification
@@ -299,7 +308,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 			c.current.preprepareSent = curView.Round
 		}
 	}
-	return true && send
+	return send
 }
 
 // handlePreprepareMsg is called when receiving a PRE-PREPARE message from the proposer

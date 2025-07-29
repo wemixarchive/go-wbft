@@ -786,6 +786,39 @@
           }
         ]
       }
+    },
+    {
+      "name": "silent_commit",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 131,
+      "seq_e": 134,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ],
+        "targets":[]
+      }
+    },
+    {
+      "name": "broadcast_incomplete_roundchangemessages_prepreare",
+      "type": "omit",
+      "enabled": true,
+      "seq_s": 131,
+      "seq_e": 134,
+      "round": 2,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 1,
+        "cmd": 3,
+        "targets": []
+      }
     }
   ]
 }
