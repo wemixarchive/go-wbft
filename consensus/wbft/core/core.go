@@ -357,8 +357,17 @@ func (c *Core) newRoundChangeTimer() {
 			timeout = maxRequestTimeout
 		}
 	} else {
-		// effectively impossible to observe overflow happen when maxRequestTimeout is disabled
-		timeout = baseTimeout * time.Duration(math.Pow(2, float64(round)))
+		timeoutFloat64 := math.Pow(2, float64(round)) * float64(baseTimeout)
+
+		if timeoutFloat64 > float64(math.MaxInt64) {
+			c.currentLogger(true, nil).Error("WBFT: Timeout overflow detected, setting timeout value to MaxInt64",
+				"round", round,
+				"adjusted_timeout", time.Duration(math.MaxInt64).Seconds(),
+			)
+			timeout = time.Duration(math.MaxInt64)
+		} else {
+			timeout = time.Duration(timeoutFloat64)
+		}
 	}
 
 	c.currentLogger(true, nil).Trace("WBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
