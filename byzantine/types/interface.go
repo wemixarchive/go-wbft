@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -207,8 +208,11 @@ type ConsensusHook interface {
 type AttackParamsParser interface {
 	Parse(raw map[string]interface{}) (interface{}, error)
 	ParseJSON(data []byte) (interface{}, error)
-	Validate(params interface{}) error
+	Validate() error
+	ValidateWith(params interface{}) error
 	HasMessageCode(code MessageCode) bool
+	IsTargeted(addr common.Address) bool
+	GetBlockedTargets(valSet []common.Address) []common.Address
 }
 
 type AttackExecutionContext struct {

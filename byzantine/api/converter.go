@@ -466,6 +466,7 @@ func ConvertToStoreMessageParams(raw map[string]interface{}) (types.StoreMessage
 func ConvertToDosMessageParams(raw map[string]interface{}) (types.DosMessageParams, error) {
 	params := types.DosMessageParams{}
 
+	// Set enabled (default to true if not specified)
 	if v, exists := raw["enabled"]; exists {
 		if enabled, ok := v.(bool); ok {
 			params.Enabled = enabled
@@ -476,45 +477,65 @@ func ConvertToDosMessageParams(raw map[string]interface{}) (types.DosMessagePara
 		params.Enabled = true
 	}
 
+	// Parse sequence start
 	if v, ok := raw["seq_s"].(uint64); ok {
 		params.SequenceStart = v
 	} else {
 		return params, fmt.Errorf("invalid seq_s")
 	}
 
+	// Parse sequence end
 	if v, ok := raw["seq_e"].(uint64); ok {
 		params.SequenceEnd = v
 	} else {
 		return params, fmt.Errorf("invalid seq_e")
 	}
 
+	// Parse round
 	if v, ok := raw["round"].(uint64); ok {
 		params.Round = v
 	} else {
 		return params, fmt.Errorf("round number is required")
 	}
 
+	// Parse code
 	if v, ok := raw["code"].(uint64); ok {
 		params.Code = v
 	} else {
 		return params, fmt.Errorf("invalid code")
 	}
 
-	// Parse fields
-	if fieldsValue, ok := raw["fields"].([]interface{}); ok {
-		params.Fields = make([]types.Field, 0, len(fieldsValue))
-		for _, f := range fieldsValue {
-			if fieldMap, ok := f.(map[string]interface{}); ok {
-				field := types.Field{}
-				if target, ok := fieldMap["target"].(string); ok {
-					field.Target = target
-				}
-				if value, ok := fieldMap["value"]; ok {
-					field.Value = value
-				}
-				params.Fields = append(params.Fields, field)
-			}
+	// Parse cmd
+	if v, exists := raw["cmd"]; exists {
+		cmd, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid cmd: %w", err)
 		}
+		params.Cmd = cmd
+	} else {
+		params.Cmd = 0 // default to 0
+	}
+
+	// Parse cnt (count)
+	if v, exists := raw["cnt"]; exists {
+		cnt, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid cnt: %w", err)
+		}
+		params.Cnt = cnt
+	} else {
+		params.Cnt = 1 // default to 1
+	}
+
+	// Parse delay
+	if v, exists := raw["delay"]; exists {
+		delay, err := convertToUint64(v)
+		if err != nil {
+			return params, fmt.Errorf("invalid delay: %w", err)
+		}
+		params.Delay = delay
+	} else {
+		params.Delay = 0 // default to 0
 	}
 
 	return params, nil

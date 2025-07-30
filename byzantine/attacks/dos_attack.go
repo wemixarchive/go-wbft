@@ -13,10 +13,8 @@ import (
 // DosAttack represents a DoS attack that floods messages
 type DosAttack struct {
 	*registry.BaseAttack
-	fields         []types.Field
-	targets        []common.Address
 	params         *types.DosAttackParams
-	messageBuffer  []interface{} // Buffer for storing generated messages
+	targets        []common.Address
 	executionState *DosExecutionState
 }
 
@@ -31,9 +29,8 @@ type DosExecutionState struct {
 
 // NewDosAttack creates a new DoS attack instance
 func NewDosAttack(config types.AttackConfig) (*DosAttack, error) {
-	paramRegistry := registry.NewParameterParserRegistry()
-
 	// Parse parameters for the specific attack type
+	paramRegistry := registry.NewParameterParserRegistry()
 	parsedParams, err := paramRegistry.ParseParameters(config.Type, config.Parameters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse DoS attack parameters: %w", err)
@@ -43,11 +40,9 @@ func NewDosAttack(config types.AttackConfig) (*DosAttack, error) {
 
 	// Initialize attack
 	attack := &DosAttack{
-		BaseAttack:    registry.NewBaseAttack(config),
-		fields:        params.Fields,
-		targets:       params.Targets,
-		params:        params,
-		messageBuffer: make([]interface{}, 0),
+		BaseAttack: registry.NewBaseAttack(config),
+		targets:    params.Targets,
+		params:     params,
 		executionState: &DosExecutionState{
 			TotalMessagesSent: 0,
 			LastExecutionTime: time.Time{},
@@ -113,17 +108,7 @@ func (a *DosAttack) UpdateExecutionState(messagesSent int) {
 	a.executionState.CurrentBatch++
 }
 
-// GetMessageBuffer returns the message buffer
-func (a *DosAttack) GetMessageBuffer() []interface{} {
-	return a.messageBuffer
-}
-
-// SetMessageBuffer sets the message buffer
-func (a *DosAttack) SetMessageBuffer(buffer []interface{}) {
-	a.messageBuffer = buffer
-}
-
-// Factory function for creating DoS attacks
+// DosAttackFactory Factory function for creating DoS attacks
 func DosAttackFactory(config types.AttackConfig) (types.Attack, error) {
 	return NewDosAttack(config)
 }

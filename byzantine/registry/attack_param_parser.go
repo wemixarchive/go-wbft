@@ -52,7 +52,7 @@ func (r *ParameterParserRegistry) ParseParameters(attackType types.AttackType, r
 		return nil, fmt.Errorf("failed to parse parameters: %w", err)
 	}
 
-	if err := parser.Validate(params); err != nil {
+	if err := parser.ValidateWith(params); err != nil {
 		return nil, fmt.Errorf("parameter validation failed: %w", err)
 	}
 

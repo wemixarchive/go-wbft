@@ -538,8 +538,10 @@ func (h *Handler) RegisterDosMessage(params types.DosMessageParams) error {
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
 			"code":    params.Code,
+			"cmd":     params.Cmd,
+			"cnt":     params.Cnt,
+			"delay":   params.Delay,
 			"targets": params.Targets,
-			"fields":  params.Fields,
 		},
 		MaxExecutionCount: params.MaxExecutionCount,
 		Enabled:           params.Enabled,
@@ -553,7 +555,7 @@ func (h *Handler) RegisterDosMessage(params types.DosMessageParams) error {
 		return fmt.Errorf("failed to register DoS attack: %w", err)
 	}
 
-	log.Info("DoS message attack registered", "uid", uid, "fields", len(params.Fields))
+	log.Info("DoS message attack registered", "uid", uid, "cmd", params.Cmd, "cnt", params.Cnt, "delay", params.Delay)
 	return nil
 }
 
@@ -566,26 +568,13 @@ func (h *Handler) validateDosMessageParams(params types.DosMessageParams) error 
 		return fmt.Errorf("message code is required")
 	}
 
-	// Validate fields if provided
-	for _, field := range params.Fields {
-		if field.Target != "valid" && field.Target != "invalid" {
-			return fmt.Errorf("invalid target: %s, must be 'valid' or 'invalid'", field.Target)
-		}
+	// Validate cmd value (0, 1, or 2)
+	if params.Cmd < 0 || params.Cmd > 2 {
+		return fmt.Errorf("invalid cmd value: %d, must be 0 (valid), 1 (sequence), or 2 (round)", params.Cmd)
+	}
 
-		// Validate value
-		if strValue, ok := field.Value.(string); ok {
-			validValues := []string{"sequence", "round", "random", "signature", "blockHash"}
-			valid := false
-			for _, vv := range validValues {
-				if strValue == vv {
-					valid = true
-					break
-				}
-			}
-			if !valid {
-				return fmt.Errorf("invalid value: %s", strValue)
-			}
-		}
+	if params.Cnt == 0 {
+		return fmt.Errorf("cnt must be greater than 0")
 	}
 
 	return nil

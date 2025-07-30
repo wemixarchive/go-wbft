@@ -76,10 +76,12 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 	// Check for DOS attack
 	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 		c.executeDosAttack(at, btypes.MessageCodeRoundChange, roundChange)
-		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
-			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
+		log.Info("[BYZ] byzantine attack triggered",
+			"name", at.NAME,
+			"uid", at.UID,
+			"seq", c.current.Sequence().Uint64(),
+			"parmas", at.DosParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-		// After DOS attack, continue with normal round change if configured
 		return
 	}
 

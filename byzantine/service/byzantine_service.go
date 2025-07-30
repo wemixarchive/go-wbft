@@ -164,9 +164,6 @@ func (s *ByzantineService) RegisterAttack(config types.AttackConfig) (string, er
 	// Set initial status
 	config.Status = types.AttackStatusPending
 	config.CreatedAt = time.Now()
-	if config.MaxExecutionCount == uint64(0) {
-		config.MaxExecutionCount = uint64(1) // Default to 1 if not specified
-	}
 
 	// Create attack instance
 	attack, err := s.attackRegistry.CreateAttack(config)

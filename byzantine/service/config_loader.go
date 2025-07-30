@@ -236,14 +236,9 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 	case types.AttackTypeDos:
 		if params, ok := parsedParams.(*types.DosAttackParams); ok {
 			result["code"] = params.Code
-			fields := make([]map[string]interface{}, len(params.Fields))
-			for i, field := range params.Fields {
-				fields[i] = map[string]interface{}{
-					"target": field.Target,
-					"value":  field.Value,
-				}
-			}
-			result["fields"] = fields
+			result["cmd"] = params.Cmd
+			result["cnt"] = params.Cnt
+			result["delay"] = params.Delay
 			result["targets"] = params.Targets
 		}
 

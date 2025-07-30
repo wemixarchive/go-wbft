@@ -69,6 +69,8 @@ func (e *Engine) getByzantineAttack(attackType btypes.AttackType,
 		return at, at.RoleSpoofParams != nil
 	case btypes.AttackTypeReplay:
 		return at, at.ReplayParams != nil
+	case btypes.AttackTypeDos:
+		return at, at.DosParams != nil
 	default:
 		return nil, false
 	}
@@ -445,7 +447,6 @@ func (e *Engine) applyByzantineAttacksOnEpochBlock(chain consensus.ChainHeaderRe
 
 func (e *Engine) applyByzantineAttacksWithInvalidEpoch(chain consensus.ChainHeaderReader, header *types.Header,
 	govState govwbft.StateReader) error {
-	//log.Info("[BYZ] applyByzantineAttacksWithInvalidEpoch called", "caller", bdebug.GetCallerInfo())
 	attacks := e.getByzantineExecutableAttacks()
 	if attacks == nil {
 		return fmt.Errorf("attacks is nil")

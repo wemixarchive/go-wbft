@@ -52,75 +52,81 @@ type AttackStatusResponse struct {
 
 // SetMessagePolicyParams represents parameters for message policy
 type SetMessagePolicyParams struct {
-	Enabled       bool             `json:"enabled"`
-	Sequence      uint64           `json:"sequence,omitempty"`
-	SequenceStart uint64           `json:"seq_s,omitempty"`
-	SequenceEnd   uint64           `json:"seq_e,omitempty"`
-	Round         uint64           `json:"round"`
-	Code          uint64           `json:"code"`
-	Fields        []Field          `json:"fields"`
-	Targets       []common.Address `json:"targets,omitempty"`
+	Enabled           bool             `json:"enabled"`
+	Sequence          uint64           `json:"sequence,omitempty"`
+	SequenceStart     uint64           `json:"seq_s,omitempty"`
+	SequenceEnd       uint64           `json:"seq_e,omitempty"`
+	Round             uint64           `json:"round"`
+	Code              uint64           `json:"code"`
+	Fields            []Field          `json:"fields"`
+	Targets           []common.Address `json:"targets,omitempty"`
+	MaxExecutionCount uint64           `json:"maxExecutionCount,omitempty"`
 }
 
 // TamperedMessageParams represents parameters for tampered message attacks
 type TamperedMessageParams struct {
-	Enabled       bool             `json:"enabled"`
-	Sequence      uint64           `json:"sequence,omitempty"`
-	SequenceStart uint64           `json:"seq_s,omitempty"`
-	SequenceEnd   uint64           `json:"seq_e,omitempty"`
-	Round         uint64           `json:"round"`
-	Code          uint64           `json:"code"`
-	Fields        []Field          `json:"fields"`
-	Targets       []common.Address `json:"targets,omitempty"`
+	Enabled           bool             `json:"enabled"`
+	Sequence          uint64           `json:"sequence,omitempty"`
+	SequenceStart     uint64           `json:"seq_s,omitempty"`
+	SequenceEnd       uint64           `json:"seq_e,omitempty"`
+	Round             uint64           `json:"round"`
+	Code              uint64           `json:"code"`
+	Fields            []Field          `json:"fields"`
+	Targets           []common.Address `json:"targets,omitempty"`
+	MaxExecutionCount uint64           `json:"maxExecutionCount,omitempty"`
 }
 
 // FakeMessageParams represents parameters for fake message attacks
 type FakeMessageParams struct {
-	Enabled       bool             `json:"enabled"`
-	Sequence      uint64           `json:"sequence,omitempty"`
-	SequenceStart uint64           `json:"seq_s,omitempty"`
-	SequenceEnd   uint64           `json:"seq_e,omitempty"`
-	Round         uint64           `json:"round"`
-	Code          uint64           `json:"code"`
-	FakeMessage   []byte           `json:"fakeMessage,omitempty"`
-	Targets       []common.Address `json:"targets,omitempty"`
+	Enabled           bool             `json:"enabled"`
+	Sequence          uint64           `json:"sequence,omitempty"`
+	SequenceStart     uint64           `json:"seq_s,omitempty"`
+	SequenceEnd       uint64           `json:"seq_e,omitempty"`
+	Round             uint64           `json:"round"`
+	Code              uint64           `json:"code"`
+	FakeMessage       []byte           `json:"fakeMessage,omitempty"`
+	Targets           []common.Address `json:"targets,omitempty"`
+	MaxExecutionCount uint64           `json:"maxExecutionCount,omitempty"`
 }
 
 // OmitMessageParams represents parameters for omit message attacks
 type OmitMessageParams struct {
-	Enabled       bool             `json:"enabled"`
-	Sequence      uint64           `json:"sequence,omitempty"`
-	SequenceStart uint64           `json:"seq_s,omitempty"`
-	SequenceEnd   uint64           `json:"seq_e,omitempty"`
-	Round         uint64           `json:"round"`
-	Code          uint64           `json:"code"`
-	Cmd           uint64           `json:"cmd"`
-	Cnt           uint64           `json:"cnt"`
-	Targets       []common.Address `json:"targets,omitempty"`
+	Enabled           bool             `json:"enabled"`
+	Sequence          uint64           `json:"sequence,omitempty"`
+	SequenceStart     uint64           `json:"seq_s,omitempty"`
+	SequenceEnd       uint64           `json:"seq_e,omitempty"`
+	Round             uint64           `json:"round"`
+	Code              uint64           `json:"code"`
+	Cmd               uint64           `json:"cmd"`
+	Cnt               uint64           `json:"cnt"`
+	Targets           []common.Address `json:"targets,omitempty"`
+	MaxExecutionCount uint64           `json:"maxExecutionCount,omitempty"`
 }
 
 // RoleSpoofParams represents parameters for role spoofing attacks
 type RoleSpoofParams struct {
-	Enabled       bool             `json:"enabled"`
-	Sequence      uint64           `json:"sequence,omitempty"`
-	SequenceStart uint64           `json:"seq_s,omitempty"`
-	SequenceEnd   uint64           `json:"seq_e,omitempty"`
-	Round         uint64           `json:"round"`
-	Code          uint64           `json:"code"`
-	FakeMessage   []byte           `json:"fakeMessage,omitempty"`
-	Targets       []common.Address `json:"targets,omitempty"`
+	Enabled           bool             `json:"enabled"`
+	Sequence          uint64           `json:"sequence,omitempty"`
+	SequenceStart     uint64           `json:"seq_s,omitempty"`
+	SequenceEnd       uint64           `json:"seq_e,omitempty"`
+	Round             uint64           `json:"round"`
+	Code              uint64           `json:"code"`
+	FakeMessage       []byte           `json:"fakeMessage,omitempty"`
+	Targets           []common.Address `json:"targets,omitempty"`
+	MaxExecutionCount uint64           `json:"maxExecutionCount,omitempty"`
 }
 
 // ReplayMessageParams represents parameters for replay attacks
 type ReplayMessageParams struct {
-	Enabled         bool             `json:"enabled"`
-	Sequence        uint64           `json:"sequence,omitempty"`
-	SequenceStart   uint64           `json:"seq_s,omitempty"`
-	SequenceEnd     uint64           `json:"seq_e,omitempty"`
-	Round           uint64           `json:"round"`
-	Code            uint64           `json:"code"`
-	UseOriginalView bool             `json:"useOriginalView"`
-	Targets         []common.Address `json:"targets,omitempty"`
+	Enabled           bool             `json:"enabled"`
+	Sequence          uint64           `json:"sequence,omitempty"`
+	SequenceStart     uint64           `json:"seq_s,omitempty"`
+	SequenceEnd       uint64           `json:"seq_e,omitempty"`
+	Round             uint64           `json:"round"`
+	Code              uint64           `json:"code"`
+	UseOriginalView   bool             `json:"useOriginalView"`
+	Targets           []common.Address `json:"targets,omitempty"`
+	MaxExecutionCount uint64           `json:"maxExecutionCount,omitempty"`
 }
 
 // StoreMessageParams represents parameters for replay attacks
@@ -143,7 +149,9 @@ type DosMessageParams struct {
 	SequenceEnd       uint64   `json:"seq_e"`
 	Round             uint64   `json:"round"`
 	Code              uint64   `json:"code"`
-	Fields            []Field  `json:"fields,omitempty"`
+	Cmd               uint64   `json:"cmd"`
+	Cnt               uint64   `json:"cnt"`
+	Delay             uint64   `json:"delay"`
 	Targets           []string `json:"targets,omitempty"`
 	MaxExecutionCount uint64   `json:"maxExecutionCount,omitempty"`
 }

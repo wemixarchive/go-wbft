@@ -103,15 +103,16 @@ type AttackConfig struct {
 	SequenceStart     uint64                 `json:"seq_s"`
 	SequenceEnd       uint64                 `json:"seq_e"`
 	Round             uint64                 `json:"round"`
-	ExecutionCount    uint64                 `json:"-"`
-	MaxExecutionCount uint64                 `json:"max_execution_count,omitempty"`
-	Status            AttackStatus           `json:"status,omitempty"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`
-	RawParameters     json.RawMessage        `json:"-"`
-	ParsedParameters  interface{}            `json:"-"`
-	CreatedAt         time.Time              `json:"created_at"`
-	ExecutedAt        *time.Time             `json:"executed_at,omitempty"`
-	LastExecutedSeq   uint64                 `json:"-"`
+	MaxExecutionCount uint64                 `json:"max_execution_count,omitempty"`
+
+	RawParameters    json.RawMessage `json:"-"`
+	ParsedParameters interface{}     `json:"-"`
+	Status           AttackStatus    `json:"-"`
+	ExecutionCount   uint64          `json:"-"`
+	LastExecutedSeq  uint64          `json:"-"`
+	CreatedAt        time.Time       `json:"created_at,omitempty"`
+	ExecutedAt       *time.Time      `json:"executed_at,omitempty"`
 }
 
 func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
@@ -469,7 +470,7 @@ func validateMessagePolicyParams(params *MessagePolicyParams) error {
 			return fmt.Errorf("tamperField[%d] value is nil", i)
 		}
 	}
-	return validateTargets(params.Targets)
+	return params.Validate()
 }
 
 func validateTamperParams(params *TamperAttackParams) error {
@@ -481,51 +482,31 @@ func validateTamperParams(params *TamperAttackParams) error {
 			return fmt.Errorf("tamperField[%d] value is nil", i)
 		}
 	}
-	return validateTargets(params.Targets)
+	return params.Validate()
 }
 
 func validateFakeParams(params *FakeAttackParams) error {
-	// FakeMessage can be empty, as it might be generated later
-	return validateTargets(params.Targets)
+	return params.Validate()
 }
 
 func validateOmitParams(params *OmitAttackParams) error {
-	// Cmd and Option can be 0, which might be valid
-	return validateTargets(params.Targets)
+	return params.Validate()
 }
 
 func validateRoleSpoofParams(params *RoleSpoofAttackParams) error {
-	// FakeMessage can be empty, as it might be generated later
-	return validateTargets(params.Targets)
+	return params.Validate()
 }
 
 func validateReplayParams(params *ReplayAttackParams) error {
-	return validateTargets(params.Targets)
+	return params.Validate()
 }
 
 func validateStoreParams(params *StoreAttackParams) error {
-	return nil
+	return params.Validate()
 }
 
 func validateDosParams(params *DosAttackParams) error {
-	for i, field := range params.Fields {
-		if field.Target == "" {
-			return fmt.Errorf("tamperField[%d] target is empty", i)
-		}
-		if field.Value == nil {
-			return fmt.Errorf("tamperField[%d] value is nil", i)
-		}
-	}
-	return validateTargets(params.Targets)
-}
-
-func validateTargets(targets []common.Address) error {
-	for i, target := range targets {
-		if target == (common.Address{}) {
-			return fmt.Errorf("invalid target address at index %d: zero address", i)
-		}
-	}
-	return nil
+	return params.Validate()
 }
 
 func ensureSerializable(v interface{}) interface{} {

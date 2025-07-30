@@ -742,12 +742,9 @@
       "round": 1,
       "parameters": {
         "code": 8,
-        "fields": [
-          {
-            "target": "valid",
-            "value": "round"
-          }
-        ],
+        "cmd": 2,
+        "cnt": 10000,
+        "delay": 0,
         "targets": []
       }
     },
