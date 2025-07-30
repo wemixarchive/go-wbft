@@ -41,6 +41,43 @@ var (
 	}
 )
 
+// isFutureSequence returns true if viewSeq is greater than currSeq
+func isFutureSequence(viewSeq, currSeq *big.Int) bool {
+	return viewSeq.Cmp(currSeq) > 0
+}
+
+// isRoundTooFarAhead returns true if the round difference exceeds the threshold
+func isRoundTooFarAhead(viewRound, currRound *big.Int, threshold int64) (*big.Int, bool) {
+	roundDiff := new(big.Int).Sub(viewRound, currRound)
+	return roundDiff, roundDiff.Cmp(big.NewInt(threshold)) >= 0
+}
+
+// dropFutureMessage filters out messages too far ahead in sequence or round
+func (c *Core) dropFutureMessage(view *wbft.View) bool {
+	curr := c.currentView()
+
+	if isFutureSequence(view.Sequence, curr.Sequence) {
+		c.logger.Warn("WBFT: future message too far ahead in sequence, dropped",
+			"msg_seq", view.Sequence.String(),
+			"curr_seq", curr.Sequence.String(),
+		)
+		return true
+	}
+
+	if view.Sequence.Cmp(curr.Sequence) == 0 && view.Round.Cmp(curr.Round) > 0 {
+		if roundDiff, tooFar := isRoundTooFarAhead(view.Round, curr.Round, 10); tooFar {
+			c.logger.Warn("WBFT: future message too far ahead in round, dropped",
+				"msg_round", view.Round.String(),
+				"curr_round", curr.Round.String(),
+				"diff", roundDiff.String(),
+			)
+			return true
+		}
+	}
+
+	return false
+}
+
 // checkMessage checks that a message matches our current WBFT state
 //
 // In particular it ensures that
@@ -54,6 +91,10 @@ var (
 func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
+	}
+
+	if c.dropFutureMessage(view) {
+		return errFutureViewTooFar
 	}
 
 	if msgCode == wbfmessage.RoundChangeCode {
