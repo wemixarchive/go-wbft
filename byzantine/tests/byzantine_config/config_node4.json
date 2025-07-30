@@ -224,15 +224,15 @@
       }
     },
     {
-      "name": "silent_commit",
+      "name": "silent_preprepare",
       "type": "policy",
       "enabled": true,
       "seq_s": 131,
       "seq_e": 134,
-      "round": 1,
+      "round": 0,
       "max_execution_count": 1,
       "parameters": {
-        "code": 4,
+        "code": 1,
         "fields": [
           {
             "target": "policy.direction",
