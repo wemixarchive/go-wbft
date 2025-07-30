@@ -153,7 +153,6 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 
 		c.startNewRound(newRound)
 		c.broadcastRoundChange(newRound)
-
 	} else if currentRoundMessages >= c.valSet.QuorumSize() && c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
 		logger.Info("WBFT: received quorum of ROUND-CHANGE messages")
 
