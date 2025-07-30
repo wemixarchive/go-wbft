@@ -41,6 +41,12 @@ func (c *Core) broadcastNextRoundChange() {
 	c.broadcastRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
 
+// broadcastRetryRoundChange re-sends ROUND-CHANGE message for the current round
+func (c *Core) broadcastRetryRoundChange() {
+	cv := c.currentView()
+	c.broadcastRoundChange(cv.Round)
+}
+
 // broadcastRoundChange is called when either
 // - ROUND-CHANGE timeout expires (meaning either we have not received PRE-PREPARE message or we have not received a quorum of COMMIT messages)
 // -
@@ -49,6 +55,7 @@ func (c *Core) broadcastNextRoundChange() {
 // - Creates and sign ROUND-CHANGE message
 // - broadcast the ROUND-CHANGE message with the given round
 func (c *Core) broadcastRoundChange(round *big.Int) {
+	c.newRetryRoundChangeTimer()
 	logger := c.currentLogger(true, nil)
 
 	// Validates new round corresponds to current view
@@ -146,6 +153,7 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 
 		c.startNewRound(newRound)
 		c.broadcastRoundChange(newRound)
+
 	} else if currentRoundMessages >= c.valSet.QuorumSize() && c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
 		logger.Info("WBFT: received quorum of ROUND-CHANGE messages")
 

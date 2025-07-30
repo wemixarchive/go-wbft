@@ -20,10 +20,15 @@
 
 package core
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/ethereum/go-ethereum/common"
+)
 
 func (c *Core) handleFinalCommittedMsg() error {
 	c.currentLogger(true, nil).Info("WBFT: handle final committed")
 	c.startNewRound(common.Big0)
+
+	// Stop ROUND-CHANGE retry timer
+	c.stopRetryTimer()
 	return nil
 }

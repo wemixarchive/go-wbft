@@ -88,6 +88,7 @@ type Core struct {
 	events                *event.TypeMuxSubscription
 	finalCommittedSub     *event.TypeMuxSubscription
 	timeoutSub            *event.TypeMuxSubscription
+	retryTimeoutSub       *event.TypeMuxSubscription
 	futurePreprepareTimer *time.Timer
 
 	valSet     wbft.ValidatorSet
@@ -108,6 +109,8 @@ type Core struct {
 	roundChangeSet          *roundChangeSet
 	roundChangeTimer        *time.Timer
 	lastSentTimeoutCanceled *bool
+
+	retryRoundChangeTimer *time.Timer
 
 	WBFTPreparedPrepares []*wbftmessage.Prepare
 
@@ -363,6 +366,27 @@ func (c *Core) newRoundChangeTimer() {
 	*c.lastSentTimeoutCanceled = false
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{c.lastSentTimeoutCanceled})
+	})
+}
+
+// stopRetryTimer stops the round-change retry timer if running.
+func (c *Core) stopRetryTimer() {
+	if c.retryRoundChangeTimer != nil {
+		c.retryRoundChangeTimer.Stop()
+	}
+}
+
+// newRetryRoundChangeTimer sets a retry timer to reattempt round-change after a timeout
+func (c *Core) newRetryRoundChangeTimer() {
+	c.stopRetryTimer()
+
+	// set timeout based on the round number
+	cfg := c.config.GetConfig(c.current.Sequence())
+	timeout := time.Duration(cfg.RequestTimeout) * time.Millisecond
+
+	c.currentLogger(true, nil).Trace("WBFT: set ROUND-CHANGE retry timer", "round", c.current.Round(), "timeout", timeout.Seconds())
+	c.roundChangeTimer = time.AfterFunc(timeout, func() {
+		c.sendEvent(retryTimeoutEvent{})
 	})
 }
 

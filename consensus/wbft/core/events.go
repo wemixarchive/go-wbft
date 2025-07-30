@@ -33,3 +33,5 @@ type backlogEvent struct {
 type timeoutEvent struct {
 	canceled *bool
 }
+
+type retryTimeoutEvent struct{}
