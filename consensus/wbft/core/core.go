@@ -359,14 +359,14 @@ func (c *Core) newRoundChangeTimer() {
 	} else {
 		timeoutFloat64 := math.Pow(2, float64(round)) * float64(baseTimeout)
 
-		if timeoutFloat64 > float64(math.MaxInt64) {
+		if math.IsNaN(timeoutFloat64) || math.IsInf(timeoutFloat64, 0) || timeoutFloat64 > float64(math.MaxInt64) {
 			c.currentLogger(true, nil).Error("WBFT: Timeout overflow detected, setting timeout value to MaxInt64",
 				"round", round,
 				"adjusted_timeout", time.Duration(math.MaxInt64).Seconds(),
 			)
 			timeout = time.Duration(math.MaxInt64)
 		} else {
-			timeout = time.Duration(timeoutFloat64)
+			timeout = time.Duration(int64(timeoutFloat64))
 		}
 	}
 
