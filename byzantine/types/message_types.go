@@ -164,8 +164,8 @@ func ValidateMessageCode(code MessageCode) bool {
 	return code != 0 && (code & ^validMask) == 0
 }
 
-// QBFTMessage represents a QBFT consensus message
-type QBFTMessage struct {
+// WBFTMessage represents a QBFT consensus message
+type WBFTMessage struct {
 	Code          MessageCode    `json:"code"`
 	Sequence      uint64         `json:"sequence"`
 	Round         uint64         `json:"round"`

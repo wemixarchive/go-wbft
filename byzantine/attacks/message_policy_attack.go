@@ -6,17 +6,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 // SetMessagePolicyAttack controls message sending per sequence/round for target nodes
 type SetMessagePolicyAttack struct {
 	*registry.BaseAttack
-	code    types.MessageCode
-	fields  []types.Field
-	targets []common.Address
-	params  *types.MessagePolicyParams
+	code   types.MessageCode
+	fields []types.Field
+	params *types.MessagePolicyParams
 }
 
 var _ types.Attack = (*SetMessagePolicyAttack)(nil)
@@ -37,7 +35,6 @@ func NewSetMessagePolicyAttack(config types.AttackConfig) (*SetMessagePolicyAtta
 		BaseAttack: registry.NewBaseAttack(config),
 		code:       params.Code,
 		fields:     params.Fields,
-		targets:    params.Targets,
 		params:     params,
 	}
 

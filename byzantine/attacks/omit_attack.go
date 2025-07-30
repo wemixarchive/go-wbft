@@ -12,9 +12,8 @@ import (
 // OmitMessageAttack implements omit message attack
 type OmitMessageAttack struct {
 	*registry.BaseAttack
-	cmd     uint64
-	targets []common.Address
-	params  *types.OmitAttackParams
+	cmd    uint64
+	params *types.OmitAttackParams
 }
 
 var _ types.Attack = (*OmitMessageAttack)(nil)
@@ -34,7 +33,6 @@ func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error)
 	attack := &OmitMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
 		cmd:        params.Cmd,
-		targets:    params.Targets,
 		params:     params,
 	}
 	return attack, nil
@@ -43,6 +41,11 @@ func NewOmitMessageAttack(config types.AttackConfig) (*OmitMessageAttack, error)
 // CheckExecuteCondition checks if the attack should be executed
 func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
+
+	// Check if attack is enabled
+	if !config.Enabled {
+		return false
+	}
 
 	// Check if sequence is in range
 	if !config.IsInSequenceRange(event.Sequence) {
@@ -55,34 +58,28 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 	}
 
 	// Check attack status
-	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+	status := a.GetStatus()
+	if status == types.AttackStatusCancelled || status == types.AttackStatusCompleted {
 		//log.Debug("this omit attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
 	// Check message type
-	messageEvent, ok := event.Data.(*types.MessageEvent)
+	msgEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return false
 	}
 
-	// Use ParsedParameters first
-	if params, ok := config.ParsedParameters.(*types.OmitAttackParams); ok {
-		return messageEvent.MessageCode == params.Code
-	}
-
-	// Fallback to Parameters map
-	var attackCode types.MessageCode
-	switch v := config.Parameters["code"].(type) {
-	case float64:
-		attackCode = types.MessageCode(v)
-	case int:
-		attackCode = types.MessageCode(v)
-	default:
+	// Check if message code matches the attack parameters
+	if params := a.GetParams(); params == nil {
 		return false
+	} else {
+		if !params.HasMessageCode(msgEvent.MessageCode) {
+			return false
+		}
 	}
 
-	return messageEvent.MessageCode == attackCode
+	return true
 }
 
 // createOmittedMessage creates a message with omitted fields
@@ -190,6 +187,11 @@ func (a *OmitMessageAttack) sendMessage(content []byte, targets []common.Address
 		"targets", len(targets),
 		"content_size", len(content))
 	return nil
+}
+
+// GetParams returns the Omit attack parameters
+func (a *OmitMessageAttack) GetParams() *types.OmitAttackParams {
+	return a.params
 }
 
 // OmitAttackFactory creates omit attacks

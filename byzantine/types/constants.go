@@ -17,7 +17,7 @@ const (
 	AttackDos       = "dos"
 )
 
-// QBFTMessage codes mapping
+// WBFTMessage codes mapping
 const (
 	WBFTPrePrepareCode  = wbftmessage.PreprepareCode  // 0x12
 	WBFTPrepareCode     = wbftmessage.PrepareCode     // 0x13

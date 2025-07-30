@@ -101,9 +101,8 @@ func (f *Field) ValueHexToBytes() ([]byte, error) {
 
 // MessagePolicyParams handles parsing for message policy parameters
 type MessagePolicyParams struct {
-	Code    MessageCode      `json:"code"`
-	Fields  []Field          `json:"fields"`
-	Targets []common.Address `json:"targets,omitempty"`
+	Code   MessageCode `json:"code"`
+	Fields []Field     `json:"fields"`
 }
 
 var _ AttackParamsParser = (*MessagePolicyParams)(nil)
@@ -116,7 +115,7 @@ func (p *MessagePolicyParams) HasMessageCode(code MessageCode) bool {
 // ShouldBlockSend checks if sending should be blocked
 func (p *MessagePolicyParams) ShouldBlockSend() bool {
 	for _, field := range p.Fields {
-		if field.Target == "policy.direction" {
+		if field.Target == TargetMsgPolicyDirection {
 			if v, ok := field.Value.(float64); ok {
 				return v == 1 || v == 3
 			}
@@ -128,7 +127,7 @@ func (p *MessagePolicyParams) ShouldBlockSend() bool {
 // ShouldBlockReceive checks if receiving should be blocked
 func (p *MessagePolicyParams) ShouldBlockReceive() bool {
 	for _, field := range p.Fields {
-		if field.Target == "policy.direction" {
+		if field.Target == TargetMsgPolicyDirection {
 			if v, ok := field.Value.(float64); ok {
 				return v == 2 || v == 3
 			}
@@ -139,11 +138,14 @@ func (p *MessagePolicyParams) ShouldBlockReceive() bool {
 
 // IsTargeted checks if a specific address is targeted
 func (p *MessagePolicyParams) IsTargeted(addr common.Address) bool {
-	if len(p.Targets) == 0 {
-		return true // No specific targets means all are targeted
+	targets := p.GetTargets()
+	if targets == nil || len(targets) == 0 {
+		// No targets field means all are targeted
+		return true
 	}
-
-	for _, target := range p.Targets {
+	
+	// Check if addr is in the targets list
+	for _, target := range targets {
 		if target == addr {
 			return true
 		}
@@ -151,44 +153,31 @@ func (p *MessagePolicyParams) IsTargeted(addr common.Address) bool {
 	return false
 }
 
-// GetBlockedTargets returns the list of addresses to block
-func (p *MessagePolicyParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	if len(p.Targets) == 0 {
-		// Block all validators
-		return valSet
-	}
-
-	// Filter only targeted validators
-	var blocked []common.Address
-	for _, val := range valSet {
-		if p.IsTargeted(val) {
-			blocked = append(blocked, val)
+// GetTargets extracts the targets from fields if present
+func (p *MessagePolicyParams) GetTargets() []common.Address {
+	for _, field := range p.Fields {
+		if field.Target == "targets" {
+			if targets, ok := field.Value.([]common.Address); ok {
+				return targets
+			}
 		}
 	}
-	return blocked
+	return nil
+}
+
+// GetBlockedTargets returns the list of addresses to block
+func (p *MessagePolicyParams) GetBlockedTargets(valSet []common.Address) []common.Address {
+	targets := p.GetTargets()
+	if targets != nil && len(targets) > 0 {
+		return targets
+	}
+	// No targets field means block all validators
+	return valSet
 }
 
 func (p *MessagePolicyParams) UnmarshalJSON(data []byte) error {
 	type Alias MessagePolicyParams
-	aux := &struct {
-		*Alias
-		Targets []string `json:"targets,omitempty"`
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	p.Targets = make([]common.Address, 0, len(aux.Targets))
-	for _, addr := range aux.Targets {
-		if common.IsHexAddress(addr) {
-			p.Targets = append(p.Targets, common.HexToAddress(addr))
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, (*Alias)(p))
 }
 
 func (p *MessagePolicyParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -206,16 +195,23 @@ func (p *MessagePolicyParams) Parse(raw map[string]interface{}) (interface{}, er
 		for _, field := range fields {
 			if fieldMap, ok := field.(map[string]interface{}); ok {
 				targetStr := fmt.Sprintf("%v", fieldMap["target"])
+				var fieldValue interface{}
+				
+				if targetStr == "targets" {
+					// Special handling for targets field - use ParseTargets helper
+					fieldValue = ParseTargets(fieldMap["value"])
+				} else {
+					fieldValue = fieldMap["value"]
+				}
+				
 				f := Field{
 					Target: targetStr,
-					Value:  fieldMap["value"],
+					Value:  fieldValue,
 				}
 				params.Fields = append(params.Fields, f)
 			}
 		}
 	}
-
-	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -238,12 +234,22 @@ func (p *MessagePolicyParams) Validate() error {
 		if field.Target == "" {
 			return fmt.Errorf("field[%d] target is empty", i)
 		}
-		// Value can be empty/nil as it might be set dynamically
-	}
-
-	// Validate Targets
-	if err := validateTargets(p.Targets); err != nil {
-		return fmt.Errorf("invalid targets: %w", err)
+		
+		// Special validation for targets field
+		if field.Target == "targets" {
+			switch v := field.Value.(type) {
+			case []common.Address:
+				// Use validateTargets helper
+				if err := validateTargets(v); err != nil {
+					return fmt.Errorf("field[%d] targets: %w", i, err)
+				}
+			case nil:
+				// Empty targets is allowed
+			default:
+				return fmt.Errorf("field[%d] targets: expected []common.Address but got %T", i, v)
+			}
+		}
+		// Other values can be empty/nil as they might be set dynamically
 	}
 
 	return nil
@@ -259,9 +265,8 @@ func (p *MessagePolicyParams) ValidateWith(params interface{}) error {
 
 // TamperAttackParams handles parsing for tamper attack parameters
 type TamperAttackParams struct {
-	Code    MessageCode      `json:"code"`
-	Fields  []Field          `json:"fields"`
-	Targets []common.Address `json:"targets,omitempty"`
+	Code   MessageCode `json:"code"`
+	Fields []Field     `json:"fields"`
 }
 
 var _ AttackParamsParser = (*TamperAttackParams)(nil)
@@ -270,58 +275,9 @@ func (p *TamperAttackParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
 }
 
-// IsTargeted checks if a specific address is targeted
-func (p *TamperAttackParams) IsTargeted(addr common.Address) bool {
-	if len(p.Targets) == 0 {
-		return true // No specific targets means all are targeted
-	}
-
-	for _, target := range p.Targets {
-		if target == addr {
-			return true
-		}
-	}
-	return false
-}
-
-// GetBlockedTargets returns the list of addresses to block
-func (p *TamperAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	if len(p.Targets) == 0 {
-		// Block all validators
-		return valSet
-	}
-
-	// Filter only targeted validators
-	var blocked []common.Address
-	for _, val := range valSet {
-		if p.IsTargeted(val) {
-			blocked = append(blocked, val)
-		}
-	}
-	return blocked
-}
-
 func (p *TamperAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias TamperAttackParams
-	aux := &struct {
-		*Alias
-		Targets []string `json:"targets,omitempty"`
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	p.Targets = make([]common.Address, 0, len(aux.Targets))
-	for _, addr := range aux.Targets {
-		if common.IsHexAddress(addr) {
-			p.Targets = append(p.Targets, common.HexToAddress(addr))
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, (*Alias)(p))
 }
 
 func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -348,8 +304,6 @@ func (p *TamperAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 			}
 		}
 	}
-
-	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -389,10 +343,6 @@ func (p *TamperAttackParams) Validate() error {
 		}
 	}
 
-	if err := validateTargets(p.Targets); err != nil {
-		return fmt.Errorf("invalid targets: %w", err)
-	}
-
 	return nil
 }
 
@@ -406,9 +356,8 @@ func (p *TamperAttackParams) ValidateWith(params interface{}) error {
 
 // FakeAttackParams handles parsing for fake attack parameters
 type FakeAttackParams struct {
-	Code    MessageCode      `json:"code"`
-	Fields  []Field          `json:"fields,omitempty"`
-	Targets []common.Address `json:"targets,omitempty"`
+	Code   MessageCode `json:"code"`
+	Fields []Field     `json:"fields,omitempty"`
 }
 
 var _ AttackParamsParser = (*FakeAttackParams)(nil)
@@ -417,58 +366,9 @@ func (p *FakeAttackParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
 }
 
-// IsTargeted checks if a specific address is targeted
-func (p *FakeAttackParams) IsTargeted(addr common.Address) bool {
-	if len(p.Targets) == 0 {
-		return true // No specific targets means all are targeted
-	}
-
-	for _, target := range p.Targets {
-		if target == addr {
-			return true
-		}
-	}
-	return false
-}
-
-// GetBlockedTargets returns the list of addresses to block
-func (p *FakeAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	if len(p.Targets) == 0 {
-		// Block all validators
-		return valSet
-	}
-
-	// Filter only targeted validators
-	var blocked []common.Address
-	for _, val := range valSet {
-		if p.IsTargeted(val) {
-			blocked = append(blocked, val)
-		}
-	}
-	return blocked
-}
-
 func (p *FakeAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias FakeAttackParams
-	aux := &struct {
-		*Alias
-		Targets []string `json:"targets,omitempty"`
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	p.Targets = make([]common.Address, 0, len(aux.Targets))
-	for _, addr := range aux.Targets {
-		if common.IsHexAddress(addr) {
-			p.Targets = append(p.Targets, common.HexToAddress(addr))
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, (*Alias)(p))
 }
 
 func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -480,8 +380,6 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 	var fields []interface{}
 	if f, ok := raw["fields"].([]interface{}); ok {
 		fields = f
-	} else if f, ok := raw["fakeMessage"].([]interface{}); ok {
-		fields = f
 	}
 
 	if fields != nil {
@@ -491,8 +389,6 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 				// Support both 'target' and 'fakeTarget' for backward compatibility
 				var target string
 				if t, ok := fieldMap["target"]; ok {
-					target = fmt.Sprintf("%v", t)
-				} else if t, ok := fieldMap["fakeTarget"]; ok {
 					target = fmt.Sprintf("%v", t)
 				}
 
@@ -504,8 +400,6 @@ func (p *FakeAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 			}
 		}
 	}
-
-	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -531,10 +425,6 @@ func (p *FakeAttackParams) Validate() error {
 		// Value can be empty/nil as it might be set dynamically
 	}
 
-	if err := validateTargets(p.Targets); err != nil {
-		return fmt.Errorf("invalid targets: %w", err)
-	}
-
 	return nil
 }
 
@@ -548,9 +438,8 @@ func (p *FakeAttackParams) ValidateWith(params interface{}) error {
 
 // OmitAttackParams handles parsing for omit attack parameters
 type OmitAttackParams struct {
-	Code    MessageCode      `json:"code"`
-	Cmd     uint64           `json:"cmd"`
-	Targets []common.Address `json:"targets,omitempty"`
+	Code MessageCode `json:"code"`
+	Cmd  uint64      `json:"cmd"`
 }
 
 var _ AttackParamsParser = (*OmitAttackParams)(nil)
@@ -559,58 +448,9 @@ func (p *OmitAttackParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
 }
 
-// IsTargeted checks if a specific address is targeted
-func (p *OmitAttackParams) IsTargeted(addr common.Address) bool {
-	if len(p.Targets) == 0 {
-		return true // No specific targets means all are targeted
-	}
-
-	for _, target := range p.Targets {
-		if target == addr {
-			return true
-		}
-	}
-	return false
-}
-
-// GetBlockedTargets returns the list of addresses to block
-func (p *OmitAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	if len(p.Targets) == 0 {
-		// Block all validators
-		return valSet
-	}
-
-	// Filter only targeted validators
-	var blocked []common.Address
-	for _, val := range valSet {
-		if p.IsTargeted(val) {
-			blocked = append(blocked, val)
-		}
-	}
-	return blocked
-}
-
 func (p *OmitAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias OmitAttackParams
-	aux := &struct {
-		*Alias
-		Targets []string `json:"targets,omitempty"`
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	p.Targets = make([]common.Address, 0, len(aux.Targets))
-	for _, addr := range aux.Targets {
-		if common.IsHexAddress(addr) {
-			p.Targets = append(p.Targets, common.HexToAddress(addr))
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, (*Alias)(p))
 }
 
 func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -623,8 +463,6 @@ func (p *OmitAttackParams) Parse(raw map[string]interface{}) (interface{}, error
 	} else {
 		return nil, fmt.Errorf("invalid cmd value: %w", err)
 	}
-
-	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -663,10 +501,6 @@ func (p *OmitAttackParams) Validate() error {
 		return fmt.Errorf("unknown message code: %d", p.Code)
 	}
 
-	if err := validateTargets(p.Targets); err != nil {
-		return fmt.Errorf("invalid targets: %w", err)
-	}
-
 	return nil
 }
 
@@ -680,9 +514,8 @@ func (p *OmitAttackParams) ValidateWith(params interface{}) error {
 
 // RoleSpoofAttackParams handles parsing for role spoof attack parameters
 type RoleSpoofAttackParams struct {
-	Code    MessageCode      `json:"code"`
-	Fields  []Field          `json:"fields,omitempty"`
-	Targets []common.Address `json:"targets,omitempty"`
+	Code   MessageCode `json:"code"`
+	Fields []Field     `json:"fields,omitempty"`
 }
 
 var _ AttackParamsParser = (*RoleSpoofAttackParams)(nil)
@@ -691,58 +524,9 @@ func (p *RoleSpoofAttackParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
 }
 
-// IsTargeted checks if a specific address is targeted
-func (p *RoleSpoofAttackParams) IsTargeted(addr common.Address) bool {
-	if len(p.Targets) == 0 {
-		return true // No specific targets means all are targeted
-	}
-
-	for _, target := range p.Targets {
-		if target == addr {
-			return true
-		}
-	}
-	return false
-}
-
-// GetBlockedTargets returns the list of addresses to block
-func (p *RoleSpoofAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	if len(p.Targets) == 0 {
-		// Block all validators
-		return valSet
-	}
-
-	// Filter only targeted validators
-	var blocked []common.Address
-	for _, val := range valSet {
-		if p.IsTargeted(val) {
-			blocked = append(blocked, val)
-		}
-	}
-	return blocked
-}
-
 func (p *RoleSpoofAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias RoleSpoofAttackParams
-	aux := &struct {
-		*Alias
-		Targets []string `json:"targets,omitempty"`
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	p.Targets = make([]common.Address, 0, len(aux.Targets))
-	for _, addr := range aux.Targets {
-		if common.IsHexAddress(addr) {
-			p.Targets = append(p.Targets, common.HexToAddress(addr))
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, (*Alias)(p))
 }
 
 func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -771,8 +555,6 @@ func (p *RoleSpoofAttackParams) Parse(raw map[string]interface{}) (interface{}, 
 		}
 	}
 
-	params.Targets = ParseTargets(raw["targets"])
-
 	return params, nil
 }
 
@@ -797,10 +579,6 @@ func (p *RoleSpoofAttackParams) Validate() error {
 		// Value can be empty/nil as it might be set dynamically
 	}
 
-	if err := validateTargets(p.Targets); err != nil {
-		return fmt.Errorf("invalid targets: %w", err)
-	}
-
 	return nil
 }
 
@@ -814,9 +592,8 @@ func (p *RoleSpoofAttackParams) ValidateWith(params interface{}) error {
 
 // ReplayAttackParams handles parsing for replay attack parameters
 type ReplayAttackParams struct {
-	Code            MessageCode      `json:"code"`
-	UseOriginalView bool             `json:"useOriginalView"`
-	Targets         []common.Address `json:"targets,omitempty"`
+	Code            MessageCode `json:"code"`
+	UseOriginalView bool        `json:"useOriginalView"`
 }
 
 var _ AttackParamsParser = (*ReplayAttackParams)(nil)
@@ -825,58 +602,9 @@ func (p *ReplayAttackParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
 }
 
-// IsTargeted checks if a specific address is targeted
-func (p *ReplayAttackParams) IsTargeted(addr common.Address) bool {
-	if len(p.Targets) == 0 {
-		return true // No specific targets means all are targeted
-	}
-
-	for _, target := range p.Targets {
-		if target == addr {
-			return true
-		}
-	}
-	return false
-}
-
-// GetBlockedTargets returns the list of addresses to block
-func (p *ReplayAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	if len(p.Targets) == 0 {
-		// Block all validators
-		return valSet
-	}
-
-	// Filter only targeted validators
-	var blocked []common.Address
-	for _, val := range valSet {
-		if p.IsTargeted(val) {
-			blocked = append(blocked, val)
-		}
-	}
-	return blocked
-}
-
 func (p *ReplayAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias ReplayAttackParams
-	aux := &struct {
-		*Alias
-		Targets []string `json:"targets,omitempty"`
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	p.Targets = make([]common.Address, 0, len(aux.Targets))
-	for _, addr := range aux.Targets {
-		if common.IsHexAddress(addr) {
-			p.Targets = append(p.Targets, common.HexToAddress(addr))
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, (*Alias)(p))
 }
 
 func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, error) {
@@ -887,8 +615,6 @@ func (p *ReplayAttackParams) Parse(raw map[string]interface{}) (interface{}, err
 	if useOrigView, ok := raw["useOriginalView"].(bool); ok {
 		params.UseOriginalView = useOrigView
 	}
-
-	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }
@@ -904,10 +630,6 @@ func (p *ReplayAttackParams) ParseJSON(data []byte) (interface{}, error) {
 func (p *ReplayAttackParams) Validate() error {
 	if !ValidateMessageCode(p.Code) {
 		return fmt.Errorf("invalid message code: %d", p.Code)
-	}
-
-	if err := validateTargets(p.Targets); err != nil {
-		return fmt.Errorf("invalid targets: %w", err)
 	}
 
 	return nil
@@ -930,16 +652,6 @@ var _ AttackParamsParser = (*StoreAttackParams)(nil)
 
 func (p *StoreAttackParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
-}
-
-// IsTargeted checks if a specific address is targeted
-func (p *StoreAttackParams) IsTargeted(addr common.Address) bool {
-	return false
-}
-
-// GetBlockedTargets returns the list of addresses to block
-func (p *StoreAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	return valSet
 }
 
 func (p *StoreAttackParams) UnmarshalJSON(data []byte) error {
@@ -992,11 +704,10 @@ func (p *StoreAttackParams) ValidateWith(params interface{}) error {
 
 // DosAttackParams represents parameters for DoS attack
 type DosAttackParams struct {
-	Code    MessageCode      `json:"code"`
-	Cmd     uint64           `json:"cmd"`   // 0(valid), 1(sequence change), 2(round change)
-	Cnt     uint64           `json:"cnt"`   // number of messages to send
-	Delay   uint64           `json:"delay"` // delay in milliseconds
-	Targets []common.Address `json:"targets"`
+	Code  MessageCode `json:"code"`
+	Cmd   uint64      `json:"cmd"`   // 0(valid), 1(sequence change), 2(round change)
+	Cnt   uint64      `json:"cnt"`   // number of messages to send
+	Delay uint64      `json:"delay"` // delay in milliseconds
 }
 
 var _ AttackParamsParser = (*DosAttackParams)(nil)
@@ -1006,58 +717,9 @@ func (p *DosAttackParams) HasMessageCode(code MessageCode) bool {
 	return p.Code.Has(code)
 }
 
-// IsTargeted checks if a specific address is targeted
-func (p *DosAttackParams) IsTargeted(addr common.Address) bool {
-	if len(p.Targets) == 0 {
-		return true // No specific targets means all are targeted
-	}
-
-	for _, target := range p.Targets {
-		if target == addr {
-			return true
-		}
-	}
-	return false
-}
-
-// GetBlockedTargets returns the list of addresses to block
-func (p *DosAttackParams) GetBlockedTargets(valSet []common.Address) []common.Address {
-	if len(p.Targets) == 0 {
-		// Block all validators
-		return valSet
-	}
-
-	// Filter only targeted validators
-	var blocked []common.Address
-	for _, val := range valSet {
-		if p.IsTargeted(val) {
-			blocked = append(blocked, val)
-		}
-	}
-	return blocked
-}
-
 func (p *DosAttackParams) UnmarshalJSON(data []byte) error {
 	type Alias DosAttackParams
-	aux := &struct {
-		*Alias
-		Targets []string `json:"targets,omitempty"`
-	}{
-		Alias: (*Alias)(p),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	p.Targets = make([]common.Address, 0, len(aux.Targets))
-	for _, addr := range aux.Targets {
-		if common.IsHexAddress(addr) {
-			p.Targets = append(p.Targets, common.HexToAddress(addr))
-		}
-	}
-
-	return nil
+	return json.Unmarshal(data, (*Alias)(p))
 }
 
 // Parse parses raw parameters into DosAttackParams
@@ -1085,8 +747,6 @@ func (p *DosAttackParams) Parse(raw map[string]interface{}) (interface{}, error)
 	} else {
 		return nil, fmt.Errorf("invalid delay value: %w", err)
 	}
-
-	params.Targets = ParseTargets(raw["targets"])
 
 	return params, nil
 }

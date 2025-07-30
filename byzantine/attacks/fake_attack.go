@@ -11,9 +11,8 @@ import (
 // FakeMessageAttack implements fake message attack
 type FakeMessageAttack struct {
 	*registry.BaseAttack
-	fields  []types.Field
-	targets []common.Address
-	params  *types.FakeAttackParams
+	fields []types.Field
+	params *types.FakeAttackParams
 }
 
 var _ types.Attack = (*FakeMessageAttack)(nil)
@@ -33,7 +32,6 @@ func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error)
 	attack := &FakeMessageAttack{
 		BaseAttack: registry.NewBaseAttack(config),
 		fields:     params.Fields,
-		targets:    params.Targets,
 		params:     params,
 	}
 	return attack, nil
@@ -42,6 +40,11 @@ func NewFakeMessageAttack(config types.AttackConfig) (*FakeMessageAttack, error)
 // CheckExecuteCondition checks if the attack should be executed
 func (a *FakeMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
+
+	// Check if attack is enabled
+	if !config.Enabled {
+		return false
+	}
 
 	// Check if a sequence is in range
 	if !config.IsInSequenceRange(event.Sequence) {
@@ -54,34 +57,28 @@ func (a *FakeMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 	}
 
 	// Check attack status
-	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+	status := a.GetStatus()
+	if status == types.AttackStatusCancelled || status == types.AttackStatusCompleted {
 		//log.Debug("this fake attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
 	// Check a message type
-	messageEvent, ok := event.Data.(*types.MessageEvent)
+	msgEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return false
 	}
 
-	// Use ParsedParameters first
-	if params, ok := config.ParsedParameters.(*types.FakeAttackParams); ok {
-		return messageEvent.MessageCode == params.Code
-	}
-
-	// Fallback to Parameters map
-	var attackCode types.MessageCode
-	switch v := config.Parameters["code"].(type) {
-	case float64:
-		attackCode = types.MessageCode(v)
-	case int:
-		attackCode = types.MessageCode(v)
-	default:
+	// Check if the message code matches the attack parameters
+	if params := a.GetParams(); params == nil {
 		return false
+	} else {
+		if !params.HasMessageCode(msgEvent.MessageCode) {
+			return false
+		}
 	}
 
-	return messageEvent.MessageCode == attackCode
+	return true
 }
 
 // generateFakeMessage generates a fake message based on type
@@ -108,7 +105,7 @@ func (a *FakeMessageAttack) generateFakeMessage(messageCode types.MessageCode, e
 func (a *FakeMessageAttack) generateFakeRoundChange(event types.Event) ([]byte, error) {
 	// Create a round change message that looks valid but isn't justified
 	// This would include proper formatting and signatures
-	fakeMsg := &types.QBFTMessage{
+	fakeMsg := &types.WBFTMessage{
 		Code:      types.MessageCodeRoundChange,
 		Sequence:  event.Sequence,
 		Round:     event.Round + 1, // Request next round
@@ -129,7 +126,7 @@ func (a *FakeMessageAttack) generateFakeProposal(event types.Event) ([]byte, err
 
 // generateFakeVote generates a fake prepare or commit message
 func (a *FakeMessageAttack) generateFakeVote(messageCode types.MessageCode, event types.Event) ([]byte, error) {
-	fakeMsg := &types.QBFTMessage{
+	fakeMsg := &types.WBFTMessage{
 		Code:      messageCode,
 		Sequence:  event.Sequence,
 		Round:     event.Round,
@@ -151,8 +148,13 @@ func (a *FakeMessageAttack) sendMessage(content []byte, targets []common.Address
 	return nil
 }
 
-// serializeQBFTMessage serializes a QBFT message (placeholder)
-func serializeQBFTMessage(msg *types.QBFTMessage) []byte {
+// GetParams returns the Fake attack parameters
+func (a *FakeMessageAttack) GetParams() *types.FakeAttackParams {
+	return a.params
+}
+
+// serializeQBFTMessage serializes a WBFT message (placeholder)
+func serializeQBFTMessage(msg *types.WBFTMessage) []byte {
 	// Actual implementation would properly serialize the message
 	return []byte(fmt.Sprintf("%+v", msg))
 }

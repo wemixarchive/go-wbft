@@ -16,8 +16,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -35,8 +34,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     }
   ]

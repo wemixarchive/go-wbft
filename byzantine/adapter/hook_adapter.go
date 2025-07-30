@@ -60,7 +60,7 @@ func (h *HookAdapter) AfterProposal(ctx context.Context, proposal *types.Block) 
 }
 
 // BeforePrepare is called before sending prepare message
-func (h *HookAdapter) BeforePrepare(ctx context.Context, message *btypes.QBFTMessage) error {
+func (h *HookAdapter) BeforePrepare(ctx context.Context, message *btypes.WBFTMessage) error {
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageSent,
 		Sequence:  message.Sequence,
@@ -80,7 +80,7 @@ func (h *HookAdapter) BeforePrepare(ctx context.Context, message *btypes.QBFTMes
 }
 
 // AfterPrepare is called after receiving prepare message
-func (h *HookAdapter) AfterPrepare(ctx context.Context, message *btypes.QBFTMessage) error {
+func (h *HookAdapter) AfterPrepare(ctx context.Context, message *btypes.WBFTMessage) error {
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageReceived,
 		Sequence:  message.Sequence,
@@ -100,7 +100,7 @@ func (h *HookAdapter) AfterPrepare(ctx context.Context, message *btypes.QBFTMess
 }
 
 // BeforeCommit is called before sending commit message
-func (h *HookAdapter) BeforeCommit(ctx context.Context, message *btypes.QBFTMessage) error {
+func (h *HookAdapter) BeforeCommit(ctx context.Context, message *btypes.WBFTMessage) error {
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageSent,
 		Sequence:  message.Sequence,
@@ -120,7 +120,7 @@ func (h *HookAdapter) BeforeCommit(ctx context.Context, message *btypes.QBFTMess
 }
 
 // AfterCommit is called after receiving commit message
-func (h *HookAdapter) AfterCommit(ctx context.Context, message *btypes.QBFTMessage) error {
+func (h *HookAdapter) AfterCommit(ctx context.Context, message *btypes.WBFTMessage) error {
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageReceived,
 		Sequence:  message.Sequence,
@@ -155,7 +155,7 @@ func (h *HookAdapter) OnRoundChange(ctx context.Context, sequence, round uint64)
 }
 
 // OnMessageReceive is called when receiving any message
-func (h *HookAdapter) OnMessageReceive(ctx context.Context, message *btypes.QBFTMessage) error {
+func (h *HookAdapter) OnMessageReceive(ctx context.Context, message *btypes.WBFTMessage) error {
 	event := btypes.Event{
 		Type:      btypes.EventTypeMessageReceived,
 		Sequence:  message.Sequence,

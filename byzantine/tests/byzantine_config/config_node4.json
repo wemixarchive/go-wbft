@@ -40,8 +40,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -59,8 +58,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -78,8 +76,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -97,8 +94,7 @@
             "target": "msg.round",
             "value": 5
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -111,8 +107,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 2,
-        "useOriginalView": true,
-        "targets": []
+        "useOriginalView": true
       }
     },
     {
@@ -125,8 +120,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 4,
-        "useOriginalView": true,
-        "targets": []
+        "useOriginalView": true
       }
     },
     {
@@ -144,8 +138,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -163,8 +156,7 @@
             "target": "proposer",
             "value": ""
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -182,8 +174,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -201,8 +192,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -219,8 +209,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -238,8 +227,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -257,8 +245,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     }
   ]

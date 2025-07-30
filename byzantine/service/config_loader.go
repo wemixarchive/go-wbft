@@ -169,7 +169,6 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 				}
 			}
 			result["fields"] = fields
-			result["targets"] = params.Targets
 		}
 
 	case types.AttackTypeTamperedMessage:
@@ -183,7 +182,6 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 				}
 			}
 			result["fields"] = fields
-			result["targets"] = params.Targets
 		}
 
 	case types.AttackTypeFakeMessage:
@@ -197,14 +195,12 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 				}
 			}
 			result["fields"] = fields
-			result["targets"] = params.Targets
 		}
 
 	case types.AttackTypeOmitMessage:
 		if params, ok := parsedParams.(*types.OmitAttackParams); ok {
 			result["code"] = params.Code
 			result["cmd"] = params.Cmd
-			result["targets"] = params.Targets
 		}
 
 	case types.AttackTypeRoleSpoofed:
@@ -218,14 +214,12 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 				}
 			}
 			result["fields"] = fields
-			result["targets"] = params.Targets
 		}
 
 	case types.AttackTypeReplay:
 		if params, ok := parsedParams.(*types.ReplayAttackParams); ok {
 			result["code"] = params.Code
 			result["useOriginalView"] = params.UseOriginalView
-			result["targets"] = params.Targets
 		}
 
 	case types.AttackTypeStoreMessage:
@@ -239,7 +233,6 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 			result["cmd"] = params.Cmd
 			result["cnt"] = params.Cnt
 			result["delay"] = params.Delay
-			result["targets"] = params.Targets
 		}
 
 	default:

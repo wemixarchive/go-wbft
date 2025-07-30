@@ -95,9 +95,8 @@ func (h *Handler) RegisterSetMessagePolicy(params types.SetMessagePolicyParams) 
 		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
-			"code":    params.Code,
-			"fields":  fieldsMap,
-			"targets": params.Targets,
+			"code":   params.Code,
+			"fields": fieldsMap,
 		},
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
@@ -109,7 +108,7 @@ func (h *Handler) RegisterSetMessagePolicy(params types.SetMessagePolicyParams) 
 		return fmt.Errorf("failed to register store attack: %w", err)
 	}
 
-	log.Info("Store attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Store attack registered", "uid", uid, "config", config)
 	return nil
 }
 
@@ -136,9 +135,8 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
-			"code":    params.Code,
-			"fields":  fieldsMap,
-			"targets": params.Targets,
+			"code":   params.Code,
+			"fields": fieldsMap,
 		},
 		Enabled:   params.Enabled,
 		Status:    types.AttackStatusPending,
@@ -151,7 +149,7 @@ func (h *Handler) RegisterTamperedMessage(params types.TamperedMessageParams) er
 		return fmt.Errorf("failed to register tampered attack: %w", err)
 	}
 
-	log.Info("Tampered message attack registered", "uid", uid)
+	log.Info("Tampered message attack registered", "uid", uid, "config", config)
 	return nil
 }
 
@@ -162,6 +160,14 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 		return fmt.Errorf("invalid parameters: %w", err)
 	}
 
+	fieldsMap := make([]map[string]interface{}, len(params.Fields))
+	for i, field := range params.Fields {
+		fieldsMap[i] = map[string]interface{}{
+			"target": field.Target,
+			"value":  field.Value,
+		}
+	}
+
 	// Create attack configuration
 	config := types.AttackConfig{
 		Name:          fmt.Sprintf("fake_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
@@ -170,9 +176,8 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
-			"code":        params.Code,
-			"fakeMessage": params.FakeMessage,
-			"targets":     params.Targets,
+			"code":   params.Code,
+			"fields": fieldsMap,
 		},
 		Enabled:   params.Enabled,
 		Status:    types.AttackStatusPending,
@@ -185,7 +190,7 @@ func (h *Handler) RegisterFakeMessage(params types.FakeMessageParams) error {
 		return fmt.Errorf("failed to register fake attack: %w", err)
 	}
 
-	log.Info("Fake message attack registered", "uid", uid)
+	log.Info("Fake message attack registered", "uid", uid, "config", config)
 	return nil
 }
 
@@ -200,14 +205,12 @@ func (h *Handler) RegisterOmitMessage(params types.OmitMessageParams) error {
 	config := types.AttackConfig{
 		Name:          fmt.Sprintf("omit_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
 		Type:          types.AttackTypeOmitMessage,
-		SequenceStart: params.Sequence,
-		SequenceEnd:   params.Sequence,
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
-			"code":    params.Code,
-			"cmd":     params.Cmd,
-			"cnt":     params.Cnt,
-			"targets": params.Targets,
+			"code": params.Code,
+			"cmd":  params.Cmd,
 		},
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
@@ -219,7 +222,7 @@ func (h *Handler) RegisterOmitMessage(params types.OmitMessageParams) error {
 		return fmt.Errorf("failed to register omit attack: %w", err)
 	}
 
-	log.Info("Omit message attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Omit message attack registered", "uid", uid, "config", config)
 	return nil
 }
 
@@ -230,6 +233,14 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 		return fmt.Errorf("invalid parameters: %w", err)
 	}
 
+	fieldsMap := make([]map[string]interface{}, len(params.Fields))
+	for i, field := range params.Fields {
+		fieldsMap[i] = map[string]interface{}{
+			"target": field.Target,
+			"value":  field.Value,
+		}
+	}
+
 	// Create attack configuration
 	config := types.AttackConfig{
 		Name:          fmt.Sprintf("rolespoof_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
@@ -238,9 +249,8 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 		SequenceEnd:   params.SequenceEnd,
 		Round:         params.Round,
 		Parameters: map[string]interface{}{
-			"code":        params.Code,
-			"fakeMessage": params.FakeMessage,
-			"targets":     params.Targets,
+			"code":   params.Code,
+			"fields": fieldsMap,
 		},
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
@@ -252,7 +262,7 @@ func (h *Handler) RegisterRoleSpoofedMessage(params types.RoleSpoofParams) error
 		return fmt.Errorf("failed to register role spoof attack: %w", err)
 	}
 
-	log.Info("Role spoof attack registered", "uid", uid)
+	log.Info("Role spoof attack registered", "uid", uid, "config", config)
 	return nil
 }
 
@@ -273,7 +283,6 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 		Parameters: map[string]interface{}{
 			"code":            params.Code,
 			"useOriginalView": params.UseOriginalView,
-			"targets":         params.Targets,
 		},
 		Status:    types.AttackStatusPending,
 		CreatedAt: time.Now(),
@@ -285,7 +294,7 @@ func (h *Handler) RegisterReplayMessage(params types.ReplayMessageParams) error 
 		return fmt.Errorf("failed to register replay attack: %w", err)
 	}
 
-	log.Info("Replay attack registered", "uid", uid)
+	log.Info("Replay attack registered", "uid", uid, "config", config)
 	return nil
 }
 
@@ -316,7 +325,43 @@ func (h *Handler) RegisterStoreMessage(params types.StoreMessageParams) error {
 		return fmt.Errorf("failed to register store attack: %w", err)
 	}
 
-	log.Info("Store attack registered", "uid", uid, "sequence", params.Sequence, "round", params.Round)
+	log.Info("Store attack registered", "uid", uid, "config", config)
+	return nil
+}
+
+// RegisterDosMessage registers a DoS message attack
+func (h *Handler) RegisterDosMessage(params types.DosMessageParams) error {
+	// Validate parameters
+	if err := h.validateDosMessageParams(params); err != nil {
+		return fmt.Errorf("invalid parameters: %w", err)
+	}
+
+	// Create attack configuration
+	config := types.AttackConfig{
+		Name:          fmt.Sprintf("dos_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
+		Type:          types.AttackTypeDos,
+		SequenceStart: params.SequenceStart,
+		SequenceEnd:   params.SequenceEnd,
+		Round:         params.Round,
+		Parameters: map[string]interface{}{
+			"code":  params.Code,
+			"cmd":   params.Cmd,
+			"cnt":   params.Cnt,
+			"delay": params.Delay,
+		},
+		MaxExecutionCount: params.MaxExecutionCount,
+		Enabled:           params.Enabled,
+		Status:            types.AttackStatusPending,
+		CreatedAt:         time.Now(),
+	}
+
+	// Register attack
+	uid, err := h.service.RegisterAttack(config)
+	if err != nil {
+		return fmt.Errorf("failed to register DoS attack: %w", err)
+	}
+
+	log.Info("DoS message attack registered", "uid", uid, "config", config)
 	return nil
 }
 
@@ -519,43 +564,6 @@ func (h *Handler) validateStoreMessageParams(params types.StoreMessageParams) er
 	if params.Code == 0 {
 		return fmt.Errorf("message code is required")
 	}
-	return nil
-}
-
-// RegisterDosMessage registers a DoS message attack
-func (h *Handler) RegisterDosMessage(params types.DosMessageParams) error {
-	// Validate parameters
-	if err := h.validateDosMessageParams(params); err != nil {
-		return fmt.Errorf("invalid parameters: %w", err)
-	}
-
-	// Create attack configuration
-	config := types.AttackConfig{
-		Name:          fmt.Sprintf("dos_%d_%d_%d", params.SequenceStart, params.SequenceEnd, params.Round),
-		Type:          types.AttackTypeDos,
-		SequenceStart: params.SequenceStart,
-		SequenceEnd:   params.SequenceEnd,
-		Round:         params.Round,
-		Parameters: map[string]interface{}{
-			"code":    params.Code,
-			"cmd":     params.Cmd,
-			"cnt":     params.Cnt,
-			"delay":   params.Delay,
-			"targets": params.Targets,
-		},
-		MaxExecutionCount: params.MaxExecutionCount,
-		Enabled:           params.Enabled,
-		Status:            types.AttackStatusPending,
-		CreatedAt:         time.Now(),
-	}
-
-	// Register attack
-	uid, err := h.service.RegisterAttack(config)
-	if err != nil {
-		return fmt.Errorf("failed to register DoS attack: %w", err)
-	}
-
-	log.Info("DoS message attack registered", "uid", uid, "cmd", params.Cmd, "cnt", params.Cnt, "delay", params.Delay)
 	return nil
 }
 

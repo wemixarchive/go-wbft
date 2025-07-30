@@ -12,9 +12,8 @@ import (
 // TamperedMessageAttack implements tampered message attack
 type TamperedMessageAttack struct {
 	*registry.BaseAttack
-	tamperFields []types.Field
-	targets      []common.Address
-	params       *types.TamperAttackParams
+	fields []types.Field
+	params *types.TamperAttackParams
 }
 
 var _ types.Attack = (*TamperedMessageAttack)(nil)
@@ -32,10 +31,9 @@ func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack
 	params := parsedParams.(*types.TamperAttackParams)
 
 	attack := &TamperedMessageAttack{
-		BaseAttack:   registry.NewBaseAttack(config),
-		tamperFields: params.Fields,
-		targets:      params.Targets,
-		params:       params,
+		BaseAttack: registry.NewBaseAttack(config),
+		fields:     params.Fields,
+		params:     params,
 	}
 	return attack, nil
 }
@@ -43,6 +41,11 @@ func NewTamperedMessageAttack(config types.AttackConfig) (*TamperedMessageAttack
 // CheckExecuteCondition checks if the attack should be executed
 func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
+
+	// Check if attack is enabled
+	if !config.Enabled {
+		return false
+	}
 
 	// Check if sequence is in range
 	if !config.IsInSequenceRange(event.Sequence) {
@@ -55,34 +58,28 @@ func (a *TamperedMessageAttack) CheckExecuteCondition(ctx context.Context, event
 	}
 
 	// Check attack status
-	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+	status := a.GetStatus()
+	if status == types.AttackStatusCancelled || status == types.AttackStatusCompleted {
 		//log.Debug("this tamper attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
 	// Check message type
-	messageEvent, ok := event.Data.(*types.MessageEvent)
+	msgEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return false
 	}
 
-	// Use ParsedParameters first
-	if params, ok := config.ParsedParameters.(*types.TamperAttackParams); ok {
-		return messageEvent.MessageCode == params.Code
-	}
-
-	// Fallback to Parameters map
-	var attackCode types.MessageCode
-	switch v := config.Parameters["code"].(type) {
-	case float64:
-		attackCode = types.MessageCode(v)
-	case int:
-		attackCode = types.MessageCode(v)
-	default:
+	// Check if message code matches
+	if params := a.GetParams(); params == nil {
 		return false
+	} else {
+		if !params.HasMessageCode(msgEvent.MessageCode) {
+			return false
+		}
 	}
 
-	return messageEvent.MessageCode == attackCode
+	return true
 }
 
 // applyTampering applies tampering to message content
@@ -94,7 +91,7 @@ func (a *TamperedMessageAttack) applyTampering(content []byte) ([]byte, error) {
 	copy(tamperedContent, content)
 
 	// Apply each tamper field
-	for _, field := range a.tamperFields {
+	for _, field := range a.fields {
 		// Implementation depends on actual message structure
 		// This is just a placeholder
 		switch field.Target {
@@ -119,6 +116,11 @@ func (a *TamperedMessageAttack) applyTampering(content []byte) ([]byte, error) {
 func (a *TamperedMessageAttack) sendMessage(content []byte, targets []common.Address) error {
 	// Implementation depends on actual network layer
 	return nil
+}
+
+// GetParams returns the Tamper attack parameters
+func (a *TamperedMessageAttack) GetParams() *types.TamperAttackParams {
+	return a.params
 }
 
 // TamperAttackFactory creates tamper attacks

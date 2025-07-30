@@ -14,9 +14,8 @@ import (
 // RoleSpoofedAttack implements role spoofed attack
 type RoleSpoofedAttack struct {
 	*registry.BaseAttack
-	fields  []types.Field
-	targets []common.Address
-	params  *types.RoleSpoofAttackParams
+	fields []types.Field
+	params *types.RoleSpoofAttackParams
 
 	mu sync.RWMutex
 }
@@ -38,7 +37,6 @@ func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error)
 	attack := &RoleSpoofedAttack{
 		BaseAttack: registry.NewBaseAttack(config),
 		fields:     params.Fields,
-		targets:    params.Targets,
 		params:     params,
 	}
 	return attack, nil
@@ -47,6 +45,11 @@ func NewRoleSpoofedAttack(config types.AttackConfig) (*RoleSpoofedAttack, error)
 // CheckExecuteCondition checks if the attack should be executed
 func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
+
+	// Check if attack is enabled
+	if !config.Enabled {
+		return false
+	}
 
 	// Check if sequence is in range
 	if !config.IsInSequenceRange(event.Sequence) {
@@ -59,34 +62,28 @@ func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event typ
 	}
 
 	// Check attack status
-	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+	status := a.GetStatus()
+	if status == types.AttackStatusCancelled || status == types.AttackStatusCompleted {
 		//log.Debug("this role spoofed attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
 	// Check message type
-	messageEvent, ok := event.Data.(*types.MessageEvent)
+	msgEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return false
 	}
 
-	// Use ParsedParameters first
-	if params, ok := config.ParsedParameters.(*types.RoleSpoofAttackParams); ok {
-		return messageEvent.MessageCode == params.Code
-	}
-
-	// Fallback to Parameters map
-	var attackCode types.MessageCode
-	switch v := config.Parameters["code"].(type) {
-	case float64:
-		attackCode = types.MessageCode(v)
-	case int:
-		attackCode = types.MessageCode(v)
-	default:
+	// Check if message code matches
+	if params := a.GetParams(); params == nil {
 		return false
+	} else {
+		if !params.HasMessageCode(msgEvent.MessageCode) {
+			return false
+		}
 	}
 
-	return messageEvent.MessageCode == attackCode
+	return true
 }
 
 // createSpoofedMessage creates a message spoofing a different role
@@ -117,7 +114,7 @@ func (a *RoleSpoofedAttack) spoofProposerMessage(event types.Event) ([]byte, str
 	}
 
 	// Generate fake proposal
-	fakeProposal := &types.QBFTMessage{
+	fakeProposal := &types.WBFTMessage{
 		Code:     types.MessageCodePrePrepare,
 		Sequence: event.Sequence,
 		Round:    event.Round,
@@ -136,7 +133,7 @@ func (a *RoleSpoofedAttack) spoofValidatorMessage(messageCode types.MessageCode,
 	// Create a vote message as if we were a validator
 	// In reality, we might not be in the validator set
 
-	fakeVote := &types.QBFTMessage{
+	fakeVote := &types.WBFTMessage{
 		Code:      messageCode,
 		Sequence:  event.Sequence,
 		Round:     event.Round,
@@ -156,6 +153,11 @@ func (a *RoleSpoofedAttack) sendMessage(content []byte, targets []common.Address
 	// Implementation depends on actual network layer
 	// This would send the message as if from the spoofed role
 	return nil
+}
+
+// GetParams returns the RoleSpoof attack parameters
+func (a *RoleSpoofedAttack) GetParams() *types.RoleSpoofAttackParams {
+	return a.params
 }
 
 // RoleSpoofAttackFactory creates role spoof attacks

@@ -3,9 +3,6 @@ package attacks
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"time"
-
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 )
@@ -13,19 +10,10 @@ import (
 // DosAttack represents a DoS attack that floods messages
 type DosAttack struct {
 	*registry.BaseAttack
-	params         *types.DosAttackParams
-	targets        []common.Address
-	executionState *DosExecutionState
+	params *types.DosAttackParams
 }
 
 var _ types.Attack = (*DosAttack)(nil)
-
-// DosExecutionState tracks the state of ongoing DoS attack
-type DosExecutionState struct {
-	TotalMessagesSent int
-	LastExecutionTime time.Time
-	CurrentBatch      int
-}
 
 // NewDosAttack creates a new DoS attack instance
 func NewDosAttack(config types.AttackConfig) (*DosAttack, error) {
@@ -41,13 +29,7 @@ func NewDosAttack(config types.AttackConfig) (*DosAttack, error) {
 	// Initialize attack
 	attack := &DosAttack{
 		BaseAttack: registry.NewBaseAttack(config),
-		targets:    params.Targets,
 		params:     params,
-		executionState: &DosExecutionState{
-			TotalMessagesSent: 0,
-			LastExecutionTime: time.Time{},
-			CurrentBatch:      0,
-		},
 	}
 	return attack, nil
 }
@@ -84,8 +66,12 @@ func (a *DosAttack) CheckExecuteCondition(ctx context.Context, event types.Event
 	}
 
 	// Check if message code matches
-	if !a.params.HasMessageCode(msgEvent.MessageCode) {
+	if params := a.GetParams(); params == nil {
 		return false
+	} else {
+		if !params.HasMessageCode(msgEvent.MessageCode) {
+			return false
+		}
 	}
 
 	return true
@@ -94,18 +80,6 @@ func (a *DosAttack) CheckExecuteCondition(ctx context.Context, event types.Event
 // GetParams returns the DoS attack parameters
 func (a *DosAttack) GetParams() *types.DosAttackParams {
 	return a.params
-}
-
-// GetExecutionState returns the current execution state
-func (a *DosAttack) GetExecutionState() *DosExecutionState {
-	return a.executionState
-}
-
-// UpdateExecutionState updates the execution state after sending messages
-func (a *DosAttack) UpdateExecutionState(messagesSent int) {
-	a.executionState.TotalMessagesSent += messagesSent
-	a.executionState.LastExecutionTime = time.Now()
-	a.executionState.CurrentBatch++
 }
 
 // DosAttackFactory Factory function for creating DoS attacks

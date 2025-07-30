@@ -2,7 +2,6 @@ package types
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/common"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -140,22 +139,22 @@ type HookAdapter interface {
 	AfterProposal(ctx context.Context, proposal *types.Block) error
 
 	// BeforePrepare is called before sending a prepare message
-	BeforePrepare(ctx context.Context, message *QBFTMessage) error
+	BeforePrepare(ctx context.Context, message *WBFTMessage) error
 
 	// AfterPrepare is called after receiving a prepare message
-	AfterPrepare(ctx context.Context, message *QBFTMessage) error
+	AfterPrepare(ctx context.Context, message *WBFTMessage) error
 
 	// BeforeCommit is called before sending a commit message
-	BeforeCommit(ctx context.Context, message *QBFTMessage) error
+	BeforeCommit(ctx context.Context, message *WBFTMessage) error
 
 	// AfterCommit is called after receiving a commit message
-	AfterCommit(ctx context.Context, message *QBFTMessage) error
+	AfterCommit(ctx context.Context, message *WBFTMessage) error
 
 	// OnRoundChange is called on round change
 	OnRoundChange(ctx context.Context, sequence, round uint64) error
 
 	// OnMessageReceive is called when receiving any message
-	OnMessageReceive(ctx context.Context, message *QBFTMessage) error
+	OnMessageReceive(ctx context.Context, message *WBFTMessage) error
 }
 
 // ServiceStatus represents the service status
@@ -211,8 +210,6 @@ type AttackParamsParser interface {
 	Validate() error
 	ValidateWith(params interface{}) error
 	HasMessageCode(code MessageCode) bool
-	IsTargeted(addr common.Address) bool
-	GetBlockedTargets(valSet []common.Address) []common.Address
 }
 
 type AttackExecutionContext struct {

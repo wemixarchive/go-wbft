@@ -6,14 +6,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 // ReplayAttack implements replay attack
 type ReplayAttack struct {
 	*registry.BaseAttack
 	useOriginalView bool
-	targets         []common.Address
 	params          *types.ReplayAttackParams
 }
 
@@ -34,7 +32,6 @@ func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
 	attack := &ReplayAttack{
 		BaseAttack:      registry.NewBaseAttack(config),
 		useOriginalView: params.UseOriginalView,
-		targets:         params.Targets,
 		params:          params,
 	}
 	return attack, nil
@@ -43,6 +40,11 @@ func NewReplayAttack(config types.AttackConfig) (*ReplayAttack, error) {
 // CheckExecuteCondition checks if the attack should be executed
 func (a *ReplayAttack) CheckExecuteCondition(ctx context.Context, event types.Event) bool {
 	config := a.GetConfig()
+
+	// Check if attack is enabled
+	if !config.Enabled {
+		return false
+	}
 
 	// Check if sequence is in range
 	if !config.IsInSequenceRange(event.Sequence) {
@@ -55,34 +57,33 @@ func (a *ReplayAttack) CheckExecuteCondition(ctx context.Context, event types.Ev
 	}
 
 	// Check attack status
-	if config.Status == types.AttackStatusCancelled || config.Status == types.AttackStatusCompleted {
+	status := a.GetStatus()
+	if status == types.AttackStatusCancelled || status == types.AttackStatusCompleted {
 		//log.Debug("this replay attack is already cancelled or completed ", "sequence", event.Sequence, "round", event.Round)
 		return false
 	}
 
 	// Check message type
-	messageEvent, ok := event.Data.(*types.MessageEvent)
+	msgEvent, ok := event.Data.(*types.MessageEvent)
 	if !ok {
 		return false
 	}
 
-	// Use ParsedParameters first
-	if params, ok := config.ParsedParameters.(*types.ReplayAttackParams); ok {
-		return messageEvent.MessageCode == params.Code
-	}
-
-	// Fallback to Parameters map
-	var attackCode types.MessageCode
-	switch v := config.Parameters["code"].(type) {
-	case float64:
-		attackCode = types.MessageCode(v)
-	case int:
-		attackCode = types.MessageCode(v)
-	default:
+	// Check if message code matches
+	if params := a.GetParams(); params == nil {
 		return false
+	} else {
+		if !params.HasMessageCode(msgEvent.MessageCode) {
+			return false
+		}
 	}
 
-	return messageEvent.MessageCode == attackCode
+	return true
+}
+
+// GetParams returns the Replay attack parameters
+func (a *ReplayAttack) GetParams() *types.ReplayAttackParams {
+	return a.params
 }
 
 // ReplayAttackFactory creates replay attacks

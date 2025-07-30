@@ -52,8 +52,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -83,8 +82,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -114,8 +112,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -133,8 +130,7 @@
             "target": "header.number",
             "value": 88
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -156,8 +152,7 @@
             "target": "policy.delay",
             "value": 10
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -175,8 +170,7 @@
             "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -198,8 +192,7 @@
             "target": "policy.delay",
             "value": 10
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -217,8 +210,7 @@
             "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -240,8 +232,7 @@
             "target": "policy.delay",
             "value": 10
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -259,8 +250,7 @@
             "target": "header.number",
             "value": 100
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -282,8 +272,7 @@
             "target": "policy.delay",
             "value": 10
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -301,8 +290,7 @@
             "target": "header.number",
             "value": 100
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -320,8 +308,7 @@
             "target": "block.reward",
             "value": 100000
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -334,8 +321,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "cmd": 2,
-        "targets": []
+        "cmd": 2
       }
     },
     {
@@ -348,8 +334,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "cmd": 1,
-        "targets": []
+        "cmd": 1
       }
     },
     {
@@ -367,8 +352,7 @@
             "target": "seal.prevprepare",
             "value": "nil"
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -404,8 +388,7 @@
             "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -423,8 +406,7 @@
             "target": "msg.digest",
             "value": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -442,8 +424,7 @@
             "target": "tx.value",
             "value": 100
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -461,8 +442,7 @@
             "target": "tx.count",
             "value": 10
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -479,8 +459,7 @@
           {
             "target": "tx.sign"
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -498,8 +477,7 @@
             "target": "tx.count",
             "value": 1
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -517,8 +495,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -536,8 +513,7 @@
             "target": "msg.round",
             "value": 3
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -555,8 +531,7 @@
             "target": "msg.round",
             "value": 5
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -569,8 +544,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "useOriginalView": true,
-        "targets": []
+        "useOriginalView": true
       }
     },
     {
@@ -583,8 +557,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 2,
-        "useOriginalView": true,
-        "target": []
+        "useOriginalView": true
       }
     },
     {
@@ -597,8 +570,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 4,
-        "useOriginalView": true,
-        "targets": []
+        "useOriginalView": true
       }
     },
     {
@@ -616,8 +588,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -635,8 +606,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -654,8 +624,7 @@
             "target": "msg.proposal",
             "value": ""
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -673,8 +642,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -692,8 +660,7 @@
             "target": "msg.proposal",
             "value": 0
           }
-        ],
-        "targets": []
+        ]
       }
     },
     {
@@ -711,8 +678,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -729,8 +695,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -744,8 +709,7 @@
         "code": 8,
         "cmd": 2,
         "cnt": 10000,
-        "delay": 0,
-        "targets": []
+        "delay": 0
       }
     },
     {
@@ -799,8 +763,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -813,8 +776,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "cmd": 3,
-        "targets": []
+        "cmd": 3
       }
     },
     {
@@ -832,8 +794,7 @@
             "target": "policy.direction",
             "value": 1
           }
-        ],
-        "targets":[]
+        ]
       }
     },
     {
@@ -846,8 +807,7 @@
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "cmd": 4,
-        "targets": []
+        "cmd": 4
       }
     }
   ]
