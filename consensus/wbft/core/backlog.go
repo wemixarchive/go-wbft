@@ -41,9 +41,10 @@ var (
 	}
 )
 
-// isFutureSequence returns true if viewSeq is greater than currSeq
-func isFutureSequence(viewSeq, currSeq *big.Int) bool {
-	return viewSeq.Cmp(currSeq) > 0
+// isSequenceTooFarAhead returns true if the sxequence difference exceeds the threshold
+func isSequenceTooFarAhead(viewSeq, currSeq *big.Int, threshold int64) (*big.Int, bool) {
+	seqDiff := new(big.Int).Sub(viewSeq, currSeq)
+	return seqDiff, seqDiff.Cmp(big.NewInt(threshold)) >= 0
 }
 
 // isRoundTooFarAhead returns true if the round difference exceeds the threshold
@@ -56,12 +57,16 @@ func isRoundTooFarAhead(viewRound, currRound *big.Int, threshold int64) (*big.In
 func (c *Core) dropFutureMessage(view *wbft.View) bool {
 	curr := c.currentView()
 
-	if isFutureSequence(view.Sequence, curr.Sequence) {
-		c.logger.Warn("WBFT: future message too far ahead in sequence, dropped",
-			"msg_seq", view.Sequence.String(),
-			"curr_seq", curr.Sequence.String(),
-		)
-		return true
+	if view.Sequence.Cmp(curr.Sequence) > 0 {
+		// In the initial phase of block consensus, a message with a sequence number one higher than the current sequence may be received.
+		if seqDiff, tooFar := isSequenceTooFarAhead(view.Sequence, curr.Sequence, 1); tooFar {
+			c.logger.Warn("WBFT: future message too far ahead in sequence, dropped",
+				"msg_seq", view.Sequence.String(),
+				"curr_seq", curr.Sequence.String(),
+				"diff", seqDiff.String(),
+			)
+			return true
+		}
 	}
 
 	if view.Sequence.Cmp(curr.Sequence) == 0 && view.Round.Cmp(curr.Round) > 0 {
@@ -164,6 +169,61 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	}
 	return nil
 }
+
+// 필요 할까?
+// const (
+// 	maxBacklogPerPeer = 30   // 피어당(소스) 최대 백로그 수
+// 	maxTotalBacklog   = 1000 // 전체 최대 백로그 수
+// )
+
+// func (c *Core) addToBacklog(msg wbfmessage.WBFTMessage) {
+// 	logger := c.currentLogger(true, msg)
+// 	src := msg.Source()
+// 	if src == c.Address() {
+// 		logger.Warn("WBFT: backlog from self")
+// 		return
+// 	}
+
+// 	c.backlogsMu.Lock()
+// 	defer c.backlogsMu.Unlock()
+
+// 	// 총 개수 계산
+// 	total := 0
+// 	for _, b := range c.backlogs {
+// 		total += b.Size()
+// 	}
+
+// 	backlog := c.backlogs[src]
+// 	if backlog == nil {
+// 		backlog = prque.New[int64, wbfmessage.WBFTMessage](nil)
+// 		c.backlogs[src] = backlog
+// 	}
+
+// 	// maxBacklogPerPeer 체크
+// 	if backlog.Size() >= maxBacklogPerPeer {
+// 		logger.Warn("WBFT: per-peer backlog limit reached, dropping message",
+// 			"peer", src,
+// 			"limit", maxBacklogPerPeer,
+// 			"code", msg.Code())
+// 		return
+// 	}
+
+// 	//maxTotalBacklog
+// 	if total >= maxTotalBacklog {
+// 		logger.Warn("WBFT: total backlog limit reached, dropping message",
+// 			"total", total,
+// 			"limit", maxTotalBacklog,
+// 			"peer", src,
+// 			"code", msg.Code())
+// 		return
+// 	}
+
+// 	// 백로그에 메시지 추가
+// 	view := msg.View()
+// 	backlog.Push(msg, toNegatePriority(msg.Code(), &view))
+// 	//total+1 : backlog.Push(msg) 호출 후 개수 반영
+// 	logger.Trace("WBFT: backlog message added", "peer", src, "backlog_size", backlog.Size(), "total_backlog", total+1)
+// }
 
 // addToBacklog allows to postpone the processing of future messages
 
