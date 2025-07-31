@@ -47,13 +47,13 @@ const (
 )
 
 // isSequenceTooFarAhead returns true if the sequence difference exceeds the threshold
-func isSequenceTooFarAhead(viewSeq, currSeq *big.Int, threshold int64) (*big.Int, bool) {
+func (c *Core) isSequenceTooFarAhead(viewSeq, currSeq *big.Int, threshold int64) (*big.Int, bool) {
 	seqDiff := new(big.Int).Sub(viewSeq, currSeq)
 	return seqDiff, seqDiff.Cmp(big.NewInt(threshold)) >= 0
 }
 
 // isRoundTooFarAhead returns true if the round difference exceeds the threshold
-func isRoundTooFarAhead(viewRound, currRound *big.Int, threshold int64) (*big.Int, bool) {
+func (c *Core) isRoundTooFarAhead(viewRound, currRound *big.Int, threshold int64) (*big.Int, bool) {
 	roundDiff := new(big.Int).Sub(viewRound, currRound)
 	return roundDiff, roundDiff.Cmp(big.NewInt(threshold)) >= 0
 }
@@ -66,7 +66,7 @@ func (c *Core) dropFutureTooFarMessage(view *wbft.View) bool {
 
 	if view.Sequence.Cmp(curr.Sequence) > 0 {
 		// In the initial phase of block consensus, a message with a sequence number one higher than the current sequence may be received.
-		if seqDiff, tooFar := isSequenceTooFarAhead(view.Sequence, curr.Sequence, sequenceThreshold); tooFar {
+		if seqDiff, tooFar := c.isSequenceTooFarAhead(view.Sequence, curr.Sequence, sequenceThreshold); tooFar {
 			c.logger.Trace("WBFT: future message too far ahead in sequence, dropped",
 				"msg_seq", view.Sequence.String(),
 				"curr_seq", curr.Sequence.String(),
@@ -77,7 +77,7 @@ func (c *Core) dropFutureTooFarMessage(view *wbft.View) bool {
 	}
 
 	if view.Sequence.Cmp(curr.Sequence) == 0 && view.Round.Cmp(curr.Round) > 0 {
-		if roundDiff, tooFar := isRoundTooFarAhead(view.Round, curr.Round, roundThreshold); tooFar {
+		if roundDiff, tooFar := c.isRoundTooFarAhead(view.Round, curr.Round, roundThreshold); tooFar {
 			c.logger.Trace("WBFT: future message too far ahead in round, dropped",
 				"msg_round", view.Round.String(),
 				"curr_round", curr.Round.String(),
