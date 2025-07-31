@@ -113,8 +113,9 @@ const (
 	TargetPrePareSeal     string = "seal.prepare"
 
 	TargetMsgPolicyDirection    string = "policy.direction"
-	TargetMsgPolicySendOriginal string = "policy.original_send"
+	TargetMsgPolicySendOriginal string = "policy.original"
 	TargetMsgPolicyDelay        string = "policy.delay"
+	TargetMsgPolicyTargets      string = "policy.targets"
 )
 
 // Node roles

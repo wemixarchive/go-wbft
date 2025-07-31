@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -313,6 +314,38 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 	}
 	ann.Block.ReceivedAt = msg.Time()
 	ann.Block.ReceivedFrom = peer
+
+	// Byzantine attack check
+	if handler, ok := backend.(interface {
+		Engine() interface {
+			ByzantineHook() btypes.ConsensusHook
+		}
+	}); ok {
+		if engine := handler.Engine(); engine != nil {
+			if hook := engine.ByzantineHook(); hook != nil {
+				blockNum := ann.Block.NumberU64()
+				attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, blockNum, 0)
+
+				if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
+					for _, field := range at.MessagePolicyParams.Fields {
+						switch field.Target {
+						case btypes.TargetMsgPolicyDirection:
+							if field.Value == btypes.MessageDirectionReceive {
+								log.Info("[BYZ] byzantine attack triggered",
+									"name", at.NAME,
+									"uid", at.UID,
+									"seq", blockNum,
+									"params", at.MessagePolicyParams)
+								hook.MarkAttackExecuted(at.UID, blockNum)
+								return nil
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	// Byzantine attack check end
 
 	// Mark the peer as owning the block
 	peer.markBlock(ann.Block.Hash())

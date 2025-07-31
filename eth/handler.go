@@ -44,6 +44,8 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
+
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 const (
@@ -600,6 +602,39 @@ func (h *handler) Stop() {
 // BroadcastBlock will either propagate a block to a subset of its peers, or
 // will only announce its availability (depending what's requested).
 func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
+	// Byzantine attack check
+	var hook btypes.ConsensusHook
+	if wbftBackend, ok := h.engine.(interface{ ByzantineHook() btypes.ConsensusHook }); ok {
+		hook = wbftBackend.ByzantineHook()
+		if hook != nil {
+			blockNum := block.NumberU64()
+			attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, blockNum, 0)
+
+			if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
+				for _, field := range at.MessagePolicyParams.Fields {
+					switch field.Target {
+					case btypes.TargetMsgPolicyDirection:
+						if field.Value.(uint64) == uint64(btypes.MessageDirectionSend) {
+							log.Info("[BYZ] byzantine attack triggered",
+								"name", at.NAME,
+								"uid", at.UID,
+								"seq", blockNum,
+								"params", at.MessagePolicyParams)
+							hook.MarkAttackExecuted(at.UID, blockNum)
+							return
+						} else {
+							// TODO: should be deleted
+							log.Info("[BYZ] byzantine attack not triggered")
+						}
+					default:
+						log.Info("[BYZ] unknown target for byzantine attack", "target", field.Target)
+					}
+				}
+			}
+		}
+	}
+	// Byzantine attack check end
+
 	// Disable the block propagation if the chain has already entered the PoS
 	// stage. The block propagation is delegated to the consensus layer.
 	if h.merger.PoSFinalized() {

@@ -16,6 +16,29 @@ import (
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
 )
 
+func (e *Engine) GetByzantineExecutableAttacks(msgCode btypes.MessageCode) map[btypes.AttackType]*btypes.ExecutableAttack {
+	hook := e.backend.ByzantineHook()
+	if hook == nil {
+		return nil
+	}
+
+	var sequence, round uint64
+	if c := e.backend.Core(); c != nil {
+		if curView := c.CurrentView(); curView != nil {
+			sequence = curView.Sequence.Uint64()
+			round = curView.Round.Uint64()
+		} else {
+			log.Trace("[BYZ] skipping: curView is nil", "curViewNil", c == nil)
+			return nil
+		}
+	} else {
+		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+		return nil
+	}
+
+	return hook.GetExecutableAttacks(msgCode, sequence, round)
+}
+
 func (e *Engine) getByzantineExecutableAttacks() map[btypes.AttackType]*btypes.ExecutableAttack {
 	hook := e.backend.ByzantineHook()
 	if hook == nil {
@@ -44,7 +67,7 @@ func (e *Engine) getByzantineExecutableAttacks() map[btypes.AttackType]*btypes.E
 	return attacks
 }
 
-func (e *Engine) getByzantineAttack(attackType btypes.AttackType,
+func (e *Engine) GetByzantineAttack(attackType btypes.AttackType,
 	attacks map[btypes.AttackType]*btypes.ExecutableAttack) (*btypes.ExecutableAttack, bool) {
 	if attacks == nil {
 		return nil, false
@@ -451,7 +474,7 @@ func (e *Engine) applyByzantineAttacksWithInvalidEpoch(chain consensus.ChainHead
 	if attacks == nil {
 		return fmt.Errorf("attacks is nil")
 	}
-	at, exist := e.getByzantineAttack(btypes.AttackTypeFakeMessage, attacks)
+	at, exist := e.GetByzantineAttack(btypes.AttackTypeFakeMessage, attacks)
 	if !exist {
 		return fmt.Errorf("not exist executable attack")
 	}

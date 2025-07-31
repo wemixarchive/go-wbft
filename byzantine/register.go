@@ -24,7 +24,8 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 	// Load Byzantine configuration
 	config, err := cmd.LoadByzantineConfig(ctx, stack.Config())
 	if err != nil {
-		return fmt.Errorf("byzantine: failed to load configuration: %w", err)
+		log.Error("byzantine: failed to load configuration: %w", err)
+		return nil
 	}
 
 	// Skip registration if Byzantine is disabled

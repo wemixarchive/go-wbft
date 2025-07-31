@@ -81,13 +81,6 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 			Status:  cfg.Status,
 		}
 		err := h.extractParams(cfg, result[at])
-		if at == types.AttackTypeDos {
-			if err != nil {
-				log.Error("[BYZ] GetExecutableAttacks failed", "err", err)
-			} else {
-				log.Trace("[BYZ] GetExecutableAttacks succeeded", "attack", result[at].UID, "type", at)
-			}
-		}
 		if err != nil {
 			delete(result, at)
 			continue

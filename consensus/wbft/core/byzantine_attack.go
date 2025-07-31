@@ -573,7 +573,7 @@ func (c *Core) handleMessagePolicyAttack(hook btypes.ConsensusHook, attacks map[
 				log.Error("[BYZ] Invalid value for policy.original_send", "value", field.Value)
 			}
 		case btypes.TargetMsgPolicyDelay:
-			if v, ok := field.Value.(float64); ok {
+			if v, ok := field.Value.(uint64); ok {
 				delayMs = int(v)
 			} else {
 				log.Error("[BYZ] Invalid value for policy.delay", "value", field.Value)

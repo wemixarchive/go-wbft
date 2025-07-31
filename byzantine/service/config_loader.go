@@ -120,6 +120,7 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 				return config, fmt.Errorf("failed to parse %s parameters: %w", config.Type, err)
 			}
 			config.ParsedParameters = parsedParams
+			config.Parameters = cl.restructureParameters(config.Type, parsedParams)
 		}
 	} else if config.Parameters != nil {
 		// Fallback to map-based parsing for backward compatibility
@@ -163,6 +164,15 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 			result["code"] = params.Code
 			fields := make([]map[string]interface{}, len(params.Fields))
 			for i, field := range params.Fields {
+				switch field.Target {
+				case types.TargetMsgPolicyDirection, types.TargetMsgPolicyDelay:
+					v, err := types.ParseToUint64(field.Value)
+					if err != nil {
+						log.Debug("[BYZ] error", "restructureParameters", attackType, "error", err)
+						continue // Skip this field if parsing fails
+					}
+					field.Value = v
+				}
 				fields[i] = map[string]interface{}{
 					"target": field.Target,
 					"value":  field.Value,

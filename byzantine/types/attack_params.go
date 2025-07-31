@@ -143,7 +143,7 @@ func (p *MessagePolicyParams) IsTargeted(addr common.Address) bool {
 		// No targets field means all are targeted
 		return true
 	}
-	
+
 	// Check if addr is in the targets list
 	for _, target := range targets {
 		if target == addr {
@@ -196,14 +196,21 @@ func (p *MessagePolicyParams) Parse(raw map[string]interface{}) (interface{}, er
 			if fieldMap, ok := field.(map[string]interface{}); ok {
 				targetStr := fmt.Sprintf("%v", fieldMap["target"])
 				var fieldValue interface{}
-				
-				if targetStr == "targets" {
+
+				switch targetStr {
+				case TargetMsgPolicyDirection, TargetMsgPolicyDelay:
+					v, err := ParseToUint64(fieldMap["value"])
+					if err != nil {
+						return nil, fmt.Errorf("invalid value for %s: %w", targetStr, err)
+					}
+					fieldValue = v
+				case TargetMsgPolicyTargets:
 					// Special handling for targets field - use ParseTargets helper
 					fieldValue = ParseTargets(fieldMap["value"])
-				} else {
+				case TargetMsgPolicySendOriginal:
 					fieldValue = fieldMap["value"]
 				}
-				
+
 				f := Field{
 					Target: targetStr,
 					Value:  fieldValue,
@@ -234,7 +241,7 @@ func (p *MessagePolicyParams) Validate() error {
 		if field.Target == "" {
 			return fmt.Errorf("field[%d] target is empty", i)
 		}
-		
+
 		// Special validation for targets field
 		if field.Target == "targets" {
 			switch v := field.Value.(type) {
