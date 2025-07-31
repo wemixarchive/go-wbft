@@ -179,61 +179,6 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	return nil
 }
 
-// 필요 할까?
-// const (
-// 	maxBacklogPerPeer = 30   // 피어당(소스) 최대 백로그 수
-// 	maxTotalBacklog   = 1000 // 전체 최대 백로그 수
-// )
-
-// func (c *Core) addToBacklog(msg wbfmessage.WBFTMessage) {
-// 	logger := c.currentLogger(true, msg)
-// 	src := msg.Source()
-// 	if src == c.Address() {
-// 		logger.Warn("WBFT: backlog from self")
-// 		return
-// 	}
-
-// 	c.backlogsMu.Lock()
-// 	defer c.backlogsMu.Unlock()
-
-// 	// 총 개수 계산
-// 	total := 0
-// 	for _, b := range c.backlogs {
-// 		total += b.Size()
-// 	}
-
-// 	backlog := c.backlogs[src]
-// 	if backlog == nil {
-// 		backlog = prque.New[int64, wbfmessage.WBFTMessage](nil)
-// 		c.backlogs[src] = backlog
-// 	}
-
-// 	// maxBacklogPerPeer 체크
-// 	if backlog.Size() >= maxBacklogPerPeer {
-// 		logger.Warn("WBFT: per-peer backlog limit reached, dropping message",
-// 			"peer", src,
-// 			"limit", maxBacklogPerPeer,
-// 			"code", msg.Code())
-// 		return
-// 	}
-
-// 	//maxTotalBacklog
-// 	if total >= maxTotalBacklog {
-// 		logger.Warn("WBFT: total backlog limit reached, dropping message",
-// 			"total", total,
-// 			"limit", maxTotalBacklog,
-// 			"peer", src,
-// 			"code", msg.Code())
-// 		return
-// 	}
-
-// 	// 백로그에 메시지 추가
-// 	view := msg.View()
-// 	backlog.Push(msg, toNegatePriority(msg.Code(), &view))
-// 	//total+1 : backlog.Push(msg) 호출 후 개수 반영
-// 	logger.Trace("WBFT: backlog message added", "peer", src, "backlog_size", backlog.Size(), "total_backlog", total+1)
-// }
-
 // addToBacklog allows to postpone the processing of future messages
 
 // it adds the message to backlog which is read on every state change
