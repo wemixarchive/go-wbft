@@ -335,7 +335,9 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 									"name", at.NAME,
 									"uid", at.UID,
 									"seq", blockNum,
-									"params", at.MessagePolicyParams)
+									"params", at.MessagePolicyParams,
+									"receivedAt", ann.Block.ReceivedAt,
+									"receivedFrom", ann.Block.ReceivedFrom)
 								hook.MarkAttackExecuted(at.UID, blockNum)
 								return nil
 							}

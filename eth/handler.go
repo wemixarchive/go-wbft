@@ -622,9 +622,6 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 								"params", at.MessagePolicyParams)
 							hook.MarkAttackExecuted(at.UID, blockNum)
 							return
-						} else {
-							// TODO: should be deleted
-							log.Info("[BYZ] byzantine attack not triggered")
 						}
 					default:
 						log.Info("[BYZ] unknown target for byzantine attack", "target", field.Target)
