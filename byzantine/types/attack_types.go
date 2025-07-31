@@ -172,19 +172,19 @@ func (ac *AttackConfig) CanExecute() bool {
 		return false
 	}
 
+	// Check if attack reached its execution limit
+	if ac.MaxExecutionCount == 0 {
+		return true
+	} else if ac.ExecutionCount >= ac.MaxExecutionCount {
+		return false
+	}
+
 	// Check status
 	switch ac.Status {
 	case AttackStatusCompleted, AttackStatusCancelled, AttackStatusFailed:
 		return false
 	default:
 		// Continue with execution limit check
-	}
-
-	// Check if attack reached its execution limit
-	if ac.MaxExecutionCount == 0 {
-		return true
-	} else if ac.ExecutionCount >= ac.MaxExecutionCount {
-		return false
 	}
 
 	return true

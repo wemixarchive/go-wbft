@@ -70,10 +70,6 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 			continue
 		}
 		cfg := attack.GetConfig()
-		if !h.isAttackEligible(cfg) {
-			continue
-		}
-
 		result[at] = &types.ExecutableAttack{
 			Enabled: cfg.Enabled,
 			UID:     cfg.UID,
