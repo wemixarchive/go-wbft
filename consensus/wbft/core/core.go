@@ -110,7 +110,7 @@ type Core struct {
 	roundChangeTimer        *time.Timer
 	lastSentTimeoutCanceled *bool
 
-	retryRoundChangeTimer *time.Timer
+	retrySendingRoundChangeTimer *time.Timer
 
 	WBFTPreparedPrepares []*wbftmessage.Prepare
 
@@ -378,24 +378,24 @@ func (c *Core) newRoundChangeTimer() {
 	})
 }
 
-// stopRetryTimer stops the round-change retry timer if running.
-func (c *Core) stopRetryTimer() {
-	if c.retryRoundChangeTimer != nil {
-		c.retryRoundChangeTimer.Stop()
+// stopRetrySendingRoundChangeTimer stops the round-change retry timer if running.
+func (c *Core) stopRetrySendingRoundChangeTimer() {
+	if c.retrySendingRoundChangeTimer != nil {
+		c.retrySendingRoundChangeTimer.Stop()
 	}
 }
 
-// newRetryRoundChangeTimer sets a retry timer to reattempt round-change after a timeout
-func (c *Core) newRetryRoundChangeTimer() {
-	c.stopRetryTimer()
+// newRetrySendingRoundChangeTimer sets a retry timer to reattempt round-change after a timeout
+func (c *Core) newRetrySendingRoundChangeTimer() {
+	c.stopRetrySendingRoundChangeTimer()
 
 	// set timeout based on the round number
 	cfg := c.config.GetConfig(c.current.Sequence())
 	timeout := time.Duration(cfg.RequestTimeout) * time.Millisecond
 
 	c.currentLogger(true, nil).Trace("WBFT: set ROUND-CHANGE retry timer", "round", c.current.Round(), "timeout", timeout.Seconds())
-	c.retryRoundChangeTimer = time.AfterFunc(timeout, func() {
-		c.sendEvent(retryTimeoutEvent{})
+	c.retrySendingRoundChangeTimer = time.AfterFunc(timeout, func() {
+		c.sendEvent(retryTimeoutEvent{c.current.Round()})
 	})
 }
 

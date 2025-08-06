@@ -41,12 +41,6 @@ func (c *Core) broadcastNextRoundChange() {
 	c.broadcastRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
 
-// broadcastRetryRoundChange re-sends ROUND-CHANGE message for the current round
-func (c *Core) broadcastRetryRoundChange() {
-	cv := c.currentView()
-	c.broadcastRoundChange(cv.Round)
-}
-
 // broadcastRoundChange is called when either
 // - ROUND-CHANGE timeout expires (meaning either we have not received PRE-PREPARE message or we have not received a quorum of COMMIT messages)
 // -
@@ -55,7 +49,7 @@ func (c *Core) broadcastRetryRoundChange() {
 // - Creates and sign ROUND-CHANGE message
 // - broadcast the ROUND-CHANGE message with the given round
 func (c *Core) broadcastRoundChange(round *big.Int) {
-	c.newRetryRoundChangeTimer()
+	c.newRetrySendingRoundChangeTimer()
 	logger := c.currentLogger(true, nil)
 
 	// Validates new round corresponds to current view

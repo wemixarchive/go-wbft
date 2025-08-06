@@ -21,6 +21,8 @@
 package core
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 )
@@ -34,4 +36,6 @@ type timeoutEvent struct {
 	canceled *bool
 }
 
-type retryTimeoutEvent struct{}
+type retryTimeoutEvent struct {
+	round *big.Int
+}

@@ -29,6 +29,6 @@ func (c *Core) handleFinalCommittedMsg() error {
 	c.startNewRound(common.Big0)
 
 	// Stop ROUND-CHANGE retry timer
-	c.stopRetryTimer()
+	c.stopRetrySendingRoundChangeTimer()
 	return nil
 }

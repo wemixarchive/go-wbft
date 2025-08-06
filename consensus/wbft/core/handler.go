@@ -172,10 +172,9 @@ func (c *Core) handleEvents() {
 			if !ok {
 				return
 			}
-			switch event.Data.(type) {
-			case retryTimeoutEvent:
-				// on round-change retry timeout, re-broadcast round-change message for the same round
-				c.broadcastRetryRoundChange()
+			if e, ok := event.Data.(retryTimeoutEvent); ok {
+				// Re-broadcast round-change message for the same round on retry timeout
+				c.broadcastRoundChange(e.round)
 			}
 		}
 	}
