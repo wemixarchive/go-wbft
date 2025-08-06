@@ -58,10 +58,10 @@ func (c *Core) isRoundTooFarAhead(viewRound, currRound *big.Int, threshold int64
 	return roundDiff, roundDiff.Cmp(big.NewInt(threshold)) >= 0
 }
 
-// dropFutureTooFarMessage filters out messages too far ahead in sequence or round
+// isTooFarFutureMessage filters out messages too far ahead in sequence or round
 // This function prevents the node from processing messages that are excessively ahead,
 // which could disrupt the normal flow of the consensus process
-func (c *Core) dropFutureTooFarMessage(view *wbft.View) bool {
+func (c *Core) isTooFarFutureMessage(view *wbft.View) bool {
 	curr := c.currentView()
 
 	if view.Sequence.Cmp(curr.Sequence) > 0 {
@@ -107,7 +107,7 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 
 	// Drop the message if the view's sequence or round number is too far ahead
 	// This prevents processing of messages that may disrupt consensus due to excessive lead
-	if c.dropFutureTooFarMessage(view) {
+	if c.isTooFarFutureMessage(view) {
 		return errFutureViewTooFar
 	}
 
