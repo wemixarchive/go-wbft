@@ -350,7 +350,7 @@ func (c *Core) newRoundChangeTimer() {
 		}
 		// prevent log storm when unexpected overflow happens
 		if timeout < baseTimeout {
-			c.currentLogger(true, nil).Error("WBFT: Possible request timeout overflow detected, setting timeout value to maxRequestTimeout",
+			c.currentLogger(true, nil).Warn("WBFT: Possible request timeout overflow detected, setting timeout value to maxRequestTimeout",
 				"timeout", timeout.Seconds(),
 				"max_request_timeout", maxRequestTimeout.Seconds(),
 			)
@@ -360,7 +360,7 @@ func (c *Core) newRoundChangeTimer() {
 		timeoutFloat64 := math.Pow(2, float64(round)) * float64(baseTimeout)
 
 		if math.IsNaN(timeoutFloat64) || math.IsInf(timeoutFloat64, 0) || timeoutFloat64 > float64(math.MaxInt64) {
-			c.currentLogger(true, nil).Error("WBFT: Timeout overflow detected, setting timeout value to MaxInt64",
+			c.currentLogger(true, nil).Warn("WBFT: Timeout overflow detected, setting timeout value to MaxInt64",
 				"round", round,
 				"adjusted_timeout", time.Duration(math.MaxInt64).Seconds(),
 			)
