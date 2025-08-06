@@ -394,7 +394,7 @@ func (c *Core) newRetryRoundChangeTimer() {
 	timeout := time.Duration(cfg.RequestTimeout) * time.Millisecond
 
 	c.currentLogger(true, nil).Trace("WBFT: set ROUND-CHANGE retry timer", "round", c.current.Round(), "timeout", timeout.Seconds())
-	c.roundChangeTimer = time.AfterFunc(timeout, func() {
+	c.retryRoundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(retryTimeoutEvent{})
 	})
 }
