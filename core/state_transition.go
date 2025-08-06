@@ -247,8 +247,8 @@ func (st *StateTransition) buyGas() error {
 		if st.msg.GasFeeCap != nil {
 			balanceCheck.SetUint64(st.msg.GasLimit)
 			balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
-			balanceCheck.Add(balanceCheck, st.msg.Value)
 		}
+		balanceCheck.Add(balanceCheck, st.msg.Value)
 
 		if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 			if blobGas := st.blobGasUsed(); blobGas > 0 {
@@ -286,12 +286,11 @@ func (st *StateTransition) buyGas() error {
 		mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 		mgval.Mul(mgval, st.msg.GasPrice)
 		feeCheck := new(big.Int).Set(mgval)
-		valCheck := new(big.Int)
 		if st.msg.GasFeeCap != nil {
 			feeCheck.SetUint64(st.msg.GasLimit)
 			feeCheck = feeCheck.Mul(feeCheck, st.msg.GasFeeCap)
-			valCheck.Set(st.msg.Value)
 		}
+		valCheck := new(big.Int).Set(st.msg.Value)
 
 		if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 			if blobGas := st.blobGasUsed(); blobGas > 0 {
@@ -314,10 +313,10 @@ func (st *StateTransition) buyGas() error {
 			return fmt.Errorf("%w: address %v required balance exceeds 256 bits", ErrInsufficientFunds, st.msg.From.Hex())
 		}
 		if have, want := st.state.GetBalance(*st.msg.FeePayer), feeCheckU256; have.Cmp(want) < 0 {
-			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.FeePayer.Hex(), have, want)
+			return fmt.Errorf("%w: feePayer %v have %v want %v", ErrInsufficientFunds, st.msg.FeePayer.Hex(), have, want)
 		}
 		if have, want := st.state.GetBalance(st.msg.From), valCheckU256; have.Cmp(want) < 0 {
-			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
+			return fmt.Errorf("%w: sender %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
 		}
 		if err := st.gp.SubGas(st.msg.GasLimit); err != nil {
 			return err
