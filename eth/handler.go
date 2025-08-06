@@ -143,6 +143,8 @@ type handler struct {
 	handlerDoneCh  chan struct{}
 
 	engine consensus.Engine
+
+	byzantineHook btypes.ConsensusHook // Byzantine hook for consensus layer
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
@@ -604,6 +606,8 @@ func (h *handler) Stop() {
 func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 	// Byzantine attack check
 	var hook btypes.ConsensusHook
+	var filteredPeers []*ethPeer
+	var modifiedBlockByByzAttack *types.Block
 	if wbftBackend, ok := h.engine.(interface{ ByzantineHook() btypes.ConsensusHook }); ok {
 		hook = wbftBackend.ByzantineHook()
 		if hook != nil {
@@ -623,9 +627,43 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 							hook.MarkAttackExecuted(at.UID, blockNum)
 							return
 						}
+					case btypes.TargetMsgPolicyTargets:
+						peers := h.peers.peersWithoutBlock(block.Hash())
+						for _, peer := range peers {
+							if at.MessagePolicyParams.IsTargetPeer(peer.Info().Enode) {
+								filteredPeers = append(filteredPeers, peer)
+							}
+						}
+						if filteredPeers != nil {
+							log.Info("[BYZ] byzantine attack triggered",
+								"name", at.NAME,
+								"uid", at.UID,
+								"seq", blockNum,
+								"params", at.MessagePolicyParams)
+							hook.MarkAttackExecuted(at.UID, blockNum)
+						}
 					default:
-						log.Info("[BYZ] unknown target for byzantine attack", "target", field.Target)
+						log.Debug("[BYZ] unknown target for byzantine attack", "target", field.Target)
 					}
+				}
+			}
+
+			// Check for omit attack
+			if at := attacks[btypes.AttackTypeOmitMessage]; at != nil && at.OmitParams != nil {
+				// This will be handled when sending the block to peers
+				// Create a modified block with missing seals
+				modifiedBlockByByzAttack = h.createBlockWithMissingSeals(block, at.OmitParams.Cmd)
+				if modifiedBlockByByzAttack == nil {
+					log.Warn("[BYZ] Failed to create modified block", "cmd", at.OmitParams.Cmd)
+				} else {
+					log.Info("[BYZ] byzantine attack triggered",
+						"name", at.NAME,
+						"uid", at.UID,
+						"seq", blockNum,
+						"cmd", at.OmitParams.Cmd,
+						"original_hash", block.Hash(),
+						"modified_hash", modifiedBlockByByzAttack.Hash())
+					hook.MarkAttackExecuted(at.UID, block.NumberU64())
 				}
 			}
 		}
@@ -645,6 +683,17 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 	}
 	hash := block.Hash()
 	peers := h.peers.peersWithoutBlock(hash)
+
+	// If Byzantine attack filtered specific peers for targeted propagation,
+	// use only those filtered peers instead of all peers without the block
+	if filteredPeers != nil {
+		peers = filteredPeers
+	}
+
+	// Send the block (modified or original) to peers
+	if modifiedBlockByByzAttack != nil {
+		block = modifiedBlockByByzAttack
+	}
 
 	// If propagation is requested, send to a subset of the peer
 	if propagate {

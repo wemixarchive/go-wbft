@@ -86,6 +86,14 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 			delete(result, at)
 			continue
 		}
+
+		log.Trace("[BYZ] Found executable attack",
+			"uid", cfg.UID,
+			"type", cfg.Type,
+			"sequence", sequence,
+			"sequence_range", fmt.Sprintf("%d-%d", cfg.SequenceStart, cfg.SequenceEnd),
+			"execution_count", cfg.ExecutionCount,
+			"code", cfg.Parameters["code"])
 	}
 	return result
 }

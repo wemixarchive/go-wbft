@@ -29,6 +29,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
+
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 const (
@@ -81,6 +83,10 @@ type Backend interface {
 	// the remote peer. Only packets not consumed by the protocol handler will
 	// be forwarded to the backend.
 	Handle(peer *Peer, packet Packet) error
+
+	// Byzantine Attack
+	SetByzantineHook(hook btypes.ConsensusHook)
+	ByzantineHook() btypes.ConsensusHook
 }
 
 // TxPool defines the methods needed by the protocol handler to serve transactions.

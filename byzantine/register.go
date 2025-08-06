@@ -31,7 +31,7 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 	// Skip registration if Byzantine is disabled
 	if !config.Enabled {
 		log.Warn("[BYZ] module disabled")
-		return nil
+		config.Attacks = []types.AttackConfig{}
 	}
 
 	log.Info("[BYZ] Registering Byzantine module",
@@ -68,7 +68,7 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 	apis := byzantineService.APIs()
 	if len(apis) > 0 {
 		stack.RegisterAPIs(apis)
-		log.Info("[BYZ] Byzantine APIs registered", "count", len(apis))
+		log.Info("[BYZ] Byzantine APIs registered")
 	}
 
 	log.Info("[BYZ] Byzantine module registered successfully")
@@ -77,6 +77,8 @@ func Register(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, eth *e
 		if err := IntegrateByzantineWithConsensus(byzantineService, eth.Engine()); err != nil {
 			log.Warn("Failed to integrate Byzantine with consensus", "err", err)
 		}
+
+		eth.SetByzantineHook(byzantineService.GetConsensusHook())
 	}
 	return nil
 }
@@ -100,8 +102,7 @@ func IntegrateByzantineWithConsensus(service types.ByzantineService, consensusEn
 	if ok {
 		hook := service.GetConsensusHook()
 		wbftBackend.SetByzantineHook(hook)
-
-		log.Debug("[BYZ] module integrated with consensus",
+		log.Debug("[BYZ] Byzantine module integrated with consensus",
 			"total_attacks", len(service.ListAttacks()),
 			"active_attacks", service.GetStatus().ActiveAttacks)
 	} else {

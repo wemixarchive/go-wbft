@@ -469,14 +469,6 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 			continue
 		}
 
-		log.Trace("[BYZ] Found executable attack",
-			"uid", config.UID,
-			"type", config.Type,
-			"sequence", sequence,
-			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
-			"execution_count", config.ExecutionCount,
-			"code", config.Parameters["code"])
-
 		return attack, true
 	}
 

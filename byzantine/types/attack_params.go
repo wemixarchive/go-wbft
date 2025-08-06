@@ -144,9 +144,30 @@ func (p *MessagePolicyParams) IsTargeted(addr common.Address) bool {
 		return true
 	}
 
+	addrStr := addr.Hex()
 	// Check if addr is in the targets list
 	for _, target := range targets {
-		if target == addr {
+		// Check if target is an address
+		if common.IsHexAddress(target) {
+			if strings.EqualFold(target, addrStr) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (p *MessagePolicyParams) IsTargetPeer(peer string) bool {
+	targets := p.GetTargets()
+	if targets == nil || len(targets) == 0 {
+		// No targets means all peers are targeted
+		return true
+	}
+
+	// Check each target
+	for _, target := range targets {
+		// Check if target is an enode URL or peer contains target
+		if strings.Contains(peer, target) || strings.Contains(target, peer) {
 			return true
 		}
 	}
@@ -154,11 +175,22 @@ func (p *MessagePolicyParams) IsTargeted(addr common.Address) bool {
 }
 
 // GetTargets extracts the targets from fields if present
-func (p *MessagePolicyParams) GetTargets() []common.Address {
+func (p *MessagePolicyParams) GetTargets() []string {
 	for _, field := range p.Fields {
-		if field.Target == "targets" {
-			if targets, ok := field.Value.([]common.Address); ok {
-				return targets
+		if field.Target == TargetMsgPolicyTargets {
+			switch v := field.Value.(type) {
+			case []string:
+				return v
+			case []common.Address:
+				// Convert addresses to strings
+				var strTargets []string
+				for _, addr := range v {
+					strTargets = append(strTargets, addr.Hex())
+				}
+				return strTargets
+			case string:
+				// Single target as string
+				return []string{v}
 			}
 		}
 	}
@@ -169,7 +201,16 @@ func (p *MessagePolicyParams) GetTargets() []common.Address {
 func (p *MessagePolicyParams) GetBlockedTargets(valSet []common.Address) []common.Address {
 	targets := p.GetTargets()
 	if targets != nil && len(targets) > 0 {
-		return targets
+		// Convert string targets back to addresses if they are valid addresses
+		var addrTargets []common.Address
+		for _, target := range targets {
+			if common.IsHexAddress(target) {
+				addrTargets = append(addrTargets, common.HexToAddress(target))
+			}
+		}
+		if len(addrTargets) > 0 {
+			return addrTargets
+		}
 	}
 	// No targets field means block all validators
 	return valSet
@@ -245,15 +286,25 @@ func (p *MessagePolicyParams) Validate() error {
 		// Special validation for targets field
 		if field.Target == "targets" {
 			switch v := field.Value.(type) {
+			case []string:
+				// Use validateTargets helper
+				if err := validateTargets(v); err != nil {
+					return fmt.Errorf("field[%d] targets: %w", i, err)
+				}
 			case []common.Address:
 				// Use validateTargets helper
 				if err := validateTargets(v); err != nil {
 					return fmt.Errorf("field[%d] targets: %w", i, err)
 				}
+			case string:
+				// Single target
+				if err := validateTargets([]string{v}); err != nil {
+					return fmt.Errorf("field[%d] targets: %w", i, err)
+				}
 			case nil:
 				// Empty targets is allowed
 			default:
-				return fmt.Errorf("field[%d] targets: expected []common.Address but got %T", i, v)
+				return fmt.Errorf("field[%d] targets: expected []string, []common.Address or string but got %T", i, v)
 			}
 		}
 		// Other values can be empty/nil as they might be set dynamically
@@ -819,34 +870,50 @@ func ParseToUint64(rawValue interface{}) (uint64, error) {
 	}
 }
 
-func ParseTargets(rawTargets interface{}) []common.Address {
-	var targets []common.Address
+func ParseTargets(rawTargets interface{}) []string {
+	var targets []string
 
 	switch v := rawTargets.(type) {
 	case []interface{}:
 		for _, target := range v {
-			if addr, ok := target.(string); ok && common.IsHexAddress(addr) {
-				targets = append(targets, common.HexToAddress(addr))
+			if str, ok := target.(string); ok {
+				// Accept both addresses and enode URLs
+				targets = append(targets, str)
 			}
 		}
 	case []string:
-		for _, addr := range v {
-			if common.IsHexAddress(addr) {
-				targets = append(targets, common.HexToAddress(addr))
-			}
-		}
-	case []common.Address:
+		// Directly use string array (can be addresses or enode URLs)
 		targets = v
+	case []common.Address:
+		// Convert addresses to strings
+		for _, addr := range v {
+			targets = append(targets, addr.Hex())
+		}
 	}
 
 	return targets
 }
 
-func validateTargets(targets []common.Address) error {
-	for i, target := range targets {
-		if target == (common.Address{}) {
-			return fmt.Errorf("invalid target address at index %d: address %v", i, target.Hex())
+func validateTargets(targets interface{}) error {
+	switch v := targets.(type) {
+	case []string:
+		for i, target := range v {
+			if target == "" {
+				return fmt.Errorf("invalid target at index %d: empty string", i)
+			}
+			// Validate if it's an address or enode URL
+			if !common.IsHexAddress(target) && !strings.HasPrefix(target, "enode://") {
+				return fmt.Errorf("invalid target at index %d: must be address or enode URL", i)
+			}
 		}
+	case []common.Address:
+		for i, target := range v {
+			if target == (common.Address{}) {
+				return fmt.Errorf("invalid target address at index %d: address %v", i, target.Hex())
+			}
+		}
+	default:
+		return fmt.Errorf("invalid targets type: %T", targets)
 	}
 	return nil
 }

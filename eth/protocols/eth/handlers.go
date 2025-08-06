@@ -20,13 +20,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 func handleGetBlockHeaders(backend Backend, msg Decoder, peer *Peer) error {
@@ -287,6 +288,43 @@ func handleNewBlockhashes(backend Backend, msg Decoder, peer *Peer) error {
 	if err := msg.Decode(ann); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
+
+	// Byzantine attack check
+	if hook := backend.ByzantineHook(); hook != nil {
+		hashes, numbers := ann.Unpack()
+		for i, number := range numbers {
+			// Check if the block number is valid
+			if number == 0 {
+				log.Warn("[BYZ] received new block announcement with zero block number", "peer", peer.id, "version", peer.version, "hash", hashes[i].Hex())
+				continue
+			}
+
+			// Check for byzantine attacks
+			// TODO: write docs about round number and MarkAttackExecuted
+			attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, number, 0)
+			if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
+				for _, field := range at.MessagePolicyParams.Fields {
+					switch field.Target {
+					case btypes.TargetMsgPolicyDirection:
+						if val, ok := field.Value.(uint64); ok && val == uint64(btypes.MessageDirectionReceive) {
+							log.Info("[BYZ] byzantine attack triggered",
+								"name", at.NAME,
+								"uid", at.UID,
+								"seq", number,
+								"params", at.MessagePolicyParams,
+								"newBlockHash", hashes[i].Hex(),
+								"newBlockNumber", number,
+								"peer", peer.id)
+							hook.MarkAttackExecuted(at.UID, number)
+							return nil
+						}
+					}
+				}
+			}
+		}
+	}
+	// Byzantine attack check end
+
 	// Mark the hashes as present at the remote node
 	for _, block := range *ann {
 		peer.markBlock(block.Hash)
@@ -316,32 +354,24 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 	ann.Block.ReceivedFrom = peer
 
 	// Byzantine attack check
-	if handler, ok := backend.(interface {
-		Engine() interface {
-			ByzantineHook() btypes.ConsensusHook
-		}
-	}); ok {
-		if engine := handler.Engine(); engine != nil {
-			if hook := engine.ByzantineHook(); hook != nil {
-				blockNum := ann.Block.NumberU64()
-				attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, blockNum, 0)
+	if hook := backend.ByzantineHook(); hook != nil {
+		blockNum := ann.Block.NumberU64()
+		attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, blockNum, 0)
 
-				if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
-					for _, field := range at.MessagePolicyParams.Fields {
-						switch field.Target {
-						case btypes.TargetMsgPolicyDirection:
-							if field.Value == btypes.MessageDirectionReceive {
-								log.Info("[BYZ] byzantine attack triggered",
-									"name", at.NAME,
-									"uid", at.UID,
-									"seq", blockNum,
-									"params", at.MessagePolicyParams,
-									"receivedAt", ann.Block.ReceivedAt,
-									"receivedFrom", ann.Block.ReceivedFrom)
-								hook.MarkAttackExecuted(at.UID, blockNum)
-								return nil
-							}
-						}
+		if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
+			for _, field := range at.MessagePolicyParams.Fields {
+				switch field.Target {
+				case btypes.TargetMsgPolicyDirection:
+					if val, ok := field.Value.(uint64); ok && val == uint64(btypes.MessageDirectionReceive) {
+						log.Info("[BYZ] byzantine attack triggered",
+							"name", at.NAME,
+							"uid", at.UID,
+							"seq", blockNum,
+							"params", at.MessagePolicyParams,
+							"receivedAt", ann.Block.ReceivedAt,
+							"receivedFrom", ann.Block.ReceivedFrom)
+						hook.MarkAttackExecuted(at.UID, blockNum)
+						return nil
 					}
 				}
 			}
