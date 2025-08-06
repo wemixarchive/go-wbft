@@ -314,6 +314,10 @@ func (c *Core) stopFuturePreprepareTimer() {
 
 func (c *Core) stopTimer() {
 	c.stopFuturePreprepareTimer()
+
+	// Stop retry sending ROUND-CHANGE retry timer
+	c.stopRetrySendingRoundChangeTimer()
+
 	if c.roundChangeTimer != nil {
 		c.roundChangeTimer.Stop()
 	}

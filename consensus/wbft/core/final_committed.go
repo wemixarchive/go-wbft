@@ -27,8 +27,5 @@ import (
 func (c *Core) handleFinalCommittedMsg() error {
 	c.currentLogger(true, nil).Info("WBFT: handle final committed")
 	c.startNewRound(common.Big0)
-
-	// Stop ROUND-CHANGE retry timer
-	c.stopRetrySendingRoundChangeTimer()
 	return nil
 }

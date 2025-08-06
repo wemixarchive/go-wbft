@@ -166,9 +166,6 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 		c.newRoundChangeTimer()
 		c.consensusTimestamp = time.Now()
 
-		// Stop retry sending ROUND-CHANGE retry timer
-		c.stopRetrySendingRoundChangeTimer()
-
 		// Update current state
 		c.current.SetPreprepare(preprepare)
 		c.setState(StatePreprepared)
