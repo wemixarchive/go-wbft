@@ -316,7 +316,7 @@ func (st *StateTransition) buyGas() error {
 
 	st.initialGas = st.msg.GasLimit
 	mgvalU256, _ := uint256.FromBig(mgval)
-	st.state.SubBalance(st.msg.From, mgvalU256)
+	st.state.SubBalance(payer, mgvalU256)
 	return nil
 }
 
