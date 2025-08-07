@@ -308,6 +308,10 @@ func (st *StateTransition) buyGas() error {
 		}
 	}
 
+	if err := st.gp.SubGas(st.msg.GasLimit); err != nil {
+		return err
+	}
+
 	st.gasRemaining += st.msg.GasLimit
 
 	st.initialGas = st.msg.GasLimit
