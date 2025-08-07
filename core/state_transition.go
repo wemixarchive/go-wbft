@@ -282,7 +282,7 @@ func (st *StateTransition) buyGas() error {
 		total := new(big.Int).Add(feeCheck, valCheck)
 		totalU256, overflow := uint256.FromBig(total)
 		if overflow {
-			return fmt.Errorf("%w: address %v required balance exceeds 256 bits", ErrInsufficientFunds, st.msg.From.Hex())
+			return fmt.Errorf("%w: sender %v required balance exceeds 256 bits", ErrInsufficientFunds, st.msg.From.Hex())
 		}
 		if have := st.state.GetBalance(st.msg.From); have.Cmp(totalU256) < 0 {
 			return fmt.Errorf("%w: sender %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, totalU256)
@@ -294,7 +294,7 @@ func (st *StateTransition) buyGas() error {
 		// Check if feePayer has enough to cover the gas fee
 		feeCheckU256, overflow := uint256.FromBig(feeCheck)
 		if overflow {
-			return fmt.Errorf("%w: address %v required balance exceeds 256 bits", ErrInsufficientFunds, payer.Hex())
+			return fmt.Errorf("%w: feePayer %v required balance exceeds 256 bits", ErrInsufficientFunds, payer.Hex())
 		}
 		if have := st.state.GetBalance(payer); have.Cmp(feeCheckU256) < 0 {
 			return fmt.Errorf("%w: feePayer %v have %v want %v", ErrInsufficientFunds, payer.Hex(), have, feeCheckU256)
@@ -303,7 +303,7 @@ func (st *StateTransition) buyGas() error {
 		// Check if sender has enough to cover the value transfer
 		valCheckU256, overflow := uint256.FromBig(valCheck)
 		if overflow {
-			return fmt.Errorf("%w: address %v required value exceeds 256 bits", ErrInsufficientFunds, st.msg.From.Hex())
+			return fmt.Errorf("%w: sender %v required value exceeds 256 bits", ErrInsufficientFunds, st.msg.From.Hex())
 		}
 		if have := st.state.GetBalance(st.msg.From); have.Cmp(valCheckU256) < 0 {
 			return fmt.Errorf("%w: sender %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, valCheckU256)
