@@ -254,9 +254,11 @@ func (st *StateTransition) buyGas() error {
 	mgval.Mul(mgval, st.msg.GasPrice)
 
 	feeCheck := new(big.Int).Set(mgval)
-	if st.msg.GasFeeCap != nil {
-		feeCheck.SetUint64(st.msg.GasLimit)
-		feeCheck.Mul(feeCheck, st.msg.GasFeeCap)
+	if !st.evm.ChainConfig().CroissantEnabled() || st.evm.ChainConfig().IsCroissant(st.evm.Context.BlockNumber) || !isFeeDelegation {
+		if st.msg.GasFeeCap != nil {
+			feeCheck.SetUint64(st.msg.GasLimit)
+			feeCheck.Mul(feeCheck, st.msg.GasFeeCap)
+		}
 	}
 
 	valCheck := new(big.Int).Set(st.msg.Value)
