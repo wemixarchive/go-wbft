@@ -145,7 +145,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "policy.original_send",
+            "target": "policy.original",
             "value": true
           },
           {
@@ -185,7 +185,7 @@
         "code": 2,
         "fields": [
           {
-            "target": "policy.original_send",
+            "target": "policy.original",
             "value": true
           },
           {
@@ -225,7 +225,7 @@
         "code": 4,
         "fields": [
           {
-            "target": "policy.original_send",
+            "target": "policy.original",
             "value": true
           },
           {
@@ -265,7 +265,7 @@
         "code": 1,
         "fields": [
           {
-            "target": "policy.original_send",
+            "target": "policy.original",
             "value": true
           },
           {
@@ -841,6 +841,28 @@
           {
             "target": "msg.sequence",
             "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "name": "broadcast_preprepare_nonproposer",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 144,
+      "seq_e": 147,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "policy.original",
+            "value": true
+          },
+          {
+            "target": "policy.delay",
+            "value": 200
           }
         ]
       }

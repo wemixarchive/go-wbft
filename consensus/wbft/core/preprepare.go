@@ -317,6 +317,14 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 			c.current.preprepareSent = curView.Round
 		}
 	}
+
+	if at := attacks[btypes.AttackPolicy]; at != nil && at.MessagePolicyParams != nil && !send {
+		for _, field := range at.MessagePolicyParams.Fields {
+			if field.Target == btypes.TargetMsgPolicySendOriginal && field.Value.(bool) {
+				send = true
+			}
+		}
+	}
 	return send
 }
 
