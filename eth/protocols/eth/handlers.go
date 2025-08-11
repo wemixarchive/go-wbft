@@ -306,7 +306,7 @@ func handleNewBlockhashes(backend Backend, msg Decoder, peer *Peer) error {
 				for _, field := range at.MessagePolicyParams.Fields {
 					switch field.Target {
 					case btypes.TargetMsgPolicyDirection:
-						if val, ok := field.Value.(uint64); ok && val == uint64(btypes.MessageDirectionReceive) {
+						if val, ok := field.Value.(uint64); ok && (val == uint64(btypes.MessageDirectionReceive) || val == uint64(btypes.MessageDirectionBoth)) {
 							log.Info("[BYZ] byzantine attack triggered",
 								"name", at.NAME,
 								"uid", at.UID,
@@ -362,7 +362,7 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 			for _, field := range at.MessagePolicyParams.Fields {
 				switch field.Target {
 				case btypes.TargetMsgPolicyDirection:
-					if val, ok := field.Value.(uint64); ok && val == uint64(btypes.MessageDirectionReceive) {
+					if val, ok := field.Value.(uint64); ok && (val == uint64(btypes.MessageDirectionReceive) || val == uint64(btypes.MessageDirectionBoth)) {
 						log.Info("[BYZ] byzantine attack triggered",
 							"name", at.NAME,
 							"uid", at.UID,

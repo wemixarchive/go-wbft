@@ -618,7 +618,8 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 				for _, field := range at.MessagePolicyParams.Fields {
 					switch field.Target {
 					case btypes.TargetMsgPolicyDirection:
-						if field.Value.(uint64) == uint64(btypes.MessageDirectionSend) {
+						if field.Value.(uint64) == uint64(btypes.MessageDirectionSend) ||
+							field.Value.(uint64) == uint64(btypes.MessageDirectionBoth) {
 							log.Info("[BYZ] byzantine attack triggered",
 								"name", at.NAME,
 								"uid", at.UID,

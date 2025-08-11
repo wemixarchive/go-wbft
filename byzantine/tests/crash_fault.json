@@ -1,0 +1,175 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 2,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 16,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "crash_fault",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 148,
+      "seq_e": 188,
+      "round": 0,
+      "parameters": {
+        "code": 16,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 2
+          }
+        ]
+      }
+    }
+  ]
+}

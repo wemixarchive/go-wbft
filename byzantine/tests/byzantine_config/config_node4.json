@@ -283,6 +283,23 @@
           }
         ]
       }
+    },
+    {
+      "name": "crash_fault#2",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 189,
+      "seq_e": 200,
+      "round": 0,
+      "parameters": {
+        "code": 31,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 3
+          }
+        ]
+      }
     }
   ]
 }

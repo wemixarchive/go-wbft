@@ -77,6 +77,8 @@ func (mc *MessageCode) Has(flag MessageCode) bool {
 	return (*mc & flag) != 0
 }
 
+func (mc *MessageCode) IsExactMatch(code MessageCode) bool { return *mc == code }
+
 func (mc *MessageCode) Add(flag MessageCode) MessageCode {
 	return *mc | flag
 }
@@ -108,6 +110,26 @@ func (mc *MessageCode) String() string {
 	}
 
 	return strings.Join(codes, "|")
+}
+
+func (mc *MessageCode) GetCodes() []MessageCode {
+	var codes []MessageCode
+	if *mc&MessageCodePrePrepare != 0 {
+		codes = append(codes, MessageCodePrePrepare)
+	}
+	if *mc&MessageCodePrepare != 0 {
+		codes = append(codes, MessageCodePrepare)
+	}
+	if *mc&MessageCodeCommit != 0 {
+		codes = append(codes, MessageCodeCommit)
+	}
+	if *mc&MessageCodeRoundChange != 0 {
+		codes = append(codes, MessageCodeRoundChange)
+	}
+	if *mc&MessageCodePropagation != 0 {
+		codes = append(codes, MessageCodePropagation)
+	}
+	return codes
 }
 
 // ParseMessageCode parses various formats of message code

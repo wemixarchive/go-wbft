@@ -465,7 +465,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 		}
 
 		// Match message code
-		if attackCode != msgCode {
+		if !attackCode.Has(msgCode) {
 			continue
 		}
 

@@ -126,8 +126,8 @@ func (p *MessagePolicyParams) HasMessageCode(code MessageCode) bool {
 func (p *MessagePolicyParams) ShouldBlockSend() bool {
 	for _, field := range p.Fields {
 		if field.Target == TargetMsgPolicyDirection {
-			if v, ok := field.Value.(float64); ok {
-				return v == 1 || v == 3
+			if v, ok := field.Value.(uint64); ok {
+				return v == uint64(MessageDirectionSend) || v == uint64(MessageDirectionBoth)
 			}
 		}
 	}
@@ -138,8 +138,8 @@ func (p *MessagePolicyParams) ShouldBlockSend() bool {
 func (p *MessagePolicyParams) ShouldBlockReceive() bool {
 	for _, field := range p.Fields {
 		if field.Target == TargetMsgPolicyDirection {
-			if v, ok := field.Value.(float64); ok {
-				return v == 2 || v == 3
+			if v, ok := field.Value.(uint64); ok {
+				return v == uint64(MessageDirectionReceive) || v == uint64(MessageDirectionBoth)
 			}
 		}
 	}

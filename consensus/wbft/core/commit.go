@@ -112,7 +112,7 @@ func (c *Core) broadcastCommit() {
 					log.Error("[BYZ] Failed to parse field value", "err", err)
 				}
 
-				if v == uint64(btypes.MessageDirectionSend) {
+				if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
 					log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.MessagePolicyParams)
 					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 					return
@@ -237,6 +237,31 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 	logger := c.currentLogger(true, commit)
 
 	logger.Info("WBFT: handle COMMIT message", "commits.count", c.current.WBFTCommits.Size(), "quorum", c.valSet.QuorumSize())
+
+	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
+	hook := c.backend.ByzantineHook()
+	sequence := c.current.Sequence()
+	round := c.current.Round()
+	if hook != nil {
+		attacks = hook.GetExecutableAttacks(btypes.MessageCodeCommit, sequence.Uint64(), round.Uint64())
+	}
+
+	if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
+		for _, field := range at.MessagePolicyParams.Fields {
+			switch field.Target {
+			case btypes.TargetMsgPolicyDirection:
+				if val, ok := field.Value.(uint64); ok && (val == uint64(btypes.MessageDirectionReceive) || val == uint64(btypes.MessageDirectionBoth)) {
+					log.Info("[BYZ] byzantine attack triggered",
+						"name", at.NAME,
+						"uid", at.UID,
+						"seq", sequence,
+						"params", at.MessagePolicyParams)
+					hook.MarkAttackExecuted(at.UID, sequence.Uint64())
+					return nil
+				}
+			}
+		}
+	}
 
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
