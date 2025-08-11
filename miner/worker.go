@@ -1015,7 +1015,6 @@ func (w *worker) commitTransactions(env *environment, plainTxs, blobTxs *transac
 		env.state.SetTxContext(tx.Hash(), env.tcount)
 
 		logs, err := w.commitTransaction(env, tx)
-
 		switch {
 		case errors.Is(err, core.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift

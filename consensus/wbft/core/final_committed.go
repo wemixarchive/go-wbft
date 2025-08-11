@@ -23,7 +23,9 @@ package core
 import (
 	"math/big"
 
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func (c *Core) handleFinalCommittedMsg() error {
