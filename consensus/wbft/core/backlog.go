@@ -26,6 +26,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
+	"github.com/ethereum/go-ethereum/log"
+
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 )
 
@@ -104,6 +107,47 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
 		return errInvalidMessage
 	}
+
+	seq := view.Sequence.Uint64()
+	round := view.Round.Uint64()
+	var attackGroups []map[btypes.AttackType]*btypes.ExecutableAttack
+	hook := c.backend.ByzantineHook()
+	if hook != nil {
+		attackGroups = []map[btypes.AttackType]*btypes.ExecutableAttack{
+			hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, seq, round),
+			hook.GetExecutableAttacks(btypes.MessageCodePrepare, seq, round),
+			hook.GetExecutableAttacks(btypes.MessageCodeCommit, seq, round),
+			hook.GetExecutableAttacks(btypes.MessageCodeRoundChange, seq, round),
+		}
+	}
+
+	isMessagePolicy := func(at *btypes.ExecutableAttack) (*btypes.MessagePolicyParams, string, string, bool) {
+		if at == nil || at.MessagePolicyParams == nil {
+			return nil, "", "", false
+		}
+
+		for _, field := range at.MessagePolicyParams.Fields {
+			if field.Target == btypes.TargetMsgPolicyDirection {
+				v, err := field.ValueToUint64()
+				if err != nil {
+					log.Error("[BYZ] Failed to parse field value", "err", err)
+				}
+				return at.MessagePolicyParams, at.NAME, at.UID, v == 2
+			}
+		}
+
+		return at.MessagePolicyParams, at.NAME, at.UID, false
+	}
+
+	// check silent
+	for _, group := range attackGroups {
+		if params, name, uid, ok := isMessagePolicy(group[btypes.AttackTypeMessagePolicy]); ok {
+			log.Info("[BYZ] byzantine attack triggered", "name", name, "uid", uid, "seq", seq, "params", params)
+			hook.MarkAttackExecuted(uid, seq)
+			return errInvalidMessage
+		}
+	}
+	/////////////////////////////////////
 
 	// Drop the message if the view's sequence or round number is too far ahead
 	// This prevents processing of messages that may disrupt consensus due to excessive lead
