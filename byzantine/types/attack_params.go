@@ -4,11 +4,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/byzantine/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto/bls"
 )
+
+// FakeBLSKey represents a fake BLS key with associated address
+type FakeBLSKey struct {
+	Address   common.Address
+	SecretKey bls.SecretKey
+	PublicKey bls.PublicKey
+}
 
 // Field represents a generic field with target and value
 type Field struct {
@@ -892,6 +902,219 @@ func ParseTargets(rawTargets interface{}) []string {
 	}
 
 	return targets
+}
+
+// ParseFakeBLSKeys parses the value field to extract or generate fake BLS keys
+// Returns a slice of FakeBLSKey containing address, secret key, and public key
+func ParseFakeBLSKeys(value interface{}) ([]*FakeBLSKey, bool) {
+	// Check if value is nil
+	if value == nil {
+		// Generate random BLS key
+		secretKey, err := bls.GenerateKey(nil)
+		if err != nil {
+			return nil, false
+		}
+		publicKey := secretKey.PublicKey()
+		addr := utils.GenerateRandomAddress()
+		return []*FakeBLSKey{{
+			Address:   addr,
+			SecretKey: secretKey,
+			PublicKey: publicKey,
+		}}, true
+	}
+
+	switch v := value.(type) {
+	case string:
+		// Check if it's "nil" string
+		if v == "nil" {
+			key, _ := crypto.GenerateKey()
+			// Generate random BLS key
+			blsKey, err := bls.DeriveFromECDSA(key)
+			if err != nil {
+				return nil, false
+			}
+			publicKey := blsKey.PublicKey()
+			addr := utils.GenerateRandomAddress()
+			return []*FakeBLSKey{{
+				Address:   addr,
+				SecretKey: blsKey,
+				PublicKey: publicKey,
+			}}, true
+		}
+		// Try to parse as hex BLS secret key (longer than address)
+		if strings.HasPrefix(v, "0x") && len(v) > 42 {
+			// Remove 0x prefix
+			hexStr := strings.TrimPrefix(v, "0x")
+			if keyBytes, err := hex.DecodeString(hexStr); err == nil && len(keyBytes) == 32 {
+				if secretKey, err := bls.GenerateKey(keyBytes); err == nil {
+					publicKey := secretKey.PublicKey()
+					// Generate address from public key or use provided one
+					addr := utils.GenerateRandomAddress()
+					return []*FakeBLSKey{{
+						Address:   addr,
+						SecretKey: secretKey,
+						PublicKey: publicKey,
+					}}, true
+				}
+			}
+		}
+		// Otherwise treat as address and generate BLS key
+		if common.IsHexAddress(v) {
+			addr := common.HexToAddress(v)
+			// Generate deterministic BLS key from address
+			seed := make([]byte, 32)
+			copy(seed[:20], addr.Bytes())
+			secretKey, err := bls.GenerateKey(seed)
+			if err != nil {
+				return nil, false
+			}
+			publicKey := secretKey.PublicKey()
+			return []*FakeBLSKey{{
+				Address:   addr,
+				SecretKey: secretKey,
+				PublicKey: publicKey,
+			}}, true
+		}
+	case []string:
+		// Multiple BLS keys or addresses
+		keys := make([]*FakeBLSKey, 0, len(v))
+		for _, item := range v {
+			if item == "nil" {
+				// Generate random BLS key for "nil" entry
+				secretKey, err := bls.GenerateKey(nil)
+				if err != nil {
+					continue
+				}
+				publicKey := secretKey.PublicKey()
+				addr := utils.GenerateRandomAddress()
+				keys = append(keys, &FakeBLSKey{
+					Address:   addr,
+					SecretKey: secretKey,
+					PublicKey: publicKey,
+				})
+			} else if strings.HasPrefix(item, "0x") && len(item) > 42 {
+				// Try to parse as BLS secret key
+				hexStr := strings.TrimPrefix(item, "0x")
+				if keyBytes, err := hex.DecodeString(hexStr); err == nil && len(keyBytes) == 32 {
+					if secretKey, err := bls.GenerateKey(keyBytes); err == nil {
+						publicKey := secretKey.PublicKey()
+						addr := utils.GenerateRandomAddress()
+						keys = append(keys, &FakeBLSKey{
+							Address:   addr,
+							SecretKey: secretKey,
+							PublicKey: publicKey,
+						})
+					}
+				}
+			} else if common.IsHexAddress(item) {
+				// Generate BLS key from address
+				addr := common.HexToAddress(item)
+				seed := make([]byte, 32)
+				copy(seed[:20], addr.Bytes())
+				secretKey, err := bls.GenerateKey(seed)
+				if err != nil {
+					continue
+				}
+				publicKey := secretKey.PublicKey()
+				keys = append(keys, &FakeBLSKey{
+					Address:   addr,
+					SecretKey: secretKey,
+					PublicKey: publicKey,
+				})
+			}
+		}
+		if len(keys) > 0 {
+			return keys, true
+		}
+	case []interface{}:
+		// Handle []interface{} case
+		keys := make([]*FakeBLSKey, 0, len(v))
+		for _, item := range v {
+			switch val := item.(type) {
+			case string:
+				if val == "nil" {
+					// Generate random BLS key for "nil" entry
+					secretKey, err := bls.GenerateKey(nil)
+					if err != nil {
+						continue
+					}
+					publicKey := secretKey.PublicKey()
+					addr := utils.GenerateRandomAddress()
+					keys = append(keys, &FakeBLSKey{
+						Address:   addr,
+						SecretKey: secretKey,
+						PublicKey: publicKey,
+					})
+				} else if strings.HasPrefix(val, "0x") && len(val) > 42 {
+					// Try to parse as BLS secret key
+					hexStr := strings.TrimPrefix(val, "0x")
+					if keyBytes, err := hex.DecodeString(hexStr); err == nil && len(keyBytes) == 32 {
+						if secretKey, err := bls.GenerateKey(keyBytes); err == nil {
+							publicKey := secretKey.PublicKey()
+							addr := utils.GenerateRandomAddress()
+							keys = append(keys, &FakeBLSKey{
+								Address:   addr,
+								SecretKey: secretKey,
+								PublicKey: publicKey,
+							})
+						}
+					}
+				} else if common.IsHexAddress(val) {
+					// Generate BLS key from address
+					addr := common.HexToAddress(val)
+					seed := make([]byte, 32)
+					copy(seed[:20], addr.Bytes())
+					secretKey, err := bls.GenerateKey(seed)
+					if err != nil {
+						continue
+					}
+					publicKey := secretKey.PublicKey()
+					keys = append(keys, &FakeBLSKey{
+						Address:   addr,
+						SecretKey: secretKey,
+						PublicKey: publicKey,
+					})
+				}
+			case map[string]interface{}:
+				// Handle object format with address and secretKey fields
+				if addrStr, ok := val["address"].(string); ok {
+					addr := common.HexToAddress(addrStr)
+					if secretKeyStr, ok := val["secretKey"].(string); ok {
+						// Parse provided secret key
+						hexStr := strings.TrimPrefix(secretKeyStr, "0x")
+						if keyBytes, err := hex.DecodeString(hexStr); err == nil && len(keyBytes) == 32 {
+							if secretKey, err := bls.GenerateKey(keyBytes); err == nil {
+								publicKey := secretKey.PublicKey()
+								keys = append(keys, &FakeBLSKey{
+									Address:   addr,
+									SecretKey: secretKey,
+									PublicKey: publicKey,
+								})
+							}
+						}
+					} else {
+						// Generate BLS key from address
+						seed := make([]byte, 32)
+						copy(seed[:20], addr.Bytes())
+						secretKey, err := bls.GenerateKey(seed)
+						if err != nil {
+							continue
+						}
+						publicKey := secretKey.PublicKey()
+						keys = append(keys, &FakeBLSKey{
+							Address:   addr,
+							SecretKey: secretKey,
+							PublicKey: publicKey,
+						})
+					}
+				}
+			}
+		}
+		if len(keys) > 0 {
+			return keys, true
+		}
+	}
+	return nil, false
 }
 
 func validateTargets(targets interface{}) error {

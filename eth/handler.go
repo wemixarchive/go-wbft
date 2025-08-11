@@ -662,8 +662,26 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 						"seq", blockNum,
 						"cmd", at.OmitParams.Cmd,
 						"original_hash", block.Hash(),
-						"modified_hash", modifiedBlockByByzAttack.Hash())
+						"modified_hash", modifiedBlockByByzAttack.Hash(),
+						"params", at.OmitParams)
 					hook.MarkAttackExecuted(at.UID, block.NumberU64())
+				}
+			}
+
+			if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil {
+				modifiedBlockByByzAttack = h.createBlockWithFakeSeals(block, at.FakeParams)
+				if modifiedBlockByByzAttack == nil {
+					log.Warn("[BYZ] Failed to create modified block", "fakeFields", at.FakeParams.Fields)
+				} else {
+					log.Info("[BYZ] byzantine attack triggered",
+						"name", at.NAME,
+						"uid", at.UID,
+						"seq", blockNum,
+						"original_hash", block.Hash(),
+						"modified_hash", modifiedBlockByByzAttack.Hash(),
+						"targetPeers", len(filteredPeers),
+						"params", at.FakeParams)
+					hook.MarkAttackExecuted(at.UID, blockNum)
 				}
 			}
 		}

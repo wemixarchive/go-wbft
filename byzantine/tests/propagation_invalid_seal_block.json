@@ -1,0 +1,42 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "propagation_invalid_seal_block",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 10,
+      "seq_e": 100,
+      "round": 0,
+      "parameters": {
+        "code": 16,
+        "fields": [
+          {
+            "target": "policy.targets",
+            "value": [
+              "enode://86d9d1a3ee391282404d34f9d70aacd1f924c148d7cf13be3caa7f3c0d0022c65b863b389d8c0147c051f920784c846ec901ea2701abd9bcecfabc4473bfa0c4",
+              "enode://c8bef0052b43a3db9e52902731aa588d2d19a43b9852ebd9d26299f6c409c992cb43250c7b25894537404007fed0dd57e4c2b514df6322c9898dfd332ab48041"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "propagation_invalid_seal_block",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 10,
+      "seq_e": 100,
+      "round": 0,
+      "parameters": {
+        "code": 16,
+        "fields": [
+          {
+            "target": "seal.prepare",
+            "value": "nil"
+          }
+        ]
+      }
+    }
+  ]
+}

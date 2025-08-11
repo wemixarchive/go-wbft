@@ -31,23 +31,6 @@
         "code": 16,
         "cmd": 2
       }
-    },
-    {
-      "name": "block_propagation_denial_policy",
-      "type": "policy",
-      "enabled": true,
-      "seq_s": 101,
-      "seq_e": 200,
-      "round": 0,
-      "parameters": {
-        "code": 16,
-        "fields": [
-          {
-            "target": "policy.direction",
-            "value": 2
-          }
-        ]
-      }
     }
   ]
 }
