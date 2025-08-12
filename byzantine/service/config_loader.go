@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -79,13 +80,23 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 		Enabled           bool                   `json:"enabled"`
 		SequenceStart     uint64                 `json:"seq_s"`
 		SequenceEnd       uint64                 `json:"seq_e"`
-		Round             uint64                 `json:"round"`
+		Round             int64                  `json:"round"`
 		MaxExecutionCount uint64                 `json:"max_execution_count,omitempty"`
 		Parameters        map[string]interface{} `json:"parameters,omitempty"`
 	}
 
 	if err := json.Unmarshal(raw, &basicConfig); err != nil {
 		return types.AttackConfig{}, fmt.Errorf("failed to unmarshal attack config: %w", err)
+	}
+
+	// Handle round wildcard: -1 means all rounds
+	var round uint64
+	if basicConfig.Round == -1 {
+		round = math.MaxUint64
+	} else if basicConfig.Round >= 0 {
+		round = uint64(basicConfig.Round)
+	} else {
+		return types.AttackConfig{}, fmt.Errorf("invalid round number: %d", basicConfig.Round)
 	}
 
 	// Create attack config
@@ -95,7 +106,7 @@ func (cl *ConfigLoader) parseAttackConfig(raw json.RawMessage) (types.AttackConf
 		Enabled:           basicConfig.Enabled,
 		SequenceStart:     basicConfig.SequenceStart,
 		SequenceEnd:       basicConfig.SequenceEnd,
-		Round:             basicConfig.Round,
+		Round:             round,
 		Parameters:        basicConfig.Parameters,
 		MaxExecutionCount: basicConfig.MaxExecutionCount,
 		Status:            types.AttackStatusPending,

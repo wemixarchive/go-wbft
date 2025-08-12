@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -428,7 +429,7 @@ func (m *AttackManager) FindExecutableAttack(attackType types.AttackType,
 		}
 
 		// Check round
-		if config.Round != round {
+		if config.Round != math.MaxUint64 && config.Round != round {
 			continue
 		}
 

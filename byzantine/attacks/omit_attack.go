@@ -3,6 +3,8 @@ package attacks
 import (
 	"context"
 	"fmt"
+	"math"
+	
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -52,8 +54,8 @@ func (a *OmitMessageAttack) CheckExecuteCondition(ctx context.Context, event typ
 		return false
 	}
 
-	// Check round
-	if event.Round != config.Round {
+	// Check round - math.MaxUint64 means match all rounds
+	if config.Round != math.MaxUint64 && event.Round != config.Round {
 		return false
 	}
 

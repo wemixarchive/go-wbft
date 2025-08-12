@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -122,6 +123,7 @@ func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
 		Type       string          `json:"type"`
 		Parameters json.RawMessage `json:"parameters,omitempty"`
 		Sequence   *uint64         `json:"sequence,omitempty"`
+		Round      *int64          `json:"round,omitempty"` // Accept int64 to handle -1
 	}{
 		Alias: (*Alias)(ac),
 	}
@@ -135,6 +137,15 @@ func (ac *AttackConfig) UnmarshalJSON(data []byte) error {
 	if aux.Sequence != nil {
 		ac.SequenceStart = *aux.Sequence
 		ac.SequenceEnd = 0
+	}
+
+	// Handle round wildcard: -1 means all rounds
+	if aux.Round != nil {
+		if *aux.Round == -1 {
+			ac.Round = math.MaxUint64 // Use MaxUint64 as wildcard
+		} else if *aux.Round >= 0 {
+			ac.Round = uint64(*aux.Round)
+		}
 	}
 
 	if len(aux.Parameters) > 0 {

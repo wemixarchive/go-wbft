@@ -3,6 +3,7 @@ package attacks
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/byzantine/registry"
@@ -56,8 +57,8 @@ func (a *RoleSpoofedAttack) CheckExecuteCondition(ctx context.Context, event typ
 		return false
 	}
 
-	// Check round
-	if event.Round != config.Round {
+	// Check round - math.MaxUint64 means match all rounds
+	if config.Round != math.MaxUint64 && event.Round != config.Round {
 		return false
 	}
 

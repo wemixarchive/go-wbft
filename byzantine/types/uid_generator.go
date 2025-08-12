@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -24,12 +25,14 @@ func (ug *UIDGeneratorImpl) Generate(attackType AttackType, sequence, round uint
 
 // GenerateWithRange creates UID with range support - 4 parameters
 // Format: "attackType-sequenceStart[-sequenceEnd]-round"
+// If round is MaxUint64, it will be represented as "all"
 func (ug *UIDGeneratorImpl) GenerateWithRange(attackType AttackType, sequenceStart, sequenceEnd, round uint64) string {
 	typeStr := AttackTypeToString(attackType)
 
-	//if sequenceEnd == 0 || sequenceEnd == sequenceStart {
-	//	return fmt.Sprintf("%s-%d-%d", typeStr, sequenceStart, round)
-	//}
+	// Handle round wildcard
+	if round == math.MaxUint64 {
+		return fmt.Sprintf("%s-%d-%d-all", typeStr, sequenceStart, sequenceEnd)
+	}
 
 	return fmt.Sprintf("%s-%d-%d-%d", typeStr, sequenceStart, sequenceEnd, round)
 }
@@ -75,9 +78,14 @@ func (ug *UIDGeneratorImpl) ParseRange(uid string) (AttackType, uint64, uint64, 
 			return "", 0, 0, 0, fmt.Errorf("invalid sequence end: %s", parts[2])
 		}
 
-		round, err = strconv.ParseUint(parts[3], 10, 64)
-		if err != nil && parts[3] != "*" {
-			return "", 0, 0, 0, fmt.Errorf("invalid round: %s", parts[3])
+		// Handle "all" for round wildcard
+		if parts[3] == "all" {
+			round = math.MaxUint64
+		} else {
+			round, err = strconv.ParseUint(parts[3], 10, 64)
+			if err != nil && parts[3] != "*" {
+				return "", 0, 0, 0, fmt.Errorf("invalid round: %s", parts[3])
+			}
 		}
 	}
 
