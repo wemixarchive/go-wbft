@@ -61,7 +61,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 			var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 
-			hook := c.backend.ByzantineHook()
+			hook := c.GetByzantineHook()
 			if hook != nil {
 				attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
 			}
@@ -80,7 +80,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 				return
 			}
 
-			if c.sendByzantinePreprepareMsg(hook, request, attacks) {
+			if c.sendByzantinePreprepareMsg(request, attacks) {
 				if !c.handleMessagePolicyAttack(hook, attacks) {
 					// Set the preprepareSent to the current round
 					c.current.preprepareSent = curView.Round
@@ -126,19 +126,57 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 			logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
 
-			if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
-				for _, field := range at.MessagePolicyParams.Fields {
-					if field.Target == btypes.TargetMsgPolicyDirection {
-						v, err := field.ValueToUint64()
-						if err != nil {
-							log.Error("[BYZ] Failed to parse field value", "err", err)
+			modifiedValSet := c.valSet.Copy()
+			if c.IsExecuteAttack(attacks, btypes.AttackTypeMessagePolicy) {
+				isExistSpecificTargets := false
+				isExecuteDropMessage := false
+				messagePolicyParams := attacks[btypes.AttackTypeMessagePolicy].MessagePolicyParams
+				for _, field := range messagePolicyParams.Fields {
+					switch field.Target {
+					case btypes.TargetMsgPolicyTargets:
+						targetList := field.Value.([]string)
+						for _, v := range targetList {
+							if v != "" {
+								// specific address
+								validators := modifiedValSet.List()
+								for _, validator := range validators {
+									if !messagePolicyParams.IsTargetPeer(validator.Address().String()) {
+										modifiedValSet.RemoveValidator(validator.Address())
+									}
+								}
+							}
 						}
 
-						if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
-							log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "params", at.MessagePolicyParams)
-							hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-							return
+						if modifiedValSet.Size() != 0 && modifiedValSet.Size() != c.valSet.Size() {
+							isExistSpecificTargets = true
 						}
+					case btypes.TargetMsgPolicyDirection:
+						if v, err := field.ValueToUint64(); err != nil {
+							log.Error("[BYZ] Failed to parse field value", "err", err)
+						} else {
+							if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
+								isExecuteDropMessage = true
+							}
+						}
+					}
+				}
+				if isExecuteDropMessage {
+					log.Info("[BYZ] byzantine attack triggered",
+						"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
+						"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
+						"seq", curView.Sequence.Uint64(),
+						"params", messagePolicyParams)
+					c.MarkAttackExecuted(attacks[btypes.AttackTypeMessagePolicy].UID, curView.Sequence.Uint64())
+					if isExistSpecificTargets {
+						targetList := modifiedValSet.List()
+						for _, target := range targetList {
+							c.valSet.RemoveValidator(target.Address())
+						}
+					} else {
+						// NOTE:
+						// If a message drop exists and no specific targets exist,
+						// the message drop should be performed for all targets.
+						return
 					}
 				}
 			}
@@ -163,14 +201,14 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			}
 
 			if at := attacks[btypes.AttackTypeRoleSpoofed]; at != nil && at.RoleSpoofParams != nil {
-				if c.sendByzantinePreprepareMsg(hook, request, attacks) {
+				if c.sendByzantinePreprepareMsg(request, attacks) {
 				}
 			}
 		}
 	}
 }
 
-func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Request, attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
+func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.AttackType]*btypes.ExecutableAttack) bool {
 	if len(attacks) == 0 {
 		return false
 	}
@@ -200,7 +238,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				preprepare = wbfmessage.NewPreprepare(sequence, round, proposal)
 			}
 			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
-			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+			c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
 			log.Warn("[BYZ] No preprepare message found in storage")
 		}
@@ -218,7 +256,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 					send = true
 					fakeAttackExecute = true
 					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.FakeParams)
-					hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+					c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				}
 			}
 		}
@@ -244,7 +282,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				}
 				send = true
 				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
-				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+				c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				preprepare.Proposal.SetNumber(val)
 			}
 		}
@@ -276,7 +314,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				send = true
 				preprepare.JustificationRoundChanges = nil
 				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
-				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+				c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
 	}
@@ -291,7 +329,7 @@ func (c *Core) sendByzantinePreprepareMsg(hook btypes.ConsensusHook, request *Re
 				send = true
 				preprepare.JustificationPrepares = nil
 				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
-				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+				c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
 	}
@@ -347,19 +385,59 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 		attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, sequence.Uint64(), round.Uint64())
 	}
 
-	if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
-		for _, field := range at.MessagePolicyParams.Fields {
+	modifiedValSet := c.valSet.Copy()
+	if c.IsExecuteAttack(attacks, btypes.AttackTypeMessagePolicy) {
+		isExistSpecificTargets := false
+		isExecuteDropMessage := false
+		messagePolicyParams := attacks[btypes.AttackTypeMessagePolicy].MessagePolicyParams
+		for _, field := range messagePolicyParams.Fields {
 			switch field.Target {
-			case btypes.TargetMsgPolicyDirection:
-				if val, ok := field.Value.(uint64); ok && (val == uint64(btypes.MessageDirectionReceive) || val == uint64(btypes.MessageDirectionBoth)) {
-					log.Info("[BYZ] byzantine attack triggered",
-						"name", at.NAME,
-						"uid", at.UID,
-						"seq", sequence,
-						"params", at.MessagePolicyParams)
-					hook.MarkAttackExecuted(at.UID, sequence.Uint64())
-					return nil
+			case btypes.TargetMsgPolicyTargets:
+				targetList := field.Value.([]string)
+				for _, v := range targetList {
+					if v != "" {
+						// specific address
+						validators := modifiedValSet.List()
+						for _, validator := range validators {
+							if !messagePolicyParams.IsTargetPeer(validator.Address().String()) {
+								modifiedValSet.RemoveValidator(validator.Address())
+							}
+						}
+					}
 				}
+
+				if modifiedValSet.Size() != 0 && modifiedValSet.Size() != c.valSet.Size() {
+					isExistSpecificTargets = true
+				}
+			case btypes.TargetMsgPolicyDirection:
+				if v, err := field.ValueToUint64(); err != nil {
+					log.Error("[BYZ] Failed to parse field value", "err", err)
+				} else {
+					if v == uint64(btypes.MessageDirectionReceive) || v == uint64(btypes.MessageDirectionBoth) {
+						isExecuteDropMessage = true
+					}
+				}
+			}
+		}
+		if isExecuteDropMessage {
+			log.Info("[BYZ] byzantine attack triggered",
+				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
+				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
+				"seq", sequence.Uint64(),
+				"params", messagePolicyParams)
+			c.MarkAttackExecuted(attacks[btypes.AttackTypeMessagePolicy].UID, sequence.Uint64())
+			if isExistSpecificTargets {
+				targetList := modifiedValSet.List()
+				for _, target := range targetList {
+					if target.Address() == preprepare.Source() {
+						return nil
+					}
+				}
+			} else {
+				// NOTE:
+				// If a message drop exists and no specific targets exist,
+				// the message drop should be performed for all targets.
+				return nil
 			}
 		}
 	}

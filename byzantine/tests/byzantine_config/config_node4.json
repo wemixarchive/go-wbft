@@ -288,12 +288,38 @@
       "name": "crash_fault#2",
       "type": "policy",
       "enabled": true,
-      "seq_s": 189,
+      "seq_s": 190,
       "seq_e": 200,
       "round": 0,
       "parameters": {
         "code": 31,
         "fields": [
+          {
+            "target": "policy.direction",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "network_partition",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 201,
+      "seq_e": 300,
+      "round": -1,
+      "parameters": {
+        "code": 31,
+        "fields": [
+          {
+            "target": "policy.targets",
+            "value": [
+              "0x2493a84a8f83cb87fdcbe0bb3b2d313f69a58d3c",
+              "0x8c4a10b9108d49b9d23f764464090831d9c17764",
+              "0x5400d8b543eaf6738c7b44799623bea88fd0f5ee",
+              "0xd387d41c2c6cf96b09924845d1eac9860c34041b"
+            ]
+          },
           {
             "target": "policy.direction",
             "value": 3

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -13,17 +14,79 @@ import (
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
+func (c *Core) GetByzantineHook() btypes.ConsensusHook {
+	return c.backend.ByzantineHook()
+}
+
+func (c *Core) GetByzantineAttacks(msgCode btypes.MessageCode, sequence, round uint64) map[btypes.AttackType]*btypes.ExecutableAttack {
+	hook := c.GetByzantineHook()
+	if hook == nil {
+		log.Warn("[BYZ] byzantine hook is nil")
+		return nil
+	}
+	return hook.GetExecutableAttacks(msgCode, sequence, round)
+}
+
+func (c *Core) MarkAttackExecuted(uid string, sequence uint64) error {
+	if hook := c.GetByzantineHook(); hook != nil {
+		return c.GetByzantineHook().MarkAttackExecuted(uid, sequence)
+	}
+	return errors.New("[BYZ] not found by byzantine hook")
+}
+
+func (c *Core) IsExecuteAttack(attacks map[btypes.AttackType]*btypes.ExecutableAttack, attackType btypes.AttackType) bool {
+	if at := attacks[attackType]; at != nil {
+		switch attackType {
+		case btypes.AttackTypeMessagePolicy:
+			if at.MessagePolicyParams != nil {
+				return true
+			}
+		case btypes.AttackTypeTamperedMessage:
+			if at.TamperParams != nil {
+				return true
+			}
+		case btypes.AttackTypeFakeMessage:
+			if at.FakeParams != nil {
+				return true
+			}
+		case btypes.AttackTypeOmitMessage:
+			if at.OmitParams != nil {
+				return true
+			}
+		case btypes.AttackTypeRoleSpoofed:
+			if at.RoleSpoofParams != nil {
+				return true
+			}
+		case btypes.AttackTypeReplay:
+			if at.ReplayParams != nil {
+				return true
+			}
+		case btypes.AttackTypeStoreMessage:
+			if at.StoreMessageParams != nil {
+				return true
+			}
+		case btypes.AttackTypeDos:
+			if at.DosParams != nil {
+				return true
+			}
+		default:
+			return false
+		}
+	}
+	return false
+}
+
 func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 	// Byzantine logic: Check if we have a role spoof attack configured
-	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
-	hook := c.backend.ByzantineHook()
 	sequence := c.current.Sequence()
 	round := c.current.Round()
-	if hook != nil {
-		attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, sequence.Uint64(), round.Uint64())
+	attacks := c.GetByzantineAttacks(btypes.MessageCodePrePrepare, sequence.Uint64(), round.Uint64())
+	if attacks == nil {
+		return errors.New("[BYZ] byzantine hook is nil")
 	}
 
-	if at := attacks[btypes.AttackTypeRoleSpoofed]; at != nil && at.RoleSpoofParams != nil {
+	if c.IsExecuteAttack(attacks, btypes.AttackTypeRoleSpoofed) {
+		roleSpoofParams := attacks[btypes.AttackTypeRoleSpoofed].RoleSpoofParams
 		currentRound := c.currentView().Round
 
 		log.Info("[BYZ] WBFT: received quorum of ROUND-CHANGE messages")
@@ -64,7 +127,7 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 			PrepareMessages: prepareMessages,
 		}
 
-		c.sendByzantinePreprepareMsg(hook, r, attacks)
+		c.sendByzantinePreprepareMsg(r, attacks)
 
 		if len(attacks) == 0 {
 			return fmt.Errorf("no byzantine attack configured for PrePrepare message")
@@ -79,7 +142,7 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 		preprepare.SetSource(c.Address())
 
 		roleSpoofAttackExecute := false
-		for _, field := range at.RoleSpoofParams.Fields {
+		for _, field := range roleSpoofParams.Fields {
 			switch field.Target {
 			case btypes.RoleProposer:
 				if !c.IsProposer() {
@@ -143,20 +206,18 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 
 			c.current.preprepareSent = curView.Round
 			log.Info("[BYZ] attack",
-				"name", at.NAME,
-				"uid", at.UID,
+				"name", attacks[btypes.AttackTypeRoleSpoofed].NAME,
+				"uid", attacks[btypes.AttackTypeRoleSpoofed].UID,
 				"seq", c.current.Sequence().Uint64(),
-				"params", at.RoleSpoofParams,
+				"params", roleSpoofParams,
 				"actual_proposer", c.valSet.GetProposer().Address(),
 				"byzantine_node", c.Address(),
 				"has_rc_messages", r.RCMessages != nil)
 
-			if hook != nil {
-				err := hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
-				if err != nil {
-					log.Warn("[BYZ] Attack Executed Mark Error", "err", err)
-				}
+			if err := c.MarkAttackExecuted(attacks[btypes.AttackTypeRoleSpoofed].UID, c.current.Sequence().Uint64()); err != nil {
+				log.Warn("[BYZ] Attack Executed Mark Error", "err", err)
 			}
+
 			return nil
 		}
 		return fmt.Errorf("[BYZ] Role spoof attack executed, but no PRE-PREPARE message sent")
