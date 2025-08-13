@@ -362,7 +362,7 @@ func (e *Engine) verifyPrevSeals(header *types.Header, parent *types.Header, pre
 		return wbftcommon.ErrEmptyPrevCommittedSeals
 	} else {
 		if err := verifyAggregatedSeal(prevValidators, parent, extra.PrevRound, prevCommittedSeal, core.SealTypeCommit); err != nil {
-			log.Error("WBFT: failed to verify previous commited seal", "number", parent.Number, "round", extra.PrevRound, "err", err)
+			log.Error("WBFT: failed to verify previous committed seal", "number", parent.Number, "round", extra.PrevRound, "err", err)
 			return wbftcommon.ErrInvalidPrevCommittedSeals
 		}
 	}
