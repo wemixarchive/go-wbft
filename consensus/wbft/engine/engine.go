@@ -672,7 +672,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 				submittedSealsInEpoch[addr]++
 			}
 
-			log.Trace("Seals count", "current block number", it.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
+			log.Trace("WBFT: Seals count", "current block number", it.Number, "prepareSigners", prepareSigners, "commitSigners", commitSigners)
 		}
 
 		// Update current header.
@@ -738,7 +738,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 		lastProposer = proposer
 	}
 
-	log.Trace("Seals counts in epoch", "header.number", header.Number,
+	log.Trace("WBFT: Seals counts in epoch", "header.number", header.Number,
 		"current block number", latestEpoch,
 		"proposedSealsInEpoch", proposedSealsInEpoch,
 		"submittedSealsInEpoch", submittedSealsInEpoch,
@@ -831,9 +831,9 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	}
 	newEpoch.Stabilizing = stabilizing
 
-	log.Trace("update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
+	log.Trace("WBFT: update epoch info", "header.Number", header.Number, "validators", newEpoch.Validators)
 	for i, staker := range newEpoch.Stakers {
-		log.Trace(fmt.Sprintf("  - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
+		log.Trace(fmt.Sprintf("WBFT:   - stakers[%d]", i), "addr", staker.Addr, "diligence", staker.Diligence)
 	}
 
 	e.epochCache.Add(header.Number.Uint64(), &newEpoch)
@@ -1128,7 +1128,7 @@ func (e *Engine) accumulateRewards(chain consensus.ChainHeaderReader, state *sta
 		proposer, _ := e.Author(header)
 		staker := getStakerInfo(proposer)
 		state.AddBalance(staker.Rewardee, uint256.MustFromBig(blockReward))
-		log.Trace("Block reward left rewards to", "rewardee", staker.Rewardee, "amount", blockReward)
+		log.Trace("WBFT: Block reward left rewards to", "rewardee", staker.Rewardee, "amount", blockReward)
 	}
 	return nil
 }
@@ -1152,7 +1152,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 		totStakingAmount.Add(totStakingAmount, staker.TotalStaked)
 	}
 
-	log.Trace("Calculating block reward", "currentBlock", header.Number, "totStakingAmount", totStakingAmount, "validator", validators)
+	log.Trace("WBFT: Calculating block reward", "currentBlock", header.Number, "totStakingAmount", totStakingAmount, "validator", validators)
 
 	if rewardFn != nil && totStakingAmount.Sign() > 0 {
 		for _, staker := range stakers {

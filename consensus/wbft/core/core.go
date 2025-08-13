@@ -265,7 +265,7 @@ func (c *Core) startNewRound(round *big.Int) {
 func (c *Core) updateRoundState(nextValSet wbft.ValidatorSet, view *wbft.View, roundChange bool) {
 	if roundChange && c.current != nil {
 		if c.current.preparedBlock != nil && c.backend.HasBadProposal(c.current.preparedBlock.Hash()) {
-			c.currentLogger(false, nil).Warn("[QBFT] Discarding prepared block due to bad proposal", "hash", c.current.preparedBlock.Hash())
+			c.currentLogger(false, nil).Warn("WBFT: Discarding prepared block due to bad proposal", "hash", c.current.preparedBlock.Hash())
 			// clear prepared round and block if we have a bad proposal
 			c.current.preparedRound = nil
 			c.current.preparedBlock = nil

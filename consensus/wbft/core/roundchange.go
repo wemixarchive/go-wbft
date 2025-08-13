@@ -160,7 +160,7 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 			if c.current != nil && c.current.pendingRequest != nil {
 				proposal = c.current.pendingRequest.Proposal
 			} else {
-				log.Warn("round change returns an error: no proposal as pending request is nil")
+				log.Warn("WBFT: round change returns an error: no proposal as pending request is nil")
 				return errors.New("no proposal as pending request is nil")
 			}
 		}
