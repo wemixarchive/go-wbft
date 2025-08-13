@@ -107,7 +107,7 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 
 	if verifySeal(c.valSet, block.Header(), uint32(commit.CommonPayload.Round.Uint64()), SealTypeCommit,
 		commit.CommitSeal, commit.Source()) != nil {
-		logger.Warn("WBFT: failed to verify seal from COMMIT message", "from", commit.Source())
+		logger.Warn("WBFT: failed to verify seal from COMMIT message", "number", block.Header().Number, "from", commit.Source())
 		return errInvalidMessage
 	}
 

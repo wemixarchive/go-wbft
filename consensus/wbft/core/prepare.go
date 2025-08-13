@@ -104,7 +104,7 @@ func (c *Core) handlePrepareMsg(prepare *wbfmessage.Prepare) error {
 
 	if verifySeal(c.valSet, block.Header(), uint32(prepare.CommonPayload.Round.Uint64()), SealTypePrepare,
 		prepare.PrepareSeal, prepare.Source()) != nil {
-		logger.Warn("WBFT: failed to verify seal from PREPARE message", "from", prepare.Source())
+		logger.Warn("WBFT: failed to verify seal from PREPARE message", "number", block.Header().Number, "from", prepare.Source())
 		return errInvalidMessage
 	}
 
