@@ -400,7 +400,7 @@ func (e *Engine) verifySeals(header *types.Header, validators wbft.ValidatorSet,
 	if err := verifyAggregatedSeal(validators, header, extra.Round, committedSeal, core.SealTypeCommit); err != nil {
 		// NOTE: The caller already logs a WARN for invalid previous seals.
 		// Here, the log is kept at TRACE to retain debug details while avoiding duplicate logs.
-		log.Error("WBFT: failed to verify commited seal", "err", err)
+		log.Error("WBFT: failed to verify committed seal", "err", err)
 		return wbftcommon.ErrInvalidCommittedSeals
 	}
 
