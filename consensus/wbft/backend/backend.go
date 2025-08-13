@@ -214,7 +214,7 @@ func (sb *Backend) Commit(proposal wbft.Proposal, preparedSeals, committedSeals 
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("WBFT: invalid block proposal", "proposal", proposal)
+		sb.logger.Warn("WBFT: invalid block proposal", "proposal", proposal)
 		return wbftcommon.ErrInvalidProposal
 	}
 
@@ -259,7 +259,7 @@ func (sb *Backend) Verify(proposal wbft.Proposal) (time.Duration, error) {
 	// Check if the proposal is a valid block
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("WBFT: invalid block proposal", "proposal", proposal)
+		sb.logger.Warn("WBFT: invalid block proposal", "proposal", proposal)
 		return 0, wbftcommon.ErrInvalidProposal
 	}
 

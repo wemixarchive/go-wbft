@@ -94,20 +94,20 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
-		logger.Error("WBFT: invalid COMMIT message digest", "digest", commit.Digest, "proposal", c.current.Proposal().Hash().String())
+		logger.Warn("WBFT: invalid COMMIT message digest", "digest", commit.Digest, "proposal", c.current.Proposal().Hash().String())
 		return errInvalidMessage
 	}
 
 	// Check commitSeal
 	block, ok := c.current.Proposal().(*types.Block)
 	if !ok {
-		logger.Error("WBFT: failed to cast proposal from COMMIT message to *types.Block")
+		logger.Warn("WBFT: failed to cast proposal from COMMIT message to *types.Block")
 		return errInvalidMessage
 	}
 
 	if verifySeal(c.valSet, block.Header(), uint32(commit.CommonPayload.Round.Uint64()), SealTypeCommit,
 		commit.CommitSeal, commit.Source()) != nil {
-		logger.Error("WBFT: failed to verify seal from COMMIT message", "from", commit.Source())
+		logger.Warn("WBFT: failed to verify seal from COMMIT message", "from", commit.Source())
 		return errInvalidMessage
 	}
 

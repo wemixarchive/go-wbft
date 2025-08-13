@@ -55,7 +55,7 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 	// Validates new round corresponds to current view
 	cv := c.currentView()
 	if cv.Round.Cmp(round) > 0 {
-		logger.Error("WBFT: invalid past target round", "target", round)
+		logger.Warn("WBFT: invalid past target round", "target", round)
 		return
 	}
 

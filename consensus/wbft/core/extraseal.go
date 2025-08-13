@@ -41,6 +41,8 @@ func (c *Core) addToExtraSeal(msg wbfmessage.WBFTMessage) error {
 		// verify msg seal is matched with msg digest and seal type
 		if err := verifySeal(valSet, block.Header(), uint32(prepareMsg.CommonPayload.Round.Uint64()), sealType,
 			prepareMsg.PrepareSeal, prepareMsg.Source()); err != nil {
+			logger.Error("WBFT: PREPARE seal verify failed",
+				"round", prepareMsg.CommonPayload.Round, "from", prepareMsg.Source(), "err", err)
 			return err
 		}
 
@@ -55,6 +57,8 @@ func (c *Core) addToExtraSeal(msg wbfmessage.WBFTMessage) error {
 		// verify msg seal is matched with msg digest and seal type
 		if err := verifySeal(valSet, block.Header(), uint32(commitMsg.CommonPayload.Round.Uint64()), sealType,
 			commitMsg.CommitSeal, commitMsg.Source()); err != nil {
+			logger.Error("WBFT: COMMIT seal verify failed",
+				"round", commitMsg.CommonPayload.Round, "from", commitMsg.Source(), "err", err)
 			return err
 		}
 
