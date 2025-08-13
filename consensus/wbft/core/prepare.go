@@ -110,7 +110,7 @@ func (c *Core) handlePrepareMsg(prepare *wbfmessage.Prepare) error {
 
 	// Save PREPARE messages
 	if err := c.current.WBFTPrepares.Add(prepare); err != nil {
-		logger.Warn("WBFT: failed to save PREPARE message", "err", err)
+		logger.Error("WBFT: failed to save PREPARE message", "err", err)
 		return err
 	}
 
