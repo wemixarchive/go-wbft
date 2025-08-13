@@ -175,7 +175,7 @@ func (c *Core) startNewRound(round *big.Int) {
 		logger = logger.New("lastProposal.number", lastProposal.Number().Uint64(), "lastProposal.hash", lastProposal.Hash())
 	}
 
-	logger.Info("WBFT: initialize new round")
+	logger.Debug("WBFT: initialize new round")
 
 	if c.current == nil {
 		logger.Debug("WBFT: start at the initial round")
@@ -287,7 +287,7 @@ func (c *Core) setState(state State) {
 	if c.state != state {
 		oldState := c.state
 		c.state = state
-		c.currentLogger(false, nil).Info("WBFT: changed state", "old.state", oldState.String(), "new.state", state.String())
+		c.currentLogger(false, nil).Debug("WBFT: changed state", "old.state", oldState.String(), "new.state", state.String())
 	}
 	if state == StateAcceptRequest {
 		c.processPendingRequests()

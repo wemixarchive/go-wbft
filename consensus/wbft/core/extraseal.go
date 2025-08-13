@@ -76,7 +76,7 @@ func (c *Core) addToPrepareExtraSeal(prepareMsg *wbfmessage.Prepare) {
 		}
 	}
 	c.prepareExtraSeals[prepareMsg.Source()] = prepareMsg
-	logger.Debug("WBFT: new extra prepare seal message")
+	logger.Trace("WBFT: new extra prepare seal message")
 }
 
 func (c *Core) addToCommitExtraSeal(commitMsg *wbfmessage.Commit) {
@@ -90,7 +90,7 @@ func (c *Core) addToCommitExtraSeal(commitMsg *wbfmessage.Commit) {
 		}
 	}
 	c.commitExtraSeals[commitMsg.Source()] = commitMsg
-	logger.Debug("WBFT: new extra commit seal message")
+	logger.Trace("WBFT: new extra commit seal message")
 }
 
 // addEffectiveSealToExtraSeal adds a consensus-effective seal to extraSeals used during block creation.

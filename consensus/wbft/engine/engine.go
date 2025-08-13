@@ -1152,7 +1152,7 @@ func (e *Engine) calculateRewards(chain consensus.ChainHeaderReader, header *typ
 		totStakingAmount.Add(totStakingAmount, staker.TotalStaked)
 	}
 
-	log.Debug("Calculating block reward", "currentBlock", header.Number, "totStakingAmount", totStakingAmount, "validator", validators)
+	log.Trace("Calculating block reward", "currentBlock", header.Number, "totStakingAmount", totStakingAmount, "validator", validators)
 
 	if rewardFn != nil && totStakingAmount.Sign() > 0 {
 		for _, staker := range stakers {

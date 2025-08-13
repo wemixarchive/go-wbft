@@ -71,7 +71,8 @@ func (c *Core) broadcastCommit() {
 		return
 	}
 
-	withMsg(logger, commit).Info("WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
+	withMsg(logger, commit).Info("WBFT: broadcast COMMIT message")
+	withMsg(logger, commit).Trace("WBFT: COMMIT payload", "payload", hexutil.Encode(payload))
 
 	// Broadcast RLP-encoded message
 	if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
@@ -89,7 +90,7 @@ func (c *Core) broadcastCommit() {
 func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 	logger := c.currentLogger(true, commit)
 
-	logger.Info("WBFT: handle COMMIT message", "commits.count", c.current.WBFTCommits.Size(), "quorum", c.valSet.QuorumSize())
+	logger.Debug("WBFT: handle COMMIT message", "commits.count", c.current.WBFTCommits.Size(), "quorum", c.valSet.QuorumSize())
 
 	// Check digest
 	if commit.Digest != c.current.Proposal().Hash() {
@@ -123,7 +124,7 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 		logger.Info("WBFT: received quorum of COMMIT messages")
 		c.commitWBFT()
 	} else {
-		logger.Debug("WBFT: accepted new COMMIT messages")
+		logger.Trace("WBFT: accepted new COMMIT messages")
 	}
 
 	return nil
