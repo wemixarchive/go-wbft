@@ -26,8 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-
-	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 func handleGetBlockHeaders(backend Backend, msg Decoder, peer *Peer) error {
@@ -290,38 +288,18 @@ func handleNewBlockhashes(backend Backend, msg Decoder, peer *Peer) error {
 	}
 
 	// Byzantine attack check
-	if hook := backend.ByzantineHook(); hook != nil {
-		hashes, numbers := ann.Unpack()
-		for i, number := range numbers {
-			// Check if the block number is valid
-			if number == 0 {
-				log.Warn("[BYZ] received new block announcement with zero block number", "peer", peer.id, "version", peer.version, "hash", hashes[i].Hex())
-				continue
-			}
-
-			// Check for byzantine attacks
-			// TODO: write docs about round number and MarkAttackExecuted
-			attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, number, 0)
-			if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
-				for _, field := range at.MessagePolicyParams.Fields {
-					switch field.Target {
-					case btypes.TargetMsgPolicyDirection:
-						if val, ok := field.Value.(uint64); ok && (val == uint64(btypes.MessageDirectionReceive) || val == uint64(btypes.MessageDirectionBoth)) {
-							log.Info("[BYZ] byzantine attack triggered",
-								"name", at.NAME,
-								"uid", at.UID,
-								"seq", number,
-								"params", at.MessagePolicyParams,
-								"newBlockHash", hashes[i].Hex(),
-								"newBlockNumber", number,
-								"peer", peer.id)
-							hook.MarkAttackExecuted(at.UID, number)
-							return nil
-						}
-					}
-				}
-			}
+	hashes, numbers := ann.Unpack()
+	announcements := make([]BlockAnnouncement, len(hashes))
+	for i := range hashes {
+		announcements[i] = BlockAnnouncement{
+			Hash:   hashes[i],
+			Number: numbers[i],
 		}
+	}
+
+	validAnnouncements := CheckByzantinePropagationAttacks(backend, announcements, peer.id)
+	if validAnnouncements == nil {
+		return nil // Attack detected
 	}
 	// Byzantine attack check end
 
@@ -354,28 +332,15 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 	ann.Block.ReceivedFrom = peer
 
 	// Byzantine attack check
-	if hook := backend.ByzantineHook(); hook != nil {
-		blockNum := ann.Block.NumberU64()
-		attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, blockNum, 0)
+	announcements := make([]BlockAnnouncement, 1)
+	announcements[0] = BlockAnnouncement{
+		Hash:   ann.Block.Hash(),
+		Number: ann.Block.NumberU64(),
+	}
 
-		if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
-			for _, field := range at.MessagePolicyParams.Fields {
-				switch field.Target {
-				case btypes.TargetMsgPolicyDirection:
-					if val, ok := field.Value.(uint64); ok && (val == uint64(btypes.MessageDirectionReceive) || val == uint64(btypes.MessageDirectionBoth)) {
-						log.Info("[BYZ] byzantine attack triggered",
-							"name", at.NAME,
-							"uid", at.UID,
-							"seq", blockNum,
-							"params", at.MessagePolicyParams,
-							"receivedAt", ann.Block.ReceivedAt,
-							"receivedFrom", ann.Block.ReceivedFrom)
-						hook.MarkAttackExecuted(at.UID, blockNum)
-						return nil
-					}
-				}
-			}
-		}
+	validAnnouncements := CheckByzantinePropagationAttacks(backend, announcements, peer.id)
+	if validAnnouncements == nil {
+		return nil // Attack detected
 	}
 	// Byzantine attack check end
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
-	
+
 	"github.com/ethereum/go-ethereum/byzantine/registry"
 	"github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"

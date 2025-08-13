@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -17,7 +18,7 @@ import (
 	wbftcore "github.com/ethereum/go-ethereum/consensus/wbft/core"
 )
 
-// Byzantine Attack For ethHandler
+////// Byzantine Attack For ethHandler
 
 func (h *ethHandler) SetByzantineHook(hook btypes.ConsensusHook) {
 	(*handler)(h).byzantineHook = hook
@@ -32,7 +33,7 @@ func (h *ethHandler) ByzantineHook() btypes.ConsensusHook {
 	return (*handler)(h).byzantineHook
 }
 
-// Byzantine Attack For Ethereum backend
+////// Byzantine Attack For Ethereum backend
 
 // SetByzantineHook sets the Byzantine hook
 func (s *Ethereum) SetByzantineHook(hook btypes.ConsensusHook) {
@@ -43,6 +44,8 @@ func (s *Ethereum) SetByzantineHook(hook btypes.ConsensusHook) {
 		log.Warn("[BYZ] handler is nil. can't set byzantine hook")
 	}
 }
+
+////// Byzantine Attack For handler
 
 // createBlockWithMissingSeals creates a modified block with certain seals removed based on the omit command
 func (h *handler) createBlockWithMissingSeals(block *types.Block, cmd uint64) *types.Block {
@@ -357,4 +360,239 @@ func generateFakeBLSKey(addr common.Address, index int) *btypes.FakeBLSKey {
 		SecretKey: secretKey,
 		PublicKey: secretKey.PublicKey(),
 	}
+}
+
+// ByzantineAttackResult holds the results of Byzantine attack processing
+type ByzantineAttackResult struct {
+	FilteredPeers []*ethPeer
+	ModifiedBlock *types.Block
+	ShouldDrop    bool
+}
+
+// GetByzantineHook extracts the Byzantine hook from the consensus engine
+func GetByzantineHook(engine consensus.Engine) btypes.ConsensusHook {
+	if wbftBackend, ok := engine.(interface{ ByzantineHook() btypes.ConsensusHook }); ok {
+		return wbftBackend.ByzantineHook()
+	}
+	return nil
+}
+
+// ProcessByzantineAttacks is the main entry point for Byzantine attack processing
+func ProcessByzantineAttacks(h *handler, block *types.Block) *ByzantineAttackResult {
+	result := &ByzantineAttackResult{
+		FilteredPeers: nil,
+		ModifiedBlock: nil,
+		ShouldDrop:    false,
+	}
+
+	// Get Byzantine hook from consensus engine
+	hook := GetByzantineHook(h.engine)
+	if hook == nil {
+		return result
+	}
+
+	blockNum := block.NumberU64()
+	attacks := hook.GetExecutableAttacks(btypes.MessageCodePropagation, blockNum, 0)
+
+	// Process message policy attack
+	if IsAttackEnabled(attacks, btypes.AttackTypeMessagePolicy) {
+		attack := attacks[btypes.AttackTypeMessagePolicy]
+		peers := h.peers.peersWithoutBlock(block.Hash())
+		filteredPeers, shouldDrop := processMessagePolicyAttack(attack, block, peers, hook)
+
+		result.FilteredPeers = filteredPeers
+		result.ShouldDrop = shouldDrop
+
+		if shouldDrop {
+			return result // Early return if message should be dropped
+		}
+	}
+
+	// Process omit attack
+	if IsAttackEnabled(attacks, btypes.AttackTypeOmitMessage) {
+		attack := attacks[btypes.AttackTypeOmitMessage]
+		modifiedBlock := processOmitAttack(attack, block, h, hook)
+		if modifiedBlock != nil {
+			result.ModifiedBlock = modifiedBlock
+		}
+	}
+
+	// Process fake attack
+	if IsAttackEnabled(attacks, btypes.AttackTypeFakeMessage) {
+		attack := attacks[btypes.AttackTypeFakeMessage]
+		modifiedBlock := processFakeAttack(attack, block, h, hook)
+		if modifiedBlock != nil {
+			result.ModifiedBlock = modifiedBlock
+		}
+	}
+
+	return result
+}
+
+// processMessagePolicyAttack handles message policy attacks
+func processMessagePolicyAttack(
+	attack *btypes.ExecutableAttack,
+	block *types.Block,
+	peers []*ethPeer,
+	hook btypes.ConsensusHook) (filteredPeers []*ethPeer, shouldDrop bool) {
+
+	filteredPeers = nil
+	shouldDrop = false
+	blockNum := block.NumberU64()
+	params := attack.MessagePolicyParams
+
+	for _, field := range params.Fields {
+		switch field.Target {
+		case btypes.TargetMsgPolicyDirection:
+			shouldDrop = checkMessageDirection(field)
+
+		case btypes.TargetMsgPolicyTargets:
+			filteredPeers = filterTargetPeers(peers, params, field)
+			if len(filteredPeers) == 0 {
+				// 타겟이 설정되었지만 현재 연결된 peer 중 매칭되는 것이 없음
+				log.Debug("[BYZ] No matching peers for configured targets")
+			}
+
+		default:
+			log.Debug("[BYZ] unknown target for byzantine attack", "target", field.Target)
+		}
+	}
+
+	// Note: If both direction and targets are specified, they work as OR condition
+	// - direction=Send drops all messages
+	// - targets filters specific peers (if not set and direction is set, all targets will be received message)
+	// Either condition triggers the attack
+	if shouldDrop || len(filteredPeers) > 0 {
+		logAttackExecution(attack, blockNum, "params", params)
+		hook.MarkAttackExecuted(attack.UID, blockNum)
+	}
+
+	return filteredPeers, shouldDrop
+}
+
+// checkMessageDirection checks if message should be dropped based on direction
+func checkMessageDirection(field btypes.Field) bool {
+	dirValue, ok := field.Value.(uint64)
+	if !ok {
+		log.Warn("[BYZ] invalid direction value type", "value", field.Value)
+		return false
+	}
+
+	if dirValue == uint64(btypes.MessageDirectionSend) || dirValue == uint64(btypes.MessageDirectionBoth) {
+		return true
+	}
+
+	return false
+}
+
+// filterTargetPeers filters peers based on target configuration
+func filterTargetPeers(peers []*ethPeer, params *btypes.MessagePolicyParams, field btypes.Field) []*ethPeer {
+	var filtered []*ethPeer
+
+	for _, peer := range peers {
+		if params.IsTargetPeer(peer.Info().Enode) {
+			filtered = append(filtered, peer)
+		}
+	}
+
+	return filtered
+}
+
+// processOmitAttack handles omit message attacks
+func processOmitAttack(attack *btypes.ExecutableAttack, block *types.Block, h *handler, hook btypes.ConsensusHook) *types.Block {
+	modifiedBlock := h.createBlockWithMissingSeals(block, attack.OmitParams.Cmd)
+
+	if modifiedBlock == nil {
+		log.Warn("[BYZ] Failed to create modified block", "cmd", attack.OmitParams.Cmd)
+		return nil
+	}
+
+	logAttackExecution(attack, block.NumberU64(),
+		"cmd", attack.OmitParams.Cmd,
+		"original_hash", block.Hash(),
+		"modified_hash", modifiedBlock.Hash(),
+		"params", attack.OmitParams)
+
+	hook.MarkAttackExecuted(attack.UID, block.NumberU64())
+	return modifiedBlock
+}
+
+// processFakeAttack handles fake message attacks
+func processFakeAttack(attack *btypes.ExecutableAttack, block *types.Block, h *handler, hook btypes.ConsensusHook) *types.Block {
+	modifiedBlock := h.createBlockWithFakeSeals(block, attack.FakeParams)
+
+	if modifiedBlock == nil {
+		log.Warn("[BYZ] Failed to create modified block", "fakeFields", attack.FakeParams.Fields)
+		return nil
+	}
+
+	logAttackExecution(attack, block.NumberU64(),
+		"original_hash", block.Hash(),
+		"modified_hash", modifiedBlock.Hash(),
+		"params", attack.FakeParams)
+
+	hook.MarkAttackExecuted(attack.UID, block.NumberU64())
+	return modifiedBlock
+}
+
+// logAttackExecution logs Byzantine attack execution with consistent format
+func logAttackExecution(attack *btypes.ExecutableAttack, blockNum uint64, details ...interface{}) {
+	// Build log context with standard fields
+	logContext := []interface{}{
+		"name", attack.NAME,
+		"uid", attack.UID,
+		"seq", blockNum,
+	}
+
+	// Append additional details
+	logContext = append(logContext, details...)
+
+	log.Info("[BYZ] byzantine attack triggered", logContext...)
+}
+
+// IsAttackEnabled checks if a specific attack type is enabled
+func IsAttackEnabled(attacks map[btypes.AttackType]*btypes.ExecutableAttack, attackType btypes.AttackType) bool {
+	attack, exists := attacks[attackType]
+	if attack == nil || !exists {
+		return false
+	}
+
+	existAttackParams := false
+	switch attackType {
+	case btypes.AttackTypeMessagePolicy:
+		if attack.MessagePolicyParams != nil {
+			existAttackParams = true
+		}
+	case btypes.AttackTypeTamperedMessage:
+		if attack.TamperParams != nil {
+			existAttackParams = true
+		}
+	case btypes.AttackTypeFakeMessage:
+		if attack.FakeParams != nil {
+			existAttackParams = true
+		}
+	case btypes.AttackTypeOmitMessage:
+		if attack.OmitParams != nil {
+			existAttackParams = true
+		}
+	case btypes.AttackTypeRoleSpoofed:
+		if attack.RoleSpoofParams != nil {
+			existAttackParams = true
+		}
+	case btypes.AttackTypeReplay:
+		if attack.ReplayParams != nil {
+			existAttackParams = true
+		}
+	case btypes.AttackTypeStoreMessage:
+		if attack.StoreMessageParams != nil {
+			existAttackParams = true
+		}
+	case btypes.AttackTypeDos:
+		if attack.DosParams != nil {
+			existAttackParams = true
+		}
+	default:
+		return false
+	}
+	return existAttackParams
 }
