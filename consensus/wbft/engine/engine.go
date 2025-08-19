@@ -792,6 +792,11 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			d = (stakerInfo.staker.Diligence*(10*epochLength-applyingRate) + d*applyingRate) / 10 / epochLength
 		}
 
+		// Ensure Diligence is within valid range
+		if d > 2*types.DiligenceDenominator {
+			return nil, fmt.Errorf("WBFT: Invalid Diligence %d exceeds maximum", d)
+		}
+
 		newEpoch.Stakers[i] = &types.Staker{
 			Addr:      staker,
 			Diligence: d,
@@ -1202,11 +1207,6 @@ func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Hea
 		if epoch.Stakers[i].Diligence != extra.EpochInfo.Stakers[i].Diligence {
 			return fmt.Errorf("WBFT: Diligence mismatch at index %d: expected %d, got %d",
 				i, epoch.Stakers[i].Diligence, extra.EpochInfo.Stakers[i].Diligence)
-		}
-		// Ensure Diligence is within valid range
-		if extra.EpochInfo.Stakers[i].Diligence > 2*types.DiligenceDenominator {
-			return fmt.Errorf("WBFT: Invalid Diligence %d exceeds maximum at index %d",
-				extra.EpochInfo.Stakers[i].Diligence, i)
 		}
 	}
 
