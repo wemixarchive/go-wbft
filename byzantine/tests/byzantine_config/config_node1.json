@@ -715,16 +715,15 @@
     {
       "name": "broadcast_invalid_epoch_preprepare",
       "type": "fake",
-      "enabled": false,
-      "seq_s": 92,
-      "seq_e": 109,
+      "enabled": true,
+      "seq_s": 101,
+      "seq_e": 121,
       "round": 0,
-      "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "fakeMessage": [
+        "fields": [
           {
-            "fakeTarget": "header.epochinfo",
+            "target": "header.epochinfo",
             "value": "nil"
           }
         ]
@@ -733,16 +732,16 @@
     {
       "name": "broadcast_invalid_epoch_preprepare#2",
       "type": "fake",
-      "enabled": false,
-      "seq_s": 110,
+      "enabled": true,
+      "seq_s": 122,
       "seq_e": 130,
       "round": 0,
       "max_execution_count": 1,
       "parameters": {
         "code": 1,
-        "fakeMessage": [
+        "fields": [
           {
-            "fakeTarget": "header.epochinfo",
+            "target": "header.epochinfo",
             "value": "dos_binary"
           }
         ]
@@ -872,7 +871,7 @@
       "type": "policy",
       "enabled": true,
       "seq_s": 148,
-      "seq_e": 188,
+      "seq_e": 168,
       "round": 0,
       "parameters": {
         "code": 31,
@@ -888,8 +887,8 @@
       "name": "crash_fault#2",
       "type": "policy",
       "enabled": true,
-      "seq_s": 190,
-      "seq_e": 200,
+      "seq_s": 170,
+      "seq_e": 180,
       "round": 0,
       "parameters": {
         "code": 31,
@@ -905,8 +904,8 @@
       "name": "network_partition",
       "type": "policy",
       "enabled": true,
-      "seq_s": 201,
-      "seq_e": 300,
+      "seq_s": 181,
+      "seq_e": 200,
       "round": -1,
       "parameters": {
         "code": 31,

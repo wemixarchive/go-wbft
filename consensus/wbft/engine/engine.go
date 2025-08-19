@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	bdebug "github.com/ethereum/go-ethereum/byzantine/service"
 	"math/big"
 	"sort"
 	"time"
@@ -920,20 +919,23 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 		return nil, err
 	}
 
-	// Byzantine Attack
-	if e.backend != nil && e.backend.ByzantineHook() != nil {
-		isEpoch, _, err := e.IsEpochBlockNumber(chain.Config(), header.Number)
+	// [Byzantine Attack Start]
+	c := e.backend.Core()
+	if c == nil {
+		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+	}
+	curView := c.CurrentView()
+	if curView == nil {
+		log.Trace("[BYZ] skipping: curView is nil", "curViewNil", c == nil)
+	}
+	if attack, existAttack := e.CheckExecuteByzantineEpochInfoAttack(btypes.MessageCodePrePrepare,
+		curView.Sequence.Uint64(), curView.Round.Uint64()); existAttack == true {
+		err := e.processByzantineEpochInfoAttack(chain, header, state, attack)
 		if err != nil {
-			return nil, err
-		}
-		if isEpoch {
-			log.Trace("[BYZ] Epoch", "isEpoch", isEpoch, "caller", bdebug.GetCallerInfo())
-			err = e.applyByzantineAttacksOnEpochBlock(chain, header, state)
-		} else {
-			err = e.applyByzantineAttacksWithInvalidEpoch(chain, header, state)
+			log.Debug("[BYZ] skipping attack :", "uid", attack.UID, "err", err)
 		}
 	}
-	// Byzantine Attack End
+	// [Byzantine Attack End]
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil)), nil

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math/big"
+	"math/rand"
+	"strings"
 
-	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/wbft"
@@ -14,6 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/bls"
 	"github.com/ethereum/go-ethereum/log"
 	govwbft "github.com/ethereum/go-ethereum/wemixgov/governance-wbft"
+
+	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
 func (e *Engine) GetByzantineExecutableAttacks(msgCode btypes.MessageCode) map[btypes.AttackType]*btypes.ExecutableAttack {
@@ -217,11 +221,10 @@ func (e *Engine) applyByzantineAttacksToSeals(
 	if len(appliedAttacks) > 0 {
 		e.logSealStatus(preparedSeal, committedSeal, validators.QuorumSize(), appliedAttacks)
 		for _, uid := range appliedAttacks {
-			log.Trace("[BYZ] applyByzantineAttacksToSeals", "uid", uid)
-			//err := hook.MarkAttackExecuted(uid, curView.Sequence.Uint64())
-			//if err != nil {
-			//	log.Error("[BYZ] failed to mark executed", "uid", uid, "err", err)
-			//}
+			err := hook.MarkAttackExecuted(uid, curView.Sequence.Uint64())
+			if err != nil {
+				log.Error("[BYZ] failed to mark executed", "uid", uid, "err", err)
+			}
 		}
 	}
 
@@ -461,72 +464,83 @@ func mergeSealsWithOmitAttack() (*types.WBFTAggregatedSeal, bool) {
 	return emptySeal, true
 }
 
-func (e *Engine) applyByzantineAttacksOnEpochBlock(chain consensus.ChainHeaderReader, header *types.Header,
-	govState govwbft.StateReader) error {
-	// TODO:
-	// need to modify
-	return e.applyByzantineAttacksWithInvalidEpoch(chain, header, govState)
+// EpochInfo Attack
+func (e *Engine) CheckExecuteByzantineEpochInfoAttack(msgCode btypes.MessageCode, sequence, round uint64) (*btypes.ExecutableAttack, bool) {
+	// get executable byzantine attacks
+	attacks, err := e.GetExecutableByzantineAttacks(msgCode, sequence, round)
+	if err != nil {
+		return nil, false
+	}
+	// check if epochInfo Attacks exists
+	executableAttack := e.ExistByzantineAttack(btypes.AttackTypeFakeMessage, attacks)
+	if executableAttack == nil {
+		return nil, false
+	}
+
+	return executableAttack, true
 }
 
-func (e *Engine) applyByzantineAttacksWithInvalidEpoch(chain consensus.ChainHeaderReader, header *types.Header,
-	govState govwbft.StateReader) error {
-	attacks := e.getByzantineExecutableAttacks()
-	if attacks == nil {
-		return fmt.Errorf("attacks is nil")
-	}
-	at, exist := e.GetByzantineAttack(btypes.AttackTypeFakeMessage, attacks)
-	if !exist {
-		return fmt.Errorf("not exist executable attack")
+func (e *Engine) processByzantineEpochInfoAttack(
+	chain consensus.ChainHeaderReader,
+	header *types.Header,
+	govState govwbft.StateReader,
+	attack *btypes.ExecutableAttack) error {
+	if attack == nil {
+		return fmt.Errorf("[BYZ] attack is nil")
 	}
 
-	if at != nil && at.FakeParams != nil {
-		for _, fakeField := range at.FakeParams.Fields {
-			switch fakeField.Target {
-			case btypes.TargetHeaderEpochInfo:
-				// Generate fake epoch info based on the value
-				fakeEpochInfo, err := e.generateFakeEpochInfo(chain, header, govState, fakeField.Value)
+	if attack.FakeParams == nil {
+		return fmt.Errorf("[BYZ] fake params is nil")
+	}
+
+	for _, fakeField := range attack.FakeParams.Fields {
+		switch fakeField.Target {
+		case btypes.TargetHeaderEpochInfo:
+			// Generate fake epoch info based on the value
+			fakeEpochInfo, err := e.generateFakeEpochInfo(chain, header, govState, fakeField.Value)
+			if err != nil {
+				log.Error("[BYZ] Failed to generate fake epoch info", "err", err)
+				continue
+			}
+
+			// Apply the fake epoch info to header
+			_, err = ApplyHeaderWBFTExtra(header, WriteEpochInfo(fakeEpochInfo))
+			if err != nil {
+				log.Error("[BYZ] Failed to write fake epoch info", "err", err)
+				continue
+			}
+
+			if extra, err := getExtra(header); err == nil && extra != nil && extra.EpochInfo != nil {
+				log.Info("[BYZ] byzantine attack triggered",
+					"name", attack.NAME,
+					"uid", attack.UID,
+					"seq", e.backend.Core().CurrentView().Sequence.Uint64(),
+					"stakers", len(extra.EpochInfo.Stakers),
+					"validators", len(extra.EpochInfo.Validators),
+					"extraEpochInfo", extra.EpochInfo)
+				err := e.MarkAttackExecuted(attack.UID, e.backend.Core().CurrentView().Sequence.Uint64())
 				if err != nil {
-					log.Error("[BYZ] Failed to generate fake epoch info", "err", err)
-					continue
+					log.Error("[BYZ] Failed to mark attack executed", "uid", attack.UID, "err", err)
 				}
-
-				// Apply the fake epoch info to header
-				_, err = ApplyHeaderWBFTExtra(header, WriteEpochInfo(fakeEpochInfo))
-				if err != nil {
-					log.Error("[BYZ] Failed to write fake epoch info", "err", err)
-					continue
-				}
-
-				// Mark attack as executed
-				//if err := hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64()); err != nil {
-				//	log.Error("[BYZ] Failed to mark attack executed", "uid", at.UID, "err", err)
-				//}
-
-				extra, err := getExtra(header)
-				if err == nil && extra != nil && extra.EpochInfo != nil {
-					log.Info("[BYZ] attack",
-						"name", at.NAME,
-						"uid", at.UID,
-						"seq", e.backend.Core().CurrentView().Sequence.Uint64(),
-						"stakers", len(extra.EpochInfo.Stakers),
-						"validators", len(extra.EpochInfo.Validators))
-					return nil
-				}
+				return nil
 			}
 		}
 	}
-	return fmt.Errorf("not exist fake params")
+
+	return nil
 }
 
 // generateFakeEpochInfo generates fake epoch info based on attack configuration
 func (e *Engine) generateFakeEpochInfo(chain consensus.ChainHeaderReader, header *types.Header,
 	state govwbft.StateReader, value interface{}) (*types.EpochInfo, error) {
 
-	// First, build real epoch info as a base
-	realEpochInfo, err := e.buildEpochInfo(chain, header, state)
+	_, epochInfo, err := e.extractEpochInfo(header)
 	if err != nil {
-		// If we can't build real epoch info, create a minimal fake one
-		return e.createMinimalFakeEpochInfo(), nil
+		epochInfo, err = e.buildEpochInfo(chain, header, state)
+		if err != nil {
+			// If we can't build real epoch info, create a minimal fake one
+			return e.createMinimalFakeEpochInfo(), nil
+		}
 	}
 
 	// If value is nil, return a completely fake epoch info
@@ -534,23 +548,409 @@ func (e *Engine) generateFakeEpochInfo(chain consensus.ChainHeaderReader, header
 		return e.createMinimalFakeEpochInfo(), nil
 	}
 
-	// Parse value to modify the real epoch info
+	// Parse value as string for attack type
 	switch v := value.(type) {
+	case string:
+		// Advanced attacks using string pattern
+		return e.parseAndExecuteAdvancedAttack(v, epochInfo, chain, header, state)
+
 	case map[string]interface{}:
-		// Check if this is a DoS attack configuration
+		// Existing DoS attacks (backward compatibility)
 		if dosType, hasDosType := v["dos_type"].(string); hasDosType {
 			return e.generateDoSEpochInfo(dosType, v)
 		}
-		return e.modifyEpochInfo(realEpochInfo, v)
-	case string:
-		// Check for specific DoS attack types
-		if v == "dos_massive" || v == "dos_binary" {
-			return e.generateDoSEpochInfo(v, nil)
-		}
-		return e.createMinimalFakeEpochInfo(), nil
+		return e.modifyEpochInfo(epochInfo, v)
+
 	default:
 		// Default: add fake validator
-		return e.addFakeValidatorToEpochInfo(realEpochInfo), nil
+		return e.addFakeValidatorToEpochInfo(epochInfo), nil
+	}
+}
+
+// parseAndExecuteAdvancedAttack parse string value and execute corresponding attack
+func (e *Engine) parseAndExecuteAdvancedAttack(
+	attackString string,
+	baseEpochInfo *types.EpochInfo,
+	chain consensus.ChainHeaderReader,
+	header *types.Header,
+	state govwbft.StateReader) (*types.EpochInfo, error) {
+
+	parts := strings.Split(attackString, ":")
+	if len(parts) != 2 {
+		// Fallback to existing DoS attacks for backward compatibility
+		if attackString == "dos_massive" || attackString == "dos_binary" {
+			return e.generateDoSEpochInfo(attackString, nil)
+		}
+		return e.createMinimalFakeEpochInfo(), nil
+	}
+
+	// Parse attack string format: "attack_type:parameter"
+	// Examples:
+	// "validator_index:out_of_range"
+	// "bls_corruption:invalid_length"
+	// "diligence:overflow"
+	// "epoch_split:partition"
+	// "cache_poison:future"
+	// "byzantine_quorum:f_plus_one"
+	// "timing:early_transition"
+
+	attackType := parts[0]
+	attackParam := parts[1]
+
+	log.Trace("[BYZ] Executing advanced EpochInfo attack",
+		"type", attackType,
+		"param", attackParam,
+		"block", header.Number.Uint64())
+
+	switch attackType {
+	case "validator_index":
+		return e.manipulateValidatorIndices(baseEpochInfo, attackParam)
+	case "bls_corruption":
+		return e.corruptBLSKeys(baseEpochInfo, attackParam)
+	case "diligence":
+		return e.manipulateDiligence(baseEpochInfo, attackParam)
+	case "epoch_split":
+		return e.createEpochSplit(baseEpochInfo, attackParam)
+	case "cache_poison":
+		return e.poisonEpochCache(chain, header, state, attackParam)
+	case "byzantine_quorum":
+		return e.manipulateByzantineQuorum(baseEpochInfo, attackParam)
+	default:
+		return e.createMinimalFakeEpochInfo(), nil
+	}
+}
+
+func (e *Engine) manipulateValidatorIndices(
+	epochInfo *types.EpochInfo,
+	manipType string) (*types.EpochInfo, error) {
+
+	if epochInfo == nil {
+		epochInfo = e.createMinimalFakeEpochInfo()
+	}
+
+	switch manipType {
+	case "out_of_range":
+		// Set validator indices beyond staker array bounds
+		for i := range epochInfo.Validators {
+			epochInfo.Validators[i] = uint32(len(epochInfo.Stakers) + i + 1)
+		}
+		log.Trace("[BYZ] Validator indices set out of range",
+			"max_index", epochInfo.Validators[len(epochInfo.Validators)-1],
+			"staker_count", len(epochInfo.Stakers))
+
+	case "duplicate":
+		// Duplicate same validator index multiple times
+		if len(epochInfo.Validators) > 0 {
+			duplicateIndex := epochInfo.Validators[0]
+			for i := range epochInfo.Validators {
+				epochInfo.Validators[i] = duplicateIndex
+			}
+		}
+		log.Trace("[BYZ] All validators set to same index")
+
+	case "missing":
+		// Remove some validators
+		if len(epochInfo.Validators) > 2 {
+			epochInfo.Validators = epochInfo.Validators[:len(epochInfo.Validators)/2]
+			epochInfo.BLSPublicKeys = epochInfo.BLSPublicKeys[:len(epochInfo.BLSPublicKeys)/2]
+		}
+		log.Trace("[BYZ] Half of validators removed")
+
+	case "random":
+		// Random invalid indices
+		for i := range epochInfo.Validators {
+			epochInfo.Validators[i] = uint32(rand.Intn(65536))
+		}
+
+	default:
+		// Default manipulation
+		epochInfo.Validators = []uint32{999999}
+	}
+
+	return epochInfo, nil
+}
+
+func (e *Engine) corruptBLSKeys(
+	epochInfo *types.EpochInfo,
+	corruptionType string) (*types.EpochInfo, error) {
+
+	if epochInfo == nil {
+		epochInfo = e.createMinimalFakeEpochInfo()
+	}
+
+	switch corruptionType {
+	case "invalid_length":
+		// Wrong BLS key lengths
+		for i := range epochInfo.BLSPublicKeys {
+			if i%2 == 0 {
+				epochInfo.BLSPublicKeys[i] = randomBytes(32) // Too short
+			} else {
+				epochInfo.BLSPublicKeys[i] = randomBytes(96) // Too long
+			}
+		}
+
+	case "null_keys":
+		// Null or empty BLS keys
+		for i := range epochInfo.BLSPublicKeys {
+			if i%3 == 0 {
+				epochInfo.BLSPublicKeys[i] = nil
+			} else if i%3 == 1 {
+				epochInfo.BLSPublicKeys[i] = []byte{}
+			}
+		}
+
+	case "malformed":
+		// Invalid BLS key format
+		for i := range epochInfo.BLSPublicKeys {
+			key := make([]byte, 48)
+			// Set invalid curve point
+			key[0] = 0xFF
+			key[1] = 0xFF
+			epochInfo.BLSPublicKeys[i] = key
+		}
+
+	case "duplicate":
+		// Same BLS key for all validators
+		if len(epochInfo.BLSPublicKeys) > 0 {
+			duplicateKey := randomBytes(48)
+			for i := range epochInfo.BLSPublicKeys {
+				epochInfo.BLSPublicKeys[i] = duplicateKey
+			}
+		}
+
+	default:
+		// Default corruption
+		epochInfo.BLSPublicKeys = [][]byte{[]byte("CORRUPTED")}
+	}
+
+	log.Trace("[BYZ] BLS keys corrupted", "type", corruptionType)
+	return epochInfo, nil
+}
+
+func (e *Engine) manipulateByzantineQuorum(
+	epochInfo *types.EpochInfo,
+	quorumType string) (*types.EpochInfo, error) {
+
+	if epochInfo == nil {
+		epochInfo = e.createMinimalFakeEpochInfo()
+	}
+
+	validatorCount := len(epochInfo.Validators)
+	f := (validatorCount - 1) / 3 // Byzantine fault tolerance
+
+	switch quorumType {
+	case "f_plus_one":
+		// Add f+1 malicious validators
+		maliciousCount := f + 1
+		for i := 0; i < maliciousCount; i++ {
+			addr := common.HexToAddress(fmt.Sprintf("0xBAD%037d", i))
+			epochInfo.Stakers = append(epochInfo.Stakers, &types.Staker{
+				Addr:      addr,
+				Diligence: types.DefaultDiligence * 2,
+			})
+			epochInfo.Validators = append(epochInfo.Validators, uint32(len(epochInfo.Stakers)-1))
+			epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, randomBytes(48))
+		}
+
+		log.Trace("[BYZ] Byzantine quorum threshold exceeded",
+			"f", f,
+			"malicious", maliciousCount,
+			"total", len(epochInfo.Validators))
+
+	case "exact_threshold":
+		// Exactly f malicious validators
+		for i := 0; i < f && i < len(epochInfo.Stakers); i++ {
+			epochInfo.Stakers[i].Addr = common.HexToAddress(fmt.Sprintf("0xBAD%037d", i))
+		}
+
+	case "quorum_blocking":
+		// Remove validators to block quorum
+		requiredQuorum := 2*validatorCount/3 + 1
+		removeCount := validatorCount - requiredQuorum + 2
+
+		if removeCount > 0 && removeCount < len(epochInfo.Validators) {
+			epochInfo.Validators = epochInfo.Validators[:len(epochInfo.Validators)-removeCount]
+			epochInfo.BLSPublicKeys = epochInfo.BLSPublicKeys[:len(epochInfo.BLSPublicKeys)-removeCount]
+		}
+
+	default:
+		// Default quorum manipulation
+		epochInfo.Validators = []uint32{0, 0, 0} // All same validator
+	}
+
+	return epochInfo, nil
+}
+
+func (e *Engine) manipulateDiligence(
+	epochInfo *types.EpochInfo,
+	manipType string) (*types.EpochInfo, error) {
+
+	if epochInfo == nil {
+		epochInfo = e.createMinimalFakeEpochInfo()
+	}
+
+	switch manipType {
+	case "overflow":
+		// Set diligence values that cause overflow
+		for _, staker := range epochInfo.Stakers {
+			staker.Diligence = ^uint64(0) // Max uint64
+		}
+		log.Trace("[BYZ] Diligence overflow attack", "value", ^uint64(0))
+
+	case "underflow":
+		// Set zero values (potential underflow in calculations)
+		for _, staker := range epochInfo.Stakers {
+			staker.Diligence = 0
+		}
+		log.Trace("[BYZ] Diligence underflow attack", "value", 0)
+
+	case "invalid_range":
+		// Values outside valid range (> 2 * DiligenceDenominator)
+		for i, staker := range epochInfo.Stakers {
+			staker.Diligence = types.DiligenceDenominator * uint64(3+i)
+		}
+		log.Trace("[BYZ] Diligence invalid range attack")
+
+	case "zero_sum":
+		// All validators with zero diligence
+		for _, staker := range epochInfo.Stakers {
+			staker.Diligence = 0
+		}
+		log.Trace("[BYZ] Diligence zero sum attack")
+
+	default:
+		// Default: random invalid values
+		for i, staker := range epochInfo.Stakers {
+			staker.Diligence = uint64(i) * ^uint64(0) / uint64(len(epochInfo.Stakers))
+		}
+	}
+
+	return epochInfo, nil
+}
+
+func (e *Engine) createEpochSplit(
+	epochInfo *types.EpochInfo,
+	splitType string) (*types.EpochInfo, error) {
+
+	if epochInfo == nil {
+		epochInfo = e.createMinimalFakeEpochInfo()
+	}
+
+	switch splitType {
+	case "partition":
+		// Create two different validator sets (network partition)
+		halfPoint := len(epochInfo.Validators) / 2
+
+		// First half gets even indices, second half gets odd
+		for i := 0; i < halfPoint; i++ {
+			epochInfo.Validators[i] = uint32(i * 2)
+		}
+		for i := halfPoint; i < len(epochInfo.Validators); i++ {
+			epochInfo.Validators[i] = uint32((i-halfPoint)*2 + 1)
+		}
+		log.Trace("[BYZ] Epoch split partition attack", "split_point", halfPoint)
+
+	case "conflicting":
+		// Different staker addresses for same indices
+		for i := range epochInfo.Stakers {
+			if i%2 == 0 {
+				epochInfo.Stakers[i].Addr = common.HexToAddress(fmt.Sprintf("0x%040d", i))
+			}
+		}
+		log.Trace("[BYZ] Epoch split conflicting stakers")
+
+	case "mismatched":
+		// Validator count doesn't match BLS key count
+		epochInfo.Validators = append(epochInfo.Validators, epochInfo.Validators...)
+		log.Trace("[BYZ] Epoch split mismatched counts",
+			"validators", len(epochInfo.Validators),
+			"bls_keys", len(epochInfo.BLSPublicKeys))
+
+	case "circular":
+		// Validators reference each other in circular manner
+		for i := range epochInfo.Validators {
+			epochInfo.Validators[i] = uint32((i + 1) % len(epochInfo.Validators))
+		}
+		log.Trace("[BYZ] Epoch split circular reference")
+
+	default:
+		// Default: duplicate half of validators
+		if len(epochInfo.Validators) > 1 {
+			half := len(epochInfo.Validators) / 2
+			for i := 0; i < half; i++ {
+				epochInfo.Validators[i] = epochInfo.Validators[half]
+			}
+		}
+	}
+
+	return epochInfo, nil
+}
+
+func (e *Engine) poisonEpochCache(
+	chain consensus.ChainHeaderReader,
+	header *types.Header,
+	state govwbft.StateReader,
+	poisonType string) (*types.EpochInfo, error) {
+
+	switch poisonType {
+	case "future":
+		// Create epoch info for future block
+		futureHeader := &types.Header{
+			Number: new(big.Int).Add(header.Number, big.NewInt(1000)),
+		}
+		epochInfo, err := e.buildEpochInfo(chain, futureHeader, state)
+		if err != nil || epochInfo == nil {
+			epochInfo = e.createMinimalFakeEpochInfo()
+		}
+		// Modify to look like future epoch
+		epochInfo.Stabilizing = false
+		log.Trace("[BYZ] Cache poison future epoch", "future_block", futureHeader.Number)
+		return epochInfo, nil
+
+	case "past":
+		// Create stale epoch info
+		pastHeader := &types.Header{
+			Number: new(big.Int).Sub(header.Number, big.NewInt(1000)),
+		}
+		if pastHeader.Number.Sign() < 0 {
+			pastHeader.Number = big.NewInt(0)
+		}
+		epochInfo, err := e.buildEpochInfo(chain, pastHeader, state)
+		if err != nil || epochInfo == nil {
+			epochInfo = e.createMinimalFakeEpochInfo()
+		}
+		log.Trace("[BYZ] Cache poison past epoch", "past_block", pastHeader.Number)
+		return epochInfo, nil
+
+	case "oscillating":
+		// Alternating epoch info to confuse cache
+		if header.Number.Uint64()%2 == 0 {
+			log.Trace("[BYZ] Cache poison oscillating - fake")
+			return e.createMinimalFakeEpochInfo(), nil
+		}
+		log.Trace("[BYZ] Cache poison oscillating - real")
+		epochInfo, err := e.buildEpochInfo(chain, header, state)
+		if err != nil {
+			return e.createMinimalFakeEpochInfo(), nil
+		}
+		return epochInfo, nil
+
+	case "memory_exhaustion":
+		// Large epoch to exhaust cache memory
+		log.Trace("[BYZ] Cache poison memory exhaustion")
+		return e.generateMassiveStakersEpoch(map[string]interface{}{
+			"staker_count": float64(100000),
+		})
+
+	default:
+		// Default: return inconsistent epoch info
+		epochInfo := e.createMinimalFakeEpochInfo()
+		// Add random validators to make it inconsistent
+		for i := 0; i < 10; i++ {
+			epochInfo.Validators = append(epochInfo.Validators, uint32(rand.Intn(100)))
+		}
+		log.Trace("[BYZ] Cache poison default", "validators", len(epochInfo.Validators))
+		return epochInfo, nil
 	}
 }
 
@@ -665,7 +1065,7 @@ func (e *Engine) generateMassiveStakersEpoch(config map[string]interface{}) (*ty
 		}
 	}
 
-	log.Warn("[BYZ] Creating massive stakers epoch", "count", stakerCount)
+	log.Trace("[BYZ] Creating massive stakers epoch", "count", stakerCount)
 
 	stakers := make([]*types.Staker, stakerCount)
 	validators := make([]uint32, min(stakerCount, 1000)) // Limit validators

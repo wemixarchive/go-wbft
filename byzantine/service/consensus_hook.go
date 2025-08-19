@@ -43,17 +43,6 @@ func NewConsensusHook(attackManager types.AttackManager, eventPublisher types.Ev
 // a map keyed by AttackType containing attacks that are both eligible
 // and ready to run for the given <msgCode, sequence, round>.
 func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequence, round uint64) map[types.AttackType]*types.ExecutableAttack {
-	if h.callMetrics != nil {
-		caller := GetCallerInfo()
-		h.callMetrics.TrackCall(caller)
-		log.Trace("[BYZ] GetExecutableAttacks called",
-			"caller", caller,
-			"msgCode", msgCode,
-			"sequence", sequence,
-			"round", round,
-			"thread_id", GetGoroutineID())
-	}
-
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -87,13 +76,13 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 			continue
 		}
 
-		log.Trace("[BYZ] Found executable attack",
-			"uid", cfg.UID,
-			"type", cfg.Type,
-			"sequence", sequence,
-			"sequence_range", fmt.Sprintf("%d-%d", cfg.SequenceStart, cfg.SequenceEnd),
-			"execution_count", cfg.ExecutionCount,
-			"code", cfg.Parameters["code"])
+		//log.Trace("[BYZ] Found executable attack",
+		//	"uid", cfg.UID,
+		//	"type", cfg.Type,
+		//	"sequence", sequence,
+		//	"sequence_range", fmt.Sprintf("%d-%d", cfg.SequenceStart, cfg.SequenceEnd),
+		//	"execution_count", cfg.ExecutionCount,
+		//	"code", cfg.Parameters["code"])
 	}
 	return result
 }

@@ -1,0 +1,58 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "broadcast_invalid_epoch_preprepare_advanced",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 1,
+      "seq_e": 200,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "header.epochinfo",
+            "value": "diligence:overflow"
+          }
+        ]
+      }
+    },
+    {
+      "name": "broadcast_invalid_epoch_preprepare_advanced",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 201,
+      "seq_e": 400,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "header.epochinfo",
+            "value": "byzantine_quorum:f_plus_one"
+          }
+        ]
+      }
+    },
+    {
+      "name": "broadcast_invalid_epoch_preprepare_advanced",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 401,
+      "seq_e": 600,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "header.epochinfo",
+            "value": "cache_poison:oscillating"
+          }
+        ]
+      }
+    }
+  ]
+}
+
+
