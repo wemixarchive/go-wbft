@@ -1056,13 +1056,13 @@ func (w *worker) getByzantineAttacks() (btypes.ConsensusHook, map[btypes.AttackT
 	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
 		c := wbftEngine.Core()
 		if c == nil {
-			log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+			log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
 			return nil, nil
 		}
 
 		curView := c.CurrentView()
 		if curView == nil {
-			log.Trace("[BYZ] skipping: curView is nil", "curViewNil", curView == nil)
+			log.Trace("BYZ: skipping: curView is nil", "curViewNil", curView == nil)
 			return nil, nil
 		}
 
@@ -1071,7 +1071,7 @@ func (w *worker) getByzantineAttacks() (btypes.ConsensusHook, map[btypes.AttackT
 			if state := c.GetState(); state == wbftcore.StateAcceptRequest && c.IsProposer() {
 				return hook, hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
 			} else {
-				log.Trace("[BYZ] skipping: invalid state or not proposer", "have", state, "want", wbftcore.StateAcceptRequest, "isProposer", c.IsProposer())
+				log.Trace("BYZ: skipping: invalid state or not proposer", "have", state, "want", wbftcore.StateAcceptRequest, "isProposer", c.IsProposer())
 				return nil, nil
 			}
 		}
@@ -1090,7 +1090,7 @@ func (w *worker) getTamperedTxValue(hook btypes.ConsensusHook, num *big.Int, att
 
 	at := attacks[btypes.AttackTypeTamperedMessage]
 	if at == nil || at.TamperParams == nil {
-		log.Trace("[BYZ] Invalid or nil TamperAttackParams")
+		log.Trace("BYZ: Invalid or nil TamperAttackParams")
 		return nil
 	}
 
@@ -1099,10 +1099,10 @@ func (w *worker) getTamperedTxValue(hook btypes.ConsensusHook, num *big.Int, att
 		case btypes.TargetTxValue:
 			val, err := field.ValueToUint64()
 			if err != nil {
-				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
+				log.Error("BYZ: Conversion failed", "target", field.Target, "err", err)
 				return nil
 			} else {
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return new(big.Int).SetUint64(val)
 			}
@@ -1115,7 +1115,7 @@ func (w *worker) getTamperedTxValue(hook btypes.ConsensusHook, num *big.Int, att
 func (w *worker) getTamperedTxSign(hook btypes.ConsensusHook, num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) (bool, []byte) {
 	at := attacks[btypes.AttackTypeTamperedMessage]
 	if at == nil || at.TamperParams == nil {
-		log.Trace("[BYZ] Invalid or nil TamperAttackParams")
+		log.Trace("BYZ: Invalid or nil TamperAttackParams")
 		return false, nil
 	}
 
@@ -1127,25 +1127,25 @@ func (w *worker) getTamperedTxSign(hook btypes.ConsensusHook, num *big.Int, atta
 				randomBytes := make([]byte, 65)
 				_, err := rand.Read(randomBytes)
 				if err != nil {
-					log.Error("[BYZ] Failed to generate random 65-byte array", "err", err)
+					log.Error("BYZ: Failed to generate random 65-byte array", "err", err)
 					return false, nil
 				}
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams, "sign", randomBytes)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams, "sign", randomBytes)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return true, randomBytes
 			} else {
 				val, err := field.ValueHexToBytes()
 				if err != nil {
-					log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
+					log.Error("BYZ: Conversion failed", "target", field.Target, "err", err)
 					return false, nil
 				}
 
 				if len(val) != 65 {
-					log.Error("[BYZ] Invalid signature length", "expected", 65, "actual", len(val))
+					log.Error("BYZ: Invalid signature length", "expected", 65, "actual", len(val))
 					return false, nil
 				}
 
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return true, val
 			}
@@ -1158,7 +1158,7 @@ func (w *worker) getTamperedTxSign(hook btypes.ConsensusHook, num *big.Int, atta
 func (w *worker) getFakeTxCount(hook btypes.ConsensusHook, num *big.Int, attacks map[btypes.AttackType]*btypes.ExecutableAttack) uint64 {
 	at := attacks[btypes.AttackTypeFakeMessage]
 	if at == nil || at.FakeParams == nil {
-		log.Trace("[BYZ] Invalid or nil FakeParams")
+		log.Trace("BYZ: Invalid or nil FakeParams")
 		return 0
 	}
 
@@ -1167,10 +1167,10 @@ func (w *worker) getFakeTxCount(hook btypes.ConsensusHook, num *big.Int, attacks
 		case btypes.TargetTxCount:
 			val, err := field.ValueToUint64()
 			if err != nil {
-				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
+				log.Error("BYZ: Conversion failed", "target", field.Target, "err", err)
 				return 0
 			} else {
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.FakeParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", num, "params", at.FakeParams)
 				hook.MarkAttackExecuted(at.UID, num.Uint64())
 				return val
 			}
@@ -1189,13 +1189,13 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 
 	hook, attacks := w.getByzantineAttacks()
 	if attacks == nil {
-		log.Trace("[BYZ] No attack strategies provided")
+		log.Trace("BYZ: No attack strategies provided")
 		return nil
 	}
 
 	if cnt := w.getFakeTxCount(hook, env.header.Number, attacks); cnt > 0 {
 		if !env.state.Exist(w.coinbase) {
-			return errors.New("[BYZ] Coinbase account does not exist in current state")
+			return errors.New("BYZ: Coinbase account does not exist in current state")
 		} else {
 			tamperedValue := w.getTamperedTxValue(hook, env.header.Number, attacks)
 
@@ -1204,7 +1204,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 			var i uint64
 			for i = 0; i < cnt; i++ {
 				if useGas+params.TxGas > gasLimit {
-					log.Debug("[BYZ] Gas limit exceeded during fake transaction injection", "useGas", useGas, "gasLimit", gasLimit, "sent", i)
+					log.Debug("BYZ: Gas limit exceeded during fake transaction injection", "useGas", useGas, "gasLimit", gasLimit, "sent", i)
 					break
 				}
 				// Check interruption signal and abort building if it's fired.
@@ -1216,7 +1216,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 
 				key := w.getPrivateKey()
 				if key == nil {
-					return errors.New("[BYZ] Failed to retrieve private key for byzantine transaction")
+					return errors.New("BYZ: Failed to retrieve private key for byzantine transaction")
 				}
 
 				signer := types.LatestSigner(w.chainConfig)
@@ -1231,14 +1231,14 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 					// Perform normal signing
 					signedTx, err := types.SignTx(tx, signer, key)
 					if err != nil {
-						return fmt.Errorf("[BYZ] Failed to sign transaction: %v", err)
+						return fmt.Errorf("BYZ: Failed to sign transaction: %v", err)
 					}
 					tx = signedTx // assign signed transaction back to tx
 				} else {
 					// Use tampered or random signature
 					signedTx, err := tx.WithSignature(signer, sig)
 					if err != nil {
-						return fmt.Errorf("[BYZ] Failed to apply tampered signature: %v", err)
+						return fmt.Errorf("BYZ: Failed to apply tampered signature: %v", err)
 					}
 					tx = signedTx
 				}
@@ -1248,7 +1248,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 				switch {
 				case errors.Is(err, core.ErrNonceTooLow):
 					// New head notification data race between the transaction pool and miner, shift
-					log.Trace("[BYZ] Skipping transaction with low nonce", "num", env.header.Number, "hash", tx.Hash(), "sender", w.coinbase, "nonce", tx.Nonce())
+					log.Trace("BYZ: Skipping transaction with low nonce", "num", env.header.Number, "hash", tx.Hash(), "sender", w.coinbase, "nonce", tx.Nonce())
 
 				case errors.Is(err, nil):
 					// Everything ok, collect the logs and shift in the next transaction from the same account
@@ -1258,7 +1258,7 @@ func (w *worker) byzantineCommitTransactions(env *environment, interrupt *atomic
 				default:
 					// Transaction is regarded as invalid, drop all consecutive transactions from
 					// the same sender because of `nonce-too-high` clause.
-					log.Debug("[BYZ] Transaction failed, account skipped", "num", env.header.Number, "hash", tx.Hash(), "err", err)
+					log.Debug("BYZ: Transaction failed, account skipped", "num", env.header.Number, "hash", tx.Hash(), "err", err)
 				}
 			}
 		}
@@ -1440,7 +1440,7 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 	}
 
 	if err := w.byzantineCommitTransactions(env, interrupt); err != nil {
-		log.Warn("[BYZ] Failed to execute byzantine transactions", "err", err)
+		log.Warn("BYZ: Failed to execute byzantine transactions", "err", err)
 		return err
 	}
 	return nil

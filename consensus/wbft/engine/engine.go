@@ -922,17 +922,17 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	// [Byzantine Attack Start]
 	c := e.backend.Core()
 	if c == nil {
-		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
 	}
 	curView := c.CurrentView()
 	if curView == nil {
-		log.Trace("[BYZ] skipping: curView is nil", "curViewNil", c == nil)
+		log.Trace("BYZ: skipping: curView is nil", "curViewNil", c == nil)
 	}
 	if attack, existAttack := e.CheckExecuteByzantineEpochInfoAttack(btypes.MessageCodePrePrepare,
 		curView.Sequence.Uint64(), curView.Round.Uint64()); existAttack == true {
 		err := e.processByzantineEpochInfoAttack(chain, header, state, attack)
 		if err != nil {
-			log.Debug("[BYZ] skipping attack :", "uid", attack.UID, "err", err)
+			log.Debug("BYZ: skipping attack :", "uid", attack.UID, "err", err)
 		}
 	}
 	// [Byzantine Attack End]
@@ -1103,21 +1103,21 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 	c := e.backend.Core()
 
 	if c == nil {
-		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
 		return nil
 	}
 
 	curView := c.CurrentView()
 
 	if c == nil || curView == nil {
-		log.Trace("[BYZ] skipping: curView is nil", "curViewNil", curView == nil)
+		log.Trace("BYZ: skipping: curView is nil", "curViewNil", curView == nil)
 		return nil
 	}
 
 	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 
 	if header.Number.Uint64() != curView.Sequence.Uint64() {
-		log.Trace("[BYZ] skipping: header number does not match current sequence", "have", header.Number.Uint64(), "want", curView.Sequence.Uint64())
+		log.Trace("BYZ: skipping: header number does not match current sequence", "have", header.Number.Uint64(), "want", curView.Sequence.Uint64())
 		return nil
 	}
 
@@ -1126,14 +1126,14 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 		if state := c.GetState(); state == core.StateAcceptRequest && c.IsProposer() {
 			attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
 		} else {
-			log.Trace("[BYZ] skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
+			log.Trace("BYZ: skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
 			return nil
 		}
 	}
 
 	at := attacks[btypes.AttackTypeTamperedMessage]
 	if at == nil || at.TamperParams == nil {
-		log.Trace("[BYZ] Invalid or nil TamperAttackParams")
+		log.Trace("BYZ: Invalid or nil TamperAttackParams")
 		return nil
 	}
 
@@ -1142,10 +1142,10 @@ func (e *Engine) checkTamperedBlockReward(chain consensus.ChainHeaderReader, hea
 		case btypes.TargetBlockReward:
 			val, err := field.ValueToUint64()
 			if err != nil {
-				log.Error("[BYZ] Conversion failed", "target", field.Target, "err", err)
+				log.Error("BYZ: Conversion failed", "target", field.Target, "err", err)
 				return nil
 			} else {
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", curView.Sequence.Uint64(), "original", blockReward, "params", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", curView.Sequence.Uint64(), "original", blockReward, "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64())
 				return new(big.Int).SetUint64(val)
 			}

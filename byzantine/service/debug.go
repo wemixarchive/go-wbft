@@ -49,7 +49,7 @@ func (cm *CallMetrics) LogAndReset() {
 
 	for caller, count := range cm.callCounts {
 		if count > 0 {
-			log.Trace("[BYZ] Call metrics",
+			log.Trace("BYZ: Call metrics",
 				"caller", caller,
 				"count", count,
 				"last_call", cm.lastCalls[caller])

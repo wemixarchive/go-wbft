@@ -48,7 +48,7 @@ func (r *AttackRegistry) CreateAttack(config types.AttackConfig) (types.Attack, 
 		//for t := range r.factories {
 		//	registeredTypes = append(registeredTypes, string(t))
 		//}
-		//log.Error("[BYZ] Unknown attack type", "type", config.Type, "registered", registeredTypes)
+		//log.Error("BYZ: Unknown attack type", "type", config.Type, "registered", registeredTypes)
 		return nil, fmt.Errorf("unknown attack type: %s", config.Type)
 	}
 

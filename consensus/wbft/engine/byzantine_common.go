@@ -1,9 +1,9 @@
 package wbftengine
 
 import (
-	"fmt"
 	"errors"
-	
+	"fmt"
+
 	btypes "github.com/ethereum/go-ethereum/byzantine/types"
 )
 
@@ -15,12 +15,12 @@ func (e *Engine) GetExecutableByzantineAttacks(msgCode btypes.MessageCode, seque
 	// get hook
 	hook := e.GetByzantineHook()
 	if hook == nil {
-		return nil, fmt.Errorf("[BYZ] ByzantineHook is nil")
+		return nil, fmt.Errorf("BYZ: ByzantineHook is nil")
 	}
 	// get executable attacks
 	attacks := hook.GetExecutableAttacks(msgCode, sequence, round)
 	if attacks == nil {
-		return nil, fmt.Errorf("[BYZ] ByzantineAttacks is nil")
+		return nil, fmt.Errorf("BYZ: ByzantineAttacks is nil")
 	}
 
 	return attacks, nil
@@ -30,7 +30,7 @@ func (e *Engine) MarkAttackExecuted(uid string, sequence uint64) error {
 	if hook := e.GetByzantineHook(); hook != nil {
 		return e.GetByzantineHook().MarkAttackExecuted(uid, sequence)
 	}
-	return errors.New("[BYZ] not found by byzantine hook")
+	return errors.New("BYZ: not found by byzantine hook")
 }
 
 func (e *Engine) ExistByzantineAttack(msgCode btypes.AttackType, attacks map[btypes.AttackType]*btypes.ExecutableAttack) *btypes.ExecutableAttack {

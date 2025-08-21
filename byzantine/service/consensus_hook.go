@@ -76,7 +76,7 @@ func (h *ConsensusHookImpl) GetExecutableAttacks(msgCode types.MessageCode, sequ
 			continue
 		}
 
-		//log.Trace("[BYZ] Found executable attack",
+		//log.Trace("BYZ: Found executable attack",
 		//	"uid", cfg.UID,
 		//	"type", cfg.Type,
 		//	"sequence", sequence,
@@ -394,7 +394,7 @@ func (h *ConsensusHookImpl) createEvent(eventType types.EventType, msgCode,
 func (h *ConsensusHookImpl) publishEvent(event types.Event) {
 	if h.eventPublisher != nil {
 		if err := h.eventPublisher.Publish(event); err != nil {
-			log.Error("[BYZ] Failed to publish event",
+			log.Error("BYZ: Failed to publish event",
 				"type", event.Type,
 				"sequence", event.Sequence,
 				"round", event.Round,
@@ -406,7 +406,7 @@ func (h *ConsensusHookImpl) publishEvent(event types.Event) {
 	if h.attackManager != nil {
 		ctx := context.Background()
 		if err := h.attackManager.ProcessEventAsync(ctx, event); err != nil {
-			log.Error("[BYZ] Failed to process event asynchronously", "error", err)
+			log.Error("BYZ: Failed to process event asynchronously", "error", err)
 		}
 	}
 }

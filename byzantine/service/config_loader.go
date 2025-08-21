@@ -179,7 +179,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 				case types.TargetMsgPolicyDirection, types.TargetMsgPolicyDelay:
 					v, err := types.ParseToUint64(field.Value)
 					if err != nil {
-						log.Debug("[BYZ] error", "restructureParameters", attackType, "error", err)
+						log.Debug("BYZ: error", "restructureParameters", attackType, "error", err)
 						continue // Skip this field if parsing fails
 					}
 					field.Value = v
@@ -257,7 +257,7 @@ func (cl *ConfigLoader) restructureParameters(attackType types.AttackType,
 		}
 
 	default:
-		log.Debug("[BYZ] error", "restructureParameters", attackType)
+		log.Debug("BYZ: error", "restructureParameters", attackType)
 	}
 
 	return result

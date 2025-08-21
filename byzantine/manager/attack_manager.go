@@ -173,7 +173,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 	// TODO:
 	// check if sequence is already marked as executed
 	if config.LastExecutedSeq == sequence {
-		log.Debug("[BYZ] Mark executed attack to completed",
+		log.Debug("BYZ: Mark executed attack to completed",
 			"uid", uid,
 			"sequence", sequence,
 			"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
@@ -220,7 +220,7 @@ func (m *AttackManager) MarkAttackExecuted(uid string, sequence uint64) error {
 		m.updateStatusTracking(uid, types.AttackStatusExecuted, config.Status)
 	}
 
-	log.Debug("[BYZ] Mark executed attack to completed",
+	log.Debug("BYZ: Mark executed attack to completed",
 		"uid", uid,
 		"sequence", sequence,
 		"sequence_range", fmt.Sprintf("%d-%d", config.SequenceStart, config.SequenceEnd),
@@ -497,14 +497,14 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 	config := attack.GetConfig()
 
 	if !config.IsInSequenceRange(sequence) {
-		log.Trace("[BYZ] Attack sequence out of range",
+		log.Trace("BYZ: Attack sequence out of range",
 			"uid", config.UID,
 			"sequence", sequence)
 		return false
 	}
 
 	if config.ExecutionCount >= config.MaxExecutionCount && config.MaxExecutionCount > 0 {
-		log.Trace("[BYZ] Attack execution limit reached",
+		log.Trace("BYZ: Attack execution limit reached",
 			"uid", config.UID,
 			"executed", config.ExecutionCount,
 			"max_executions", config.MaxExecutionCount)
@@ -513,7 +513,7 @@ func (m *AttackManager) canExecuteAttack(attack types.Attack, sequence uint64) b
 
 	// For single sequence attacks, check if already executed at this sequence
 	if config.LastExecutedSeq == sequence {
-		log.Trace("[BYZ] Attack already executed at this sequence",
+		log.Trace("BYZ: Attack already executed at this sequence",
 			"uid", config.UID,
 			"sequence", sequence)
 		return false

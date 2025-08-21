@@ -107,7 +107,7 @@ func (a *OmitMessageAttack) omitPrePrepareFields(event types.Event) ([]byte, err
 	// For PrePrepare, the event would contain a block proposal
 	// Since we're creating an attack, we need to create a modified message
 
-	log.Info("[BYZ] Omitting fields from PrePrepare",
+	log.Info("BYZ: Omitting fields from PrePrepare",
 		"cmd", a.cmd,
 		"sequence", event.Sequence,
 		"round", event.Round)
@@ -133,7 +133,7 @@ func (a *OmitMessageAttack) omitPropagationFields(event types.Event) ([]byte, er
 	// 1: omit Prepare Seal
 	// 2: omit Commit Seal
 
-	log.Info("[BYZ] Omitting fields from Propagation",
+	log.Info("BYZ: Omitting fields from Propagation",
 		"cmd", a.cmd,
 		"sequence", event.Sequence)
 
@@ -158,7 +158,7 @@ func (a *OmitMessageAttack) omitRoundChangePrePrepareFields(event types.Event) (
 	// 1: omit RoundChangeMessages
 	// 2: omit PrepareMessages
 
-	log.Info("[BYZ] Omitting justification from RoundChange-PrePrepare",
+	log.Info("BYZ: Omitting justification from RoundChange-PrePrepare",
 		"cmd", a.cmd,
 		"sequence", event.Sequence,
 		"round", event.Round)
@@ -185,7 +185,7 @@ func (a *OmitMessageAttack) sendMessage(content []byte, targets []common.Address
 	// This would involve:
 	// 1. Getting the backend/broadcaster interface
 	// 2. Sending the message to specified targets or all validators
-	log.Info("[BYZ] Sending omitted message",
+	log.Info("BYZ: Sending omitted message",
 		"targets", len(targets),
 		"content_size", len(content))
 	return nil

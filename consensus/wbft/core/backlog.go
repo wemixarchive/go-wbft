@@ -130,7 +130,7 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 			if field.Target == btypes.TargetMsgPolicyDirection {
 				v, err := field.ValueToUint64()
 				if err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				}
 				return at.MessagePolicyParams, at.NAME, at.UID, v == 2
 			}
@@ -142,7 +142,7 @@ func (c *Core) checkMessage(msgCode uint64, view *wbft.View) error {
 	// check silent
 	for _, group := range attackGroups {
 		if params, name, uid, ok := isMessagePolicy(group[btypes.AttackTypeMessagePolicy]); ok {
-			log.Info("[BYZ] byzantine attack triggered", "name", name, "uid", uid, "seq", seq, "params", params)
+			log.Info("BYZ: byzantine attack triggered", "name", name, "uid", uid, "seq", seq, "params", params)
 			hook.MarkAttackExecuted(uid, seq)
 			return errInvalidMessage
 		}

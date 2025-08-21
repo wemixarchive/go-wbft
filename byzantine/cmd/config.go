@@ -27,7 +27,7 @@ func LoadByzantineConfig(ctx *cli.Context, nodeConfig *node.Config) (*types.Byza
 
 	if ctx.IsSet(ByzantineEnabledFlag.Name) {
 		config.Enabled = ctx.Bool(ByzantineEnabledFlag.Name)
-		return config, fmt.Errorf("[BYZ] Byzantine is disabled")
+		return config, fmt.Errorf("BYZ: Byzantine is disabled")
 	}
 
 	// First load from a config file if specified
@@ -38,7 +38,7 @@ func LoadByzantineConfig(ctx *cli.Context, nodeConfig *node.Config) (*types.Byza
 			configLoader := service.NewConfigLoader()
 			parsedConfig, err := configLoader.LoadConfig(configPath)
 			if err != nil {
-				return nil, fmt.Errorf("[BYZ] failed to load Byzantine config from '%s': %v\n"+
+				return nil, fmt.Errorf("BYZ: failed to load Byzantine config from '%s': %v\n"+
 					"Hint: For relative paths, files are searched in:\n"+
 					"  1. Current working directory\n"+
 					"  2. Geth data directory (%s)", configPath, err, nodeConfig.DataDir)

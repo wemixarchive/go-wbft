@@ -68,7 +68,7 @@ func (c *Core) broadcastPrepare() {
 	// Check for DOS attack
 	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 		c.executeDosAttack(at, btypes.MessageCodePrepare, prepare)
-		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
+		log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID,
 			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		// Continue with normal prepare after DOS attack
@@ -127,7 +127,7 @@ func (c *Core) broadcastPrepare() {
 				}
 			case btypes.TargetMsgPolicyDirection:
 				if v, err := field.ValueToUint64(); err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				} else {
 					if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
 						isExecuteDropMessage = true
@@ -136,7 +136,7 @@ func (c *Core) broadcastPrepare() {
 			}
 		}
 		if isExecuteDropMessage {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 				"seq", c.CurrentView().Sequence.Uint64(),
@@ -196,10 +196,10 @@ func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[
 				round := new(big.Int).Set(c.storedPrepare.Round)
 				prepare = wbfmessage.NewPrepare(sequence, round, c.storedPrepare.Digest, storedPrepareSeal)
 			}
-			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(prepareSeal), "changed_seal", hex.EncodeToString(storedPrepareSeal))
+			log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(prepareSeal), "changed_seal", hex.EncodeToString(storedPrepareSeal))
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
-			log.Warn("[BYZ] No prepare message found in storage")
+			log.Warn("BYZ: No prepare message found in storage")
 		}
 	}
 	prepare.SetSource(c.Address())
@@ -217,13 +217,13 @@ func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[
 				} else {
 					val, err = field.ValueToHash()
 					if err != nil {
-						withMsg(logger, prepare).Error("[BYZ] Conversion failed", "err", err)
+						withMsg(logger, prepare).Error("BYZ: Conversion failed", "err", err)
 						return false
 					}
 				}
 				send = true
 				prepare.Digest = val
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", prepare.Digest.Hex(), "params", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", prepare.Digest.Hex(), "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
@@ -232,12 +232,12 @@ func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[
 	// Sign Message
 	encodedPayload, err := prepare.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, prepare).Error("[BYZ] WBFT: failed to encode payload of PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("BYZ, WBFT: failed to encode payload of PREPARE message", "err", err)
 		return false
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, prepare).Error("[BYZ] WBFT: failed to sign PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("BYZ, WBFT: failed to sign PREPARE message", "err", err)
 		return false
 	}
 	prepare.SetSignature(signature)
@@ -245,15 +245,15 @@ func (c *Core) broadcastByzantinePrepare(hook btypes.ConsensusHook, attacks map[
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&prepare)
 	if err != nil {
-		withMsg(logger, prepare).Error("[BYZ] WBFT: failed to encode PREPARE message", "err", err)
+		withMsg(logger, prepare).Error("BYZ, WBFT: failed to encode PREPARE message", "err", err)
 		return false
 	}
 
 	if send {
-		withMsg(logger, prepare).Info("[BYZ] broadcast PREPARE message", "payload", hexutil.Encode(payload))
+		withMsg(logger, prepare).Info("BYZ: broadcast PREPARE message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, prepare.Code(), payload); err != nil {
-			withMsg(logger, prepare).Error("[BYZ] WBFT: failed to broadcast PREPARE message", "err", err)
+			withMsg(logger, prepare).Error("BYZ, WBFT: failed to broadcast PREPARE message", "err", err)
 			return false
 		}
 	}
@@ -306,7 +306,7 @@ func (c *Core) handlePrepareMsg(prepare *wbfmessage.Prepare) error {
 				}
 			case btypes.TargetMsgPolicyDirection:
 				if v, err := field.ValueToUint64(); err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				} else {
 					if v == uint64(btypes.MessageDirectionReceive) || v == uint64(btypes.MessageDirectionBoth) {
 						isExecuteDropMessage = true
@@ -315,7 +315,7 @@ func (c *Core) handlePrepareMsg(prepare *wbfmessage.Prepare) error {
 			}
 		}
 		if isExecuteDropMessage {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 				"seq", sequence.Uint64(),
@@ -405,7 +405,7 @@ func (c *Core) storePrepareMessage(hook btypes.ConsensusHook, attack *btypes.Exe
 	}
 	copy(c.storedPrepare.PrepareSeal, PrepareSeal)
 
-	log.Info("[BYZ] byzantine message stored",
+	log.Info("BYZ: byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedPrepare.Seq,

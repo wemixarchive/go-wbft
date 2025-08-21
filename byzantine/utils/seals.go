@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	"github.com/ethereum/go-ethereum/crypto/bls"
 
@@ -25,7 +26,7 @@ func generateFakeSignature() []byte {
 	seed := bytes.Repeat([]byte{0x42}, 32) // 32 bytes seed
 	fakeSecretKey, err := bls.GenerateKey(seed)
 	if err != nil {
-		log.Debug("[BYZ] Failed to generate fake BLS key", "err", err)
+		log.Debug("BYZ: Failed to generate fake BLS key", "err", err)
 		// Fallback to simple fake signature
 		sig := make([]byte, 96)
 		for i := range sig {
@@ -62,13 +63,13 @@ func CountSealers(sealers []byte, validatorCount int) int {
 // Returns the number of sealers actually modified
 func ModifySealerSet(sealers []byte, fakeSignerCount int, validatorCount int) int {
 	currentSealerCount := CountSealers(sealers, validatorCount)
-	
+
 	// Limit modifications to current sealer count
 	toModify := fakeSignerCount
 	if toModify > currentSealerCount {
 		toModify = currentSealerCount
 	}
-	
+
 	// Clear existing sealers
 	cleared := 0
 	for i := 0; i < validatorCount && cleared < toModify; i++ {
@@ -78,10 +79,10 @@ func ModifySealerSet(sealers []byte, fakeSignerCount int, validatorCount int) in
 			// Clear this sealer
 			sealers[byteIndex] &^= (1 << bitIndex)
 			cleared++
-			log.Debug("[BYZ] Cleared sealer", "index", i)
+			log.Debug("BYZ: Cleared sealer", "index", i)
 		}
 	}
-	
+
 	// Add fake signers by setting cleared positions
 	added := 0
 	for i := 0; i < validatorCount && added < cleared; i++ {
@@ -91,9 +92,9 @@ func ModifySealerSet(sealers []byte, fakeSignerCount int, validatorCount int) in
 			// Set this position as fake sealer
 			sealers[byteIndex] |= (1 << bitIndex)
 			added++
-			log.Debug("[BYZ] Added fake sealer", "index", i)
+			log.Debug("BYZ: Added fake sealer", "index", i)
 		}
 	}
-	
+
 	return added
 }

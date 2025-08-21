@@ -25,14 +25,14 @@ func (api *PublicByzantineAPI) ByzantineTests() ([]types.AttackConfig, error) {
 
 // StopByzantineTests stops Byzantine tests by UIDs
 func (api *PublicByzantineAPI) StopByzantineTests(uids []string) error {
-	log.Info("[Byzantine API] StopByzantineTests called", "uids", uids)
+	log.Info("BYZ: StopByzantineTests called", "uids", uids)
 	return api.handler.StopByzantineTests(uids)
 }
 
 // SetMessagePolicy controls original message sending behavior per sequence/round,
 // allowing message drops or delays to simulate Byzantine scenarios.
 func (api *PublicByzantineAPI) SetMessagePolicy(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SetMessagePolicy called")
+	log.Info("BYZ: SetMessagePolicy called")
 
 	typedParams, err := ConvertToSetMessagePolicyParams(params)
 	if err != nil {
@@ -44,7 +44,7 @@ func (api *PublicByzantineAPI) SetMessagePolicy(params map[string]interface{}) e
 
 // SendTamperedMessage configures a tampered message attack
 func (api *PublicByzantineAPI) SendTamperedMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SendTamperedMessage called")
+	log.Info("BYZ: SendTamperedMessage called")
 
 	typedParams, err := ConvertToTamperedMessageParams(params)
 	if err != nil {
@@ -56,7 +56,7 @@ func (api *PublicByzantineAPI) SendTamperedMessage(params map[string]interface{}
 
 // SendFakeMessage configures a fake message attack
 func (api *PublicByzantineAPI) SendFakeMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SendFakeMessage called")
+	log.Info("BYZ: SendFakeMessage called")
 
 	typedParams, err := ConvertToFakeMessageParams(params)
 	if err != nil {
@@ -68,7 +68,7 @@ func (api *PublicByzantineAPI) SendFakeMessage(params map[string]interface{}) er
 
 // SendOmitMessage configures an omit message attack
 func (api *PublicByzantineAPI) SendOmitMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SendOmitMessage called")
+	log.Info("BYZ: SendOmitMessage called")
 
 	typedParams, err := ConvertToOmitMessageParams(params)
 	if err != nil {
@@ -80,7 +80,7 @@ func (api *PublicByzantineAPI) SendOmitMessage(params map[string]interface{}) er
 
 // SendRoleSpoofedMessage configures a role spoofing attack
 func (api *PublicByzantineAPI) SendRoleSpoofedMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SendRoleSpoofedMessage called")
+	log.Info("BYZ: SendRoleSpoofedMessage called")
 
 	typedParams, err := ConvertToRoleSpoofParams(params)
 	if err != nil {
@@ -92,7 +92,7 @@ func (api *PublicByzantineAPI) SendRoleSpoofedMessage(params map[string]interfac
 
 // SendReplayMessage configures a replay attack
 func (api *PublicByzantineAPI) SendReplayMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SendReplayMessage called")
+	log.Info("BYZ: SendReplayMessage called")
 
 	typedParams, err := ConvertToReplayMessageParams(params)
 	if err != nil {
@@ -104,7 +104,7 @@ func (api *PublicByzantineAPI) SendReplayMessage(params map[string]interface{}) 
 
 // StoreMessage stores messages that can later be reused to perform Byzantine attacks.
 func (api *PublicByzantineAPI) StoreMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] StoreMessage called")
+	log.Info("BYZ: StoreMessage called")
 
 	typedParams, err := ConvertToStoreMessageParams(params)
 	if err != nil {
@@ -116,7 +116,7 @@ func (api *PublicByzantineAPI) StoreMessage(params map[string]interface{}) error
 
 // SendDosMessage configures a DoS message flooding attack
 func (api *PublicByzantineAPI) SendDosMessage(params map[string]interface{}) error {
-	log.Info("[Byzantine API] SendDosMessage called")
+	log.Info("BYZ: SendDosMessage called")
 
 	typedParams, err := ConvertToDosMessageParams(params)
 	if err != nil {
@@ -128,30 +128,30 @@ func (api *PublicByzantineAPI) SendDosMessage(params map[string]interface{}) err
 
 // UpgradeGovContract upgrades governance contract
 func (api *PublicByzantineAPI) UpgradeGovContract() error {
-	log.Info("[Byzantine API] UpgradeGovContract called")
+	log.Info("BYZ: UpgradeGovContract called")
 	return api.handler.UpgradeGovContract()
 }
 
 // RegisterAttacks registers multiple attacks at once (like loadAttacksFromConfig)
 func (api *PublicByzantineAPI) RegisterAttacks(params types.RegisterAttacksParams) (*types.BatchRegisterResponse, error) {
-	log.Info("[Byzantine API] RegisterAttacks called", "count", len(params.Attacks))
+	log.Info("BYZ: RegisterAttacks called", "count", len(params.Attacks))
 	return api.handler.RegisterAttacks(params)
 }
 
 // GetActiveAttacks returns all active attacks
 func (api *PublicByzantineAPI) GetActiveAttacks() ([]types.AttackStatusResponse, error) {
-	log.Info("[Byzantine API] GetActiveAttacks called")
+	log.Info("BYZ: GetActiveAttacks called")
 	return api.handler.GetActiveAttacks()
 }
 
 // GetAttackStatus returns the status of a specific attack
 func (api *PublicByzantineAPI) GetAttackStatus(uid string) (*types.AttackStatusResponse, error) {
-	log.Info("[Byzantine API] GetAttackStatus called", "uid", uid)
+	log.Info("BYZ: GetAttackStatus called", "uid", uid)
 	return api.handler.GetAttackStatus(uid)
 }
 
 // GetAttackMetrics returns metrics about attacks
 func (api *PublicByzantineAPI) GetAttackMetrics() (*types.Metrics, error) {
-	log.Info("[Byzantine API] GetAttackMetrics called")
+	log.Info("BYZ: GetAttackMetrics called")
 	return api.handler.GetAttackMetrics()
 }

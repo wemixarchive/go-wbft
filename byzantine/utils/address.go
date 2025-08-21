@@ -4,11 +4,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"fmt"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/bls"
 	"github.com/ethereum/go-ethereum/log"
-	"time"
 )
 
 // fakeSignerInfo holds fake signer's keys and address
@@ -26,14 +27,14 @@ func GenerateFakeSigners(addresses []common.Address) []fakeSignerInfo {
 		// Generate new ECDSA private key
 		ecdsaKey, err := crypto.GenerateKey()
 		if err != nil {
-			log.Warn("[BYZ] Failed to generate ECDSA key", "err", err)
+			log.Warn("BYZ: Failed to generate ECDSA key", "err", err)
 			continue
 		}
 
 		// Derive BLS key from ECDSA key (deterministic)
 		blsKey, err := bls.DeriveFromECDSA(ecdsaKey)
 		if err != nil {
-			log.Warn("[BYZ] Failed to derive BLS key", "err", err)
+			log.Warn("BYZ: Failed to derive BLS key", "err", err)
 			continue
 		}
 
@@ -43,7 +44,7 @@ func GenerateFakeSigners(addresses []common.Address) []fakeSignerInfo {
 			Address:    addr,
 		}
 
-		log.Debug("[BYZ] Generated fake signer",
+		log.Debug("BYZ: Generated fake signer",
 			"addr", addr,
 			"ecdsaAddr", crypto.PubkeyToAddress(ecdsaKey.PublicKey),
 			"blsPubKey", blsKey.PublicKey().Marshal())

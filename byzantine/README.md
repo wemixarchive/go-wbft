@@ -166,7 +166,7 @@ await byzantine.dosAttack(...);
 - Testing-only mode enforcement
 - Maximum execution count limits
 - Attack validation before execution
-- Comprehensive logging with [BYZ] prefix
+- Comprehensive logging with BYZ: prefix
 - Round wildcard support (round=-1 for all rounds)
 
 ## Architecture

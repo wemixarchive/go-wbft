@@ -32,11 +32,11 @@ func (e *Engine) GetByzantineExecutableAttacks(msgCode btypes.MessageCode) map[b
 			sequence = curView.Sequence.Uint64()
 			round = curView.Round.Uint64()
 		} else {
-			log.Trace("[BYZ] skipping: curView is nil", "curViewNil", c == nil)
+			log.Trace("BYZ: skipping: curView is nil", "curViewNil", c == nil)
 			return nil
 		}
 	} else {
-		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
 		return nil
 	}
 
@@ -51,13 +51,13 @@ func (e *Engine) getByzantineExecutableAttacks() map[btypes.AttackType]*btypes.E
 
 	c := e.backend.Core()
 	if c == nil {
-		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
 		return nil
 	}
 
 	curView := c.CurrentView()
 	if curView == nil {
-		log.Trace("[BYZ] skipping: curView is nil", "curViewNil", c == nil)
+		log.Trace("BYZ: skipping: curView is nil", "curViewNil", c == nil)
 		return nil
 	}
 
@@ -65,7 +65,7 @@ func (e *Engine) getByzantineExecutableAttacks() map[btypes.AttackType]*btypes.E
 	if state := c.GetState(); state == core.StateAcceptRequest && c.IsProposer() {
 		attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
 	} else {
-		log.Trace("[BYZ] skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
+		log.Trace("BYZ: skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
 		return nil
 	}
 	return attacks
@@ -118,13 +118,13 @@ func (e *Engine) applyByzantineAttacksToSeals(
 
 	c := e.backend.Core()
 	if c == nil {
-		log.Trace("[BYZ] skipping: core is nil", "coreNil", c == nil)
+		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
 		return nil, nil, appliedAttacks
 	}
 
 	curView := c.CurrentView()
 	if curView == nil {
-		log.Trace("[BYZ] skipping: curView is nil", "curViewNil", c == nil)
+		log.Trace("BYZ: skipping: curView is nil", "curViewNil", c == nil)
 		return nil, nil, appliedAttacks
 	}
 
@@ -132,7 +132,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 	if state := c.GetState(); state == core.StateAcceptRequest && c.IsProposer() {
 		attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, curView.Sequence.Uint64(), curView.Round.Uint64())
 	} else {
-		log.Trace("[BYZ] skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
+		log.Trace("BYZ: skipping: invalid state or not proposer", "have", state, "want", core.StateAcceptRequest, "isProposer", c.IsProposer())
 		return nil, nil, appliedAttacks
 	}
 
@@ -152,7 +152,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			committedSeal = omittedCommittedSeal
 			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
 
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
@@ -173,7 +173,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64())
 		}
 	} else {
-		log.Trace("[BYZ] Invalid or nil OmitAttackParams")
+		log.Trace("BYZ: Invalid or nil OmitAttackParams")
 	}
 
 	// ==== FAKE ATTACK ====
@@ -194,7 +194,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			committedSeal = fakedCommittedSeal
 			appliedAttacks = append(appliedAttacks, fmt.Sprintf("%s", at.UID))
 
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", curView.Sequence.Uint64(),
@@ -215,7 +215,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 			hook.MarkAttackExecuted(at.UID, curView.Sequence.Uint64())
 		}
 	} else {
-		log.Trace("[BYZ] Invalid or nil FakeAttackParams")
+		log.Trace("BYZ: Invalid or nil FakeAttackParams")
 	}
 
 	if len(appliedAttacks) > 0 {
@@ -223,7 +223,7 @@ func (e *Engine) applyByzantineAttacksToSeals(
 		for _, uid := range appliedAttacks {
 			err := hook.MarkAttackExecuted(uid, curView.Sequence.Uint64())
 			if err != nil {
-				log.Error("[BYZ] failed to mark executed", "uid", uid, "err", err)
+				log.Error("BYZ: failed to mark executed", "uid", uid, "err", err)
 			}
 		}
 	}
@@ -258,7 +258,7 @@ func (e *Engine) applyOmitAttackIfExists(
 		}
 	case btypes.MessageCodePropagation:
 	default:
-		log.Error("[BYZ] omit: unknown omit param code", "code", at.OmitParams.Code)
+		log.Error("BYZ: omit: unknown omit param code", "code", at.OmitParams.Code)
 	}
 
 	return mergedPreparedSeal, mergedCommittedSeal, attackExecute
@@ -274,7 +274,7 @@ func (e *Engine) getSealerCount(seal *types.WBFTAggregatedSeal) int {
 func (e *Engine) logSealStatus(preparedSeal, committedSeal *types.WBFTAggregatedSeal,
 	quorumSize int, appliedAttacks []string) {
 
-	log.Trace("[BYZ] Byzantine attacks applied to seals",
+	log.Trace("BYZ: Byzantine attacks applied to seals",
 		"attacks", appliedAttacks,
 		"prepared_count", e.getSealerCount(preparedSeal),
 		"committed_count", e.getSealerCount(committedSeal),
@@ -332,7 +332,7 @@ func (e *Engine) processFakeField(
 		// Generate fake seal based on value
 		fakeSeal, err := e.generateFakeSealFromValue(fakeField.Value, fakeIndexOffset, validatorSize)
 		if err != nil {
-			log.Debug("[BYZ] Failed to generate fake seal", "err", err, "value", fakeField.Value)
+			log.Debug("BYZ: Failed to generate fake seal", "err", err, "value", fakeField.Value)
 			return preparedSeal, committedSeal, false
 		}
 
@@ -419,7 +419,7 @@ func (e *Engine) addFakeSealToAggregated(seal *types.WBFTAggregatedSeal, fakeSea
 	// Try to aggregate, but if it fails, just concatenate
 	aggregated, err := bls.AggregateCompressedSignatures(seals)
 	if err != nil {
-		log.Debug("[BYZ] addFakeSealToAggregated: expected aggregation failure for fake signature", "err", err)
+		log.Debug("BYZ: addFakeSealToAggregated: expected aggregation failure for fake signature", "err", err)
 		// For testing purpose, just use the original signature
 		return &types.WBFTAggregatedSeal{
 			Sealers:   newSealers,
@@ -439,7 +439,7 @@ func (e *Engine) generateFakeSignature() []byte {
 	seed := bytes.Repeat([]byte{0x42}, 32) // 32 bytes seed
 	fakeSecretKey, err := bls.GenerateKey(seed)
 	if err != nil {
-		log.Debug("[BYZ] Failed to generate fake BLS key", "err", err)
+		log.Debug("BYZ: Failed to generate fake BLS key", "err", err)
 		// Fallback to simple fake signature
 		sig := make([]byte, 96)
 		for i := range sig {
@@ -486,11 +486,11 @@ func (e *Engine) processByzantineEpochInfoAttack(
 	govState govwbft.StateReader,
 	attack *btypes.ExecutableAttack) error {
 	if attack == nil {
-		return fmt.Errorf("[BYZ] attack is nil")
+		return fmt.Errorf("BYZ: attack is nil")
 	}
 
 	if attack.FakeParams == nil {
-		return fmt.Errorf("[BYZ] fake params is nil")
+		return fmt.Errorf("BYZ: fake params is nil")
 	}
 
 	for _, fakeField := range attack.FakeParams.Fields {
@@ -499,19 +499,19 @@ func (e *Engine) processByzantineEpochInfoAttack(
 			// Generate fake epoch info based on the value
 			fakeEpochInfo, err := e.generateFakeEpochInfo(chain, header, govState, fakeField.Value)
 			if err != nil {
-				log.Error("[BYZ] Failed to generate fake epoch info", "err", err)
+				log.Error("BYZ: Failed to generate fake epoch info", "err", err)
 				continue
 			}
 
 			// Apply the fake epoch info to header
 			_, err = ApplyHeaderWBFTExtra(header, WriteEpochInfo(fakeEpochInfo))
 			if err != nil {
-				log.Error("[BYZ] Failed to write fake epoch info", "err", err)
+				log.Error("BYZ: Failed to write fake epoch info", "err", err)
 				continue
 			}
 
 			if extra, err := getExtra(header); err == nil && extra != nil && extra.EpochInfo != nil {
-				log.Info("[BYZ] byzantine attack triggered",
+				log.Info("BYZ: byzantine attack triggered",
 					"name", attack.NAME,
 					"uid", attack.UID,
 					"seq", e.backend.Core().CurrentView().Sequence.Uint64(),
@@ -520,7 +520,7 @@ func (e *Engine) processByzantineEpochInfoAttack(
 					"extraEpochInfo", extra.EpochInfo)
 				err := e.MarkAttackExecuted(attack.UID, e.backend.Core().CurrentView().Sequence.Uint64())
 				if err != nil {
-					log.Error("[BYZ] Failed to mark attack executed", "uid", attack.UID, "err", err)
+					log.Error("BYZ: Failed to mark attack executed", "uid", attack.UID, "err", err)
 				}
 				return nil
 			}
@@ -597,7 +597,7 @@ func (e *Engine) parseAndExecuteAdvancedAttack(
 	attackType := parts[0]
 	attackParam := parts[1]
 
-	log.Trace("[BYZ] Executing advanced EpochInfo attack",
+	log.Trace("BYZ: Executing advanced EpochInfo attack",
 		"type", attackType,
 		"param", attackParam,
 		"block", header.Number.Uint64())
@@ -634,7 +634,7 @@ func (e *Engine) manipulateValidatorIndices(
 		for i := range epochInfo.Validators {
 			epochInfo.Validators[i] = uint32(len(epochInfo.Stakers) + i + 1)
 		}
-		log.Trace("[BYZ] Validator indices set out of range",
+		log.Trace("BYZ: Validator indices set out of range",
 			"max_index", epochInfo.Validators[len(epochInfo.Validators)-1],
 			"staker_count", len(epochInfo.Stakers))
 
@@ -646,7 +646,7 @@ func (e *Engine) manipulateValidatorIndices(
 				epochInfo.Validators[i] = duplicateIndex
 			}
 		}
-		log.Trace("[BYZ] All validators set to same index")
+		log.Trace("BYZ: All validators set to same index")
 
 	case "missing":
 		// Remove some validators
@@ -654,7 +654,7 @@ func (e *Engine) manipulateValidatorIndices(
 			epochInfo.Validators = epochInfo.Validators[:len(epochInfo.Validators)/2]
 			epochInfo.BLSPublicKeys = epochInfo.BLSPublicKeys[:len(epochInfo.BLSPublicKeys)/2]
 		}
-		log.Trace("[BYZ] Half of validators removed")
+		log.Trace("BYZ: Half of validators removed")
 
 	case "random":
 		// Random invalid indices
@@ -723,7 +723,7 @@ func (e *Engine) corruptBLSKeys(
 		epochInfo.BLSPublicKeys = [][]byte{[]byte("CORRUPTED")}
 	}
 
-	log.Trace("[BYZ] BLS keys corrupted", "type", corruptionType)
+	log.Trace("BYZ: BLS keys corrupted", "type", corruptionType)
 	return epochInfo, nil
 }
 
@@ -752,7 +752,7 @@ func (e *Engine) manipulateByzantineQuorum(
 			epochInfo.BLSPublicKeys = append(epochInfo.BLSPublicKeys, randomBytes(48))
 		}
 
-		log.Trace("[BYZ] Byzantine quorum threshold exceeded",
+		log.Trace("BYZ: Byzantine quorum threshold exceeded",
 			"f", f,
 			"malicious", maliciousCount,
 			"total", len(epochInfo.Validators))
@@ -795,28 +795,28 @@ func (e *Engine) manipulateDiligence(
 		for _, staker := range epochInfo.Stakers {
 			staker.Diligence = ^uint64(0) // Max uint64
 		}
-		log.Trace("[BYZ] Diligence overflow attack", "value", ^uint64(0))
+		log.Trace("BYZ: Diligence overflow attack", "value", ^uint64(0))
 
 	case "underflow":
 		// Set zero values (potential underflow in calculations)
 		for _, staker := range epochInfo.Stakers {
 			staker.Diligence = 0
 		}
-		log.Trace("[BYZ] Diligence underflow attack", "value", 0)
+		log.Trace("BYZ: Diligence underflow attack", "value", 0)
 
 	case "invalid_range":
 		// Values outside valid range (> 2 * DiligenceDenominator)
 		for i, staker := range epochInfo.Stakers {
 			staker.Diligence = types.DiligenceDenominator * uint64(3+i)
 		}
-		log.Trace("[BYZ] Diligence invalid range attack")
+		log.Trace("BYZ: Diligence invalid range attack")
 
 	case "zero_sum":
 		// All validators with zero diligence
 		for _, staker := range epochInfo.Stakers {
 			staker.Diligence = 0
 		}
-		log.Trace("[BYZ] Diligence zero sum attack")
+		log.Trace("BYZ: Diligence zero sum attack")
 
 	default:
 		// Default: random invalid values
@@ -848,7 +848,7 @@ func (e *Engine) createEpochSplit(
 		for i := halfPoint; i < len(epochInfo.Validators); i++ {
 			epochInfo.Validators[i] = uint32((i-halfPoint)*2 + 1)
 		}
-		log.Trace("[BYZ] Epoch split partition attack", "split_point", halfPoint)
+		log.Trace("BYZ: Epoch split partition attack", "split_point", halfPoint)
 
 	case "conflicting":
 		// Different staker addresses for same indices
@@ -857,12 +857,12 @@ func (e *Engine) createEpochSplit(
 				epochInfo.Stakers[i].Addr = common.HexToAddress(fmt.Sprintf("0x%040d", i))
 			}
 		}
-		log.Trace("[BYZ] Epoch split conflicting stakers")
+		log.Trace("BYZ: Epoch split conflicting stakers")
 
 	case "mismatched":
 		// Validator count doesn't match BLS key count
 		epochInfo.Validators = append(epochInfo.Validators, epochInfo.Validators...)
-		log.Trace("[BYZ] Epoch split mismatched counts",
+		log.Trace("BYZ: Epoch split mismatched counts",
 			"validators", len(epochInfo.Validators),
 			"bls_keys", len(epochInfo.BLSPublicKeys))
 
@@ -871,7 +871,7 @@ func (e *Engine) createEpochSplit(
 		for i := range epochInfo.Validators {
 			epochInfo.Validators[i] = uint32((i + 1) % len(epochInfo.Validators))
 		}
-		log.Trace("[BYZ] Epoch split circular reference")
+		log.Trace("BYZ: Epoch split circular reference")
 
 	default:
 		// Default: duplicate half of validators
@@ -904,7 +904,7 @@ func (e *Engine) poisonEpochCache(
 		}
 		// Modify to look like future epoch
 		epochInfo.Stabilizing = false
-		log.Trace("[BYZ] Cache poison future epoch", "future_block", futureHeader.Number)
+		log.Trace("BYZ: Cache poison future epoch", "future_block", futureHeader.Number)
 		return epochInfo, nil
 
 	case "past":
@@ -919,16 +919,16 @@ func (e *Engine) poisonEpochCache(
 		if err != nil || epochInfo == nil {
 			epochInfo = e.createMinimalFakeEpochInfo()
 		}
-		log.Trace("[BYZ] Cache poison past epoch", "past_block", pastHeader.Number)
+		log.Trace("BYZ: Cache poison past epoch", "past_block", pastHeader.Number)
 		return epochInfo, nil
 
 	case "oscillating":
 		// Alternating epoch info to confuse cache
 		if header.Number.Uint64()%2 == 0 {
-			log.Trace("[BYZ] Cache poison oscillating - fake")
+			log.Trace("BYZ: Cache poison oscillating - fake")
 			return e.createMinimalFakeEpochInfo(), nil
 		}
-		log.Trace("[BYZ] Cache poison oscillating - real")
+		log.Trace("BYZ: Cache poison oscillating - real")
 		epochInfo, err := e.buildEpochInfo(chain, header, state)
 		if err != nil {
 			return e.createMinimalFakeEpochInfo(), nil
@@ -937,7 +937,7 @@ func (e *Engine) poisonEpochCache(
 
 	case "memory_exhaustion":
 		// Large epoch to exhaust cache memory
-		log.Trace("[BYZ] Cache poison memory exhaustion")
+		log.Trace("BYZ: Cache poison memory exhaustion")
 		return e.generateMassiveStakersEpoch(map[string]interface{}{
 			"staker_count": float64(100000),
 		})
@@ -949,7 +949,7 @@ func (e *Engine) poisonEpochCache(
 		for i := 0; i < 10; i++ {
 			epochInfo.Validators = append(epochInfo.Validators, uint32(rand.Intn(100)))
 		}
-		log.Trace("[BYZ] Cache poison default", "validators", len(epochInfo.Validators))
+		log.Trace("BYZ: Cache poison default", "validators", len(epochInfo.Validators))
 		return epochInfo, nil
 	}
 }
@@ -1039,7 +1039,7 @@ func (e *Engine) modifyEpochInfo(epochInfo *types.EpochInfo, config map[string]i
 
 // generateDoSEpochInfo generates oversized epoch info for DoS attacks
 func (e *Engine) generateDoSEpochInfo(dosType string, config map[string]interface{}) (*types.EpochInfo, error) {
-	log.Debug("[BYZ] Generating DoS EpochInfo", "type", dosType)
+	log.Debug("BYZ: Generating DoS EpochInfo", "type", dosType)
 
 	switch dosType {
 	case "dos_massive", "massive_stakers":
@@ -1065,7 +1065,7 @@ func (e *Engine) generateMassiveStakersEpoch(config map[string]interface{}) (*ty
 		}
 	}
 
-	log.Trace("[BYZ] Creating massive stakers epoch", "count", stakerCount)
+	log.Trace("BYZ: Creating massive stakers epoch", "count", stakerCount)
 
 	stakers := make([]*types.Staker, stakerCount)
 	validators := make([]uint32, min(stakerCount, 1000)) // Limit validators
@@ -1103,7 +1103,7 @@ func (e *Engine) generateBinaryPayloadEpoch(config map[string]interface{}) (*typ
 		}
 	}
 
-	log.Debug("[BYZ] Creating binary payload epoch", "size", binarySize)
+	log.Debug("BYZ: Creating binary payload epoch", "size", binarySize)
 
 	// Create fake ELF binary header
 	elfHeader := []byte{
@@ -1178,7 +1178,7 @@ func (e *Engine) generateHugeBLSKeysEpoch(config map[string]interface{}) (*types
 	}
 
 	totalSize := keySize * keyCount
-	log.Warn("[BYZ] Creating huge BLS keys epoch",
+	log.Warn("BYZ: Creating huge BLS keys epoch",
 		"keySize", keySize,
 		"keyCount", keyCount,
 		"totalSize", totalSize)
@@ -1211,7 +1211,7 @@ func (e *Engine) generateMixedDoSEpoch(config map[string]interface{}) (*types.Ep
 	stakerCount := 10000
 	keySize := 50 * 1024 // 50KB per key
 
-	log.Warn("[BYZ] Creating mixed DoS epoch",
+	log.Warn("BYZ: Creating mixed DoS epoch",
 		"stakers", stakerCount,
 		"keySize", keySize)
 

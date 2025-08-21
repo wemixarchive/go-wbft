@@ -76,7 +76,7 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 	// Check for DOS attack
 	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 		c.executeDosAttack(at, btypes.MessageCodeRoundChange, roundChange)
-		log.Info("[BYZ] byzantine attack triggered",
+		log.Info("BYZ: byzantine attack triggered",
 			"name", at.NAME,
 			"uid", at.UID,
 			"seq", c.current.Sequence().Uint64(),
@@ -143,17 +143,17 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 				}
 			case btypes.TargetMsgPolicyDirection:
 				if v, err := field.ValueToUint64(); err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				} else {
 					if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
 						isExecuteDropMessage = true
-						log.Info("[BYZ] ", "isExecuteDropMessage", isExecuteDropMessage)
+						log.Info("BYZ: ", "isExecuteDropMessage", isExecuteDropMessage)
 					}
 				}
 			}
 		}
 		if isExecuteDropMessage {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 				"seq", c.CurrentView().Sequence.Uint64(),
@@ -233,7 +233,7 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 				}
 			case btypes.TargetMsgPolicyDirection:
 				if v, err := field.ValueToUint64(); err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				} else {
 					if v == uint64(btypes.MessageDirectionReceive) || v == uint64(btypes.MessageDirectionBoth) {
 						isExecuteDropMessage = true
@@ -242,7 +242,7 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 			}
 		}
 		if isExecuteDropMessage {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 				"seq", sequence.Uint64(),
@@ -341,7 +341,7 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 		if currentRoundMessages >= c.valSet.QuorumSize() && !c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
 			err := c.byzantineSendPreprepareFromNonProposer()
 			if err != nil {
-				logger.Error("[BYZ] WBFT: failed to send PRE-PREPARE message from non-proposer", "err", err)
+				logger.Error("BYZ, WBFT: failed to send PRE-PREPARE message from non-proposer", "err", err)
 			}
 		}
 	}
@@ -376,7 +376,7 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 	// Check and execute replay attack using stored ROUND-CHANGE message
 	if at := attacks[btypes.AttackTypeReplay]; at != nil && at.ReplayParams != nil {
 		if c.storedRoundChange == nil {
-			log.Warn("[BYZ] No roundchange message found in storage")
+			log.Warn("BYZ: No roundchange message found in storage")
 			return false
 		}
 
@@ -392,7 +392,7 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 			roundChange = wbfmessage.NewRoundChange(sequence, storedRound, c.storedRoundChange.PreparedRound, preparedBlock)
 		}
 		send = true
-		log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
+		log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 	}
 
@@ -403,7 +403,7 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 			case btypes.TargetMsgProposal:
 				value, err := field.ValueToUint64()
 				if err != nil {
-					withMsg(logger, roundChange).Error("[BYZ] Failed to parse field value for ROUND-CHANGE", "err", err)
+					withMsg(logger, roundChange).Error("BYZ: Failed to parse field value for ROUND-CHANGE", "err", err)
 					continue
 				}
 
@@ -417,7 +417,7 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 							fakeAttackExecution = true
 						}
 					} else {
-						withMsg(logger, roundChange).Error("[BYZ] ROUND-CHANGE message is nil, cannot set proposal")
+						withMsg(logger, roundChange).Error("BYZ: ROUND-CHANGE message is nil, cannot set proposal")
 						continue
 					}
 				}
@@ -440,12 +440,12 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 				} else {
 					val, err = field.ValueToUint64()
 					if err != nil {
-						withMsg(logger, roundChange).Error("[BYZ] Conversion failed", "err", err)
+						withMsg(logger, roundChange).Error("BYZ: Conversion failed", "err", err)
 						return false
 					}
 				}
 				send = true
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "new", val, "parmas", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				roundChange.Sequence = new(big.Int).SetUint64(val)
 			case btypes.TargetMsgRound:
@@ -457,12 +457,12 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 				} else {
 					val, err = field.ValueToUint64()
 					if err != nil {
-						withMsg(logger, roundChange).Error("[BYZ] Conversion failed", "err", err)
+						withMsg(logger, roundChange).Error("BYZ: Conversion failed", "err", err)
 						return false
 					}
 				}
 				send = true
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "new", val, "parmas", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				roundChange.Round = new(big.Int).SetUint64(val)
 			case btypes.TargetHeaderNumber:
@@ -474,16 +474,16 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 				} else {
 					val, err = field.ValueToUint64()
 					if err != nil {
-						withMsg(logger, roundChange).Error("[BYZ] Conversion failed", "err", err)
+						withMsg(logger, roundChange).Error("BYZ: Conversion failed", "err", err)
 						return false
 					}
 				}
 				if roundChange.PreparedBlock == nil {
-					log.Warn("[BYZ] Byzantine attack skipped: no prepared block in RoundChange message")
+					log.Warn("BYZ: Byzantine attack skipped: no prepared block in RoundChange message")
 					break
 				}
 				send = true
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", roundChange.PreparedBlock.Number(), "new", val, "parmas", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", roundChange.PreparedBlock.Number(), "new", val, "parmas", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				roundChange.PreparedBlock.SetNumber(val)
 
@@ -494,12 +494,12 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to encode ROUND-CHANGE message", "err", err)
+		withMsg(logger, roundChange).Error("BYZ, WBFT: failed to encode ROUND-CHANGE message", "err", err)
 		return false
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to sign ROUND-CHANGE message", "err", err)
+		withMsg(logger, roundChange).Error("BYZ, WBFT: failed to sign ROUND-CHANGE message", "err", err)
 		return false
 	}
 	roundChange.SetSignature(signature)
@@ -515,19 +515,19 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 				case btypes.TargetMsgJustification:
 					value, err := field.ValueToUint64()
 					if err != nil {
-						withMsg(logger, roundChange).Error("[BYZ] Failed to parse field value for ROUND-CHANGE", "err", err)
+						withMsg(logger, roundChange).Error("BYZ: Failed to parse field value for ROUND-CHANGE", "err", err)
 						continue
 					}
 					switch value {
 					case 0: // Remove justification entirely
 						roundChange.Justification = nil
-						log.Trace("[BYZ] Removed PREPARE justification from ROUND-CHANGE message")
+						log.Trace("BYZ: Removed PREPARE justification from ROUND-CHANGE message")
 						fakeAttackExecution = true
 					case 1: // Reduce justification (remove some PREPARE messages)
 						if len(c.WBFTPreparedPrepares) > 1 {
 							// Keep only first PREPARE message (insufficient for quorum)
 							roundChange.Justification = c.WBFTPreparedPrepares[:1]
-							log.Trace("[BYZ] Reduced PREPARE justification",
+							log.Trace("BYZ: Reduced PREPARE justification",
 								"original_count", len(c.WBFTPreparedPrepares),
 								"reduced_count", 1)
 							fakeAttackExecution = true
@@ -545,7 +545,7 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 						}
 						roundChange.Justification = tamperedJustification
 						fakeAttackExecution = true
-						log.Trace("[BYZ] Tampered with PREPARE justification digests")
+						log.Trace("BYZ: Tampered with PREPARE justification digests")
 					case 3:
 						// Create fake justification when there's none
 						// This creates invalid justification with wrong sequence/round
@@ -562,9 +562,9 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 						}
 						roundChange.Justification = fakeJustification
 						fakeAttackExecution = true
-						log.Trace("[BYZ] Created fake PREPARE justification")
+						log.Trace("BYZ: Created fake PREPARE justification")
 					default:
-						withMsg(logger, roundChange).Error("[BYZ] Unknown field value for ROUND-CHANGE justification", "value", value)
+						withMsg(logger, roundChange).Error("BYZ: Unknown field value for ROUND-CHANGE justification", "value", value)
 					}
 				default:
 				}
@@ -575,35 +575,35 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 	// Check and execute replay attack using stored ROUND-CHANGE message
 	if at := attacks[btypes.AttackTypeReplay]; at != nil && at.ReplayParams != nil {
 		if c.storedRoundChange == nil {
-			log.Warn("[BYZ] No roundchange message found in storage")
+			log.Warn("BYZ: No roundchange message found in storage")
 			return false
 		}
 		// Extend ROUND-CHANGE message with PREPARE justification
 		if c.storedRoundChange.WBFTPreparedPrepares != nil {
 			roundChange.Justification = c.storedRoundChange.WBFTPreparedPrepares
-			withMsg(logger, roundChange).Debug("[BYZ] WBFT: extended ROUND-CHANGE message with PREPARE justification", "justification", roundChange.Justification)
+			withMsg(logger, roundChange).Debug("BYZ, WBFT: extended ROUND-CHANGE message with PREPARE justification", "justification", roundChange.Justification)
 		}
 	}
 
 	// RLP-encode message
 	data, err := rlp.EncodeToBytes(roundChange)
 	if err != nil {
-		withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to encode ROUND-CHANGE message", "err", err)
+		withMsg(logger, roundChange).Error("BYZ, WBFT: failed to encode ROUND-CHANGE message", "err", err)
 		return false
 	}
 
 	if send || fakeAttackExecution {
-		withMsg(logger, roundChange).Info("[BYZ] WBFT: broadcast ROUND-CHANGE message", "payload", hexutil.Encode(data))
+		withMsg(logger, roundChange).Info("BYZ, WBFT: broadcast ROUND-CHANGE message", "payload", hexutil.Encode(data))
 
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, roundChange.Code(), data); err != nil {
-			withMsg(logger, roundChange).Error("[BYZ] WBFT: failed to broadcast ROUND-CHANGE message", "err", err)
+			withMsg(logger, roundChange).Error("BYZ, WBFT: failed to broadcast ROUND-CHANGE message", "err", err)
 			return false
 		}
 	}
 
 	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil && fakeAttackExecution && roundChange != nil {
-		log.Info("[BYZ] byzantine attack triggered", "name", at.NAME,
+		log.Info("BYZ: byzantine attack triggered", "name", at.NAME,
 			"uid", at.UID,
 			"seq", c.current.Sequence().Uint64(),
 			"code", at.FakeParams.Code,
@@ -797,7 +797,7 @@ func (c *Core) storeRoundChagneMessage(hook btypes.ConsensusHook, attack *btypes
 		WBFTPreparedPrepares: wBFTPreparedPrepares,
 	}
 
-	log.Info("[BYZ] byzantine message stored",
+	log.Info("BYZ: byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedRoundChange.Seq,

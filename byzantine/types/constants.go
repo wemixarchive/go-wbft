@@ -61,7 +61,7 @@ func ParseOmitCommand(code MessageCode, cmd uint64) string {
 			return "Omit Commit Seal"
 		}
 	default:
-		log.Warn("[BYZ] unknown Omit command", "code", code, "cmd", cmd)
+		log.Warn("BYZ: unknown Omit command", "code", code, "cmd", cmd)
 	}
 	return ""
 }

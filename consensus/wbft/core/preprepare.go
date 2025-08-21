@@ -73,7 +73,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			// Check for DOS attack
 			if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 				c.executeDosAttack(at, btypes.MessageCodePrePrepare, preprepare)
-				log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
+				log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID,
 					"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				// Continue with normal preprepare after DOS attack
@@ -152,7 +152,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 						}
 					case btypes.TargetMsgPolicyDirection:
 						if v, err := field.ValueToUint64(); err != nil {
-							log.Error("[BYZ] Failed to parse field value", "err", err)
+							log.Error("BYZ: Failed to parse field value", "err", err)
 						} else {
 							if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
 								isExecuteDropMessage = true
@@ -161,7 +161,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 					}
 				}
 				if isExecuteDropMessage {
-					log.Info("[BYZ] byzantine attack triggered",
+					log.Info("BYZ: byzantine attack triggered",
 						"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 						"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 						"seq", curView.Sequence.Uint64(),
@@ -237,10 +237,10 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 				round := new(big.Int).Set(c.storedPreprepare.Round)
 				preprepare = wbfmessage.NewPreprepare(sequence, round, proposal)
 			}
-			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
+			log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams)
 			c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
-			log.Warn("[BYZ] No preprepare message found in storage")
+			log.Warn("BYZ: No preprepare message found in storage")
 		}
 	}
 	preprepare.SetSource(c.Address())
@@ -255,7 +255,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 					preprepare.Proposal = newProposal
 					send = true
 					fakeAttackExecute = true
-					log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.FakeParams)
+					log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.FakeParams)
 					c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				}
 			}
@@ -276,12 +276,12 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 				} else {
 					val, err = field.ValueToUint64()
 					if err != nil {
-						withMsg(logger, preprepare).Error("[BYZ] Conversion failed", "err", err)
+						withMsg(logger, preprepare).Error("BYZ: Conversion failed", "err", err)
 						return false
 					}
 				}
 				send = true
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "ori", proposal.Number(), "new", val, "parmas", at.TamperParams)
 				c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				preprepare.Proposal.SetNumber(val)
 			}
@@ -290,12 +290,12 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 	// Sign payload
 	encodedPayload, err := preprepare.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, preprepare).Error("[BYZ] WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
+		withMsg(logger, preprepare).Error("BYZ, WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
 		return false
 	}
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, preprepare).Error("[BYZ] WBFT: failed to sign PRE-PREPARE message", "err", err)
+		withMsg(logger, preprepare).Error("BYZ, WBFT: failed to sign PRE-PREPARE message", "err", err)
 		return false
 	}
 	preprepare.SetSignature(signature)
@@ -305,15 +305,15 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 		preprepare.JustificationRoundChanges = make([]*wbfmessage.SignedRoundChangePayload, 0)
 		for _, m := range request.RCMessages.Values() {
 			preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
-			withMsg(logger, preprepare).Trace("[BYZ] WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+			withMsg(logger, preprepare).Trace("BYZ, WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
 		}
-		withMsg(logger, preprepare).Trace("[BYZ] WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+		withMsg(logger, preprepare).Trace("BYZ, WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
 
 		if at := attacks[btypes.AttackTypeOmitMessage]; at != nil && at.OmitParams != nil {
 			if at.OmitParams.Cmd == btypes.OmitCommandRoundChange {
 				send = true
 				preprepare.JustificationRoundChanges = nil
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
 				c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
@@ -322,13 +322,13 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 	// Extend PRE-PREPARE message with PREPARE justification
 	if request.PrepareMessages != nil {
 		preprepare.JustificationPrepares = request.PrepareMessages
-		withMsg(logger, preprepare).Trace("[BYZ] WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+		withMsg(logger, preprepare).Trace("BYZ, WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
 
 		if at := attacks[btypes.AttackTypeOmitMessage]; at != nil && at.OmitParams != nil {
 			if at.OmitParams.Cmd == btypes.OmitCommandPrepareMessage {
 				send = true
 				preprepare.JustificationPrepares = nil
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.OmitParams)
 				c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
@@ -337,17 +337,17 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&preprepare)
 	if err != nil {
-		withMsg(logger, preprepare).Error("[BYZ] WBFT: failed to encode PRE-PREPARE message", "err", err)
+		withMsg(logger, preprepare).Error("BYZ, WBFT: failed to encode PRE-PREPARE message", "err", err)
 		return false
 	}
 
 	logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
 
 	if send {
-		logger.Info("[BYZ] broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
+		logger.Info("BYZ: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
-			logger.Error("[BYZ] WBFT: failed to broadcast PRE-PREPARE message", "err", err)
+			logger.Error("BYZ, WBFT: failed to broadcast PRE-PREPARE message", "err", err)
 			return false
 		}
 
@@ -411,7 +411,7 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 				}
 			case btypes.TargetMsgPolicyDirection:
 				if v, err := field.ValueToUint64(); err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				} else {
 					if v == uint64(btypes.MessageDirectionReceive) || v == uint64(btypes.MessageDirectionBoth) {
 						isExecuteDropMessage = true
@@ -420,7 +420,7 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 			}
 		}
 		if isExecuteDropMessage {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 				"seq", sequence.Uint64(),
@@ -521,7 +521,7 @@ func (c *Core) createNewProposal(originalProposal *types.Block) *types.Block {
 	// This simulates creating a completely new proposal
 	newBlock := types.NewBlock(header, nil, nil, nil, trie.NewStackTrie(nil))
 
-	c.logger.Debug("[BYZ] Created new proposal",
+	c.logger.Debug("BYZ: Created new proposal",
 		"number", newBlock.Number(),
 		"hash", newBlock.Hash(),
 		"original_hash", originalProposal.Hash())
@@ -538,7 +538,7 @@ func (c *Core) storePreprepareMessage(hook btypes.ConsensusHook, attack *btypes.
 		Round:    new(big.Int).Set(curView.Round),
 		Proposal: request.Proposal.DeepCopy(),
 	}
-	log.Info("[BYZ] byzantine message stored",
+	log.Info("BYZ: byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedPreprepare.Seq,

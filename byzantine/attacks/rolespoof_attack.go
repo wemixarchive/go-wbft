@@ -106,7 +106,7 @@ func (a *RoleSpoofedAttack) spoofProposerMessage(event types.Event) ([]byte, str
 	// This method handles both regular PrePrepare and PrePrepare after round change
 	// The context (presence of RCMessages) is checked in the consensus layer
 
-	log.Info("[BYZ] Spoofing PrePrepare message",
+	log.Info("BYZ: Spoofing PrePrepare message",
 		"sequence", event.Sequence,
 		"round", event.Round)
 

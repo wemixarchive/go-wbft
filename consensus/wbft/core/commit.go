@@ -70,7 +70,7 @@ func (c *Core) broadcastCommit() {
 	// Check for DOS attack
 	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 		c.executeDosAttack(at, btypes.MessageCodeCommit, commit)
-		log.Info("[BYZ] attack", "name", at.NAME, "uid", at.UID,
+		log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID,
 			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		// Continue with normal commit after DOS attack
@@ -130,7 +130,7 @@ func (c *Core) broadcastCommit() {
 				}
 			case btypes.TargetMsgPolicyDirection:
 				if v, err := field.ValueToUint64(); err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				} else {
 					if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
 						isExecuteDropMessage = true
@@ -139,7 +139,7 @@ func (c *Core) broadcastCommit() {
 			}
 		}
 		if isExecuteDropMessage {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 				"seq", c.CurrentView().Sequence.Uint64(),
@@ -199,10 +199,10 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 				round := new(big.Int).Set(c.storedCommit.Round)
 				commit = wbfmessage.NewCommit(sequence, round, c.storedCommit.Digest, storedCommitSeal)
 			}
-			log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(commitSeal), "changed_seal", hex.EncodeToString(storedCommitSeal))
+			log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.ReplayParams, "origianl_seal", hex.EncodeToString(commitSeal), "changed_seal", hex.EncodeToString(storedCommitSeal))
 			hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		} else {
-			log.Warn("[BYZ] No commit message found in storage")
+			log.Warn("BYZ: No commit message found in storage")
 		}
 	}
 	commit.SetSource(c.Address())
@@ -221,13 +221,13 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 				} else {
 					val, err = field.ValueToHash()
 					if err != nil {
-						withMsg(logger, commit).Error("[BYZ] Conversion failed", "err", err)
+						withMsg(logger, commit).Error("BYZ: Conversion failed", "err", err)
 						return false
 					}
 				}
 				send = true
 				commit.Digest = val
-				log.Info("[BYZ] byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", commit.Digest.Hex(), "params", at.TamperParams)
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "original", sub.Digest.Hex(), "changed", commit.Digest.Hex(), "params", at.TamperParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 			}
 		}
@@ -236,13 +236,13 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 	// Sign Message
 	encodedPayload, err := commit.EncodePayloadForSigning()
 	if err != nil {
-		withMsg(logger, commit).Error("[BYZ] WBFT: failed to encode payload of COMMIT message", "err", err)
+		withMsg(logger, commit).Error("BYZ, WBFT: failed to encode payload of COMMIT message", "err", err)
 		return false
 	}
 
 	signature, err := c.backend.Sign(encodedPayload)
 	if err != nil {
-		withMsg(logger, commit).Error("[BYZ] WBFT: failed to sign COMMIT message", "err", err)
+		withMsg(logger, commit).Error("BYZ, WBFT: failed to sign COMMIT message", "err", err)
 		return false
 	}
 	commit.SetSignature(signature)
@@ -250,15 +250,15 @@ func (c *Core) broadcastByzantineCommit(hook btypes.ConsensusHook, attacks map[b
 	// RLP-encode message
 	payload, err := rlp.EncodeToBytes(&commit)
 	if err != nil {
-		withMsg(logger, commit).Error("[BYZ] WBFT: failed to encode COMMIT message", "err", err)
+		withMsg(logger, commit).Error("BYZ, WBFT: failed to encode COMMIT message", "err", err)
 		return false
 	}
 
 	if send {
-		withMsg(logger, commit).Info("[BYZ] WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
+		withMsg(logger, commit).Info("BYZ, WBFT: broadcast COMMIT message", "payload", hexutil.Encode(payload))
 		// Broadcast RLP-encoded message
 		if err = c.backend.Broadcast(c.valSet, commit.Code(), payload); err != nil {
-			withMsg(logger, commit).Error("[BYZ] failed to broadcast COMMIT message", "err", err)
+			withMsg(logger, commit).Error("BYZ: failed to broadcast COMMIT message", "err", err)
 			return false
 		}
 	}
@@ -310,7 +310,7 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 				}
 			case btypes.TargetMsgPolicyDirection:
 				if v, err := field.ValueToUint64(); err != nil {
-					log.Error("[BYZ] Failed to parse field value", "err", err)
+					log.Error("BYZ: Failed to parse field value", "err", err)
 				} else {
 					if v == uint64(btypes.MessageDirectionReceive) || v == uint64(btypes.MessageDirectionBoth) {
 						isExecuteDropMessage = true
@@ -319,7 +319,7 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 			}
 		}
 		if isExecuteDropMessage {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
 				"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
 				"seq", sequence.Uint64(),
@@ -332,7 +332,7 @@ func (c *Core) handleCommitMsg(commit *wbfmessage.Commit) error {
 						return nil
 					}
 				}
-				log.Info("[BYZ] modified", "valset", c.valSet.AddressList())
+				log.Info("BYZ: modified", "valset", c.valSet.AddressList())
 			} else {
 				// NOTE:
 				// If a message drop exists and no specific targets exist,
@@ -440,7 +440,7 @@ func (c *Core) storeCommitMessage(hook btypes.ConsensusHook, attack *btypes.Exec
 	}
 	copy(c.storedCommit.CommitSeal, CommitSeal)
 
-	log.Info("[BYZ] byzantine message stored",
+	log.Info("BYZ: byzantine message stored",
 		"name", attack.NAME,
 		"uid", attack.UID,
 		"seq", c.storedCommit.Seq,

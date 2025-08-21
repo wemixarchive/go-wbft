@@ -22,12 +22,12 @@ import (
 
 func (h *ethHandler) SetByzantineHook(hook btypes.ConsensusHook) {
 	(*handler)(h).byzantineHook = hook
-	log.Debug("[BYZ] Byzantine hook integrated with eth backend handler")
+	log.Debug("BYZ: Byzantine hook integrated with eth backend handler")
 }
 
 func (h *ethHandler) ByzantineHook() btypes.ConsensusHook {
 	if (*handler)(h).byzantineHook == nil {
-		log.Warn("[BYZ] Byzantine hook is not set, returning nil")
+		log.Warn("BYZ: Byzantine hook is not set, returning nil")
 		return nil
 	}
 	return (*handler)(h).byzantineHook
@@ -39,9 +39,9 @@ func (h *ethHandler) ByzantineHook() btypes.ConsensusHook {
 func (s *Ethereum) SetByzantineHook(hook btypes.ConsensusHook) {
 	if s.handler != nil {
 		s.handler.byzantineHook = hook
-		log.Debug("[BYZ] Byzantine hook integrated with eth backend handler")
+		log.Debug("BYZ: Byzantine hook integrated with eth backend handler")
 	} else {
-		log.Warn("[BYZ] handler is nil. can't set byzantine hook")
+		log.Warn("BYZ: handler is nil. can't set byzantine hook")
 	}
 }
 
@@ -54,7 +54,7 @@ func (h *handler) createBlockWithMissingSeals(block *types.Block, cmd uint64) *t
 
 	wbftExtra, err := types.ExtractWBFTExtra(newHeader)
 	if err != nil {
-		log.Warn("[BYZ] Failed to extract WBFTExtra", "err", err)
+		log.Warn("BYZ: Failed to extract WBFTExtra", "err", err)
 		return nil
 	}
 
@@ -63,19 +63,19 @@ func (h *handler) createBlockWithMissingSeals(block *types.Block, cmd uint64) *t
 	// So we need to modify other fields to create a different hash
 	switch cmd {
 	case btypes.OmitCommandPrepareSeal:
-		log.Trace("[BYZ] Setting PreparedSeal to nil")
+		log.Trace("BYZ: Setting PreparedSeal to nil")
 		wbftExtra.PreparedSeal = nil
 	case btypes.OmitCommandCommitSeal:
-		log.Trace("[BYZ] Setting CommittedSeal to nil")
+		log.Trace("BYZ: Setting CommittedSeal to nil")
 		wbftExtra.CommittedSeal = nil
 	default:
-		log.Warn("[BYZ] Unknown omit command", "cmd", cmd)
+		log.Warn("BYZ: Unknown omit command", "cmd", cmd)
 		return nil
 	}
 
 	newExtra, err := rlp.EncodeToBytes(wbftExtra)
 	if err != nil {
-		log.Warn("[BYZ] Failed to encode WBFTExtra", "err", err)
+		log.Warn("BYZ: Failed to encode WBFTExtra", "err", err)
 		return nil
 	}
 	newHeader.Extra = make([]byte, len(newExtra))
@@ -91,7 +91,7 @@ func (h *handler) createBlockWithFakeSeals(block *types.Block, fakeParams *btype
 
 	wbftExtra, err := types.ExtractWBFTExtra(newHeader)
 	if err != nil {
-		log.Warn("[BYZ] Failed to extract WBFTExtra", "err", err)
+		log.Warn("BYZ: Failed to extract WBFTExtra", "err", err)
 		return nil
 	}
 
@@ -99,7 +99,7 @@ func (h *handler) createBlockWithFakeSeals(block *types.Block, fakeParams *btype
 		// Parse BLS keys instead of just addresses
 		fakeKeys, ok := btypes.ParseFakeBLSKeys(field.Value)
 		if !ok {
-			log.Warn("[BYZ] Invalid fake BLS keys for FakeSeal")
+			log.Warn("BYZ: Invalid fake BLS keys for FakeSeal")
 			continue
 		}
 
@@ -108,21 +108,21 @@ func (h *handler) createBlockWithFakeSeals(block *types.Block, fakeParams *btype
 			fakeSeal := h.generateFakeAggregatedSeal(wbftExtra, fakeKeys, wbftcore.SealTypePrepare, block)
 			if fakeSeal != nil {
 				wbftExtra.PreparedSeal = fakeSeal
-				log.Trace("[BYZ] Applied fake prepared seal", "signers", len(fakeKeys))
+				log.Trace("BYZ: Applied fake prepared seal", "signers", len(fakeKeys))
 			}
 
 		case btypes.TargetCommitSeal:
 			fakeSeal := h.generateFakeAggregatedSeal(wbftExtra, fakeKeys, wbftcore.SealTypeCommit, block)
 			if fakeSeal != nil {
 				wbftExtra.CommittedSeal = fakeSeal
-				log.Trace("[BYZ] Applied fake committed seal", "signers", len(fakeKeys))
+				log.Trace("BYZ: Applied fake committed seal", "signers", len(fakeKeys))
 			}
 		}
 	}
 
 	newExtra, err := rlp.EncodeToBytes(wbftExtra)
 	if err != nil {
-		log.Warn("[BYZ] Failed to encode WBFTExtra", "err", err)
+		log.Warn("BYZ: Failed to encode WBFTExtra", "err", err)
 		return nil
 	}
 	newHeader.Extra = make([]byte, len(newExtra))
@@ -135,7 +135,7 @@ func (h *handler) createBlockWithFakeSeals(block *types.Block, fakeParams *btype
 // generateFakeAggregatedSeal generates a fake aggregated seal by replacing some validator signatures with fake ones
 func (h *handler) generateFakeAggregatedSeal(originWBFTExtra *types.WBFTExtra, fakeKeys []*btypes.FakeBLSKey, sealType wbftcore.SealType, block *types.Block) *types.WBFTAggregatedSeal {
 	if originWBFTExtra == nil {
-		log.Warn("[BYZ] OriginWBFTExtra is nil")
+		log.Warn("BYZ: OriginWBFTExtra is nil")
 		return nil
 	}
 
@@ -288,13 +288,13 @@ func mergeSeals(seal *types.WBFTAggregatedSeal, extraSeals []wbft.SealData) *typ
 		seals = append(seals, extraSeal.Seal)
 	}
 	if len(seals) == 0 {
-		log.Warn("[BYZ] No seals to aggregate")
+		log.Warn("BYZ: No seals to aggregate")
 		return seal
 	}
 
 	aggregatedSeal, err := bls.AggregateCompressedSignatures(seals)
 	if err != nil {
-		log.Warn("[BYZ] Failed to aggregate signatures", "err", err)
+		log.Warn("BYZ: Failed to aggregate signatures", "err", err)
 		return seal
 	}
 
@@ -327,7 +327,7 @@ func generateFakeExtraData(fakeKeys []*btypes.FakeBLSKey, validatorCount int, he
 			Seal:   signature.Marshal(),
 		})
 
-		log.Debug("[BYZ] Generated fake seal", "index", i, "address", key.Address, "sealType", sealType)
+		log.Debug("BYZ: Generated fake seal", "index", i, "address", key.Address, "sealType", sealType)
 	}
 
 	return sealData
@@ -350,7 +350,7 @@ func generateFakeBLSKey(addr common.Address, index int) *btypes.FakeBLSKey {
 
 	secretKey, err := bls.GenerateKey(seed)
 	if err != nil {
-		log.Warn("[BYZ] Failed to generate BLS key for validator", "addr", addr, "err", err)
+		log.Warn("BYZ: Failed to generate BLS key for validator", "addr", addr, "err", err)
 		// Fallback to random key
 		secretKey, _ = bls.GenerateKey(nil)
 	}
@@ -450,11 +450,11 @@ func processMessagePolicyAttack(
 			filteredPeers = filterTargetPeers(peers, params, field)
 			if len(filteredPeers) == 0 {
 				// 타겟이 설정되었지만 현재 연결된 peer 중 매칭되는 것이 없음
-				log.Debug("[BYZ] No matching peers for configured targets")
+				log.Debug("BYZ: No matching peers for configured targets")
 			}
 
 		default:
-			log.Debug("[BYZ] unknown target for byzantine attack", "target", field.Target)
+			log.Debug("BYZ: unknown target for byzantine attack", "target", field.Target)
 		}
 	}
 
@@ -474,7 +474,7 @@ func processMessagePolicyAttack(
 func checkMessageDirection(field btypes.Field) bool {
 	dirValue, ok := field.Value.(uint64)
 	if !ok {
-		log.Warn("[BYZ] invalid direction value type", "value", field.Value)
+		log.Warn("BYZ: invalid direction value type", "value", field.Value)
 		return false
 	}
 
@@ -503,7 +503,7 @@ func processOmitAttack(attack *btypes.ExecutableAttack, block *types.Block, h *h
 	modifiedBlock := h.createBlockWithMissingSeals(block, attack.OmitParams.Cmd)
 
 	if modifiedBlock == nil {
-		log.Warn("[BYZ] Failed to create modified block", "cmd", attack.OmitParams.Cmd)
+		log.Warn("BYZ: Failed to create modified block", "cmd", attack.OmitParams.Cmd)
 		return nil
 	}
 
@@ -522,7 +522,7 @@ func processFakeAttack(attack *btypes.ExecutableAttack, block *types.Block, h *h
 	modifiedBlock := h.createBlockWithFakeSeals(block, attack.FakeParams)
 
 	if modifiedBlock == nil {
-		log.Warn("[BYZ] Failed to create modified block", "fakeFields", attack.FakeParams.Fields)
+		log.Warn("BYZ: Failed to create modified block", "fakeFields", attack.FakeParams.Fields)
 		return nil
 	}
 
@@ -547,7 +547,7 @@ func logAttackExecution(attack *btypes.ExecutableAttack, blockNum uint64, detail
 	// Append additional details
 	logContext = append(logContext, details...)
 
-	log.Info("[BYZ] byzantine attack triggered", logContext...)
+	log.Info("BYZ: byzantine attack triggered", logContext...)
 }
 
 // IsAttackEnabled checks if a specific attack type is enabled

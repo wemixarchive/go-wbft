@@ -55,7 +55,7 @@ func CheckByzantinePropagationAttack(
 
 	// Skip invalid block numbers
 	if blockNumber == 0 {
-		log.Warn("[BYZ] received new block announcement with zero block number",
+		log.Warn("BYZ: received new block announcement with zero block number",
 			"peer", peerID,
 			"hash", blockHash.Hex())
 		return false
@@ -68,7 +68,7 @@ func CheckByzantinePropagationAttack(
 	// Check for message policy attack
 	if at := attacks[btypes.AttackTypeMessagePolicy]; at != nil && at.MessagePolicyParams != nil {
 		if shouldDropPropagationMessage(at.MessagePolicyParams, peerID) {
-			log.Info("[BYZ] byzantine attack triggered",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", at.NAME,
 				"uid", at.UID,
 				"seq", blockNumber,
