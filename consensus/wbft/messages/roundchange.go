@@ -271,7 +271,7 @@ func (m *RoundChange) DecodeRLP(stream *rlp.Stream) error {
 			return err
 		}
 		if m.PreparedBlock.Hash() != m.PreparedDigest {
-			log.Error("WBFT: Error m.PreparedDigest.Hash() != digest")
+			log.Error("WBFT: Error m.PreparedDigest.Hash() != digest", "m.hash", m.PreparedBlock.Hash(), "m.digest", m.PreparedDigest)
 			return wbftcommon.ErrFailedDecodePreprepare
 		}
 	}
