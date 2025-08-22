@@ -205,7 +205,7 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 			}
 
 			c.current.preprepareSent = curView.Round
-			log.Info("BYZ: attack",
+			log.Info("BYZ: byzantine attack triggered",
 				"name", attacks[btypes.AttackTypeRoleSpoofed].NAME,
 				"uid", attacks[btypes.AttackTypeRoleSpoofed].UID,
 				"seq", c.current.Sequence().Uint64(),
