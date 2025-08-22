@@ -73,7 +73,7 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			// Check for DOS attack
 			if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 				c.executeDosAttack(at, btypes.MessageCodePrePrepare, preprepare)
-				log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID,
+				log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID,
 					"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 				hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				// Continue with normal preprepare after DOS attack
@@ -255,7 +255,7 @@ func (c *Core) sendByzantinePreprepareMsg(request *Request, attacks map[btypes.A
 					preprepare.Proposal = newProposal
 					send = true
 					fakeAttackExecute = true
-					log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.FakeParams)
+					log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID, "seq", c.current.Sequence().Uint64(), "parmas", at.FakeParams)
 					c.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 				}
 			}

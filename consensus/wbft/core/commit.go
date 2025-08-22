@@ -70,7 +70,7 @@ func (c *Core) broadcastCommit() {
 	// Check for DOS attack
 	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 		c.executeDosAttack(at, btypes.MessageCodeCommit, commit)
-		log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID,
+		log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID,
 			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		// Continue with normal commit after DOS attack

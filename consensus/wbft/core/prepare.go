@@ -68,7 +68,7 @@ func (c *Core) broadcastPrepare() {
 	// Check for DOS attack
 	if at := attacks[btypes.AttackTypeDos]; at != nil && at.DosParams != nil {
 		c.executeDosAttack(at, btypes.MessageCodePrepare, prepare)
-		log.Info("BYZ: attack", "name", at.NAME, "uid", at.UID,
+		log.Info("BYZ: byzantine attack triggered", "name", at.NAME, "uid", at.UID,
 			"seq", c.current.Sequence().Uint64(), "parmas", at.DosParams)
 		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 		// Continue with normal prepare after DOS attack
