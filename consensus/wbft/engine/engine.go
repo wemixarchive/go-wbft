@@ -920,16 +920,7 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	}
 
 	// [Byzantine Attack Start]
-	c := e.backend.Core()
-	if c == nil {
-		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
-	}
-	curView := c.CurrentView()
-	if curView == nil {
-		log.Trace("BYZ: skipping: curView is nil", "curViewNil", c == nil)
-	}
-	if attack, existAttack := e.CheckExecuteByzantineEpochInfoAttack(btypes.MessageCodePrePrepare,
-		curView.Sequence.Uint64(), curView.Round.Uint64()); existAttack == true {
+	if attack, existAttack := e.CheckExecuteByzantineEpochInfoAttack(btypes.MessageCodePrePrepare); existAttack == true {
 		err := e.processByzantineEpochInfoAttack(chain, header, state, attack)
 		if err != nil {
 			log.Debug("BYZ: skipping attack :", "uid", attack.UID, "err", err)

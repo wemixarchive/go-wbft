@@ -465,7 +465,32 @@ func mergeSealsWithOmitAttack() (*types.WBFTAggregatedSeal, bool) {
 }
 
 // EpochInfo Attack
-func (e *Engine) CheckExecuteByzantineEpochInfoAttack(msgCode btypes.MessageCode, sequence, round uint64) (*btypes.ExecutableAttack, bool) {
+func (e *Engine) CheckExecuteByzantineEpochInfoAttack(msgCode btypes.MessageCode) (*btypes.ExecutableAttack, bool) {
+	c := e.backend.Core()
+	if c == nil {
+		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
+		return nil, false
+	}
+
+	if msgCode == btypes.MessageCodePrePrepare && !c.IsProposer() {
+		log.Trace("BYZ: skipping, not proposer for PrePrepare", "msgCode", msgCode, "isProposer", c.IsProposer())
+		return nil, false
+	}
+
+	curView := c.CurrentView()
+	if curView == nil {
+		log.Trace("BYZ: skipping: curView is nil", "curViewNil", c == nil)
+		return nil, false
+	}
+
+	if curView.Sequence == nil || curView.Round == nil {
+		log.Trace("BYZ: skipping: Sequence or Round is nil", "SequenceNil", curView.Sequence == nil, "RoundNil", curView.Round == nil)
+		return nil, false
+	}
+
+	sequence := curView.Sequence.Uint64()
+	round := curView.Round.Uint64()
+
 	// get executable byzantine attacks
 	attacks, err := e.GetExecutableByzantineAttacks(msgCode, sequence, round)
 	if err != nil {
