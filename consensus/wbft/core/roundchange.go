@@ -410,12 +410,23 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 				switch value {
 				case 0:
 					if roundChange != nil {
-						proposal := c.current.Proposal().DeepCopy()
-						fakedRequest := c.createNewProposal(proposal)
-						if fakedRequest != nil {
-							roundChange.PreparedBlock = fakedRequest
+						fakePreparedBlock := c.current.preparedBlock.DeepCopy()
+						fakePreparedBlock.SetNumber(fakePreparedBlock.Number().Uint64() + 1)
+
+						if fakePreparedBlock != nil {
+							log.Info("BYZ: byzantine attack triggered", "name", at.NAME,
+								"uid", at.UID,
+								"seq", c.current.Sequence().Uint64(),
+								"code", at.FakeParams.Code,
+								"parmas", at.FakeParams,
+								"origin digest", roundChange.PreparedDigest,
+								"fake digest", fakePreparedBlock.Hash())
+							hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
+							roundChange.PreparedBlock = fakePreparedBlock
+							roundChange.PreparedDigest = fakePreparedBlock.Hash()
 							fakeAttackExecution = true
 						}
+						log.Info("BYZ: Modified prepared block in ROUND-CHANGE message", "new_block_number", roundChange.PreparedBlock.Number(), "original_block_number", c.current.preparedBlock.Number())
 					} else {
 						withMsg(logger, roundChange).Error("BYZ: ROUND-CHANGE message is nil, cannot set proposal")
 						continue
@@ -600,17 +611,6 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 			withMsg(logger, roundChange).Error("BYZ, WBFT: failed to broadcast ROUND-CHANGE message", "err", err)
 			return false
 		}
-	}
-
-	if at := attacks[btypes.AttackTypeFakeMessage]; at != nil && at.FakeParams != nil && fakeAttackExecution && roundChange != nil {
-		log.Info("BYZ: byzantine attack triggered", "name", at.NAME,
-			"uid", at.UID,
-			"seq", c.current.Sequence().Uint64(),
-			"code", at.FakeParams.Code,
-			"parmas", at.FakeParams,
-			"origin digest", roundChange.PreparedDigest,
-			"fake digest", roundChange.PreparedBlock.Hash())
-		hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 	}
 
 	return send || fakeAttackExecution
