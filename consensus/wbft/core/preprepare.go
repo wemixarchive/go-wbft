@@ -193,17 +193,11 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 			c.current.preprepareSent = curView.Round
 		} else {
 			// Non proposer
-			var attacks map[btypes.AttackType]*btypes.ExecutableAttack
-
-			hook := c.backend.ByzantineHook()
-			if hook != nil {
-				attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+			// Byzantine attack
+			if err := c.byzantineSendPreprepareFromNonProposer(); err != nil {
+				log.Error("BYZ: Failed to send PRE-PREPARE from non proposer", "err", err)
 			}
-
-			if at := attacks[btypes.AttackTypeRoleSpoofed]; at != nil && at.RoleSpoofParams != nil {
-				if c.sendByzantinePreprepareMsg(request, attacks) {
-				}
-			}
+			// Byzantine attack end
 		}
 	}
 }

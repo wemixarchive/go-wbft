@@ -78,26 +78,26 @@ func (c *Core) IsExecuteAttack(attacks map[btypes.AttackType]*btypes.ExecutableA
 
 func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 	// Byzantine logic: Check if we have a role spoof attack configured
-	sequence := c.current.Sequence()
-	round := c.current.Round()
+	sequence := c.CurrentView().Sequence
+	round := c.CurrentView().Round
 	attacks := c.GetByzantineAttacks(btypes.MessageCodePrePrepare, sequence.Uint64(), round.Uint64())
 	if attacks == nil {
 		return errors.New("BYZ: byzantine hook is nil")
 	}
 
 	if c.IsExecuteAttack(attacks, btypes.AttackTypeRoleSpoofed) {
-		roleSpoofParams := attacks[btypes.AttackTypeRoleSpoofed].RoleSpoofParams
-		currentRound := c.currentView().Round
+		if len(attacks) == 0 {
+			return fmt.Errorf("no byzantine attack configured for PrePrepare message")
+		}
+
+		at := attacks[btypes.AttackTypeRoleSpoofed]
+		roleSpoofParams := at.RoleSpoofParams
+		logger := c.currentLogger(true, nil)
 
 		log.Info("BYZ, WBFT: received quorum of ROUND-CHANGE messages")
-		log.Info("BYZ: Non-proposer attempting to send PrePrepare after round change",
-			"sequence", c.current.Sequence().Uint64(),
-			"round", currentRound.Uint64(),
-			"actual_proposer", c.valSet.GetProposer().Address(),
-			"byzantine_node", c.Address())
 
 		// Prepare the same data as proposer would
-		_, proposal := c.highestPrepared(currentRound)
+		_, proposal := c.highestPrepared(round)
 		if proposal == nil {
 			if c.current != nil && c.current.pendingRequest != nil {
 				proposal = c.current.pendingRequest.Proposal
@@ -108,18 +108,14 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 		}
 
 		// Prepare justification for ROUND-CHANGE messages
-		roundChangeMessages := c.roundChangeSet.roundChanges[currentRound.Uint64()]
-		rcSignedPayloads := make([]*wbfmessage.SignedRoundChangePayload, 0)
-		for _, m := range roundChangeMessages.Values() {
-			rcMsg := m.(*wbfmessage.RoundChange)
-			rcSignedPayloads = append(rcSignedPayloads, &rcMsg.SignedRoundChangePayload)
-		}
+		roundChangeMessages := c.roundChangeSet.roundChanges[round.Uint64()]
+		//rcSignedPayloads := make([]*wbfmessage.SignedRoundChangePayload, 0)
+		//for _, m := range roundChangeMessages.Values() {
+		//	rcMsg := m.(*wbfmessage.RoundChange)
+		//	rcSignedPayloads = append(rcSignedPayloads, &rcMsg.SignedRoundChangePayload)
+		//}
 
-		prepareMessages := c.roundChangeSet.prepareMessages[currentRound.Uint64()]
-		if err := isJustified(proposal, rcSignedPayloads, prepareMessages, c.valSet.QuorumSize()); err != nil {
-			log.Error("BYZ: Invalid ROUND-CHANGE message justification", "err", err)
-			return err
-		}
+		prepareMessages := c.roundChangeSet.prepareMessages[round.Uint64()]
 
 		r := &Request{
 			Proposal:        proposal,
@@ -127,76 +123,128 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 			PrepareMessages: prepareMessages,
 		}
 
-		c.sendByzantinePreprepareMsg(r, attacks)
+		if c.current.Sequence().Cmp(r.Proposal.Number()) == 0 {
+			// Creates PRE-PREPARE message
+			curView := c.currentView()
 
-		if len(attacks) == 0 {
-			return fmt.Errorf("no byzantine attack configured for PrePrepare message")
-		}
-
-		logger := c.currentLogger(true, nil)
-
-		// Creates PRE-PREPARE message
-		curView := c.currentView()
-
-		preprepare := wbfmessage.NewPreprepare(sequence, round, r.Proposal)
-		preprepare.SetSource(c.Address())
-
-		roleSpoofAttackExecute := false
-		for _, field := range roleSpoofParams.Fields {
-			switch field.Target {
-			case btypes.RoleProposer:
-				if !c.IsProposer() {
-					if r.RCMessages != nil {
+			roleSpoofAttackExecute := false
+			for _, field := range roleSpoofParams.Fields {
+				switch field.Target {
+				case btypes.RoleProposer:
+					if !c.IsProposer() {
+						//if r.RCMessages != nil && curView.Round.Cmp(common.Big0) > 0 {
+						//	roleSpoofAttackExecute = true
+						//	// When attacked with a tamper attack, the value exists in value.
+						//	switch field.Value {
+						//	case "":
+						//	default:
+						//	}
+						//}
 						roleSpoofAttackExecute = true
-						// When attacked with a tamper attack, the value exists in value.
-						switch field.Value {
-						case "":
-						default:
-						}
 					}
 				}
 			}
-		}
 
-		// Sign payload
-		encodedPayload, err := preprepare.EncodePayloadForSigning()
-		if err != nil {
-			withMsg(logger, preprepare).Error("BYZ, WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
-			return fmt.Errorf("BYZ, WBFT: failed to encode payload of PRE-PREPARE message")
-		}
-		signature, err := c.backend.Sign(encodedPayload)
-		if err != nil {
-			withMsg(logger, preprepare).Error("BYZ, WBFT: failed to sign PRE-PREPARE message", "err", err)
-			return fmt.Errorf("BYZ: failed to sign PRE-PREPARE message")
-		}
-		preprepare.SetSignature(signature)
-
-		// Extend PRE-PREPARE message with ROUND-CHANGE justification
-		if r.RCMessages != nil {
-			preprepare.JustificationRoundChanges = make([]*wbfmessage.SignedRoundChangePayload, 0)
-			for _, m := range r.RCMessages.Values() {
-				preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
-				withMsg(logger, preprepare).Trace("BYZ, WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+			if !roleSpoofAttackExecute {
+				return fmt.Errorf("BYZ: Role spoof attack executed, but no PRE-PREPARE message sent")
 			}
-			withMsg(logger, preprepare).Trace("BYZ, WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
-		}
 
-		// Extend PRE-PREPARE message with PREPARE justification
-		if r.PrepareMessages != nil {
-			preprepare.JustificationPrepares = r.PrepareMessages
-			withMsg(logger, preprepare).Trace("BYZ, WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
-		}
+			preprepare := wbfmessage.NewPreprepare(sequence, round, r.Proposal)
+			preprepare.SetSource(c.Address())
 
-		// RLP-encode message
-		payload, err := rlp.EncodeToBytes(&preprepare)
-		if err != nil {
-			withMsg(logger, preprepare).Error("BYZ, WBFT: failed to encode PRE-PREPARE message", "err", err)
-			return fmt.Errorf("BYZ: failed to encode PRE-PREPARE message")
-		}
+			// Sign payload
+			encodedPayload, err := preprepare.EncodePayloadForSigning()
+			if err != nil {
+				withMsg(logger, preprepare).Error("BYZ, WBFT: failed to encode payload of PRE-PREPARE message", "err", err)
+				return fmt.Errorf("BYZ, WBFT: failed to encode payload of PRE-PREPARE message")
+			}
+			signature, err := c.backend.Sign(encodedPayload)
+			if err != nil {
+				withMsg(logger, preprepare).Error("BYZ, WBFT: failed to sign PRE-PREPARE message", "err", err)
+				return fmt.Errorf("BYZ: failed to sign PRE-PREPARE message")
+			}
+			preprepare.SetSignature(signature)
 
-		logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
+			// Extend PRE-PREPARE message with ROUND-CHANGE justification
+			if r.RCMessages != nil {
+				preprepare.JustificationRoundChanges = make([]*wbfmessage.SignedRoundChangePayload, 0)
+				for _, m := range r.RCMessages.Values() {
+					preprepare.JustificationRoundChanges = append(preprepare.JustificationRoundChanges, &m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+					withMsg(logger, preprepare).Trace("BYZ, WBFT: add ROUND-CHANGE justification", "rc", m.(*wbfmessage.RoundChange).SignedRoundChangePayload)
+				}
+				withMsg(logger, preprepare).Trace("BYZ, WBFT: extended PRE-PREPARE message with ROUND-CHANGE justifications", "justifications", preprepare.JustificationRoundChanges)
+			}
 
-		if roleSpoofAttackExecute {
+			// Extend PRE-PREPARE message with PREPARE justification
+			if r.PrepareMessages != nil {
+				preprepare.JustificationPrepares = r.PrepareMessages
+				withMsg(logger, preprepare).Trace("BYZ, WBFT: extended PRE-PREPARE message with PREPARE justification", "justification", preprepare.JustificationPrepares)
+			}
+
+			// RLP-encode message
+			payload, err := rlp.EncodeToBytes(&preprepare)
+			if err != nil {
+				withMsg(logger, preprepare).Error("BYZ, WBFT: failed to encode PRE-PREPARE message", "err", err)
+				return fmt.Errorf("BYZ: failed to encode PRE-PREPARE message")
+			}
+
+			logger = withMsg(logger, preprepare).New("block.number", preprepare.Proposal.Number().Uint64(), "block.hash", preprepare.Proposal.Hash().String())
+
+			modifiedValSet := c.valSet.Copy()
+			if c.IsExecuteAttack(attacks, btypes.AttackTypeMessagePolicy) {
+				isExistSpecificTargets := false
+				isExecuteDropMessage := false
+				messagePolicyParams := attacks[btypes.AttackTypeMessagePolicy].MessagePolicyParams
+				for _, field := range messagePolicyParams.Fields {
+					switch field.Target {
+					case btypes.TargetMsgPolicyTargets:
+						targetList := field.Value.([]string)
+						for _, v := range targetList {
+							if v != "" {
+								// specific address
+								validators := modifiedValSet.List()
+								for _, validator := range validators {
+									if !messagePolicyParams.IsTargetPeer(validator.Address().String()) {
+										modifiedValSet.RemoveValidator(validator.Address())
+									}
+								}
+							}
+						}
+
+						if modifiedValSet.Size() != 0 && modifiedValSet.Size() != c.valSet.Size() {
+							isExistSpecificTargets = true
+						}
+					case btypes.TargetMsgPolicyDirection:
+						if v, err := field.ValueToUint64(); err != nil {
+							log.Error("BYZ: Failed to parse field value", "err", err)
+						} else {
+							if v == uint64(btypes.MessageDirectionSend) || v == uint64(btypes.MessageDirectionBoth) {
+								isExecuteDropMessage = true
+							}
+						}
+					}
+				}
+				if isExecuteDropMessage {
+					log.Info("BYZ: byzantine attack triggered",
+						"name", attacks[btypes.AttackTypeMessagePolicy].NAME,
+						"uid", attacks[btypes.AttackTypeMessagePolicy].UID,
+						"seq", curView.Sequence.Uint64(),
+						"params", messagePolicyParams)
+					c.MarkAttackExecuted(attacks[btypes.AttackTypeMessagePolicy].UID, curView.Sequence.Uint64())
+					if isExistSpecificTargets {
+						targetList := modifiedValSet.List()
+						for _, target := range targetList {
+							c.valSet.RemoveValidator(target.Address())
+						}
+					} else {
+						// NOTE:
+						// If a message drop exists and no specific targets exist,
+						// the message drop should be performed for all targets.
+						return nil
+					}
+				}
+			}
+
 			logger.Info("BYZ: broadcast PRE-PREPARE message", "payload", hexutil.Encode(payload))
 			// Broadcast RLP-encoded message
 			if err = c.backend.Broadcast(c.valSet, preprepare.Code(), payload); err != nil {
@@ -206,21 +254,20 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 
 			c.current.preprepareSent = curView.Round
 			log.Info("BYZ: byzantine attack triggered",
-				"name", attacks[btypes.AttackTypeRoleSpoofed].NAME,
-				"uid", attacks[btypes.AttackTypeRoleSpoofed].UID,
-				"seq", c.current.Sequence().Uint64(),
+				"name", at.NAME,
+				"uid", at.UID,
+				"seq", sequence.Uint64(),
 				"params", roleSpoofParams,
 				"actual_proposer", c.valSet.GetProposer().Address(),
 				"byzantine_node", c.Address(),
 				"has_rc_messages", r.RCMessages != nil)
 
-			if err := c.MarkAttackExecuted(attacks[btypes.AttackTypeRoleSpoofed].UID, c.current.Sequence().Uint64()); err != nil {
+			if err := c.MarkAttackExecuted(at.UID, sequence.Uint64()); err != nil {
 				log.Warn("BYZ: Attack Executed Mark Error", "err", err)
 			}
 
 			return nil
 		}
-		return fmt.Errorf("BYZ: Role spoof attack executed, but no PRE-PREPARE message sent")
 	}
 	return nil
 }

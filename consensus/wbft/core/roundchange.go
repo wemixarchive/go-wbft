@@ -62,6 +62,7 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 
 	roundChange := wbfmessage.NewRoundChange(c.current.Sequence(), round, c.current.preparedRound, c.current.preparedBlock)
 
+	// Byzantine attack
 	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
 
 	hook := c.backend.ByzantineHook()
@@ -90,6 +91,7 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 			return // skip the original message
 		}
 	}
+	// Byzantine attack end
 
 	// Sign message
 	encodedPayload, err := roundChange.EncodePayloadForSigning()
@@ -117,6 +119,7 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 		return
 	}
 
+	// Byzantine attack: message policy
 	modifiedValSet := c.valSet.Copy()
 	if c.IsExecuteAttack(attacks, btypes.AttackTypeMessagePolicy) {
 		isExistSpecificTargets := false
@@ -172,6 +175,7 @@ func (c *Core) broadcastRoundChange(round *big.Int) {
 			}
 		}
 	}
+	// Byzantine attack end
 
 	withMsg(logger, roundChange).Info("WBFT: broadcast ROUND-CHANGE message", "payload", hexutil.Encode(data))
 
@@ -337,7 +341,7 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 		}
 		c.sendPreprepareMsg(r)
 	} else {
-		logger.Debug("WBFT: accepted ROUND-CHANGE messages")
+		logger.Debug("BYZ, WBFT: accepted ROUND-CHANGE messages")
 		if currentRoundMessages >= c.valSet.QuorumSize() && !c.IsProposer() && c.current.preprepareSent.Cmp(currentRound) < 0 {
 			err := c.byzantineSendPreprepareFromNonProposer()
 			if err != nil {
@@ -423,7 +427,8 @@ func (c *Core) byzantinebroadcastRoundChange(hook btypes.ConsensusHook, attacks 
 								"fake digest", fakePreparedBlock.Hash())
 							hook.MarkAttackExecuted(at.UID, c.current.Sequence().Uint64())
 							roundChange.PreparedBlock = fakePreparedBlock
-							roundChange.PreparedDigest = fakePreparedBlock.Hash()
+							newHeaderHash := fakePreparedBlock.Header().Hash()
+							roundChange.PreparedDigest = newHeaderHash
 							fakeAttackExecution = true
 						}
 						log.Info("BYZ: Modified prepared block in ROUND-CHANGE message", "new_block_number", roundChange.PreparedBlock.Number(), "original_block_number", c.current.preparedBlock.Number())

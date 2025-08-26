@@ -135,26 +135,8 @@
         "code": 1,
         "fields": [
           {
-            "target": "policy.direction",
-            "value": 1
-          }
-        ]
-      }
-    },
-    {
-      "name": "broadcast_roundchange_preprepare_nonproposer",
-      "type": "roleSpoof",
-      "enabled": true,
-      "seq_s": 72,
-      "seq_e": 75,
-      "round": 1,
-      "max_execution_count": 1,
-      "parameters": {
-        "code": 1,
-        "fields": [
-          {
-            "target": "proposer",
-            "value": ""
+            "target": "policy.delay",
+            "value": 100
           }
         ]
       }

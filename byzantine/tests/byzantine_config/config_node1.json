@@ -575,7 +575,7 @@
     },
     {
       "name": "broadcast_roundchange_preprepare_nonproposer",
-      "type": "policy",
+      "type": "roleSpoof",
       "enabled": true,
       "seq_s": 72,
       "seq_e": 75,
@@ -585,8 +585,8 @@
         "code": 1,
         "fields": [
           {
-            "target": "policy.direction",
-            "value": 1
+            "target": "proposer",
+            "value": ""
           }
         ]
       }
