@@ -1,4 +1,4 @@
-// Copyright 2024 The go-wemix-wbft Authors
+// Copyright 2017 The go-ethereum Authors
 // Copyright 2024 The go-wemix-wbft Authors
 // This file is part of the go-ethereum library.
 //
