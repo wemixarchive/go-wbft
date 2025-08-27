@@ -356,11 +356,45 @@
       }
     },
     {
+      "name": "delayed_sequence_1",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 62,
+      "seq_e": 62,
+      "round": 0,
+      "parameters": {
+        "code": 47,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "delayed_sequence_2",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 70,
+      "seq_e": 71,
+      "round": 0,
+      "parameters": {
+        "code": 63,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
       "name": "ddos_message_flooding",
       "type": "policy",
       "enabled": true,
-      "seq_s": 67,
-      "seq_e": 70,
+      "seq_s": 75,
+      "seq_e": 78,
       "round": 0,
       "parameters": {
         "code": 1,
@@ -376,8 +410,8 @@
       "name": "ddos_message_flooding",
       "type": "dos",
       "enabled": true,
-      "seq_s": 67,
-      "seq_e": 70,
+      "seq_s": 75,
+      "seq_e": 78,
       "round": 1,
       "parameters": {
         "code": 8,
