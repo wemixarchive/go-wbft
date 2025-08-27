@@ -1,0 +1,41 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "broadcast_invalid_preparemessages_preprepare",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 10,
+      "seq_e": 13,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "broadcast_incomplete_preparemessages_prepreare",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 15,
+      "seq_e": 18,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ]
+}

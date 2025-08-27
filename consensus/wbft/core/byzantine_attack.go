@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/log"
@@ -78,9 +79,17 @@ func (c *Core) IsExecuteAttack(attacks map[btypes.AttackType]*btypes.ExecutableA
 
 func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 	// Byzantine logic: Check if we have a role spoof attack configured
-	sequence := c.CurrentView().Sequence
-	round := c.CurrentView().Round
-	attacks := c.GetByzantineAttacks(btypes.MessageCodePrePrepare, sequence.Uint64(), round.Uint64())
+	sequence := c.current.Sequence()
+	round := c.current.Round()
+
+	var attacks map[btypes.AttackType]*btypes.ExecutableAttack
+
+	if round.Cmp(common.Big0) > 0 { // RoundChange-PrePrepare
+		attacks = c.GetByzantineAttacks(btypes.MessageCodeRCPrePrepare, sequence.Uint64(), round.Uint64())
+	} else { // First PrePrepare
+		attacks = c.GetByzantineAttacks(btypes.MessageCodePrePrepare, sequence.Uint64(), round.Uint64())
+	}
+
 	if attacks == nil {
 		return errors.New("BYZ: byzantine hook is nil")
 	}

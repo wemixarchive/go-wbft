@@ -1,0 +1,106 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "store_roundchange",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 8,
+      "seq_e": 8,
+      "round": 0,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "store_roundchange",
+      "type": "store",
+      "enabled": true,
+      "seq_s": 8,
+      "seq_e": 8,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 8
+      }
+    },
+    {
+      "name": "double_vote_roundchange_preprepare",
+      "type": "tamper",
+      "enabled": true,
+      "seq_s": 10,
+      "seq_e": 13,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 32,
+        "fields": [
+          {
+            "target": "header.number",
+            "value": 100
+          }
+        ]
+      }
+    },
+    {
+      "name": "double_vote_roundchange_preprepare",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 10,
+      "seq_e": 13,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 32,
+        "fields": [
+          {
+            "target": "policy.original",
+            "value": true
+          },
+          {
+            "target": "policy.delay",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "name": "broadcast_incomplete_roundchangemessages_prepreare",
+      "type": "omit",
+      "enabled": true,
+      "seq_s": 19,
+      "seq_e": 22,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 32,
+        "cmd": 3
+      }
+    },
+    {
+      "name": "broadcast_roundchange_preprepare_nonproposer",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 24,
+      "seq_e": 27,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 32,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    }
+  ]
+}

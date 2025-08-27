@@ -23,11 +23,12 @@ const (
 type MessageCode uint64
 
 const (
-	MessageCodePrePrepare  MessageCode = 1 << iota // 1
-	MessageCodePrepare                             // 2
-	MessageCodeCommit                              // 4
-	MessageCodeRoundChange                         // 8
-	MessageCodePropagation                         // 16
+	MessageCodePrePrepare   MessageCode = 1 << iota // 1
+	MessageCodePrepare                              // 2
+	MessageCodeCommit                               // 4
+	MessageCodeRoundChange                          // 8
+	MessageCodePropagation                          // 16
+	MessageCodeRCPrePrepare                         // 32
 )
 
 // MessageCodeToWBFT Byzantine message code to WBFT code mapping
@@ -108,6 +109,9 @@ func (mc *MessageCode) String() string {
 	if mc.Has(MessageCodePropagation) {
 		codes = append(codes, "Propagation")
 	}
+	if mc.Has(MessageCodeRCPrePrepare) {
+		codes = append(codes, "RCPrePrepare")
+	}
 
 	return strings.Join(codes, "|")
 }
@@ -128,6 +132,9 @@ func (mc *MessageCode) GetCodes() []MessageCode {
 	}
 	if *mc&MessageCodePropagation != 0 {
 		codes = append(codes, MessageCodePropagation)
+	}
+	if *mc&MessageCodeRCPrePrepare != 0 {
+		codes = append(codes, MessageCodeRCPrePrepare)
 	}
 	return codes
 }
@@ -167,6 +174,8 @@ func ParseStringToMessageCode(code string) MessageCode {
 		return MessageCodeRoundChange
 	case "Propagation":
 		return MessageCodePropagation
+	case "RCPrePrepare":
+		return MessageCodeRCPrePrepare
 	default:
 		if strings.Contains(v, "|") {
 			var result MessageCode
@@ -182,7 +191,7 @@ func ParseStringToMessageCode(code string) MessageCode {
 
 func ValidateMessageCode(code MessageCode) bool {
 	validMask := MessageCodePrePrepare | MessageCodePrepare | MessageCodeCommit |
-		MessageCodeRoundChange | MessageCodePropagation
+		MessageCodeRoundChange | MessageCodePropagation | MessageCodeRCPrePrepare
 	return code != 0 && (code & ^validMask) == 0
 }
 

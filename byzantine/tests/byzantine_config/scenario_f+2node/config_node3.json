@@ -5,8 +5,8 @@
       "name": "broadcast_invalid_preparemessages_preprepare",
       "type": "policy",
       "enabled": true,
-      "seq_s": 76,
-      "seq_e": 79,
+      "seq_s": 10,
+      "seq_e": 13,
       "round": 0,
       "max_execution_count": 1,
       "parameters": {
@@ -20,11 +20,11 @@
       }
     },
     {
-      "name": "silent_preprepare",
+      "name": "broadcast_incomplete_preparemessages_prepreare",
       "type": "policy",
       "enabled": true,
-      "seq_s": 135,
-      "seq_e": 138,
+      "seq_s": 15,
+      "seq_e": 18,
       "round": 0,
       "max_execution_count": 1,
       "parameters": {
