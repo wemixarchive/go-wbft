@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "attacks": [
+    {
+      "name": "broadcast_invalid_epoch_preprepare",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 10,
+      "seq_e": 10,
+      "round": 0,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "header.epochinfo",
+            "value": "nil"
+          }
+        ]
+      }
+    }
+  ]
+}
