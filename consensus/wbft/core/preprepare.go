@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
@@ -51,11 +52,12 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 	logger := c.currentLogger(true, nil)
 
+	curView := c.currentView()
+
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 {
 		if c.IsProposer() {
 			// Creates PRE-PREPARE message
-			curView := c.currentView()
 			preprepare := wbfmessage.NewPreprepare(curView.Sequence, curView.Round, request.Proposal)
 			preprepare.SetSource(c.Address())
 
@@ -63,7 +65,11 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 			hook := c.GetByzantineHook()
 			if hook != nil {
-				attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+				if curView.Round.Cmp(common.Big0) > 0 { // RoundChange-PrePrepare
+					attacks = hook.GetExecutableAttacks(btypes.MessageCodeRCPrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+				} else { // First PrePrepare
+					attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+				}
 			}
 
 			if at := attacks[btypes.AttackTypeStoreMessage]; at != nil && at.StoreMessageParams != nil {
@@ -197,7 +203,11 @@ func (c *Core) sendPreprepareMsg(request *Request) {
 
 			hook := c.backend.ByzantineHook()
 			if hook != nil {
-				attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+				if curView.Round.Cmp(common.Big0) > 0 { // RoundChange-PrePrepare
+					attacks = hook.GetExecutableAttacks(btypes.MessageCodeRCPrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+				} else { // First PrePrepare
+					attacks = hook.GetExecutableAttacks(btypes.MessageCodePrePrepare, c.current.Sequence().Uint64(), c.current.Round().Uint64())
+				}
 			}
 
 			if at := attacks[btypes.AttackTypeRoleSpoofed]; at != nil && at.RoleSpoofParams != nil {

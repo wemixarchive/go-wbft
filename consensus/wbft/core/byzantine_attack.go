@@ -80,7 +80,7 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 	// Byzantine logic: Check if we have a role spoof attack configured
 	sequence := c.current.Sequence()
 	round := c.current.Round()
-	attacks := c.GetByzantineAttacks(btypes.MessageCodePrePrepare, sequence.Uint64(), round.Uint64())
+	attacks := c.GetByzantineAttacks(btypes.MessageCodeRCPrePrepare, sequence.Uint64(), round.Uint64())
 	if attacks == nil {
 		return errors.New("BYZ: byzantine hook is nil")
 	}

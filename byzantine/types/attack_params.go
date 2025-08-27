@@ -4,9 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
 	"strconv"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/ethereum/go-ethereum/byzantine/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -548,12 +549,12 @@ func (p *OmitAttackParams) Validate() error {
 		return fmt.Errorf("invalid message code: %d", p.Code)
 	}
 
-	if !(p.Code == MessageCodePrePrepare || p.Code == MessageCodePropagation) {
+	if !(p.Code == MessageCodePrePrepare || p.Code == MessageCodePropagation || p.Code == MessageCodeRCPrePrepare) {
 		return fmt.Errorf("invalid cmd value: %d, must be PrePrepare or Propagation", p.Cmd)
 	}
 
 	switch p.Code {
-	case MessageCodePrePrepare:
+	case MessageCodePrePrepare, MessageCodeRCPrePrepare:
 		if !(p.Cmd == OmitCommandPrevPrepareSeal ||
 			p.Cmd == OmitCommandPrevCommitSeal ||
 			p.Cmd == OmitCommandRoundChange ||
