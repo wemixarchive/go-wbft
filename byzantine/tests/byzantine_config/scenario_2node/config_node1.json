@@ -101,6 +101,28 @@
           }
         ]
       }
+    },
+    {
+      "name": "broadcast_preprepare_nonproposer",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 29,
+      "seq_e": 32,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 32,
+        "fields": [
+          {
+            "target": "policy.original",
+            "value": true
+          },
+          {
+            "target": "policy.delay",
+            "value": 200
+          }
+        ]
+      }
     }
   ]
 }

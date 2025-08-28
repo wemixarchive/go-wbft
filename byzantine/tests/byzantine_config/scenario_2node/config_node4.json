@@ -90,6 +90,42 @@
           }
         ]
       }
+    },
+    {
+      "name": "broadcast_preprepare_nonproposer",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 29,
+      "seq_e": 32,
+      "round": 0,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 1,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "broadcast_preprepare_nonproposer",
+      "type": "roleSpoof",
+      "enabled": true,
+      "seq_s": 29,
+      "seq_e": 32,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 32,
+        "fields": [
+          {
+            "target": "spoofed_role",
+            "value": "proposer"
+          }
+        ]
+      }
     }
   ]
 }
