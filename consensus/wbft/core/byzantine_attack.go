@@ -139,17 +139,21 @@ func (c *Core) byzantineSendPreprepareFromNonProposer() error {
 			roleSpoofAttackExecute := false
 			for _, field := range roleSpoofParams.Fields {
 				switch field.Target {
-				case btypes.RoleProposer:
-					if !c.IsProposer() {
-						//if r.RCMessages != nil && curView.Round.Cmp(common.Big0) > 0 {
-						//	roleSpoofAttackExecute = true
-						//	// When attacked with a tamper attack, the value exists in value.
-						//	switch field.Value {
-						//	case "":
-						//	default:
-						//	}
-						//}
-						roleSpoofAttackExecute = true
+				case btypes.TargetSpoofedRole:
+					if field.Value != nil {
+						if roleValue, ok := field.Value.(string); ok {
+							if roleValue == btypes.RoleProposer {
+								if !c.IsProposer() {
+									roleSpoofAttackExecute = true
+								}
+							} else {
+								log.Debug("BYZ: Skipping role spoof attack, target role is not proposer", "targetSpoofedRole", roleValue, "isProposer", c.IsProposer())
+							}
+						} else {
+							log.Warn("BYZ: Invalid role value type", "expected", "string", "got", fmt.Sprintf("%T", field.Value))
+						}
+					} else {
+						log.Warn("BYZ: Role value is nil")
 					}
 				}
 			}

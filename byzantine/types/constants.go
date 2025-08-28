@@ -116,6 +116,8 @@ const (
 	TargetMsgPolicySendOriginal string = "policy.original"
 	TargetMsgPolicyDelay        string = "policy.delay"
 	TargetMsgPolicyTargets      string = "policy.targets"
+
+	TargetSpoofedRole string = "spoofed_role"
 )
 
 // Node roles
