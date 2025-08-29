@@ -136,7 +136,7 @@ func (p *SignedRoundChangePayload) DecodeRLP(stream *rlp.Stream) error {
 
 	p.code = RoundChangeCode
 
-	log.Info("WBFT: Correctly decoded SignedRoundChangePayload", "p", p)
+	log.Debug("WBFT: Correctly decoded SignedRoundChangePayload", "p", p)
 
 	return nil
 }
