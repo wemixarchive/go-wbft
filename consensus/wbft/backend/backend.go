@@ -1,5 +1,5 @@
-// Modification Copyright 2024 The Wemix Authors
 // Copyright 2017 The go-ethereum Authors
+// Copyright 2024 The go-wemix-wbft Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -345,7 +345,7 @@ func (sb *Backend) GetProposer(number uint64) common.Address {
 func (sb *Backend) Validators(proposal wbft.Proposal) wbft.ValidatorSet {
 	valSet, err := sb.Engine().GetValidators(sb.chain, new(big.Int).Add(proposal.Number(), common.Big1), proposal.Hash(), nil)
 	if err != nil {
-		return validator.NewSet(nil, nil, sb.config.ProposerPolicy)
+		return validator.NewSet(nil, nil, sb.config.GetConfig(proposal.Number()).ProposerPolicy)
 	}
 	return valSet
 }

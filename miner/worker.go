@@ -1,5 +1,5 @@
-// Modification Copyright 2024 The Wemix Authors
 // Copyright 2015 The go-ethereum Authors
+// Copyright 2024 The go-wemix-wbft Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
+	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbftBackend "github.com/ethereum/go-ethereum/consensus/wbft/backend"
 	wbftcore "github.com/ethereum/go-ethereum/consensus/wbft/core"
 	"github.com/ethereum/go-ethereum/consensus/wemix"
@@ -620,8 +621,13 @@ func (w *worker) newWorkLoopWBFT() {
 				panic(fmt.Errorf("invalid engine"))
 			}
 
-			handler.NewChainHead()
+			err := handler.NewChainHead()
 			clearPending(head.Block.NumberU64())
+			if errors.Is(err, wbft.ErrStoppedEngine) {
+				// If WBFT engine is running, we don't need to commit new work here because
+				// it will triggered by readyToCommitCh
+				commit(commitInterruptNewHead)
+			}
 
 		case round := <-w.readyToCommitCh:
 			if round.Uint64() == 0 {

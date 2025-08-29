@@ -1,6 +1,20 @@
-// Modification Copyright 2024 The Wemix Authors
+// Copyright 2025 The go-wemix-wbft Authors
+// This file is part of the go-wemix-wbft library.
 //
-// This file is derived from quorum/consensus/istanbul/wbft/engine/engine.go (2024.07.25).
+// The go-wemix-wbft library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-wemix-wbft library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-wemix-wbft library. If not, see <http://www.gnu.org/licenses/>.
+//
+// This file is derived from quorum/consensus/istanbul/qbft/engine/engine.go (2024.07.25).
 // Modified and improved for the wemix development.
 
 package wbftengine
@@ -444,11 +458,7 @@ func (e *Engine) PeriodToNextBlock(blockNumber *big.Int) uint64 {
 	return e.cfg.GetConfig(blockNumber).BlockPeriod
 }
 
-func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, validators wbft.ValidatorSet, extraPreparedSeal, extraCommittedSeal []wbft.SealData) error {
-	if _, v := validators.GetByAddress(e.Address()); v == nil {
-		return wbftcommon.ErrUnauthorized
-	}
-
+func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header, extraPreparedSeal, extraCommittedSeal []wbft.SealData) error {
 	header.Coinbase = e.Address()
 	header.Nonce = wbftcommon.EmptyBlockNonce
 
@@ -740,7 +750,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// Accumulate proposer counts being selected within epoch.
-	valSet := validator.NewSet(validators, latestEpochInfo.BLSPublicKeys, e.cfg.ProposerPolicy)
+	valSet := validator.NewSet(validators, latestEpochInfo.BLSPublicKeys, e.cfg.GetConfig(header.Number).ProposerPolicy)
 	for i := len(proposers) - 1; i >= 0; i-- {
 		proposer := proposers[i]
 		for round := 0; ; round++ {
@@ -816,6 +826,11 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			// (n-1)non-validator-(n)validator: D(h) = D(h-1) * (9e + 1)/10e +  d(h) * (e-1)/10e
 			// (n-1)validator-(n)non-validator: D(h) = D(h-1) * (10e - 1)/10e + d(h) * 1/10e
 			d = (stakerInfo.staker.Diligence*(10*epochLength-applyingRate) + d*applyingRate) / 10 / epochLength
+		}
+
+		// Ensure Diligence is within valid range
+		if d > 2*types.DiligenceDenominator {
+			return nil, fmt.Errorf("WBFT: Invalid Diligence %d exceeds maximum", d)
 		}
 
 		newEpoch.Stakers[i] = &types.Staker{
@@ -996,7 +1011,7 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 		return nil, err
 	}
 
-	vs := validator.NewSet(epochInfo.GetValidators(), epochInfo.BLSPublicKeys, e.cfg.ProposerPolicy)
+	vs := validator.NewSet(epochInfo.GetValidators(), epochInfo.BLSPublicKeys, e.cfg.GetConfig(blockNumber).ProposerPolicy)
 	return vs, nil
 }
 
@@ -1282,6 +1297,8 @@ func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Hea
 	extra, err := types.ExtractWBFTExtra(header)
 	if err != nil {
 		return err
+	} else if extra.EpochInfo == nil {
+		return errors.New("WBFT: epochInfo is nil")
 	}
 
 	// Check Stakers.
@@ -1291,6 +1308,11 @@ func verifyEpoch(e *Engine, chain consensus.ChainHeaderReader, header *types.Hea
 	for i := range epoch.Stakers {
 		if epoch.Stakers[i].Addr != extra.EpochInfo.Stakers[i].Addr {
 			return errors.New("WBFT: The two stakers do not match")
+		}
+		// Validate Diligence matches
+		if epoch.Stakers[i].Diligence != extra.EpochInfo.Stakers[i].Diligence {
+			return fmt.Errorf("WBFT: Diligence mismatch at index %d: expected %d, got %d",
+				i, epoch.Stakers[i].Diligence, extra.EpochInfo.Stakers[i].Diligence)
 		}
 	}
 
@@ -1502,6 +1524,8 @@ func (e *Engine) extractEpochInfo(epochHeader *types.Header) (*big.Int, *types.E
 	epochExtra, err := types.ExtractWBFTExtra(epochHeader)
 	if err != nil {
 		return nil, nil, err
+	} else if epochExtra.EpochInfo == nil {
+		return nil, nil, errors.New("WBFT: epochInfo is nil")
 	}
 	e.epochCache.Add(epochHeader.Number.Uint64(), epochExtra.EpochInfo)
 
