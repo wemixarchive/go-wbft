@@ -107,12 +107,18 @@ func (e *Engine) applyByzantineAttacksToSeals(
 	originalPreparedSeal, originalCommittedSeal *types.WBFTAggregatedSeal,
 	extraPreparedSeal, extraCommittedSeal []wbft.SealData,
 	header *types.Header,
-	validators wbft.ValidatorSet) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, []string) {
+	chain consensus.ChainHeaderReader) (*types.WBFTAggregatedSeal, *types.WBFTAggregatedSeal, []string) {
 
 	appliedAttacks := []string{}
 
 	hook := e.backend.ByzantineHook()
 	if hook == nil {
+		return nil, nil, appliedAttacks
+	}
+
+	validators, err := e.GetValidators(chain, header.Number, header.ParentHash, nil)
+	if err != nil {
+		log.Trace("BYZ: skipping: validators is nil", "err", err)
 		return nil, nil, appliedAttacks
 	}
 

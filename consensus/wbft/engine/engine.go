@@ -509,7 +509,7 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				extraPreparedSeal,
 				extraCommittedSeal,
 				header,
-				validators)
+				chain)
 
 			if len(appliedAttacks) > 0 {
 				prevPreparedSeal = attackedPrevPreparedSeal
