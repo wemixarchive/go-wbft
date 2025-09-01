@@ -90,15 +90,14 @@ func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages []*wbfmessage.Sign
 // and has `quorumSize` messages with prepared round equal to nil or equal or lower than `preparedRound`.
 func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages []*wbfmessage.SignedRoundChangePayload, preparedRound *big.Int, preparedBlock wbft.Proposal, quorumSize int) error {
 	lowerOrEqualRoundCount := 0
-	hasMatchingMessage := false
+
 	for _, m := range roundChangeMessages {
 		log.Trace("WBFT: hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock", "rc", m)
 		if m.PreparedRound == nil || m.PreparedRound.Cmp(preparedRound) <= 0 {
-			lowerOrEqualRoundCount++
 			if m.PreparedRound != nil && m.PreparedRound.Cmp(preparedRound) == 0 && m.PreparedDigest == preparedBlock.Hash() {
-				hasMatchingMessage = true
+				lowerOrEqualRoundCount++
 			}
-			if lowerOrEqualRoundCount >= quorumSize && hasMatchingMessage {
+			if lowerOrEqualRoundCount >= quorumSize {
 				return nil
 			}
 		}
