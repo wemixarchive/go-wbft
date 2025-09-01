@@ -646,9 +646,34 @@ func (e *Engine) parseAndExecuteAdvancedAttack(
 		return e.poisonEpochCache(chain, header, state, attackParam)
 	case "byzantine_quorum":
 		return e.manipulateByzantineQuorum(baseEpochInfo, attackParam)
+	case "staker_index":
+		return e.manipulateStakerIndices(baseEpochInfo, attackParam)
 	default:
 		return e.createMinimalFakeEpochInfo(), nil
 	}
+}
+
+func (e *Engine) manipulateStakerIndices(epochInfo *types.EpochInfo, manipType string) (*types.EpochInfo, error) {
+	if epochInfo == nil {
+		epochInfo = e.createMinimalFakeEpochInfo()
+	}
+	stakers := epochInfo.Stakers
+	if l := len(stakers); l >= 2 {
+		switch manipType {
+		case "shuffle": // single-cycle derangement (Sattolo’s algorithm)
+			for i := l - 1; i > 0; i-- {
+				j := rand.Intn(i)
+				stakers[i], stakers[j] = stakers[j], stakers[i]
+			}
+		case "shift_left":
+			stakers = append(stakers[1:], stakers[0])
+		case "shift_right":
+			stakers = append(stakers[l-1:], stakers[:l-1]...)
+		}
+	}
+
+	epochInfo.Stakers = stakers
+	return epochInfo, nil
 }
 
 func (e *Engine) manipulateValidatorIndices(
