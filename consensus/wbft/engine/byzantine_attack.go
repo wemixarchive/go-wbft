@@ -647,15 +647,19 @@ func (e *Engine) parseAndExecuteAdvancedAttack(
 	case "byzantine_quorum":
 		return e.manipulateByzantineQuorum(baseEpochInfo, attackParam)
 	case "staker_index":
-		return e.manipulateStakerIndices(baseEpochInfo, attackParam)
+		return e.manipulateStakerIndices(chain, header, attackParam)
 	default:
 		return e.createMinimalFakeEpochInfo(), nil
 	}
 }
 
-func (e *Engine) manipulateStakerIndices(epochInfo *types.EpochInfo, manipType string) (*types.EpochInfo, error) {
-	if epochInfo == nil {
-		epochInfo = e.createMinimalFakeEpochInfo()
+func (e *Engine) manipulateStakerIndices(chain consensus.ChainHeaderReader, header *types.Header, manipType string) (*types.EpochInfo, error) {
+	if isEpoch, _, _ := e.IsEpochBlockNumber(chain.Config(), header.Number); !isEpoch {
+		return nil, fmt.Errorf("current block is not epoch block")
+	}
+	_, epochInfo, err := e.extractEpochInfo(header)
+	if err != nil {
+		return nil, err
 	}
 	stakers := epochInfo.Stakers
 	if l := len(stakers); l >= 2 {
