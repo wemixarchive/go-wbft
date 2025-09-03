@@ -1,0 +1,221 @@
+{
+  "enabled": true,
+  "attacks": [
+      {
+          "name": "tamper_request_timeout_config",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 3,
+          "seq_e": 3,
+          "round": -1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.requestTimeout",
+                      "value": {
+                          "role" : "no-role",
+                          "tamperedValue" : 1
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_smaller_block_period_config_non_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 5,
+          "seq_e": 8,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockPeriod",
+                      "value": {
+                          "role" : "non-proposer",
+                          "tamperedValue" : 1
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_smaller_block_period_config_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 10,
+          "seq_e": 13,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockPeriod",
+                      "value": {
+                          "role" : "proposer",
+                          "tamperedValue" : 1
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_bigger_block_period_config_non_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 15,
+          "seq_e": 18,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockPeriod",
+                      "value": {
+                          "role" : "non-proposer",
+                          "tamperedValue" : 10
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_bigger_block_period_config_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 20,
+          "seq_e": 23,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockPeriod",
+                      "value": {
+                          "role" : "proposer",
+                          "tamperedValue" : 10
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_block_reward_config_non_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 25,
+          "seq_e": 28,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockReward",
+                      "value": {
+                          "role" : "non-proposer",
+                          "tamperedValue" : "0x56BC75E2D63100000"
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_block_reward_config_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 30,
+          "seq_e": 33,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockReward",
+                      "value": {
+                          "role" : "proposer",
+                          "tamperedValue" : "0x56BC75E2D63100000"
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_block_reward_beneficiary_config_non_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 35,
+          "seq_e": 38,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockRewardBeneficiary",
+                      "value": {
+                          "role" : "non-proposer",
+                          "tamperedValue" : {
+                              "denominator": 10000,
+                              "beneficiaries": [
+                                  {
+                                      "name" : "b1",
+                                      "addr" : "0xaa1cc4881e799406f580bd515db4cb58cc044366",
+                                      "numerator" : 2500
+                                  },
+                                  {
+                                      "name" : "b2",
+                                      "addr" : "0x482cf3935e3a865c9ce79ae4e4ca76ab06bef180",
+                                      "numerator" : 2500
+                                  }
+                              ]
+                          }
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "tamper_block_reward_beneficiary_config_proposer",
+          "type": "tamper",
+          "enabled": true,
+          "seq_s": 40,
+          "seq_e": 43,
+          "round": 0,
+          "max_execution_count": 1,
+          "parameters": {
+              "code": 64,
+              "fields": [
+                  {
+                      "target": "config.blockRewardBeneficiary",
+                      "value": {
+                          "role" : "proposer",
+                          "tamperedValue" : {
+                              "denominator": 10000,
+                              "beneficiaries": [
+                                  {
+                                      "name" : "b1",
+                                      "addr" : "0xaa1cc4881e799406f580bd515db4cb58cc044366",
+                                      "numerator" : 2500
+                                  },
+                                  {
+                                      "name" : "b2",
+                                      "addr" : "0x482cf3935e3a865c9ce79ae4e4ca76ab06bef180",
+                                      "numerator" : 2500
+                                  }
+                              ]
+                          }
+                      }
+                  }
+              ]
+          }
+      }
+  ]
+}

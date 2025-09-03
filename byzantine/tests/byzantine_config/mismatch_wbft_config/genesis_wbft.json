@@ -1,0 +1,134 @@
+{
+  "alloc": {
+    "0x326df4ccf922af4107bb9a1961d6a67c9074c6c2": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0xa034a1a64ec70b5710b12acb8f319a8e020f9938": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0xb118d9ce8d95bf040db2385eeb5ee0ccc44163bb": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0x59bbf1206da18220bd2655ce58aded4d8870a5a1": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0xba9008b751e18285553187172d2d64872f1ee1b4": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0x862a158bdd39735f6f4aa5fbca374620ba9a1dae": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0x1a6d8f9cf823636c8930e7a3b221e479926d5687": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0x792ff22d5c1c61a8b0686f69e4cedb1fdc71b85a": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0x8f84652d0b559051a38a4ca2e89646d76fcb6da8": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0xb09a8d60b362032a0d77aeabe07699f0eee4449a": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0x8d92fd44161fa072e4776bdd314ae9b53f05bdff": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0xdb2e431cdc14d59a4f846e4f6f9825ffc0d2b407": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0xc51e4b4eef59b597eceacc6c9c2cd48fba9aa7bd": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    },
+    "0x7f4a3f2eb9b0e5e8a19783e5f8a772a466d58bee": {
+      "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "config": {
+    "chainId": 1338,
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "berlinBlock": 0,
+    "londonBlock": 0,
+    "arrowGlacierBlock": 0,
+    "grayGlacierBlock": 0,
+    "pangyoBlock": 0,
+    "applepieBlock": 0,
+    "croissantBlock": 0,
+    "croissant": {
+      "wBFT": {
+        "requestTimeoutSeconds": 8,
+        "blockPeriodSeconds": 5,
+        "proposerPolicy": 0,
+        "epochLength": 5,
+        "blockReward": "0xde0b6b3a7640000",
+        "targetValidators": 4,
+        "maxRequestTimeoutSeconds": null,
+        "stabilizingStakersThreshold": 1,
+        "useNCP": true
+      },
+      "init": {
+        "validators": ["0xc17d493883eaa3b4cceb0f214b273392d562f9d8",
+          "0x2493a84a8f83cb87fdcbe0bb3b2d313f69a58d3c",
+          "0x8c4a10b9108d49b9d23f764464090831d9c17764",
+          "0x8eb79036bc0f3aba136ef18b3a2fb8c1188939a6"
+        ],
+        "blsPublicKeys": [
+          "0xa00eb14731965f294993a2df1cf09e5b826193a41853fd9aaa7195922b8461c97b215a1181d4ddecc9f5981fdd47556f",
+          "0x929af9896092b61db0ead8931feaed3f77058825c3c82f20fd9557a244b8732303f2136b6acd06ba7e1b861bf5514449",
+          "0x8c7faed16ab71ca6a3f8d82d643f6502e4c2dc3ecf48e86ed4d5dba42e67240313b84e911ad1bbf5783263284f09c1d0",
+          "0xa63e51dd59a291b3cef9804c0790a0f95285297fb4fe141a587c6dda0784822c27e6e6b9404754e679ae4cca62d0ce4a"
+        ]
+      },
+      "govContracts": {
+        "govConfig": {
+          "address": "0x0000000000000000000000000000000000001000",
+          "version": "v1",
+          "params": {
+            "changeFeeDelay": "604800",
+            "feePrecision": "10000",
+            "maximumStaking": "100000000000000000000000000",
+            "minimumStaking": "10000000000000000000000000",
+            "unbondingPeriodDelegator": "259200",
+            "unbondingPeriodStaker": "604800",
+            "govCouncil": "0x0000000000000000000000000000000000001003"
+          }
+        },
+        "govStaking": {
+          "address": "0x0000000000000000000000000000000000001001",
+          "version": "v1",
+          "params": null
+        },
+        "govRewardeeImp": {
+          "address": "0x0000000000000000000000000000000000001002",
+          "version": "v1",
+          "params": null
+        },
+        "govNCP": {
+          "address": "0x0000000000000000000000000000000000001003",
+          "version": "v1",
+          "params": {
+            "ncps": "0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697"
+          }
+        }
+      }
+    },
+    "txnSizeLimit": 64,
+    "maxCodeSize": 0
+  },
+  "nonce": "0x0",
+  "timestamp": "0x5f1663fc",
+  "gasLimit": 105000000,
+  "difficulty": "0x1",
+  "mixHash": "0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "number": "0x0",
+  "gasUsed": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+}

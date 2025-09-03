@@ -2,6 +2,36 @@
   "enabled": true,
   "attacks": [
     {
+      "name": "store_roundchange",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 8,
+      "seq_e": 8,
+      "round": 0,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "store_roundchange",
+      "type": "store",
+      "enabled": true,
+      "seq_s": 8,
+      "seq_e": 8,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 8
+      }
+    },
+    {
       "name": "no_broadcast_prepare",
       "type": "policy",
       "enabled": true,
@@ -90,6 +120,55 @@
           }
         ]
       }
-    } 
+    },
+    {
+      "name": "broadcast_invalid_roundchange_preparedBlock",
+      "type": "fake",
+      "enabled": true,
+      "seq_s": 21,
+      "seq_e": 24,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 8,
+        "fields": [
+          {
+            "target": "msg.proposal.number",
+            "value": 20
+          }
+        ]
+      }
+    },
+    {
+      "name": "realy_attack_roundchange",
+      "type": "policy",
+      "enabled": true,
+      "seq_s": 26,
+      "seq_e": 29,
+      "round": 0,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 4,
+        "fields": [
+          {
+            "target": "policy.direction",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "realy_attack_roundchange",
+      "type": "replay",
+      "enabled": true,
+      "seq_s": 26,
+      "seq_e": 29,
+      "round": 1,
+      "max_execution_count": 1,
+      "parameters": {
+        "code": 8,
+        "useOriginalView": true
+      }
+    }
   ]
 }
