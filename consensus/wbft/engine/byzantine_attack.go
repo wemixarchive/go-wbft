@@ -471,27 +471,27 @@ func mergeSealsWithOmitAttack() (*types.WBFTAggregatedSeal, bool) {
 }
 
 // EpochInfo Attack
-func (e *Engine) CheckExecuteByzantineEpochInfoAttack(msgCode btypes.MessageCode) (*btypes.ExecutableAttack, bool) {
+func (e *Engine) CheckExecuteByzantineEpochInfoAttack(msgCode btypes.MessageCode) map[btypes.AttackType]*btypes.ExecutableAttack {
 	c := e.backend.Core()
 	if c == nil {
 		log.Trace("BYZ: skipping: core is nil", "coreNil", c == nil)
-		return nil, false
+		return nil
 	}
 
 	if msgCode == btypes.MessageCodePrePrepare && !c.IsProposer() {
 		log.Trace("BYZ: skipping, not proposer for PrePrepare", "msgCode", msgCode, "isProposer", c.IsProposer())
-		return nil, false
+		return nil
 	}
 
 	curView := c.CurrentView()
 	if curView == nil {
 		log.Trace("BYZ: skipping: curView is nil", "curViewNil", c == nil)
-		return nil, false
+		return nil
 	}
 
 	if curView.Sequence == nil || curView.Round == nil {
 		log.Trace("BYZ: skipping: Sequence or Round is nil", "SequenceNil", curView.Sequence == nil, "RoundNil", curView.Round == nil)
-		return nil, false
+		return nil
 	}
 
 	sequence := curView.Sequence.Uint64()
@@ -500,77 +500,154 @@ func (e *Engine) CheckExecuteByzantineEpochInfoAttack(msgCode btypes.MessageCode
 	// get executable byzantine attacks
 	attacks, err := e.GetExecutableByzantineAttacks(msgCode, sequence, round)
 	if err != nil {
-		return nil, false
+		return nil
 	}
-	// check if epochInfo Attacks exists
-	executableAttack := e.ExistByzantineAttack(btypes.AttackTypeFakeMessage, attacks)
-	if executableAttack == nil {
-		return nil, false
-	}
-
-	return executableAttack, true
+	return attacks
 }
 
 func (e *Engine) processByzantineEpochInfoAttack(
 	chain consensus.ChainHeaderReader,
 	header *types.Header,
 	govState govwbft.StateReader,
-	attack *btypes.ExecutableAttack) error {
-	if attack == nil {
-		return fmt.Errorf("BYZ: attack is nil")
+	attacks map[btypes.AttackType]*btypes.ExecutableAttack) {
+
+	var epochInfo *types.EpochInfo
+	if fakeAttack := e.ExistByzantineAttack(btypes.AttackTypeFakeMessage, attacks); fakeAttack != nil {
+		epochInfo = e.processByzantineFakeEpochInfoAttack(chain, header, govState, epochInfo, fakeAttack)
 	}
 
-	if attack.FakeParams == nil {
-		return fmt.Errorf("BYZ: fake params is nil")
+	if tamperAttack := e.ExistByzantineAttack(btypes.AttackTypeTamperedMessage, attacks); tamperAttack != nil {
+		epochInfo = e.processByzantineTamperEpochInfoAttack(chain, header, govState, epochInfo, tamperAttack)
 	}
 
+	// additional attacks
+}
+
+func (e *Engine) processByzantineTamperEpochInfoAttack(
+	chain consensus.ChainHeaderReader,
+	header *types.Header,
+	govState govwbft.StateReader,
+	baseEpochInfo *types.EpochInfo,
+	attack *btypes.ExecutableAttack) *types.EpochInfo {
+	var (
+		tamperedEpochInfo *types.EpochInfo
+		err               error
+	)
+
+	if baseEpochInfo == nil {
+		_, epochInfo, err := e.extractEpochInfo(header)
+		if err != nil {
+			return nil
+		}
+		tamperedEpochInfo = copyEpochInfo(epochInfo)
+	} else {
+		copyEpochInfo(baseEpochInfo)
+	}
+
+	for _, tamperField := range attack.TamperParams.Fields {
+		switch tamperField.Target {
+		case btypes.TargetEpochInfoStaker:
+			// Generate fake epoch info based on the value
+			tamperedEpochInfo, err = e.manipulateEpochInfoStaker(tamperedEpochInfo, tamperField.Value)
+			if err != nil {
+				log.Error("BYZ: Failed to tamper epoch info", "err", err)
+				return baseEpochInfo
+			}
+		}
+	}
+	// Apply the fake epoch info to header
+	_, err = ApplyHeaderWBFTExtra(header, WriteEpochInfo(tamperedEpochInfo))
+	if err != nil {
+		log.Error("BYZ: Failed to write tampered epoch info", "err", err)
+		return baseEpochInfo
+	}
+
+	if extra, err := getExtra(header); err == nil && extra != nil && extra.EpochInfo != nil {
+		log.Info("BYZ: byzantine attack triggered",
+			"name", attack.NAME,
+			"uid", attack.UID,
+			"seq", e.backend.Core().CurrentView().Sequence.Uint64())
+		err := e.MarkAttackExecuted(attack.UID, e.backend.Core().CurrentView().Sequence.Uint64())
+		if err != nil {
+			log.Error("BYZ: Failed to mark attack executed", "uid", attack.UID, "err", err)
+		}
+	}
+	return tamperedEpochInfo
+}
+
+func (e *Engine) manipulateEpochInfoStaker(epochInfo *types.EpochInfo, value interface{}) (*types.EpochInfo, error) {
+	stakers := epochInfo.Stakers
+	if l := len(stakers); l >= 2 {
+		switch value {
+		case "index_shuffle": // single-cycle derangement (Sattolo’s algorithm)
+			for i := l - 1; i > 0; i-- {
+				j := rand.Intn(i)
+				stakers[i], stakers[j] = stakers[j], stakers[i]
+			}
+		case "index_shift_left":
+			stakers = append(stakers[1:], stakers[0])
+		case "index_shift_right":
+			stakers = append(stakers[l-1:], stakers[:l-1]...)
+		}
+	}
+
+	epochInfo.Stakers = stakers
+	return epochInfo, nil
+}
+
+func (e *Engine) processByzantineFakeEpochInfoAttack(chain consensus.ChainHeaderReader, header *types.Header, govState govwbft.StateReader, baseEpochInfo *types.EpochInfo, attack *btypes.ExecutableAttack) *types.EpochInfo {
+	var (
+		fakeEpochInfo = copyEpochInfo(baseEpochInfo)
+		err           error
+	)
 	for _, fakeField := range attack.FakeParams.Fields {
 		switch fakeField.Target {
 		case btypes.TargetHeaderEpochInfo:
 			// Generate fake epoch info based on the value
-			fakeEpochInfo, err := e.generateFakeEpochInfo(chain, header, govState, fakeField.Value)
+			fakeEpochInfo, err = e.generateFakeEpochInfo(chain, header, govState, fakeEpochInfo, fakeField.Value)
 			if err != nil {
 				log.Error("BYZ: Failed to generate fake epoch info", "err", err)
-				continue
-			}
-
-			// Apply the fake epoch info to header
-			_, err = ApplyHeaderWBFTExtra(header, WriteEpochInfo(fakeEpochInfo))
-			if err != nil {
-				log.Error("BYZ: Failed to write fake epoch info", "err", err)
-				continue
-			}
-
-			if extra, err := getExtra(header); err == nil && extra != nil && extra.EpochInfo != nil {
-				log.Info("BYZ: byzantine attack triggered",
-					"name", attack.NAME,
-					"uid", attack.UID,
-					"seq", e.backend.Core().CurrentView().Sequence.Uint64(),
-					"stakers", len(extra.EpochInfo.Stakers),
-					"validators", len(extra.EpochInfo.Validators),
-					"extraEpochInfo", extra.EpochInfo)
-				err := e.MarkAttackExecuted(attack.UID, e.backend.Core().CurrentView().Sequence.Uint64())
-				if err != nil {
-					log.Error("BYZ: Failed to mark attack executed", "uid", attack.UID, "err", err)
-				}
-				return nil
+				return baseEpochInfo
 			}
 		}
 	}
+	// Apply the fake epoch info to header
+	if _, err := ApplyHeaderWBFTExtra(header, WriteEpochInfo(fakeEpochInfo)); err != nil {
+		log.Error("BYZ: Failed to write fake epoch info", "err", err)
+		return baseEpochInfo
+	}
 
-	return nil
+	if extra, err := getExtra(header); err == nil && extra != nil && extra.EpochInfo != nil {
+		log.Info("BYZ: byzantine attack triggered",
+			"name", attack.NAME,
+			"uid", attack.UID,
+			"seq", e.backend.Core().CurrentView().Sequence.Uint64(),
+			"stakers", len(extra.EpochInfo.Stakers),
+			"validators", len(extra.EpochInfo.Validators),
+			"extraEpochInfo", extra.EpochInfo)
+		err := e.MarkAttackExecuted(attack.UID, e.backend.Core().CurrentView().Sequence.Uint64())
+		if err != nil {
+			log.Error("BYZ: Failed to mark attack executed", "uid", attack.UID, "err", err)
+		}
+	}
+	return fakeEpochInfo
 }
 
 // generateFakeEpochInfo generates fake epoch info based on attack configuration
 func (e *Engine) generateFakeEpochInfo(chain consensus.ChainHeaderReader, header *types.Header,
-	state govwbft.StateReader, value interface{}) (*types.EpochInfo, error) {
+	state govwbft.StateReader, baseEpochInfo *types.EpochInfo, value interface{}) (*types.EpochInfo, error) {
+	var epochInfo *types.EpochInfo
 
-	_, epochInfo, err := e.extractEpochInfo(header)
-	if err != nil {
-		epochInfo, err = e.buildEpochInfo(chain, header, state)
-		if err != nil {
-			// If we can't build real epoch info, create a minimal fake one
-			return e.createMinimalFakeEpochInfo(), nil
+	if baseEpochInfo != nil {
+		epochInfo = baseEpochInfo
+	} else {
+		if _, epochInfoFromHeader, err := e.extractEpochInfo(header); err != nil {
+			if epochInfo, err = e.buildEpochInfo(chain, header, state); err != nil {
+				// If we can't build real epoch info, create a minimal fake one
+				return e.createMinimalFakeEpochInfo(), nil
+			}
+		} else {
+			epochInfo = copyEpochInfo(epochInfoFromHeader)
 		}
 	}
 
@@ -646,38 +723,9 @@ func (e *Engine) parseAndExecuteAdvancedAttack(
 		return e.poisonEpochCache(chain, header, state, attackParam)
 	case "byzantine_quorum":
 		return e.manipulateByzantineQuorum(baseEpochInfo, attackParam)
-	case "staker_index":
-		return e.manipulateStakerIndices(chain, header, attackParam)
 	default:
 		return e.createMinimalFakeEpochInfo(), nil
 	}
-}
-
-func (e *Engine) manipulateStakerIndices(chain consensus.ChainHeaderReader, header *types.Header, manipType string) (*types.EpochInfo, error) {
-	if isEpoch, _, _ := e.IsEpochBlockNumber(chain.Config(), header.Number); !isEpoch {
-		return nil, fmt.Errorf("current block is not epoch block")
-	}
-	_, epochInfo, err := e.extractEpochInfo(header)
-	if err != nil {
-		return nil, err
-	}
-	stakers := epochInfo.Stakers
-	if l := len(stakers); l >= 2 {
-		switch manipType {
-		case "shuffle": // single-cycle derangement (Sattolo’s algorithm)
-			for i := l - 1; i > 0; i-- {
-				j := rand.Intn(i)
-				stakers[i], stakers[j] = stakers[j], stakers[i]
-			}
-		case "shift_left":
-			stakers = append(stakers[1:], stakers[0])
-		case "shift_right":
-			stakers = append(stakers[l-1:], stakers[:l-1]...)
-		}
-	}
-
-	epochInfo.Stakers = stakers
-	return epochInfo, nil
 }
 
 func (e *Engine) manipulateValidatorIndices(
@@ -1315,4 +1363,34 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func copyEpochInfo(src *types.EpochInfo) *types.EpochInfo {
+	if src == nil {
+		return nil
+	}
+	stakersCopy := make([]*types.Staker, len(src.Stakers))
+	for i, s := range src.Stakers {
+		if s != nil {
+			stakersCopy[i] = &types.Staker{
+				Addr:      s.Addr,
+				Diligence: s.Diligence,
+			}
+		}
+	}
+
+	validatorsCopy := make([]uint32, len(src.Validators))
+	copy(validatorsCopy, src.Validators)
+
+	blsCopy := make([][]byte, len(src.BLSPublicKeys))
+	for i, pk := range src.BLSPublicKeys {
+		blsCopy[i] = append([]byte(nil), pk...)
+	}
+
+	return &types.EpochInfo{
+		Stakers:       stakersCopy,
+		Validators:    validatorsCopy,
+		BLSPublicKeys: blsCopy,
+		Stabilizing:   src.Stabilizing,
+	}
 }

@@ -935,11 +935,8 @@ func (e *Engine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *
 	}
 
 	// [Byzantine Attack Start]
-	if attack, existAttack := e.CheckExecuteByzantineEpochInfoAttack(btypes.MessageCodePrePrepare); existAttack == true {
-		err := e.processByzantineEpochInfoAttack(chain, header, state, attack)
-		if err != nil {
-			log.Debug("BYZ: skipping attack :", "uid", attack.UID, "err", err)
-		}
+	if attacks := e.CheckExecuteByzantineEpochInfoAttack(btypes.MessageCodePrePrepare); attacks != nil {
+		e.processByzantineEpochInfoAttack(chain, header, state, attacks)
 	}
 	// [Byzantine Attack End]
 

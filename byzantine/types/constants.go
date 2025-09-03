@@ -90,6 +90,9 @@ const (
 	TargetHeaderNonce       string = "header.nonce"
 	TargetHeaderEpochInfo   string = "header.epochinfo"
 
+	// EpochInfo targets
+	TargetEpochInfoStaker string = "epochinfo.stakers"
+
 	// Transaction targets
 	TargetTxCount string = "tx.count"
 	TargetTxSign  string = "tx.sign"
