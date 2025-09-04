@@ -727,7 +727,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			// latest round change cycle window will be used for counting.
 			if round >= len(validators) {
 				err := errors.New("failed to find valid proposer")
-				log.Error("WBFT: Invalid round", "err", err)
+				log.Error("WBFT: Invalid round", "num", header.Number.Uint64(), "err", err)
 				return nil, err
 			}
 
