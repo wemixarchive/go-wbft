@@ -119,6 +119,13 @@ func (c *Core) handleRoundChangeMsg(roundChange *wbfmessage.RoundChange) error {
 		var pr *big.Int = nil
 		var pb *types.Block = nil
 		if roundChange.PreparedRound != nil && roundChange.PreparedBlock != nil && roundChange.Justification != nil && len(roundChange.Justification) > 0 {
+			// We should check the prepared block hash and sequence number
+			if roundChange.PreparedBlock.Number().Cmp(c.currentView().Sequence) != 0 {
+				return errors.New("WBFT: prepared block number does not match current sequence number in ROUND-CHANGE message")
+			}
+			if roundChange.PreparedBlock.Hash() != roundChange.PreparedDigest {
+				return errors.New("WBFT: prepared block hash does not match prepared digest in ROUND-CHANGE message")
+			}
 			prepareMessages = roundChange.Justification
 			pr = roundChange.PreparedRound
 			pb = roundChange.PreparedBlock
