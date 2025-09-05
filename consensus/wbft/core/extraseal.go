@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/wbft"
 	wbfmessage "github.com/ethereum/go-ethereum/consensus/wbft/messages"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // addToExtraSeal adds a seal received after consensus to extraSeals.
@@ -80,7 +81,7 @@ func (c *Core) addToPrepareExtraSeal(prepareMsg *wbfmessage.Prepare) {
 		}
 	}
 	c.prepareExtraSeals[prepareMsg.Source()] = prepareMsg
-	logger.Trace("WBFT: new extra prepare seal message")
+	logger.Trace("WBFT: new extra prepare seal message", "source", prepareMsg.Source(), "sequence", prepareMsg.Sequence.Uint64(), "round", prepareMsg.Round.Uint64())
 }
 
 func (c *Core) addToCommitExtraSeal(commitMsg *wbfmessage.Commit) {
@@ -94,7 +95,7 @@ func (c *Core) addToCommitExtraSeal(commitMsg *wbfmessage.Commit) {
 		}
 	}
 	c.commitExtraSeals[commitMsg.Source()] = commitMsg
-	logger.Trace("WBFT: new extra commit seal message")
+	logger.Trace("WBFT: new extra commit seal message", "source", commitMsg.Source(), "sequence", commitMsg.Sequence.Uint64(), "round", commitMsg.Round.Uint64())
 }
 
 // addEffectiveSealToExtraSeal adds a consensus-effective seal to extraSeals used during block creation.
@@ -171,6 +172,7 @@ func (c *Core) ClearExtraSeals(lastNum *big.Int) {
 	// process prepare seal
 	for addr, msg := range c.prepareExtraSeals {
 		if msg != nil && msg.Sequence.Cmp(lastNum) < 0 {
+			log.Debug("WBFT: clear extra prepare seal", "source", addr, "sequence", msg.Sequence.Uint64(), "round", msg.Round.Uint64(), "lastNum", lastNum.Uint64())
 			delete(c.prepareExtraSeals, addr) // erase invalid seal
 		}
 	}
@@ -178,6 +180,7 @@ func (c *Core) ClearExtraSeals(lastNum *big.Int) {
 	// process commit seal
 	for addr, msg := range c.commitExtraSeals {
 		if msg != nil && msg.Sequence.Cmp(lastNum) < 0 {
+			log.Debug("WBFT: clear extra commit seal", "source", addr, "sequence", msg.Sequence.Uint64(), "round", msg.Round.Uint64(), "lastNum", lastNum.Uint64())
 			delete(c.commitExtraSeals, addr) // erase invalid seal
 		}
 	}
