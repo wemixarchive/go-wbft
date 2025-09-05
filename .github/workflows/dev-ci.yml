@@ -19,7 +19,7 @@ jobs:
           go-version: 1.21.4
 
       - name: Build Go-WEMIX-WBFT
-        run: make geth
+        run: make gwemix
 
   lint_test:
     strategy:

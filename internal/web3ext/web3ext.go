@@ -16,7 +16,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 //
 
-// Package web3ext contains geth specific web3.js extensions.
+// Package web3ext contains gwemix specific web3.js extensions.
 package web3ext
 
 var Modules = map[string]string{

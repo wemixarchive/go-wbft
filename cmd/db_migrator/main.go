@@ -45,8 +45,8 @@ func main() {
 }
 
 func migrateChaindata() {
-	srcChaindataDir := *srcDataDir + "/geth/chaindata"
-	dstChaindataDir := *dstDataDir + "/geth/chaindata"
+	srcChaindataDir := *srcDataDir + "/gwemix/chaindata"
+	dstChaindataDir := *dstDataDir + "/gwemix/chaindata"
 
 	fmt.Println("Migrating chaindata", srcChaindataDir, "to", dstChaindataDir)
 

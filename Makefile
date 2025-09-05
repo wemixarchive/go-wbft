@@ -2,24 +2,24 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: geth android ios evm all test clean
+.PHONY: gwemix android ios evm all test clean
 
 GOBIN = ./build/bin
 GO ?= latest
 GORUN = go run
 
-SUCCESS_TESTS = github.com/ethereum/go-ethereum/accounts github.com/ethereum/go-ethereum/accounts/abi github.com/ethereum/go-ethereum/cmd/abigen github.com/ethereum/go-ethereum/cmd/clef github.com/ethereum/go-ethereum/cmd/evm/... github.com/ethereum/go-ethereum/cmd/devp2p/...  github.com/ethereum/go-ethereum/cmd/ethkey github.com/ethereum/go-ethereum/cmd/rlpdump github.com/ethereum/go-ethereum/common/... github.com/ethereum/go-ethereum/core/... github.com/ethereum/go-ethereum/ethclient/... github.com/ethereum/go-ethereum/consensus/misc/...  github.com/ethereum/go-ethereum/consensus/wbft/...  github.com/ethereum/go-ethereum/crypto/...  github.com/ethereum/go-ethereum/ethdb/...  github.com/ethereum/go-ethereum/ethstats github.com/ethereum/go-ethereum/event github.com/ethereum/go-ethereum/log github.com/ethereum/go-ethereum/metrics/...  github.com/ethereum/go-ethereum/miner github.com/ethereum/go-ethereum/node github.com/ethereum/go-ethereum/p2p/...  github.com/ethereum/go-ethereum/params github.com/ethereum/go-ethereum/rlp/...  github.com/ethereum/go-ethereum/signer/...  github.com/ethereum/go-ethereum/tests/fuzzers/...  github.com/ethereum/go-ethereum/trie/...  github.com/ethereum/go-ethereum/triedb/...  github.com/ethereum/go-ethereum/graphql/...  github.com/ethereum/go-ethereum/internal/...  github.com/ethereum/go-ethereum/rpc github.com/ethereum/go-ethereum/cmd/geth github.com/ethereum/go-ethereum/cmd/utils github.com/ethereum/go-ethereum/console github.com/ethereum/go-ethereum/eth/... github.com/ethereum/go-ethereum/wemixgov/...
+SUCCESS_TESTS = github.com/ethereum/go-ethereum/accounts github.com/ethereum/go-ethereum/accounts/abi github.com/ethereum/go-ethereum/cmd/abigen github.com/ethereum/go-ethereum/cmd/clef github.com/ethereum/go-ethereum/cmd/evm/... github.com/ethereum/go-ethereum/cmd/devp2p/...  github.com/ethereum/go-ethereum/cmd/ethkey github.com/ethereum/go-ethereum/cmd/rlpdump github.com/ethereum/go-ethereum/common/... github.com/ethereum/go-ethereum/core/... github.com/ethereum/go-ethereum/ethclient/... github.com/ethereum/go-ethereum/consensus/misc/...  github.com/ethereum/go-ethereum/consensus/wbft/...  github.com/ethereum/go-ethereum/crypto/...  github.com/ethereum/go-ethereum/ethdb/...  github.com/ethereum/go-ethereum/ethstats github.com/ethereum/go-ethereum/event github.com/ethereum/go-ethereum/log github.com/ethereum/go-ethereum/metrics/...  github.com/ethereum/go-ethereum/miner github.com/ethereum/go-ethereum/node github.com/ethereum/go-ethereum/p2p/...  github.com/ethereum/go-ethereum/params github.com/ethereum/go-ethereum/rlp/...  github.com/ethereum/go-ethereum/signer/...  github.com/ethereum/go-ethereum/tests/fuzzers/...  github.com/ethereum/go-ethereum/trie/...  github.com/ethereum/go-ethereum/triedb/...  github.com/ethereum/go-ethereum/graphql/...  github.com/ethereum/go-ethereum/internal/...  github.com/ethereum/go-ethereum/rpc github.com/ethereum/go-ethereum/cmd/gwemix github.com/ethereum/go-ethereum/cmd/utils github.com/ethereum/go-ethereum/console github.com/ethereum/go-ethereum/eth/... github.com/ethereum/go-ethereum/wemixgov/...
 
 # TODO: move this cases to SUCCESS_TESTS one by one after making it to be success
 FAILURE_TESTS = github.com/ethereum/go-ethereum/tests
 
-#? geth: Build geth
-geth:
-	$(GORUN) build/ci.go install ./cmd/geth
+#? gwemix: Build gwemix
+gwemix:
+	$(GORUN) build/ci.go install ./cmd/gwemix
 	@echo "Done building."
-	@echo "Run \"$(GOBIN)/geth\" to launch geth."
+	@echo "Run \"$(GOBIN)/gwemix\" to launch gwemix."
 
-#? geth: Build genesis_generator
+#? gwemix: Build genesis_generator
 genesis_generator:
 	$(GORUN) build/ci.go install ./cmd/genesis_generator
 	@echo "Done building."

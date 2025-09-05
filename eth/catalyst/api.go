@@ -426,7 +426,7 @@ func (api *ConsensusAPI) ExchangeTransitionConfigurationV1(config engine.Transit
 
 	ttd := api.eth.BlockChain().Config().TerminalTotalDifficulty
 	if ttd == nil || ttd.Cmp(config.TerminalTotalDifficulty.ToInt()) != 0 {
-		log.Warn("Invalid TTD configured", "geth", ttd, "beacon", config.TerminalTotalDifficulty)
+		log.Warn("Invalid TTD configured", "gwemix", ttd, "beacon", config.TerminalTotalDifficulty)
 		return nil, fmt.Errorf("invalid ttd: execution %v consensus %v", ttd, config.TerminalTotalDifficulty)
 	}
 	if config.TerminalBlockHash != (common.Hash{}) {

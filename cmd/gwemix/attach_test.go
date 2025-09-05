@@ -32,7 +32,7 @@ func (t *testHandler) ServeHTTP(out http.ResponseWriter, in *http.Request) {
 	t.body(out, in)
 }
 
-// TestAttachWithHeaders tests that 'geth attach' with custom headers works, i.e
+// TestAttachWithHeaders tests that 'gwemix attach' with custom headers works, i.e
 // that custom headers are forwarded to the target.
 func TestAttachWithHeaders(t *testing.T) {
 	t.Parallel()
@@ -48,7 +48,7 @@ func TestAttachWithHeaders(t *testing.T) {
 	// This is fixed in a follow-up PR.
 }
 
-// TestAttachWithHeaders tests that 'geth db --remotedb' with custom headers works, i.e
+// TestAttachWithHeaders tests that 'gwemix db --remotedb' with custom headers works, i.e
 // that custom headers are forwarded to the target.
 func TestRemoteDbWithHeaders(t *testing.T) {
 	t.Parallel()
@@ -76,7 +76,7 @@ func testReceiveHeaders(t *testing.T, ln net.Listener, gethArgs ...string) {
 		}}}
 	go server.Serve(ln)
 	defer server.Close()
-	runGeth(t, gethArgs...).WaitExit()
+	runGwemix(t, gethArgs...).WaitExit()
 	if ok.Load() != 1 {
 		t.Fatal("Test fail, expected invocation to succeed")
 	}
