@@ -613,7 +613,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	proposers := []common.Address{}
 	epochLength := uint64(0)
 
-	var lastProposer common.Address
+	var firstProposer, lastProposer common.Address
 	latestEpoch, latestEpochInfo, err := e.GetEpochInfo(chain, header, nil)
 	if err != nil {
 		log.Error("failed to get latest epoch info", "err", err)
@@ -646,6 +646,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 				log.Error("failed to get prev epoch info", "number(parent)", parent.Number, "err", err)
 				return nil, err
 			}
+			firstProposer, _ = e.Author(it)
 			lastProposer, _ = e.Author(parent)
 			epochInfo = info
 
@@ -793,7 +794,11 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			}
 
 			if beingProposerCountInEpoch[staker] > 0 {
-				maxProposedSeals := 2 * (len(latestEpochInfo.Validators)*beingProposerCountInEpoch[staker] - validatorsDiff)
+				maxProposedSeals := 2 * len(latestEpochInfo.Validators) * beingProposerCountInEpoch[staker]
+				if staker.Cmp(firstProposer) == 0 && stakerInfo.wasValidator {
+					// first proposer can put more prev seals as much as -validatorsDiff
+					maxProposedSeals -= 2 * validatorsDiff
+				}
 				d += uint64(proposedSealsInEpoch[staker]) * types.DiligenceDenominator / uint64(maxProposedSeals)
 			} else {
 				d += types.DiligenceDenominator
