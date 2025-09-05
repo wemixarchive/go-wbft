@@ -318,37 +318,21 @@ func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}
 		return nil, err
 	}
 
-	validators, err := api.GetValidators(&number)
+	curValidators, prevValidators, err := api.backend.GetValidatorsForVerifying(api.chain, header, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var prevSeals map[string]interface{}
-	if number > 0 {
-		prevBlockNumber := rpc.BlockNumber(number.Int64() - 1)
-		prevVals, err := api.GetValidators(&prevBlockNumber)
-		if err != nil {
-			return nil, err
-		}
-		prevSeals = map[string]interface{}{
-			"prevPreparedSeal":  sealForJSON(extra.PrevPreparedSeal, prevVals),
-			"prevCommittedSeal": sealForJSON(extra.PrevCommittedSeal, prevVals),
-		}
-	}
-
 	result := map[string]interface{}{
-		"vanityData":    DecodeVanityData(extra.VanityData),
-		"randaoReveal":  "0x" + hex.EncodeToString(extra.RandaoReveal),
-		"prevRound":     fmt.Sprintf("0x%x", extra.PrevRound),
-		"round":         fmt.Sprintf("0x%x", extra.Round),
-		"preparedSeal":  sealForJSON(extra.PreparedSeal, validators),
-		"committedSeal": sealForJSON(extra.CommittedSeal, validators),
-		"epochInfo":     epochForJSON(extra.EpochInfo),
-	}
-
-	if number > 0 {
-		result["prevPreparedSeal"] = prevSeals["prevPreparedSeal"]
-		result["prevCommittedSeal"] = prevSeals["prevCommittedSeal"]
+		"vanityData":        DecodeVanityData(extra.VanityData),
+		"randaoReveal":      "0x" + hex.EncodeToString(extra.RandaoReveal),
+		"prevRound":         fmt.Sprintf("0x%x", extra.PrevRound),
+		"prevPreparedSeal":  sealForJSON(extra.PrevPreparedSeal, prevValidators.AddressList()),
+		"prevCommittedSeal": sealForJSON(extra.PrevCommittedSeal, prevValidators.AddressList()),
+		"round":             fmt.Sprintf("0x%x", extra.Round),
+		"preparedSeal":      sealForJSON(extra.PreparedSeal, curValidators.AddressList()),
+		"committedSeal":     sealForJSON(extra.CommittedSeal, curValidators.AddressList()),
+		"epochInfo":         epochForJSON(extra.EpochInfo),
 	}
 
 	return result, nil
