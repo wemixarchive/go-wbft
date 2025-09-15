@@ -60,10 +60,20 @@ type Config struct {
 	SimulatedEnabled bool `toml:",omitempty"`
 }
 
+const (
+	// DefaultGasPriceGWei is the default gas price for Wemix 3.0 compatibility.
+	DefaultGasPriceGWei = 100
+)
+
+// DefaultGasPrice Pre-computed gas price values
+var (
+	DefaultGasPrice = big.NewInt(DefaultGasPriceGWei * params.GWei)
+)
+
 // DefaultConfig contains default settings for miner.
 var DefaultConfig = Config{
 	GasCeil:  105000000,
-	GasPrice: big.NewInt(100 * params.GWei), // 100 GWei for compatibility with Wemix 3.0
+	GasPrice: DefaultGasPrice, // Use pre-computed constant for clarity and maintenance
 
 	// The default recommit time is chosen as two seconds since
 	// consensus-layer usually will wait a half slot of time(6s)
