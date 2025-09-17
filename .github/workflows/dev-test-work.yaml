@@ -61,4 +61,4 @@ jobs:
           cd target-repo
           git add .
           git commit -m "Add binary for ${{ env.identifier }}: ${{ github.sha }}"
-          git push origin main
+          git push origin dev
