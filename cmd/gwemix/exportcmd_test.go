@@ -25,12 +25,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// TestExport does a basic test of "geth export", exporting the test-genesis.
+// TestExport does a basic test of "gwemix export", exporting the test-genesis.
 func TestExport(t *testing.T) {
 	t.Parallel()
 	outfile := fmt.Sprintf("%v/testExport.out", os.TempDir())
 	defer os.Remove(outfile)
-	geth := runGeth(t, "--datadir", initGeth(t), "export", outfile)
+	geth := runGwemix(t, "--datadir", initGwemix(t), "export", outfile)
 	geth.WaitExit()
 	if have, want := geth.ExitStatus(), 0; have != want {
 		t.Errorf("exit error, have %d want %d", have, want)

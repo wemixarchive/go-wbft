@@ -59,7 +59,7 @@ var FullNodeGPO = gasprice.Config{
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
 	//SyncMode: downloader.SnapSync,
-	// make full sync the default sync mode in wbft (as opposed to upstream geth)
+	// make full sync the default sync mode in wbft (as opposed to upstream gwemix)
 	SyncMode:       downloader.FullSync,
 	ForceSyncCycle: common.Duration(10 * time.Second), // Time interval to force syncs, even if few peers are available
 	TdSyncInterval: common.Duration(10 * time.Second), // Time interval to verify TD changes and detect sync stalling
@@ -119,7 +119,7 @@ type Config struct {
 	StateScheme string `toml:",omitempty"`
 
 	// RequiredBlocks is a set of block number -> hash mappings which must be in the
-	// canonical chain of all remote peers. Setting the option makes geth verify the
+	// canonical chain of all remote peers. Setting the option makes gwemix verify the
 	// presence of these blocks for every new peer connection.
 	RequiredBlocks map[uint64]common.Hash `toml:"-"`
 
