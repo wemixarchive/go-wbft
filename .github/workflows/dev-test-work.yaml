@@ -34,8 +34,8 @@ jobs:
       - name: Build Binary
         run: |
           mkdir -p output
-          make geth
-          mv ./build/bin/geth ./output/
+          make gwemix
+          mv ./build/bin/gwemix ./output/
           echo "Binary built successfully."
           ls -l ./output/
 
@@ -61,4 +61,4 @@ jobs:
           cd target-repo
           git add .
           git commit -m "Add binary for ${{ env.identifier }}: ${{ github.sha }}"
-          git push origin main
+          git push origin dev

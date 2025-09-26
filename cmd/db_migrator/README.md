@@ -3,16 +3,16 @@ Migrate chaindata for `gwemix` to chaindata for `geth`.
 **First of all, check which db engine is used to manage `gwemix` chaindata.**
 
 ```shell
-ls <path-to-gwemix-datadir>/geth/chaindata
+ls <path-to-gwemix-datadir>/gwemix/chaindata
 ```
 
 `gwemix` manages chaindata with file extension either `*.sst` or `*.ldb`.
 If LevelDB (`*.ldb`) is used, just run `geth` with `--db.engine leveldb` option added.
 
 ```shell
-geth \
+gwemix \
   --db.engine leveldb \
-  --datadir <path-to-gwemix-datadir>/geth/chaindata \
+  --datadir <path-to-gwemix-datadir>/gwemix/chaindata \
   ...
 ```
 
@@ -36,7 +36,7 @@ export GWEMIX_REPO=<path-to-go-wemix-repo>
 export GWEMIX_WBFT_REPO=<path-to-go-wemix-wbft-repo>
 
 export GWEMIX_DATADIR=<path-to-gwemix-datadir>
-export GWEMIX_WBFT_DATADIR=<path-to-geth-datadir> # Create new directory
+export GWEMIX_WBFT_DATADIR=<path-to-gwemix-datadir> # Create new directory
 ```
 
 ### Getting migration tool from releases (**recommended**)
@@ -84,8 +84,8 @@ cp -a $GWEMIX_DATADIR $GWEMIX_WBFT_DATADIR
 Keep ancient chaindata then remove all the rest chaindata.
 
 ```shell
-mv $GWEMIX_WBFT_DATADIR/geth/chaindata/ancient $GWEMIX_WBFT_DATADIR/geth
-rm -r $GWEMIX_WBFT_DATADIR/geth/chaindata
+mv $GWEMIX_WBFT_DATADIR/gwemix/chaindata/ancient $GWEMIX_WBFT_DATADIR/gwemix
+rm -r $GWEMIX_WBFT_DATADIR/gwemix/chaindata
 ```
 
 Migrate chaindata by using `db_migrator`.
@@ -97,14 +97,14 @@ $GWEMIX_WBFT_REPO/db_migrator -src $GWEMIX_DATADIR -dst $GWEMIX_WBFT_DATADIR
 Restore ancient chaindata.
 
 ```shell
-mv $GWEMIX_WBFT_DATADIR/geth/ancient $GWEMIX_WBFT_DATADIR/geth/chaindata
+mv $GWEMIX_WBFT_DATADIR/gwemix/ancient $GWEMIX_WBFT_DATADIR/gwemix/chaindata
 ```
 
 Check migrated chaindata if it is same info for `$GWEMIX_DATADIR`.
 
 ```shell
-geth db inspect --datadir $GWEMIX_WBFT_DATADIR --syncmode snap
-geth db metadata --datadir $GWEMIX_WBFT_DATADIR --syncmode snap
+gwemix db inspect --datadir $GWEMIX_WBFT_DATADIR --syncmode snap
+gwemix db metadata --datadir $GWEMIX_WBFT_DATADIR --syncmode snap
 ```
 
 Migration has done.
@@ -113,7 +113,7 @@ Run `geth` with `--datadir $GWEMIX_WBFT_DATADIR` option added.
 The default value for `--db.engine` is `pebble` so it can be omitted.
 
 ```shell
-geth \
+gwemix \
   --datadir $GWEMIX_WBFT_DATADIR \
   ...
 ```

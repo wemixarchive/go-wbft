@@ -60,19 +60,19 @@ import (
 )
 
 var (
-	// Files that end up in the geth*.zip archive.
-	gethArchiveFiles = []string{
+	// Files that end up in the gwemix*.zip archive.
+	gwemixArchiveFiles = []string{
 		"COPYING",
-		executablePath("geth"),
+		executablePath("gwemix"),
 	}
 
-	// Files that end up in the geth-alltools*.zip archive.
+	// Files that end up in the gwemix-alltools*.zip archive.
 	allToolsArchiveFiles = []string{
 		"COPYING",
 		executablePath("abigen"),
 		executablePath("bootnode"),
 		executablePath("evm"),
-		executablePath("geth"),
+		executablePath("gwemix"),
 		executablePath("rlpdump"),
 		executablePath("clef"),
 		executablePath("genesis_generator"),
@@ -86,15 +86,15 @@ var (
 		},
 		{
 			BinaryName:  "bootnode",
-			Description: "Ethereum bootnode.",
+			Description: "Wemix bootnode.",
 		},
 		{
 			BinaryName:  "evm",
 			Description: "Developer utility version of the EVM (Ethereum Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode.",
 		},
 		{
-			BinaryName:  "geth",
-			Description: "Ethereum CLI client.",
+			BinaryName:  "gwemix",
+			Description: "Wemix CLI client.",
 		},
 		{
 			BinaryName:  "rlpdump",
@@ -112,7 +112,7 @@ var (
 
 	// A debian package is created for all executables listed here.
 	debEthereum = debPackage{
-		Name:        "ethereum",
+		Name:        "wemix",
 		Version:     params.Version,
 		Executables: debExecutables,
 	}
@@ -426,11 +426,11 @@ func doArchive(cmdline []string) {
 	var (
 		env      = build.Env()
 		basegeth = archiveBasename(*arch, params.ArchiveVersion(env.Commit))
-		geth     = "geth-" + basegeth + ext
-		alltools = "geth-alltools-" + basegeth + ext
+		geth     = "gwemix-" + basegeth + ext
+		alltools = "gwemix-alltools-" + basegeth + ext
 	)
 	maybeSkipArchive(env)
-	if err := build.WriteArchive(geth, gethArchiveFiles); err != nil {
+	if err := build.WriteArchive(geth, gwemixArchiveFiles); err != nil {
 		log.Fatal(err)
 	}
 	if err := build.WriteArchive(alltools, allToolsArchiveFiles); err != nil {
@@ -467,7 +467,7 @@ func archiveUpload(archive string, blobstore string, signer string, signifyVar s
 	}
 	if signifyVar != "" {
 		key := os.Getenv(signifyVar)
-		untrustedComment := "verify with geth-release.pub"
+		untrustedComment := "verify with gwemix-release.pub"
 		trustedComment := fmt.Sprintf("%s (%s)", archive, time.Now().UTC().Format(time.RFC1123))
 		if err := signify.SignFile(archive, archive+".sig", key, untrustedComment, trustedComment); err != nil {
 			return err
@@ -681,7 +681,7 @@ func doDebianSource(cmdline []string) {
 		cachedir = flag.String("cachedir", "./build/cache", `Filesystem path to cache the downloaded Go bundles at`)
 		signer   = flag.String("signer", "", `Signing key name, also used as package author`)
 		upload   = flag.String("upload", "", `Where to upload the source package (usually "ethereum/ethereum")`)
-		sshUser  = flag.String("sftp-user", "", `Username for SFTP upload (usually "geth-ci")`)
+		sshUser  = flag.String("sftp-user", "", `Username for SFTP upload (usually "gwemix-ci")`)
 		workdir  = flag.String("workdir", "", `Output directory for packages (uses temp dir if unset)`)
 		now      = time.Now()
 	)
@@ -829,7 +829,7 @@ func makeWorkdir(wdflag string) string {
 	if wdflag != "" {
 		err = os.MkdirAll(wdflag, 0744)
 	} else {
-		wdflag, err = os.MkdirTemp("", "geth-build-")
+		wdflag, err = os.MkdirTemp("", "gwemix-build-")
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -1007,7 +1007,7 @@ func doWindowsInstaller(cmdline []string) {
 			continue
 		}
 		allTools = append(allTools, filepath.Base(file))
-		if filepath.Base(file) == "geth.exe" {
+		if filepath.Base(file) == "gwemix.exe" {
 			gethTool = file
 		} else {
 			devTools = append(devTools, file)
@@ -1015,13 +1015,13 @@ func doWindowsInstaller(cmdline []string) {
 	}
 
 	// Render NSIS scripts: Installer NSIS contains two installer sections,
-	// first section contains the geth binary, second section holds the dev tools.
+	// first section contains the gwemix binary, second section holds the dev tools.
 	templateData := map[string]interface{}{
 		"License":  "COPYING",
 		"Geth":     gethTool,
 		"DevTools": devTools,
 	}
-	build.Render("build/nsis.geth.nsi", filepath.Join(*workdir, "geth.nsi"), 0644, nil)
+	build.Render("build/nsis.gwemix.nsi", filepath.Join(*workdir, "gwemix.nsi"), 0644, nil)
 	build.Render("build/nsis.install.nsh", filepath.Join(*workdir, "install.nsh"), 0644, templateData)
 	build.Render("build/nsis.uninstall.nsh", filepath.Join(*workdir, "uninstall.nsh"), 0644, allTools)
 	build.Render("build/nsis.pathupdate.nsh", filepath.Join(*workdir, "PathUpdate.nsh"), 0644, nil)
@@ -1039,7 +1039,7 @@ func doWindowsInstaller(cmdline []string) {
 	if env.Commit != "" {
 		version[2] += "-" + env.Commit[:8]
 	}
-	installer, err := filepath.Abs("geth-" + archiveBasename(*arch, params.ArchiveVersion(env.Commit)) + ".exe")
+	installer, err := filepath.Abs("gwemix-" + archiveBasename(*arch, params.ArchiveVersion(env.Commit)) + ".exe")
 	if err != nil {
 		log.Fatalf("Failed to convert installer file path: %v", err)
 	}
@@ -1049,7 +1049,7 @@ func doWindowsInstaller(cmdline []string) {
 		"/DMINORVERSION="+version[1],
 		"/DBUILDVERSION="+version[2],
 		"/DARCH="+*arch,
-		filepath.Join(*workdir, "geth.nsi"),
+		filepath.Join(*workdir, "gwemix.nsi"),
 	)
 	// Sign and publish installer.
 	if err := archiveUpload(installer, *upload, *signer, *signify); err != nil {

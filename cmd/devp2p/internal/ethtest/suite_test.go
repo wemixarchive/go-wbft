@@ -53,7 +53,7 @@ func TestEthSuite(t *testing.T) {
 	}
 	geth, err := runGeth("./testdata", jwtPath)
 	if err != nil {
-		t.Fatalf("could not run geth: %v", err)
+		t.Fatalf("could not run gwemix: %v", err)
 	}
 	defer geth.Close()
 
@@ -81,7 +81,7 @@ func TestSnapSuite(t *testing.T) {
 	}
 	geth, err := runGeth("./testdata", jwtPath)
 	if err != nil {
-		t.Fatalf("could not run geth: %v", err)
+		t.Fatalf("could not run gwemix: %v", err)
 	}
 	defer geth.Close()
 
@@ -99,7 +99,7 @@ func TestSnapSuite(t *testing.T) {
 	}
 }
 
-// runGeth creates and starts a geth node
+// runGeth creates and starts a gwemix node
 func runGeth(dir string, jwtPath string) (*node.Node, error) {
 	stack, err := node.New(&node.Config{
 		AuthAddr: "127.0.0.1",
