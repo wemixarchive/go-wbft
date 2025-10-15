@@ -28,12 +28,29 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var (
 	solcBinDirName = ".solc-bin"                                                                   // Name of the local directory where solc binaries are stored
 	solcRepoURL    = "https://binaries.soliditylang.org"                                           // Base URL of the official solc binaries repository
 	osMapping      = map[string]string{"linux": "linux", "darwin": "macosx", "windows": "windows"} // Mapping from runtime.GOOS to solc binary OS names
+
+	// secureClient prevents HTTPS to HTTP downgrade attacks by rejecting insecure redirects
+	secureClient = &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Reject HTTPS → HTTP downgrade to prevent man-in-the-middle attacks
+			if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
+				return fmt.Errorf("refusing to follow redirect from HTTPS to HTTP")
+			}
+			// Prevent infinite redirect loops
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			return nil
+		},
+		Timeout: 5 * time.Minute,
+	}
 )
 
 // Build represents a single solc binary build from list.json
@@ -136,7 +153,7 @@ func GetSolcBin(version string) (string, error) {
 
 // getBuild fetches the list.json and returns the Build corresponding to the requested version
 func getBuild(listURL, version string) (*Build, error) {
-	resp, err := http.Get(listURL)
+	resp, err := secureClient.Get(listURL)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +180,7 @@ func getBuild(listURL, version string) (*Build, error) {
 // downloadSolc downloads a file from the given URL and writes it to the specified path.
 // It uses a temporary file and moves it to the final location after a successful download.
 func downloadSolc(filepath string, url string) error {
-	resp, err := http.Get(url)
+	resp, err := secureClient.Get(url)
 	if err != nil {
 		return err
 	}
