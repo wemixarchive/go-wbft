@@ -184,17 +184,18 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 
 	// Analyze blocks and collect statistics
 	roundDistribution := make(map[uint64]uint64)
-	var totalRounds uint64
 	for n := start; n <= end; n++ {
 		round := api.analyzeBlock(n, authorCounts, preparedCounts, committedCounts, prevPreparedCounts, prevCommittedCounts, totalSealCounts)
 		roundDistribution[round]++
-		totalRounds++
 	}
 
-	// Remove rounds with zero count
+	// Calculate total rounds (weighted sum) and remove rounds with zero count
+	var totalRounds uint64
 	for round, count := range roundDistribution {
 		if count == 0 {
 			delete(roundDistribution, round)
+		} else {
+			totalRounds += round * count
 		}
 	}
 	return &Status{
