@@ -66,10 +66,10 @@ type BlockRange struct {
 	TotalBlocks uint64 `json:"totalBlocks"` // Total number of blocks processed
 }
 
-// RoundInfo contains round statistics
-type RoundInfo struct {
-	TotalRounds     uint64 `json:"totalRounds"`     // Sum of all Round values
-	TotalPrevRounds uint64 `json:"totalPrevRounds"` // Sum of all PrevRound values
+// RoundStats contains round distribution statistics
+type RoundStats struct {
+	RoundDistribution map[uint64]uint64 `json:"roundDistribution"` // Map of round number to occurrence count
+	TotalRounds       uint64            `json:"totalRounds"`       // Total number of rounds processed
 }
 
 // Status contains validator activity statistics
@@ -77,7 +77,7 @@ type Status struct {
 	SealerActivity SealerActivity         `json:"sealerActivity"` // Seal signature counts by type
 	AuthorCounts   map[common.Address]int `json:"author"`         // Block proposal counts
 	BlockRange     BlockRange             `json:"blockRange"`     // Block range information
-	RoundInfo      RoundInfo              `json:"roundInfo"`      // Round statistics
+	RoundStats     RoundStats             `json:"roundStats"`     // Round distribution statistics
 }
 
 // NodeAddress returns the public address that is used to sign block headers in IBFT
@@ -183,11 +183,19 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 	authorCounts, preparedCounts, committedCounts, prevPreparedCounts, prevCommittedCounts, totalSealCounts := api.initializeCounters(signers)
 
 	// Analyze blocks and collect statistics
-	var totalRounds, totalPrevRounds uint64
+	roundDistribution := make(map[uint64]uint64)
+	var totalRounds uint64
 	for n := start; n <= end; n++ {
-		rounds, prevRounds := api.analyzeBlock(n, authorCounts, preparedCounts, committedCounts, prevPreparedCounts, prevCommittedCounts, totalSealCounts)
-		totalRounds += rounds
-		totalPrevRounds += prevRounds
+		round := api.analyzeBlock(n, authorCounts, preparedCounts, committedCounts, prevPreparedCounts, prevCommittedCounts, totalSealCounts)
+		roundDistribution[round]++
+		totalRounds++
+	}
+
+	// Remove rounds with zero count
+	for round, count := range roundDistribution {
+		if count == 0 {
+			delete(roundDistribution, round)
+		}
 	}
 	return &Status{
 		SealerActivity: SealerActivity{
@@ -203,9 +211,9 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 			EndBlock:    end,
 			TotalBlocks: numBlocks,
 		},
-		RoundInfo: RoundInfo{
-			TotalRounds:     totalRounds,
-			TotalPrevRounds: totalPrevRounds,
+		RoundStats: RoundStats{
+			RoundDistribution: roundDistribution,
+			TotalRounds:       totalRounds,
 		},
 	}, nil
 }
@@ -273,11 +281,11 @@ func (api *API) initializeCounters(signers []common.Address) (map[common.Address
 }
 
 // analyzeBlock analyzes a single block and updates counters
-func (api *API) analyzeBlock(blockNum uint64, authorCounts, preparedCounts, committedCounts, prevPreparedCounts, prevCommittedCounts, totalSealCounts map[common.Address]int) (uint64, uint64) {
+func (api *API) analyzeBlock(blockNum uint64, authorCounts, preparedCounts, committedCounts, prevPreparedCounts, prevCommittedCounts, totalSealCounts map[common.Address]int) uint64 {
 	// Fetch header
 	header := api.chain.GetHeaderByNumber(blockNum)
 	if header == nil {
-		return 0, 0
+		return 0
 	}
 
 	// Count block author (proposal creator)
@@ -292,12 +300,12 @@ func (api *API) analyzeBlock(blockNum uint64, authorCounts, preparedCounts, comm
 	// Count signers from prepared/committed and previous-round seals
 	extra, err := types.ExtractWBFTExtra(header)
 	if err != nil {
-		return 0, 0
+		return 0
 	}
 
 	curValidators, prevValidators, err := api.backend.GetValidatorsForVerifying(api.chain, header, nil)
 	if err != nil {
-		return uint64(extra.Round), uint64(extra.PrevRound)
+		return uint64(extra.Round)
 	}
 	curVals := curValidators.AddressList()
 	prevVals := prevValidators.AddressList()
@@ -336,7 +344,7 @@ func (api *API) analyzeBlock(blockNum uint64, authorCounts, preparedCounts, comm
 		addCounts(extra.PrevCommittedSeal.Sealers.GetSealers(), prevVals, prevCommittedCounts, true)
 	}
 
-	return uint64(extra.Round), uint64(extra.PrevRound)
+	return uint64(extra.Round)
 }
 
 func (api *API) IsValidator(blockNum *rpc.BlockNumber) (bool, error) {
