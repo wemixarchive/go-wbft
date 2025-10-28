@@ -1131,7 +1131,6 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 
 	if w.chainConfig.CroissantBlock != nil && !w.chainConfig.IsCroissant(header.Number) {
 		// If we are not in the Croissant phase, we don't prepare a block
-		log.Info("Skipping block preparation before Croissant hard fork", "number", header.Number, "fork", w.chainConfig.CroissantBlock)
 		return nil, errSkipMiningBeforeCroissant
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
