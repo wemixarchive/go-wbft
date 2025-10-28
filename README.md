@@ -1,4 +1,4 @@
-## WBFT Protocol Specification (WEMIX 4.0)
+## WBFT Protocol Specification
 
 WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT(https://github.com/ethereum/EIPs/issues/650) and QBFT(https://github.com/Consensys/qbft-formal-spec-and-verification) for use in public blockchains. The following improvements have been implemented:
 
@@ -294,29 +294,11 @@ type WBFTExtra struct {
 }
 ```
 
-### Gas Fee Policy
-While the fee policy is not strictly part of the WBFT protocol itself, this section explains the changes compared to the existing WEMIX 3.0 fee structure.
-The previous [WEMIX 3.0 fee policy](https://docs.wemix.com/en/design/eip1559) followed [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) but included the following unique WEMIX-specific rules:
-- Modified behavior of the eth_maxPriorityFeePerGas API: It returned a fixed value of 100 Gwei.
-- Custom baseFee calculation method: (Refer to the document linked above).
-- Mandatory fixed priorityFee for dynamic fee transactions: When using dynamic fees in transactions, the priorityFee had to be explicitly set to >= 100 Gwei. Otherwise, the transaction would be immediately rejected by the mempool with an error.
-
-In contrast, WEMIX 4.0 and WBFT chains adhere strictly to the original EIP-1559 standard, which is designed to foster a competitive fee market among validators, suitable for a public chain environment.
-
-Consequently:
-- The return value of the eth_maxPriorityFeePerGas API can now vary based on network conditions.
-- The baseFee calculation follows the standard EIP-1559 specification.
-- The original EIP-1559 behavior, where specifying a higher priorityFee prioritizes the transaction for inclusion in the block (mempool), has been restored.
-
-### WEMIX 4.0 features as an intermediate stage toward fully public chain(WEMIX 4.5)
-
-WEMIX 4.0 adopts an intermediate consensus method with some features disabled for a safe transition to WBFT.
-
 #### NCP
 
-Although WBFT is designed and implemented to be used as a public chain, the Wemix chain continues selecting validators from NCPs for a safer transition to a public chain as an intermediate step. NCPs are selected from the existing Wemix 3.0 NCPs and are defined by contract. They have the obligation to run (mining) nodes for maintaining WEMIX 4.0 safely. The addition/removal of NCPs is decided by voting among NCPs, so it can proceed without a separate hard fork. Anyone can know the NCP list by querying the NCP contract. The NCP system is a temporary feature used only in WEMIX 4.0 and will not be used in WEMIX 4.5.
+WBFT was designed and implemented for use on public chains, but it is not yet at the stage of having a complete specification (slashing will be implemented later). Therefore, we enabled the use of an NCP governance contract to configure the chain like a Proof-of-Authority (PoA) model. In other words, NCP governance can be used as an intermediate step before transitioning to a full public chain. By using NCP, authorized validators can operate the chain, and later, this contract can be disabled to convert it into an open public chain. The addition/removal of members to the NCP is determined by a vote of the NCP members.
 
-During the WEMIX 4.0 phase, the validator set selection rules are as follows:
+During the period when NCP is in use, the rules for selecting the validator set are as follows:
 - Retrieve stakers from the GovStaking contract.
 - Among these stakers, nodes that are NCPs are selected for the validator set.
 - Stakers who are not NCPs are not included in the validator set.
@@ -328,7 +310,7 @@ The process of obtaining the validator set at any block height is as follows (re
 
 Node that NCP system is optional for use of a private chain and can be disabled by setting `useNCP` to false in the genesis.json. If it is set to false, the all stakers can be validators if the number of stakers is less than or equal to the target validators.
 
-#### Not implemented in WEMIX 4.0
+#### Not implemented in WBFT v1.0
 - Slashing: The NCP system is used to ensure the safety of the chain during the transition period, and the slashing mechanism is not necessary.
 - validator random selection based on staking amount and diligence.
 
