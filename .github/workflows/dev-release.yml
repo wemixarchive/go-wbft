@@ -23,7 +23,7 @@ jobs:
           sudo apt remove -y bzip2 libbz2-dev zlib1g-dev
 
       - name: Build binary
-        run: make gwemix
+        run: make all
 
       - name: Set version
         run: |
@@ -37,9 +37,9 @@ jobs:
       - name: Create tarball
         run: |
           mkdir -p release
-          cp build/bin/gwemix release/
+          cp build/bin/* release/
           cd release
-          tar -czf "gwemix-${{ env.RELEASE_VERSION }}-linux-amd64.tar.gz" gwemix
+          tar -czf "gwemix-${{ env.RELEASE_VERSION }}-linux-amd64.tar.gz" *
           cd ..
           ls -la release/
           mv "release/gwemix-${{ env.RELEASE_VERSION }}-linux-amd64.tar.gz" .
