@@ -73,8 +73,8 @@ In WBFT, the proposer of the last block in an epoch (referred to as the epoch bl
 - After stabilization stage, validator selection follows below rules
   - `minimum stakers <= number of stakers <= target validators`: every stakers become validators.
   - `number of stakers > target validators`: 
-    - (in v4.0) top `target validators` stakers are selected as validators based on their staking amount.
-    - (in v4.5) validators are selected using randao, considering staking amount and diligence.
+    - (as-is) top `target validators` stakers are selected as validators based on their staking amount.
+    - (to-be) validators are selected using randao, considering staking amount and diligence.
   - `number of stakers < minimum stakers`: all remaining stakers become validators, which should not occur in a public network after stabilization stage for the sake of network security.
 
 Validators are selected to act as proposers in a round-robin manner and the order is _shuffled_ at every epoch.
@@ -85,7 +85,7 @@ WBFT blocks include a `RandaoReveal` fields in the extra data and use a legacy f
 - `MixDigest`: a xor value of the previous block header's `MixDigest` and the current block's `RandaoReveal`
 - `RandaoReveal`: is a ECDSA signature of the proposer on some data(chainId, hard fork version, block height) using big-endian encoding.
 
-(Note: The randao system is implemented in v4.0, but selection of validators using randao system will be added in v4.5.)
+(Note: The randao system is implemented in current WBFT, but selection of validators using randao system will be added in a future version.)
 
 ### Reward System and Diligence Metrics
 WBFT rewards consist of two types:
