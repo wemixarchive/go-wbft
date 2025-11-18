@@ -1,5 +1,8 @@
 ## WBFT Protocol Specification
 
+[![dev-ci](https://github.com/wemixarchive/go-wbft/actions/workflows/dev-ci.yml/badge.svg)](https://github.com/wemixarchive/go-wbft/actions/workflows/dev-ci.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/wemixarchive/go-wbft)
+
 WBFT(WEMIX Byzantine Fault Tolerant) is a consensus algorithm that emphasizes decentralization, adapting Istanbul BFT(https://github.com/ethereum/EIPs/issues/650) and QBFT(https://github.com/Consensys/qbft-formal-spec-and-verification) for use in public blockchains. The following improvements have been implemented:
 
 - Adoption of DPoS(Delegated Proof of Stake): Allows anyone to participate as a validator through staking.
