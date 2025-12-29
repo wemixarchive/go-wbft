@@ -60,7 +60,6 @@ contract GovStaking {
     struct UserCredentialInfo {
         uint256 credentialIndex;
         uint256 withdrawalIndex;
-        // credentialCount = credentialIndex - withdrawalIndex
     }
 
     struct WithdrawalCredential {
@@ -531,6 +530,32 @@ contract GovStaking {
 
             emit Withdrawn(msg.sender, _withdrawalIndex, _amount);
         }
+    }
+
+    function previewReward(
+        address _staker,
+        address _user
+    ) external view returns (uint256 pendingReward, uint256 pendingFee, uint256 accRewardPerStaking, uint256 accFeePerStaking) {
+        Staker storage _stakerInfo = stakerInfo[_staker];
+        UserInfo storage _userInfo = userRewardInfo[_staker][_user];
+
+        accRewardPerStaking = _stakerInfo.accRewardPerStaking;
+        accFeePerStaking = _stakerInfo.accFeePerStaking;
+
+        if (_stakerInfo.totalStaked > 0) {
+            uint256 _accBalance = _stakerInfo.rewardee.balance - _stakerInfo.lastRewardBalance;
+
+            if (_accBalance > 0) {
+                uint256 _rewardPerStaking = (_accBalance * REWARD_PRECISION) / _stakerInfo.totalStaked;
+
+                accRewardPerStaking += _rewardPerStaking;
+                accFeePerStaking += (_rewardPerStaking * _stakerInfo.feeRate) / GovConfig(govConfig).feePrecision();
+            }
+        }
+
+        pendingReward = _userInfo.pendingReward + (_userInfo.stakingAmount * (accRewardPerStaking - _userInfo.rewardPerStaking)) / REWARD_PRECISION;
+
+        pendingFee = _userInfo.pendingFee + (_userInfo.stakingAmount * (accFeePerStaking - _userInfo.feePerStaking)) / REWARD_PRECISION;
     }
 
     function _updateRewardInfo(address _staker, address _user) private {
