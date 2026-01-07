@@ -649,8 +649,4 @@ contract GovStaking {
     function getDelegatedAmount(address _staker) public view returns (uint256) {
         return stakerInfo[_staker].totalStaked - userRewardInfo[_staker][_staker].stakingAmount;
     }
-
-    function getStakingAmount(address _staker, address _user) public view returns (uint256) {
-        return userRewardInfo[_staker][_user].stakingAmount;
-    }
 }
