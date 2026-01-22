@@ -49,6 +49,7 @@ contract GovImp is
     }
 
     address constant ZERO = address(0);
+    uint256 constant CROISSANT_BLOCK = 200_000_000;
 
     event MemberAdded(address indexed addr, address indexed voter);
     event MemberRemoved(address indexed addr, address indexed voter);
@@ -350,7 +351,11 @@ contract GovImp is
     {
         require(staker != ZERO, "Invalid address");
         require(isMember(staker), "Non-member");
-        require(getMemberLength() > 1, "Cannot remove a sole member");
+
+        bool isCroissantForked = block.number >= CROISSANT_BLOCK;
+        if (!isCroissantForked) {
+            require(getMemberLength() > 1, "Cannot remove a sole member");
+        }
         require(
             lockedBalanceOf(staker) >= lockAmount,
             "Insufficient balance that can be unlocked."
@@ -380,6 +385,18 @@ contract GovImp is
         updateBallotMemo(ballotIdx, memo);
         createBallotForExit(ballotIdx, unlockAmount, slashing);
         ballotLength = ballotIdx;
+
+        if (isCroissantForked) {
+            // Croissant fork (WBFT) removes voting delay to allow fast exit/migration.
+            (, , uint256 period) = getBallotPeriod(ballotIdx);
+            startBallot(ballotIdx, block.timestamp, block.timestamp + period);
+            finalizeVote(
+                ballotIdx,
+                uint256(BallotTypes.MemberRemoval),
+                true,
+                true
+            );
+        }
     }
 
     // voter A, staker A -> voter B, staker B Ok with voting
