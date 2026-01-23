@@ -357,10 +357,10 @@ func NewTestStaker() *TestStaker[*EOA] {
 	}
 }
 
-func NewTestStakerWithOperatorCA(opperator *CA) *TestStaker[*CA] {
+func NewTestStakerWithOperatorCA(operator *CA) *TestStaker[*CA] {
 	return &TestStaker[*CA]{
 		Staker:       NewEOA(),
-		Operator:     opperator,
+		Operator:     operator,
 		FeeRecipient: NewEOA(),
 	}
 }
