@@ -51,6 +51,7 @@ func TestGovWithoutNCP(t *testing.T) {
 		s1        = NewTestStaker()
 		s2        = NewTestStaker()
 		delegator = NewEOA()
+		recipient = NewEOA()
 		newStaker = NewEOA()
 	)
 
@@ -510,6 +511,44 @@ func TestGovWithoutNCP(t *testing.T) {
 
 			undelegateEvent = findEvent("NewCredential", receipt.Logs)
 			require.NotNil(t, undelegateEvent)
+		})
+
+		t.Run("undelegateTo", func(t *testing.T) {
+			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
+			beforeInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
+
+			receipt, err := g.ExpectedOk(g.UndelegateTo(t, delegator, s1.Staker.Address, recipient.Address, undelegateAmount))
+			require.NoError(t, err)
+
+			totalStaking.Sub(totalStaking, undelegateAmount)
+			require.Equal(t, totalStaking, govwbft.TotalStaking(TestGovStakingAddress, stateDB))
+
+			afterInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(beforeInfo_s1.TotalStaked, afterInfo_s1.TotalStaked))
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(beforeInfo_s1.Delegated, afterInfo_s1.Delegated))
+
+			gasCost := calcTxGasCost(receipt)
+			expectedBalance := new(big.Int).Sub(beforeBalance, gasCost)
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegator.Address, nil))
+
+			undelegateEvent = findEvent("NewCredential", receipt.Logs)
+			require.NotNil(t, undelegateEvent)
+
+			recipientAddress := undelegateEvent["recipient"].(*common.Address)
+			require.Equal(t, &recipient.Address, recipientAddress)
+
+			unbondingPeriod := undelegateEvent["unbonding"].(*big.Int)
+			g.adjustTime(time.Duration(unbondingPeriod.Int64()) * time.Second)
+
+			withdrawReceipt, withdrawErr := g.ExpectedOk(g.Withdraw(t, recipient, common.Big0))
+			require.NoError(t, withdrawErr)
+
+			withdrawnEvent := findEvent("Withdrawn", withdrawReceipt.Logs)
+			requester := withdrawnEvent["requester"].(*common.Address)
+			require.Equal(t, &recipient.Address, requester)
+
+			recipientBalance := g.balanceAt(t, ctx, recipient.Address, nil)
+			require.Equal(t, recipientBalance, undelegateAmount)
 		})
 
 		t.Run("failure case", func(t *testing.T) {

@@ -184,6 +184,10 @@ func (g *GovWBFT) Undelegate(t *testing.T, delegator *EOA, staker common.Address
 	return g.stakingContractTx(t, "undelegate", delegator, nil, staker, amount)
 }
 
+func (g *GovWBFT) UndelegateTo(t *testing.T, delegator *EOA, staker common.Address, recipient common.Address, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "undelegateTo", delegator, nil, staker, recipient, amount)
+}
+
 func (g *GovWBFT) Claim(t *testing.T, user *EOA, staker common.Address, restake bool) (*types.Transaction, error) {
 	return g.stakingContractTx(t, "claim", user, nil, staker, restake)
 }
