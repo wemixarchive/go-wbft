@@ -63,13 +63,21 @@ func NewGovernance(t *testing.T) *Governance {
 	}
 }
 
-func (g *Governance) DeployContracts(t *testing.T) *Governance {
+func (g *Governance) deployContracts(t *testing.T, useTestGovImp bool) *Governance {
 	// deploy registry
 	registry, Registry, err := g.Deploy(compiled.Registry.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
 	// deploy impls
-	govImp, _, err := g.Deploy(compiled.GovImp.Deploy(g.backend.Client(), g.owner))
-	require.NoError(t, err)
+	var govImp common.Address
+	// TestGovImp is bytecode-identical in logic/ABI to GovImp, but uses smaller constants for testability.
+	if useTestGovImp {
+		govImp, _, err = g.Deploy(compiled.TestGovImp.Deploy(g.backend.Client(), g.owner))
+		require.NoError(t, err)
+	} else {
+		govImp, _, err = g.Deploy(compiled.GovImp.Deploy(g.backend.Client(), g.owner))
+		require.NoError(t, err)
+	}
+
 	ncpExitImp, _, err := g.Deploy(compiled.NCPExitImp.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
 	stakingImp, _, err := g.Deploy(compiled.StakingImp.Deploy(g.backend.Client(), g.owner))
@@ -100,7 +108,11 @@ func (g *Governance) DeployContracts(t *testing.T) *Governance {
 	g.BallotStorage = BallotStorage
 	g.EnvStorage = EnvStorage
 
-	g.GovImp = compiled.GovImp.New(g.backend.Client(), gov)
+	if useTestGovImp {
+		g.GovImp = compiled.TestGovImp.New(g.backend.Client(), gov)
+	} else {
+		g.GovImp = compiled.GovImp.New(g.backend.Client(), gov)
+	}
 	g.NCPExitImp = compiled.NCPExitImp.New(g.backend.Client(), ncpExit)
 	g.StakingImp = compiled.StakingImp.New(g.backend.Client(), staking)
 	g.BallotStorageImp = compiled.BallotStorageImp.New(g.backend.Client(), ballotStorage)
@@ -149,6 +161,18 @@ func (g *Governance) DeployContracts(t *testing.T) *Governance {
 	return g
 }
 
+func (g *Governance) DeployContracts(t *testing.T) *Governance {
+	g.deployContracts(t, false)
+
+	return g
+}
+
+func (g *Governance) DeployTestContracts(t *testing.T) *Governance {
+	g.deployContracts(t, true)
+
+	return g
+}
+
 func (r *Governance) Deploy(address common.Address, tx *types.Transaction, contract *bind.BoundContract, err error) (common.Address, *bind.BoundContract, error) {
 	if err != nil {
 		return common.Address{}, nil, err
@@ -176,7 +200,7 @@ func init() {
 
 type compiledContract struct {
 	Registry,
-	Gov, GovImp,
+	Gov, GovImp, TestGovImp,
 	NCPExit, NCPExitImp,
 	Staking, StakingImp,
 	BallotStorage, BallotStorageImp,
@@ -188,6 +212,7 @@ func (c *compiledContract) Compile(root string) {
 		filepath.Join(root, "Registry.sol"),
 		filepath.Join(root, "Gov.sol"),
 		filepath.Join(root, "GovImp.sol"),
+		filepath.Join(root, "TestGovImp.sol"),
 		filepath.Join(root, "NCPExit.sol"),
 		filepath.Join(root, "NCPExitImp.sol"),
 		filepath.Join(root, "Staking.sol"),
@@ -204,6 +229,8 @@ func (c *compiledContract) Compile(root string) {
 		} else if c.Gov, err = newBindContract(contracts["Gov"]); err != nil {
 			panic(err)
 		} else if c.GovImp, err = newBindContract(contracts["GovImp"]); err != nil {
+			panic(err)
+		} else if c.TestGovImp, err = newBindContract(contracts["TestGovImp"]); err != nil {
 			panic(err)
 		} else if c.NCPExit, err = newBindContract(contracts["NCPExit"]); err != nil {
 			panic(err)
