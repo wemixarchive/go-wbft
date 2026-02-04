@@ -682,7 +682,7 @@ contract GovImp is
                     ballotState = uint256(BallotStates.Rejected);
                 }
             } else if (ballotType == uint256(BallotTypes.MemberRemoval)) {
-                removeMember(ballotIdx);
+                removeMember(ballotIdx, self);
             } else if (ballotType == uint256(BallotTypes.MemberChange)) {
                 if (!changeMember(ballotIdx, self)) {
                     ballotState = uint256(BallotStates.Rejected);
@@ -790,9 +790,10 @@ contract GovImp is
         return true;
     }
 
-    function removeMember(uint256 ballotIdx) private {
-        fromValidBallot(ballotIdx, uint256(BallotTypes.MemberRemoval));
-
+    function removeMember(uint256 ballotIdx, bool self) private {
+         if (!self) {
+            fromValidBallot(ballotIdx, uint256(BallotTypes.MemberRemoval));
+        }
         (
             address oldStaker, // newStakerAddress
             // newVoterAddress
