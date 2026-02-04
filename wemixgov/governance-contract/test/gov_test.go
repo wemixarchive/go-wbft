@@ -1517,6 +1517,76 @@ func TestGov(t *testing.T) {
 				"Cannot remove a sole member",
 			)
 		})
+		t.Run("remove member after Croissant fork", func(t *testing.T) {
+			gov := NewGovernance(t).DeployTestContracts(t)
+			voter := getTxOpt(t, "voter")
+			user1 := getTxOpt(t, "user1")
+			balance, err := gov.backend.Client().BalanceAt(context.TODO(), gov.owner.From, nil)
+			require.NoError(t, err)
+
+			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Div(balance, common.Big2), &voter.From))
+
+			node := gov.nodeInfos[0]
+			info := MemberInfo{
+				Staker:     gov.owner.From,
+				Voter:      voter.From,
+				Reward:     user1.From,
+				Name:       node.name,
+				Enode:      node.enode,
+				Ip:         node.ip,
+				Port:       node.port,
+				LockAmount: LOCK_AMOUNT,
+				Memo:       []byte("memo1"),
+				Duration:   big.NewInt(86400),
+			}
+			gov.ExpectedOk(gov.GovImp.Transact(gov.owner, "addProposalToChangeMember", info, gov.owner.From, common.Big0, common.Big0))
+			defer gov.backend.Close()
+
+			for i := 0; i < 100; i++ {
+				gov.backend.Commit()
+			}
+
+			target := gov.owner.From
+
+			gov.ExpectedOk(
+				gov.GovImp.Transact(
+					voter,
+					"addProposalToRemoveMember",
+					target,
+					LOCK_AMOUNT,
+					[]byte("memo1"),
+					big.NewInt(86400),
+					LOCK_AMOUNT,
+					new(big.Int), // slashing
+				),
+			)
+
+			gov.backend.Commit()
+
+			var length *big.Int
+			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&length}, "ballotLength"))
+			t.Log("ballotLength =", length.String())
+
+			var inVoting *big.Int
+			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&inVoting}, "getBallotInVoting"))
+			require.True(t, inVoting.Sign() == 0, inVoting)
+
+			getBallotState := []interface{}{}
+			require.NoError(t, gov.BallotStorageImp.Call(callOpts, &getBallotState, "getBallotState", length))
+			state := getBallotState[1].(*big.Int)
+			isFinalized := getBallotState[2].(bool)
+			require.Equal(t, BallotStates.Accepted, state)
+			require.True(t, isFinalized)
+
+			var isMem bool
+			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&isMem}, "isMember", target))
+			require.False(t, isMem)
+
+			var memberLen *big.Int
+			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&memberLen}, "getMemberLength"))
+			require.True(t, memberLen.Sign() == 0)
+		})
+
 		t.Run("can addProposal to change member's other addresses self without voting", func(t *testing.T) {
 			gov, voter := deployGovernance(t)
 			defer gov.backend.Close()
