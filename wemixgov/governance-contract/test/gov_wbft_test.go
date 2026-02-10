@@ -1269,14 +1269,32 @@ func TestGovReward(t *testing.T) {
 		distributeReward(t, g, stateDB, rewardAmount, v1.Staker.Address, v2.Staker.Address)
 
 		beforeBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
+		rewardee := govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).Rewardee
+		beforeRewardeeBalance := g.balanceAt(t, ctx, rewardee, nil)
 		// v1 claim reward
 		// v1.rewardee = 20 => v1.pendingReward = 15, delegator1.pendingReward = 5
+
+		nextRewardPerStaking := toRewardPerStaking(rewardAmount, new(big.Int).Add(minStaking, minStaking))
+		expectedAccRewardPerStaking := new(big.Int).Add(new(big.Int).Set(calcRewardPerStaking), nextRewardPerStaking)
+
+		operatorPreview, err := g.previewReward(t, v1.Staker.Address, v1.Staker.Address)
+		require.NoError(t, err)
+		require.Equal(t, expectedAccRewardPerStaking, operatorPreview.AccRewardPerStaking)
+		require.Equal(t, new(big.Int).Div(new(big.Int).Mul(expectedAccRewardPerStaking, feeRate1), new(big.Int).SetUint64(10000)), operatorPreview.AccFeePerStaking)
+
+		delegatorPreview, err := g.previewReward(t, v1.Staker.Address, delegator1.Address)
+		require.NoError(t, err)
+		require.Equal(t, expectedAccRewardPerStaking, delegatorPreview.AccRewardPerStaking)
+		require.Equal(t, new(big.Int).Div(new(big.Int).Mul(expectedAccRewardPerStaking, feeRate1), new(big.Int).SetUint64(10000)), delegatorPreview.AccFeePerStaking)
+		require.True(t, delegatorPreview.PendingReward.Cmp(delegatorPreview.PendingFee) >= 0)
+		require.True(t, operatorPreview.PendingReward.Cmp(operatorPreview.PendingFee) >= 0)
+
 		receipt, err := g.ExpectedOk(g.Claim(t, v1.Operator, v1.Staker.Address, false))
 		require.NoError(t, err)
 		gasCost := calcTxGasCost(receipt)
-		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, toRewardPerStaking(rewardAmount, new(big.Int).Add(minStaking, minStaking)))
-		expectedClaimed := towei(15)
-		expectedBalance := towei(5)
+		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, nextRewardPerStaking)
+		expectedClaimed := operatorPreview.PendingReward
+		expectedBalance := new(big.Int).Sub(beforeRewardeeBalance, expectedClaimed)
 
 		// check list
 		require.Equal(t, totalStaking, govwbft.TotalStaking(TestGovStakingAddress, stateDB))
@@ -1411,18 +1429,30 @@ func TestGovReward(t *testing.T) {
 		distributeReward(t, g, stateDB, rewardAmount, v1.Staker.Address, v2.Staker.Address)
 
 		beforeBalance := g.balanceAt(t, ctx, delegator1.Address, nil)
+		rewardee := govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).Rewardee
+		beforeRewardeeBalance := g.balanceAt(t, ctx, rewardee, nil)
+		feeRecipient := govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).FeeRecipient
+		beforeFeeRecipientBalance := g.balanceAt(t, ctx, feeRecipient, nil)
+
+		v1Staking := new(big.Int).Add(minStaking, minStaking)
+		nextRewardPerStaking := toRewardPerStaking(rewardAmount, v1Staking)
+		expectedAccRewardPerStaking := new(big.Int).Add(new(big.Int).Set(calcRewardPerStaking), nextRewardPerStaking)
+
+		preview, err := g.previewReward(t, v1.Staker.Address, delegator1.Address)
+		require.NoError(t, err)
+		require.Equal(t, expectedAccRewardPerStaking, preview.AccRewardPerStaking)
+		require.Equal(t, new(big.Int).Div(new(big.Int).Mul(expectedAccRewardPerStaking, feeRate1), new(big.Int).SetUint64(10000)), preview.AccFeePerStaking)
+		require.True(t, preview.PendingReward.Cmp(preview.PendingFee) >= 0)
+
 		// v1 claim reward
 		receipt, err := g.ExpectedOk(g.Claim(t, delegator1, v1.Staker.Address, true))
 		require.NoError(t, err)
 
 		gasCost := calcTxGasCost(receipt)
-		v1Staking := new(big.Int).Add(minStaking, minStaking)
-		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, toRewardPerStaking(rewardAmount, v1Staking))
-		expectedClaimed := towei(25)
-		fee := new(big.Int).Mul(expectedClaimed, feeRate1)
-		fee = fee.Div(fee, new(big.Int).SetUint64(10000))
-		expectedClaimed = expectedClaimed.Sub(expectedClaimed, fee)
-		expectedBalance := towei(40)
+		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, nextRewardPerStaking)
+		expectedClaimed := new(big.Int).Sub(new(big.Int).Set(preview.PendingReward), preview.PendingFee)
+		fee := new(big.Int).Set(preview.PendingFee)
+		expectedBalance := new(big.Int).Sub(beforeRewardeeBalance, preview.PendingReward)
 		v1Staking = v1Staking.Add(v1Staking, expectedClaimed)
 		totalStaking = totalStaking.Add(totalStaking, expectedClaimed)
 
@@ -1437,7 +1467,7 @@ func TestGovReward(t *testing.T) {
 		require.Equal(t, calcRewardPerStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, delegator1.Address).RewardPerStaking)
 		afterBalance := g.balanceAt(t, ctx, delegator1.Address, nil)
 		require.Equal(t, afterBalance, beforeBalance.Sub(beforeBalance, gasCost))
-		require.Equal(t, fee, g.balanceAt(t, ctx, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).FeeRecipient, nil))
+		require.Equal(t, fee, new(big.Int).Sub(g.balanceAt(t, ctx, feeRecipient, nil), beforeFeeRecipientBalance))
 	})
 }
 

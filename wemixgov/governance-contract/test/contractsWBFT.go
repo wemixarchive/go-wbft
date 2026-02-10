@@ -208,6 +208,31 @@ func (g *GovWBFT) stakingContractTx(t *testing.T, method string, sender *EOA, va
 	return g.stakingContract.Transact(NewTxOptsWithValue(t, sender, value), method, params...)
 }
 
+type PreviewReward struct {
+	PendingReward       *big.Int
+	PendingFee          *big.Int
+	AccRewardPerStaking *big.Int
+	AccFeePerStaking    *big.Int
+}
+
+func (g *GovWBFT) previewReward(t *testing.T, staker common.Address, user common.Address) (*PreviewReward, error) {
+	results := []interface{}{}
+	if err := g.stakingContract.Call(nil, &results, "previewReward", staker, user); err != nil {
+		return nil, err
+	}
+	pendingReward := results[0].(*big.Int)
+	pendingFee := results[1].(*big.Int)
+	accRewardPerStaking := results[2].(*big.Int)
+	accFeePerStaking := results[3].(*big.Int)
+
+	return &PreviewReward{
+		pendingReward,
+		pendingFee,
+		accRewardPerStaking,
+		accFeePerStaking,
+	}, nil
+}
+
 // NCP Contract
 func (g *GovWBFT) NewProposalToAddNCP(t *testing.T, proposer *EOA, ncp common.Address) (*types.Transaction, error) {
 	return g.ncpContractTx(t, "newProposalToAddNCP", proposer, nil, ncp)
