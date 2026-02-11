@@ -125,6 +125,7 @@ func (g *Governance) deployContracts(t *testing.T, useTestGovImp bool) *Governan
 	require.NoError(t, g.ExpectedOk(g.Registry.Transact(g.owner, "setContractDomain", ToBytes32("Staking"), staking)))
 	require.NoError(t, g.ExpectedOk(g.Registry.Transact(g.owner, "setContractDomain", ToBytes32("EnvStorage"), envStorage)))
 	require.NoError(t, g.ExpectedOk(g.Registry.Transact(g.owner, "setContractDomain", ToBytes32("BallotStorage"), ballotStorage)))
+	require.NoError(t, g.ExpectedOk(g.Registry.Transact(g.owner, "setContractDomain", ToBytes32("NCPExit"), ncpExit)))
 
 	// initialize
 	require.NoError(t, g.ExpectedOk(g.NCPExitImp.Transact(g.owner, "initialize", registry)))

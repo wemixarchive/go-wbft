@@ -1527,18 +1527,20 @@ func TestGov(t *testing.T) {
 			voter := getTxOpt(t, "voter")
 			ncpStaking := getTxOpt(t, "ncpStaking")
 			user1 := getTxOpt(t, "user1")
+			ecosystem := getTxOpt(t, "ecosystem")
 			fundAmount := towei(10)
 
 			require.NoError(t, gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, fundAmount, &voter.From)))
 			require.NoError(t, gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, fundAmount, &ncpStaking.From)))
 			require.NotEqual(t, common.Address{}, gov.ncpExit)
-			require.NoError(t, gov.ExpectedOk(gov.Registry.Transact(gov.owner, "setContractDomain", ToBytes32("NCPExit"), gov.ncpExit)))
-			require.NoError(t, gov.ExpectedOk(gov.Registry.Transact(gov.owner, "setContractDomain", ToBytes32("Ecosystem"), user1.From)))
+
+			require.NoError(t, gov.ExpectedOk(gov.Registry.Transact(gov.owner, "setContractDomain", ToBytes32("Ecosystem"), ecosystem.From)))
 			require.NoError(t, gov.ExpectedOk(gov.StakingImp.Transact(gov.owner, "setNCPStaking", ncpStaking.From)))
 
 			ncpStaking.Value = delegateAmount
 			require.NoError(t, gov.ExpectedOk(gov.StakingImp.Transact(ncpStaking, "delegateDepositAndLockMore", gov.owner.From)))
 			ncpStaking.Value = nil
+
 			var userTotalBeforeExit *big.Int
 			require.NoError(t, gov.StakingImp.Call(callOpts, &[]interface{}{&userTotalBeforeExit}, "userTotalBalanceOf", gov.owner.From))
 			require.Equal(t, delegateAmount, userTotalBeforeExit)
@@ -1578,8 +1580,6 @@ func TestGov(t *testing.T) {
 				),
 			)
 
-			gov.backend.Commit()
-
 			var isMem bool
 			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&isMem}, "isMember", target))
 			require.False(t, isMem)
@@ -1595,6 +1595,16 @@ func TestGov(t *testing.T) {
 			var ownerAvailable *big.Int
 			require.NoError(t, gov.StakingImp.Call(callOpts, &[]interface{}{&ownerAvailable}, "availableBalanceOf", target))
 			require.Equal(t, LOCK_AMOUNT, ownerAvailable)
+
+			tx, txErr := gov.NCPExitImp.Transact(ncpStaking, "withdrawForUser", target, ncpStaking.From, delegateAmount)
+			_, err = expectedOk(gov.backend, tx, txErr)
+			require.NoError(t, err)
+
+			require.NoError(t, gov.NCPExitImp.Call(callOpts, &[]interface{}{&exitLockedUserTotal}, "getLockedUserBalanceToNCPTotal", target))
+			require.Equal(t, 0, exitLockedUserTotal.Sign())
+			exitBalance, err = gov.backend.Client().BalanceAt(context.TODO(), gov.ncpExit, nil)
+			require.NoError(t, err)
+			require.Equal(t, 0, exitBalance.Sign())
 		})
 
 		t.Run("can addProposal to change member's other addresses self without voting", func(t *testing.T) {
