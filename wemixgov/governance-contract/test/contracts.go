@@ -37,6 +37,7 @@ type Governance struct {
 	nodeInfos []nodeInfo
 
 	registry common.Address
+	ncpExit  common.Address
 	Registry,
 	Gov, GovImp,
 	NCPExit, NCPExitImp,
@@ -101,6 +102,7 @@ func (g *Governance) deployContracts(t *testing.T, useTestGovImp bool) *Governan
 
 	// set up g
 	g.registry = registry
+	g.ncpExit = ncpExit
 	g.Registry = Registry
 	g.Gov = Gov
 	g.NCPExit = NCPExit

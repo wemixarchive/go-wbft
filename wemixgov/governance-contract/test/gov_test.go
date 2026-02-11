@@ -1518,13 +1518,30 @@ func TestGov(t *testing.T) {
 			)
 		})
 		t.Run("remove member after Croissant fork", func(t *testing.T) {
+			delegateAmount := towei(1)
+			oldStakingMax := new(big.Int).Set(EnvConstants.STAKING_MAX.Value)
+			EnvConstants.STAKING_MAX.Value = new(big.Int).Add(LOCK_AMOUNT, delegateAmount)
+			defer func() { EnvConstants.STAKING_MAX.Value = oldStakingMax }()
+
 			gov := NewGovernance(t).DeployTestContracts(t)
 			voter := getTxOpt(t, "voter")
+			ncpStaking := getTxOpt(t, "ncpStaking")
 			user1 := getTxOpt(t, "user1")
-			balance, err := gov.backend.Client().BalanceAt(context.TODO(), gov.owner.From, nil)
-			require.NoError(t, err)
+			fundAmount := towei(10)
 
-			gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, new(big.Int).Div(balance, common.Big2), &voter.From))
+			require.NoError(t, gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, fundAmount, &voter.From)))
+			require.NoError(t, gov.ExpectedOk(TransferCoin(gov.backend.Client(), gov.owner, fundAmount, &ncpStaking.From)))
+			require.NotEqual(t, common.Address{}, gov.ncpExit)
+			require.NoError(t, gov.ExpectedOk(gov.Registry.Transact(gov.owner, "setContractDomain", ToBytes32("NCPExit"), gov.ncpExit)))
+			require.NoError(t, gov.ExpectedOk(gov.Registry.Transact(gov.owner, "setContractDomain", ToBytes32("Ecosystem"), user1.From)))
+			require.NoError(t, gov.ExpectedOk(gov.StakingImp.Transact(gov.owner, "setNCPStaking", ncpStaking.From)))
+
+			ncpStaking.Value = delegateAmount
+			require.NoError(t, gov.ExpectedOk(gov.StakingImp.Transact(ncpStaking, "delegateDepositAndLockMore", gov.owner.From)))
+			ncpStaking.Value = nil
+			var userTotalBeforeExit *big.Int
+			require.NoError(t, gov.StakingImp.Call(callOpts, &[]interface{}{&userTotalBeforeExit}, "userTotalBalanceOf", gov.owner.From))
+			require.Equal(t, delegateAmount, userTotalBeforeExit)
 
 			node := gov.nodeInfos[0]
 			info := MemberInfo{
@@ -1557,34 +1574,27 @@ func TestGov(t *testing.T) {
 					[]byte("memo1"),
 					big.NewInt(86400),
 					LOCK_AMOUNT,
-					new(big.Int), // slashing
+					common.Big0, // slashing
 				),
 			)
 
 			gov.backend.Commit()
 
-			var length *big.Int
-			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&length}, "ballotLength"))
-			t.Log("ballotLength =", length.String())
-
-			var inVoting *big.Int
-			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&inVoting}, "getBallotInVoting"))
-			require.True(t, inVoting.Sign() == 0, inVoting)
-
-			getBallotState := []interface{}{}
-			require.NoError(t, gov.BallotStorageImp.Call(callOpts, &getBallotState, "getBallotState", length))
-			state := getBallotState[1].(*big.Int)
-			isFinalized := getBallotState[2].(bool)
-			require.Equal(t, BallotStates.Accepted, state)
-			require.True(t, isFinalized)
-
 			var isMem bool
 			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&isMem}, "isMember", target))
 			require.False(t, isMem)
 
-			var memberLen *big.Int
-			require.NoError(t, gov.GovImp.Call(callOpts, &[]interface{}{&memberLen}, "getMemberLength"))
-			require.True(t, memberLen.Sign() == 0)
+			var exitLockedUserTotal *big.Int
+			require.NoError(t, gov.NCPExitImp.Call(callOpts, &[]interface{}{&exitLockedUserTotal}, "getLockedUserBalanceToNCPTotal", target))
+			require.Equal(t, delegateAmount, exitLockedUserTotal)
+
+			exitBalance, err := gov.backend.Client().BalanceAt(context.TODO(), gov.ncpExit, nil)
+			require.NoError(t, err)
+			require.Equal(t, delegateAmount, exitBalance)
+
+			var ownerAvailable *big.Int
+			require.NoError(t, gov.StakingImp.Call(callOpts, &[]interface{}{&ownerAvailable}, "availableBalanceOf", target))
+			require.Equal(t, LOCK_AMOUNT, ownerAvailable)
 		})
 
 		t.Run("can addProposal to change member's other addresses self without voting", func(t *testing.T) {
