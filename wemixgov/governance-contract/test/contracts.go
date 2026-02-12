@@ -18,6 +18,8 @@
 package test
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
 	"path/filepath"
 	"testing"
@@ -70,9 +72,9 @@ func (g *Governance) deployContracts(t *testing.T, useTestGovImp bool) *Governan
 	require.NoError(t, err)
 	// deploy impls
 	var govImp common.Address
-	// TestGovImp is bytecode-identical in logic/ABI to GovImp, but uses smaller constants for testability.
+	// For tests that need Croissant behavior, use GovImp bytecode with only CROISSANT_BLOCK patched.
 	if useTestGovImp {
-		govImp, _, err = g.Deploy(compiled.TestGovImp.Deploy(g.backend.Client(), g.owner))
+		govImp, _, err = g.Deploy(compiled.GovImpCroissant.Deploy(g.backend.Client(), g.owner))
 		require.NoError(t, err)
 	} else {
 		govImp, _, err = g.Deploy(compiled.GovImp.Deploy(g.backend.Client(), g.owner))
@@ -110,11 +112,7 @@ func (g *Governance) deployContracts(t *testing.T, useTestGovImp bool) *Governan
 	g.BallotStorage = BallotStorage
 	g.EnvStorage = EnvStorage
 
-	if useTestGovImp {
-		g.GovImp = compiled.TestGovImp.New(g.backend.Client(), gov)
-	} else {
-		g.GovImp = compiled.GovImp.New(g.backend.Client(), gov)
-	}
+	g.GovImp = compiled.GovImp.New(g.backend.Client(), gov)
 	g.NCPExitImp = compiled.NCPExitImp.New(g.backend.Client(), ncpExit)
 	g.StakingImp = compiled.StakingImp.New(g.backend.Client(), staking)
 	g.BallotStorageImp = compiled.BallotStorageImp.New(g.backend.Client(), ballotStorage)
@@ -203,11 +201,26 @@ func init() {
 
 type compiledContract struct {
 	Registry,
-	Gov, GovImp, TestGovImp,
+	Gov, GovImp, GovImpCroissant,
 	NCPExit, NCPExitImp,
 	Staking, StakingImp,
 	BallotStorage, BallotStorageImp,
 	EnvStorage, EnvStorageImp *bindContract
+}
+
+func patchGovImpCroissantBlock(base *bindContract, from, to uint32) (*bindContract, error) {
+	// PUSH4 <from> => PUSH4 <to>, preserving bytecode layout and jump offsets.
+	pattern := []byte{0x63, byte(from >> 24), byte(from >> 16), byte(from >> 8), byte(from)}
+	repl := []byte{0x63, byte(to >> 24), byte(to >> 16), byte(to >> 8), byte(to)}
+	count := bytes.Count(base.Bin, pattern)
+	if count == 0 {
+		return nil, fmt.Errorf("CROISSANT_BLOCK pattern not found in GovImp bytecode")
+	}
+	patched := &bindContract{
+		Bin: bytes.ReplaceAll(append([]byte(nil), base.Bin...), pattern, repl),
+		Abi: base.Abi,
+	}
+	return patched, nil
 }
 
 func (c *compiledContract) Compile(root string) {
@@ -215,7 +228,6 @@ func (c *compiledContract) Compile(root string) {
 		filepath.Join(root, "Registry.sol"),
 		filepath.Join(root, "Gov.sol"),
 		filepath.Join(root, "GovImp.sol"),
-		filepath.Join(root, "TestGovImp.sol"),
 		filepath.Join(root, "NCPExit.sol"),
 		filepath.Join(root, "NCPExitImp.sol"),
 		filepath.Join(root, "Staking.sol"),
@@ -233,7 +245,7 @@ func (c *compiledContract) Compile(root string) {
 			panic(err)
 		} else if c.GovImp, err = newBindContract(contracts["GovImp"]); err != nil {
 			panic(err)
-		} else if c.TestGovImp, err = newBindContract(contracts["TestGovImp"]); err != nil {
+		} else if c.GovImpCroissant, err = patchGovImpCroissantBlock(c.GovImp, 200_000_000, 100); err != nil {
 			panic(err)
 		} else if c.NCPExit, err = newBindContract(contracts["NCPExit"]); err != nil {
 			panic(err)
