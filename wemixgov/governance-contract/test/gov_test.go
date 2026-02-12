@@ -1523,7 +1523,7 @@ func TestGov(t *testing.T) {
 			EnvConstants.STAKING_MAX.Value = new(big.Int).Add(LOCK_AMOUNT, delegateAmount)
 			defer func() { EnvConstants.STAKING_MAX.Value = oldStakingMax }()
 
-			gov := NewGovernance(t).DeployTestContracts(t)
+			gov := NewGovernance(t).DeployCroissantPatchedContracts(t)
 			voter := getTxOpt(t, "voter")
 			ncpStaking := getTxOpt(t, "ncpStaking")
 			user1 := getTxOpt(t, "user1")

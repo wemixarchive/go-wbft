@@ -66,14 +66,14 @@ func NewGovernance(t *testing.T) *Governance {
 	}
 }
 
-func (g *Governance) deployContracts(t *testing.T, useTestGovImp bool) *Governance {
+func (g *Governance) deployContracts(t *testing.T, patchCroissant bool) *Governance {
 	// deploy registry
 	registry, Registry, err := g.Deploy(compiled.Registry.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
 	// deploy impls
 	var govImp common.Address
 	// For tests that need Croissant behavior, use GovImp bytecode with only CROISSANT_BLOCK patched.
-	if useTestGovImp {
+	if patchCroissant {
 		govImp, _, err = g.Deploy(compiled.GovImpCroissant.Deploy(g.backend.Client(), g.owner))
 		require.NoError(t, err)
 	} else {
@@ -168,7 +168,7 @@ func (g *Governance) DeployContracts(t *testing.T) *Governance {
 	return g
 }
 
-func (g *Governance) DeployTestContracts(t *testing.T) *Governance {
+func (g *Governance) DeployCroissantPatchedContracts(t *testing.T) *Governance {
 	g.deployContracts(t, true)
 
 	return g
