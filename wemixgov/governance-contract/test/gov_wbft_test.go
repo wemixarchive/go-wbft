@@ -48,17 +48,19 @@ func TestGovWithoutNCP(t *testing.T) {
 		totalStaking = new(big.Int)
 		stakers      = make([]common.Address, 0)
 
-		s1        = NewTestStaker()
-		s2        = NewTestStaker()
-		delegator = NewEOA()
-		recipient = NewEOA()
-		newStaker = NewEOA()
+		s1          = NewTestStaker()
+		s2          = NewTestStaker()
+		delegator   = NewEOA()
+		delegatorTo = NewEOA()
+		recipient   = NewEOA()
+		newStaker   = NewEOA()
 	)
 
 	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
 		s1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 		s2.Operator.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		delegator.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+		delegatorTo.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		newStaker.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 	require.NoError(t, err)
@@ -487,8 +489,9 @@ func TestGovWithoutNCP(t *testing.T) {
 	t.Run("Undelegate & Withdraw", func(t *testing.T) {
 		defer checkGovBalanceFn()
 		var (
-			undelegateEvent  map[string]interface{}
-			undelegateAmount = towei(50_000)
+			undelegateEvent          map[string]interface{}
+			undelegateToRecipientEvt map[string]interface{}
+			undelegateAmount         = towei(50_000)
 		)
 
 		t.Run("undelegate", func(t *testing.T) {
@@ -514,46 +517,51 @@ func TestGovWithoutNCP(t *testing.T) {
 		})
 
 		t.Run("undelegateTo", func(t *testing.T) {
-			beforeBalance := g.balanceAt(t, ctx, delegator.Address, nil)
+			beforeBalance := g.balanceAt(t, ctx, delegatorTo.Address, nil)
 			beforeInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
 
-			receipt, err := g.ExpectedOk(g.UndelegateTo(t, delegator, s1.Staker.Address, recipient.Address, undelegateAmount))
+			delegateReceipt, err := g.ExpectedOk(g.Delegate(t, delegatorTo, s1.Staker.Address, undelegateAmount))
+			require.NoError(t, err)
+
+			totalStaking.Add(totalStaking, undelegateAmount)
+			require.Equal(t, totalStaking, govwbft.TotalStaking(TestGovStakingAddress, stateDB))
+
+			delegatedInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.TotalStaked, beforeInfo_s1.TotalStaked))
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.Delegated, beforeInfo_s1.Delegated))
+
+			undelegateReceipt, err := g.ExpectedOk(g.UndelegateTo(t, delegatorTo, s1.Staker.Address, recipient.Address, undelegateAmount))
 			require.NoError(t, err)
 
 			totalStaking.Sub(totalStaking, undelegateAmount)
 			require.Equal(t, totalStaking, govwbft.TotalStaking(TestGovStakingAddress, stateDB))
 
 			afterInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
-			require.Equal(t, undelegateAmount, new(big.Int).Sub(beforeInfo_s1.TotalStaked, afterInfo_s1.TotalStaked))
-			require.Equal(t, undelegateAmount, new(big.Int).Sub(beforeInfo_s1.Delegated, afterInfo_s1.Delegated))
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.TotalStaked, afterInfo_s1.TotalStaked))
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.Delegated, afterInfo_s1.Delegated))
 
-			gasCost := calcTxGasCost(receipt)
-			expectedBalance := new(big.Int).Sub(beforeBalance, gasCost)
-			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegator.Address, nil))
+			delegateGasCost := calcTxGasCost(delegateReceipt)
+			undelegateGasCost := calcTxGasCost(undelegateReceipt)
+			expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(undelegateAmount, new(big.Int).Add(delegateGasCost, undelegateGasCost)))
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegatorTo.Address, nil))
 
-			undelegateEvent = findEvent("NewCredential", receipt.Logs)
-			require.NotNil(t, undelegateEvent)
+			undelegateToRecipientEvt = findEvent("NewCredential", undelegateReceipt.Logs)
+			require.NotNil(t, undelegateToRecipientEvt)
 
-			recipientAddress := undelegateEvent["recipient"].(*common.Address)
-			require.Equal(t, &recipient.Address, recipientAddress)
+			recipientAddress := undelegateToRecipientEvt["recipient"].(common.Address)
+			require.Equal(t, recipient.Address, recipientAddress)
 
-			unbondingPeriod := undelegateEvent["unbonding"].(*big.Int)
-			g.adjustTime(time.Duration(unbondingPeriod.Int64()) * time.Second)
-
-			withdrawReceipt, withdrawErr := g.ExpectedOk(g.Withdraw(t, recipient, common.Big0))
-			require.NoError(t, withdrawErr)
-
-			withdrawnEvent := findEvent("Withdrawn", withdrawReceipt.Logs)
-			requester := withdrawnEvent["requester"].(*common.Address)
-			require.Equal(t, &recipient.Address, requester)
-
-			recipientBalance := g.balanceAt(t, ctx, recipient.Address, nil)
-			require.Equal(t, recipientBalance, undelegateAmount)
+			_, err = g.ExpectedOk(TransferCoin(g.backend.Client(), g.owner, towei(1), &recipient.Address))
+			require.NoError(t, err)
 		})
 
 		t.Run("failure case", func(t *testing.T) {
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Withdraw(t, delegator, common.Big1)),
+				"withdrawal time not reached",
+			)
+			ExpectedRevert(t,
+				g.ExpectedFail(g.Withdraw(t, recipient, common.Big1)),
 				"withdrawal time not reached",
 			)
 
@@ -567,9 +575,9 @@ func TestGovWithoutNCP(t *testing.T) {
 				"insufficient balance",
 			)
 
-			// try unstake, including the delegated amount
+			// try unstake more than current staking balance
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unstake(t, s1.Operator, govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).TotalStaked)),
+				g.ExpectedFail(g.Unstake(t, s1.Operator, new(big.Int).Add(govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).TotalStaked, common.Big1))),
 				"insufficient balance",
 			)
 		})
@@ -587,6 +595,24 @@ func TestGovWithoutNCP(t *testing.T) {
 			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegator.Address, nil))
 		})
 
+		t.Run("withdraw undelegateTo recipient", func(t *testing.T) {
+			beforeRecipientBalance := g.balanceAt(t, ctx, recipient.Address, nil)
+
+			unbonding := undelegateToRecipientEvt["unbonding"].(*big.Int)
+			g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
+
+			withdrawReceipt, err := g.ExpectedOk(g.Withdraw(t, recipient, common.Big0))
+			require.NoError(t, err)
+
+			withdrawnEvent := findEvent("Withdrawn", withdrawReceipt.Logs)
+			requester := withdrawnEvent["requester"].(common.Address)
+			require.Equal(t, recipient.Address, requester)
+
+			withdrawGasCost := calcTxGasCost(withdrawReceipt)
+			expectedRecipientBalance := new(big.Int).Add(beforeRecipientBalance, new(big.Int).Sub(undelegateAmount, withdrawGasCost))
+			require.Equal(t, expectedRecipientBalance, g.balanceAt(t, ctx, recipient.Address, nil))
+		})
+
 		t.Run("undelegate to removed staker", func(t *testing.T) {
 			// unstake and remove staker
 			{
@@ -596,7 +622,7 @@ func TestGovWithoutNCP(t *testing.T) {
 				totalStaking.Sub(totalStaking, minStaking)
 
 				delegated := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).Delegated
-				require.Equal(t, delegated, govwbft.DanglingDelegated(TestGovStakingAddress, stateDB))
+				require.True(t, delegated.Cmp(govwbft.DanglingDelegated(TestGovStakingAddress, stateDB)) == 0)
 
 				stakers = removeElement(stakers, s1.Staker.Address)
 
