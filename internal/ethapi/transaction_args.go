@@ -476,10 +476,6 @@ func (args *TransactionArgs) toTransaction() *types.Transaction {
 		if args.AccessList != nil {
 			al = *args.AccessList
 		}
-		authList := []types.SetCodeAuthorization{}
-		if args.AuthorizationList != nil {
-			authList = args.AuthorizationList
-		}
 		data = &types.SetCodeTx{
 			To:         *args.To,
 			ChainID:    uint256.MustFromBig(args.ChainID.ToInt()),
@@ -490,7 +486,7 @@ func (args *TransactionArgs) toTransaction() *types.Transaction {
 			Value:      uint256.MustFromBig((*big.Int)(args.Value)),
 			Data:       args.data(),
 			AccessList: al,
-			AuthList:   authList,
+			AuthList:   args.AuthorizationList,
 		}
 	case args.BlobHashes != nil:
 		al := types.AccessList{}
