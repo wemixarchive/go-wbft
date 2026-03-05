@@ -245,6 +245,9 @@ func toCallArg(msg ethereum.CallMsg) interface{} {
 	if msg.AccessList != nil {
 		arg["accessList"] = msg.AccessList
 	}
+	if msg.AuthorizationList != nil {
+		arg["authorizationList"] = msg.AuthorizationList
+	}
 	return arg
 }
 

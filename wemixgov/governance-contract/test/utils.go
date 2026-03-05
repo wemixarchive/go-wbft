@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -158,7 +159,7 @@ func CreateDynamicTx(backend IBackend, opts *bind.TransactOpts, to *common.Addre
 	gasLimit := opts.GasLimit
 	if opts.GasLimit == 0 {
 		var err error
-		gasLimit, err = estimateGasLimit(backend, opts, to, input, nil, gasTipCap, gasFeeCap, value)
+		gasLimit, err = estimateGasLimit(backend, opts, to, input, nil, gasTipCap, gasFeeCap, value, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -182,6 +183,30 @@ func CreateDynamicTx(backend IBackend, opts *bind.TransactOpts, to *common.Addre
 	return opts.Signer(opts.From, types.NewTx(baseTx))
 }
 
+func SendFeeDelegateTx(backend IBackend, feePayer *EOA, baseTx *types.Transaction) (*types.Transaction, error) {
+	txData, err := baseTx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	var senderTx types.DynamicFeeTx
+	// First byte is tx.Type; exclude when decoding
+	rlp.DecodeBytes(txData[1:], &senderTx)
+
+	feeDelegateTx := types.NewTx(&types.FeeDelegateDynamicFeeTx{
+		SenderTx: senderTx,
+		FeePayer: &feePayer.Address,
+	})
+
+	signer := types.NewFeeDelegateSigner(params.TestWBFTChainConfig.ChainID)
+	tx, err := types.SignTx(feeDelegateTx, signer, feePayer.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, backend.SendTransaction(context.Background(), tx)
+}
+
 func TransferCoin(backend IBackend, opts *bind.TransactOpts, value *big.Int, to *common.Address) (*types.Transaction, error) {
 	opts.Value = value
 	defer func() { opts.Value = nil }()
@@ -203,15 +228,16 @@ func ensureContext(ctx context.Context) context.Context {
 
 func estimateGasLimit(backend interface {
 	EstimateGas(ctx context.Context, call ethereum.CallMsg) (uint64, error)
-}, opts *bind.TransactOpts, to *common.Address, input []byte, gasPrice, gasTipCap, gasFeeCap, value *big.Int) (uint64, error) {
+}, opts *bind.TransactOpts, to *common.Address, input []byte, gasPrice, gasTipCap, gasFeeCap, value *big.Int, authList []types.SetCodeAuthorization) (uint64, error) {
 	msg := ethereum.CallMsg{
-		From:      opts.From,
-		To:        to,
-		GasPrice:  gasPrice,
-		GasTipCap: gasTipCap,
-		GasFeeCap: gasFeeCap,
-		Value:     value,
-		Data:      input,
+		From:              opts.From,
+		To:                to,
+		GasPrice:          gasPrice,
+		GasTipCap:         gasTipCap,
+		GasFeeCap:         gasFeeCap,
+		Value:             value,
+		Data:              input,
+		AuthorizationList: authList,
 	}
 	return backend.EstimateGas(ensureContext(opts.Context), msg)
 }

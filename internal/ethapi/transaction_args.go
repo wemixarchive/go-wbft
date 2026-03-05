@@ -79,6 +79,9 @@ type TransactionArgs struct {
 	Commitments []kzg4844.Commitment `json:"commitments"`
 	Proofs      []kzg4844.Proof      `json:"proofs"`
 
+	// For SetCodeTxType
+	AuthorizationList []types.SetCodeAuthorization `json:"authorizationList"`
+
 	// This configures whether blobs are allowed to be passed.
 	blobSidecarAllowed bool
 }
@@ -165,6 +168,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend, skipGas
 				AccessList:           args.AccessList,
 				BlobFeeCap:           args.BlobFeeCap,
 				BlobHashes:           args.BlobHashes,
+				AuthorizationList:    args.AuthorizationList,
 			}
 			latestBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 			estimated, err := DoEstimateGas(ctx, b, callArgs, latestBlockNr, nil, b.RPCGasCap())
@@ -445,18 +449,19 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (*
 		accessList = *args.AccessList
 	}
 	msg := &core.Message{
-		From:              addr,
-		To:                args.To,
-		Value:             value,
-		GasLimit:          gas,
-		GasPrice:          gasPrice,
-		GasFeeCap:         gasFeeCap,
-		GasTipCap:         gasTipCap,
-		Data:              data,
-		AccessList:        accessList,
-		BlobGasFeeCap:     blobFeeCap,
-		BlobHashes:        args.BlobHashes,
-		SkipAccountChecks: true,
+		From:                  addr,
+		To:                    args.To,
+		Value:                 value,
+		GasLimit:              gas,
+		GasPrice:              gasPrice,
+		GasFeeCap:             gasFeeCap,
+		GasTipCap:             gasTipCap,
+		Data:                  data,
+		AccessList:            accessList,
+		BlobGasFeeCap:         blobFeeCap,
+		BlobHashes:            args.BlobHashes,
+		SetCodeAuthorizations: args.AuthorizationList,
+		SkipAccountChecks:     true,
 	}
 	return msg, nil
 }
@@ -466,6 +471,23 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (*
 func (args *TransactionArgs) toTransaction() *types.Transaction {
 	var data types.TxData
 	switch {
+	case args.AuthorizationList != nil:
+		al := types.AccessList{}
+		if args.AccessList != nil {
+			al = *args.AccessList
+		}
+		data = &types.SetCodeTx{
+			To:         *args.To,
+			ChainID:    uint256.MustFromBig(args.ChainID.ToInt()),
+			Nonce:      uint64(*args.Nonce),
+			Gas:        uint64(*args.Gas),
+			GasFeeCap:  uint256.MustFromBig((*big.Int)(args.MaxFeePerGas)),
+			GasTipCap:  uint256.MustFromBig((*big.Int)(args.MaxPriorityFeePerGas)),
+			Value:      uint256.MustFromBig((*big.Int)(args.Value)),
+			Data:       args.data(),
+			AccessList: al,
+			AuthList:   args.AuthorizationList,
+		}
 	case args.BlobHashes != nil:
 		al := types.AccessList{}
 		if args.AccessList != nil {
