@@ -106,7 +106,10 @@ func GetGovContractsTransition(govContracts *params.GovContracts) (*params.State
 
 	if govContracts.GovNCP != nil {
 		st.Codes = append(st.Codes, params.CodeParam{Address: govContracts.GovNCP.Address, Code: GovContractCodes[CONTRACT_GOV_NCP][govContracts.GovNCP.Version]})
-		ncpAddresses := strings.Split(govContracts.GovNCP.Params[GOV_NCP_PARAM_NCPS], ",")
+		ncpAddresses := splitAndTrim(govContracts.GovNCP.Params[GOV_NCP_PARAM_NCPS], ",")
+		if len(ncpAddresses) == 0 {
+			return nil, errors.New("govNCP is configured but no initial NCPs provided")
+		}
 		ncps := make([]common.Address, 0)
 		for _, ncp := range ncpAddresses {
 			ncps = append(ncps, common.HexToAddress(ncp))
@@ -207,4 +210,15 @@ func NCPStakerInfoMap(govStakingAddress, govNCPAddress common.Address, state Sta
 		stakerInfos[v] = StakerInfo(govStakingAddress, state, v)
 	}
 	return stakerInfos
+}
+
+func splitAndTrim(s, sep string) (ret []string) {
+	l := strings.Split(s, sep)
+	for _, r := range l {
+		r = strings.TrimSpace(r)
+		if len(r) > 0 {
+			ret = append(ret, r)
+		}
+	}
+	return ret
 }
