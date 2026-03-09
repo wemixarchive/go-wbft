@@ -105,7 +105,7 @@ func (wg *WemixGov) GetGovInfo(blockNumber *big.Int) (WemixGovInfo, error) {
 		return WemixGovInfo{}, err
 	}
 
-	result.GasLimit, result.BaseFeeMaxChangeRate, result.BaseFeeMaxChangeRate, err = govApi.GetGasLimitAndBaseFee()
+	result.GasLimit, result.BaseFeeMaxChangeRate, result.GasTargetPercentage, err = govApi.GetGasLimitAndBaseFee()
 	if err != nil {
 		return WemixGovInfo{}, err
 	}
