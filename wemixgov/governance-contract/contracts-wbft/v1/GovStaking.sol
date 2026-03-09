@@ -438,13 +438,16 @@ contract GovStaking {
         address _recipient,
         uint256 _amount
     ) external isRegistered(_staker) inspectWithCouncil(GovStaking.undelegateTo.selector, abi.encode(_staker, _recipient, _amount)) {
-        _undelegate(_staker, _recipient, _amount);
+        require(_recipient != address(0), "recipient zero");
+       _undelegate(_staker, _recipient, _amount);
     }
 
     function _undelegate(address _staker, address _recipient, uint256 _amount) private {
+        // _recipient is validated by callers:
+        // - undelegate(): recipient is msg.sender (never zero)
+        // - undelegateTo(): explicit non-zero check
         require(msg.sender != _staker, "staker cannot undelegate to self");
         require(msg.sender != stakerInfo[_staker].operator, "operator cannot undelegate to self");
-        require(_recipient != address(0), "recipient zero");
         require(_amount > 0, "amount zero");
 
         // update stake info
