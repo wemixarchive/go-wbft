@@ -80,10 +80,10 @@ func (c *CroissantConfig) CheckValidity() error {
 	if c.Init == nil {
 		return errors.New("`croissant`: missing `init` section")
 	}
-	if c.Init.BLSPublicKeys == nil || len(c.Init.BLSPublicKeys) == 0 {
+	if len(c.Init.BLSPublicKeys) == 0 {
 		return errors.New("`croissant.init`: missing `blsPublicKeys` field")
 	}
-	if c.Init.Validators == nil || len(c.Init.Validators) == 0 {
+	if len(c.Init.Validators) == 0 {
 		return errors.New("`croissant.init`: missing `validators`")
 	}
 	if len(c.Init.Validators) != len(c.Init.BLSPublicKeys) {

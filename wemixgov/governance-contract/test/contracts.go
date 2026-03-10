@@ -174,20 +174,21 @@ func (g *Governance) DeployCroissantPatchedContracts(t *testing.T) *Governance {
 	return g
 }
 
-func (r *Governance) Deploy(address common.Address, tx *types.Transaction, contract *bind.BoundContract, err error) (common.Address, *bind.BoundContract, error) {
+func (g *Governance) Deploy(address common.Address, tx *types.Transaction, contract *bind.BoundContract, err error) (common.Address, *bind.BoundContract, error) {
+
 	if err != nil {
 		return common.Address{}, nil, err
 	}
-	return address, contract, r.ExpectedOk(tx, err)
+	return address, contract, g.ExpectedOk(tx, err)
 }
 
-func (r *Governance) ExpectedOk(tx *types.Transaction, txErr error) error {
-	_, err := expectedOk(r.backend, tx, txErr)
+func (g *Governance) ExpectedOk(tx *types.Transaction, txErr error) error {
+	_, err := expectedOk(g.backend, tx, txErr)
 	return err
 }
 
-func (r *Governance) ExpectedFail(tx *types.Transaction, txErr error) error {
-	_, err := expectedFail(r.backend, tx, txErr)
+func (g *Governance) ExpectedFail(tx *types.Transaction, txErr error) error {
+	_, err := expectedFail(g.backend, tx, txErr)
 	return err
 }
 

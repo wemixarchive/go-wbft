@@ -132,7 +132,7 @@ var DefaultConfig = &Config{
 func (c *Config) GetGovContracts(blockNumber *big.Int, chainConfig *params.ChainConfig) params.GovContracts {
 	gc := params.GovContracts{}
 
-	if c.GovContractUpgrades != nil && len(c.GovContractUpgrades) > 0 {
+	if len(c.GovContractUpgrades) > 0 {
 		c.getGovContractsValue(blockNumber, func(upgrade params.Upgrade) {
 			if upgrade.GovStaking != nil {
 				gc.GovStaking = upgrade.GovStaking

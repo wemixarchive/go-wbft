@@ -255,8 +255,8 @@ func (gov *GovContracts) Address() struct {
 	return gov.address
 }
 
-func (src *GovContracts) Equal(dst *GovContracts) bool {
-	return reflect.DeepEqual(src.address, dst.address)
+func (gov *GovContracts) Equal(dst *GovContracts) bool {
+	return reflect.DeepEqual(gov.address, dst.address)
 }
 
 func GetGovContractsByOwner(opts *bind.CallOpts, backend bind.ContractBackend, owner common.Address) (*GovContracts, error) {
@@ -394,11 +394,11 @@ func (members InitMembers) GovInitOnce() ([]byte, error) {
 		datas.Write(PackNum(reflect.ValueOf(voter)))
 		datas.Write(PackNum(reflect.ValueOf(reward)))
 		datas.Write(PackNum(reflect.ValueOf(len(m.Name))))
-		datas.Write([]byte(m.Name))
+		datas.WriteString(m.Name)
 		datas.Write(PackNum(reflect.ValueOf(len(id))))
 		datas.Write(id)
 		datas.Write(PackNum(reflect.ValueOf(len(m.Ip))))
-		datas.Write([]byte(m.Ip))
+		datas.WriteString(m.Ip)
 		datas.Write(PackNum(reflect.ValueOf(m.Port)))
 	}
 
