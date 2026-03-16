@@ -175,7 +175,6 @@ func (g *Governance) DeployCroissantPatchedContracts(t *testing.T) *Governance {
 }
 
 func (g *Governance) Deploy(address common.Address, tx *types.Transaction, contract *bind.BoundContract, err error) (common.Address, *bind.BoundContract, error) {
-
 	if err != nil {
 		return common.Address{}, nil, err
 	}
