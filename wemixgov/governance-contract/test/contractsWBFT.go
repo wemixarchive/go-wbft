@@ -184,6 +184,10 @@ func (g *GovWBFT) Undelegate(t *testing.T, delegator *EOA, staker common.Address
 	return g.stakingContractTx(t, "undelegate", delegator, nil, staker, amount)
 }
 
+func (g *GovWBFT) UndelegateTo(t *testing.T, delegator *EOA, staker common.Address, recipient common.Address, amount *big.Int) (*types.Transaction, error) {
+	return g.stakingContractTx(t, "undelegateTo", delegator, nil, staker, recipient, amount)
+}
+
 func (g *GovWBFT) Claim(t *testing.T, user *EOA, staker common.Address, restake bool) (*types.Transaction, error) {
 	return g.stakingContractTx(t, "claim", user, nil, staker, restake)
 }
@@ -202,6 +206,31 @@ func (g *GovWBFT) ExecuteChangingFee(t *testing.T, sender *EOA, staker common.Ad
 
 func (g *GovWBFT) stakingContractTx(t *testing.T, method string, sender *EOA, value *big.Int, params ...interface{}) (*types.Transaction, error) {
 	return g.stakingContract.Transact(NewTxOptsWithValue(t, sender, value), method, params...)
+}
+
+type PreviewReward struct {
+	PendingReward       *big.Int
+	PendingFee          *big.Int
+	AccRewardPerStaking *big.Int
+	AccFeePerStaking    *big.Int
+}
+
+func (g *GovWBFT) previewReward(t *testing.T, staker common.Address, user common.Address) (*PreviewReward, error) {
+	results := []interface{}{}
+	if err := g.stakingContract.Call(nil, &results, "previewReward", staker, user); err != nil {
+		return nil, err
+	}
+	pendingReward := results[0].(*big.Int)
+	pendingFee := results[1].(*big.Int)
+	accRewardPerStaking := results[2].(*big.Int)
+	accFeePerStaking := results[3].(*big.Int)
+
+	return &PreviewReward{
+		pendingReward,
+		pendingFee,
+		accRewardPerStaking,
+		accFeePerStaking,
+	}, nil
 }
 
 // NCP Contract
@@ -357,10 +386,10 @@ func NewTestStaker() *TestStaker[*EOA] {
 	}
 }
 
-func NewTestStakerWithOperatorCA(opperator *CA) *TestStaker[*CA] {
+func NewTestStakerWithOperatorCA(operator *CA) *TestStaker[*CA] {
 	return &TestStaker[*CA]{
 		Staker:       NewEOA(),
-		Operator:     opperator,
+		Operator:     operator,
 		FeeRecipient: NewEOA(),
 	}
 }

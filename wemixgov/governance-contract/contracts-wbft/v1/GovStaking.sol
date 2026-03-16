@@ -60,7 +60,6 @@ contract GovStaking {
     struct UserCredentialInfo {
         uint256 credentialIndex;
         uint256 withdrawalIndex;
-        // credentialCount = credentialIndex - withdrawalIndex
     }
 
     struct WithdrawalCredential {
@@ -88,8 +87,15 @@ contract GovStaking {
     event Unstaked(address indexed staker, uint256 amount);
     event StakerRemoved(address indexed staker);
     event Delegated(address indexed delegator, address indexed staker, uint256 amount);
-    event Undelegated(address indexed delegator, address indexed staker, uint256 amount);
-    event NewCredential(uint256 indexed credentialID, address indexed requester, uint256 amount, uint256 time, uint256 unbonding);
+    event Undelegated(address indexed delegator, address indexed staker, address indexed recipient, uint256 amount);
+    event NewCredential(
+        uint256 indexed credentialID,
+        address indexed requester,
+        address indexed recipient,
+        uint256 amount,
+        uint256 time,
+        uint256 unbonding
+    );
     event Withdrawn(address indexed requester, uint256 withdrawalIndex, uint256 amount);
     event RewardInfoUpdated(
         address indexed staker,
@@ -401,7 +407,7 @@ contract GovStaking {
             emit StakerRemoved(_staker);
         }
 
-        _newCredential(_amount, GovConfig(govConfig).unbondingPeriodStaker());
+        _newCredential(msg.sender, _amount, GovConfig(govConfig).unbondingPeriodStaker());
 
         emit Unstaked(_staker, _amount);
     }
@@ -424,8 +430,25 @@ contract GovStaking {
         address _staker,
         uint256 _amount
     ) external isRegistered(_staker) inspectWithCouncil(GovStaking.undelegate.selector, abi.encode(_staker, _amount)) {
+        _undelegate(_staker, msg.sender, _amount);
+    }
+
+    function undelegateTo(
+        address _staker,
+        address _recipient,
+        uint256 _amount
+    ) external isRegistered(_staker) inspectWithCouncil(GovStaking.undelegateTo.selector, abi.encode(_staker, _recipient, _amount)) {
+        require(_recipient != address(0), "recipient zero");
+       _undelegate(_staker, _recipient, _amount);
+    }
+
+    function _undelegate(address _staker, address _recipient, uint256 _amount) private {
+        // _recipient is validated by callers:
+        // - undelegate(): recipient is msg.sender (never zero)
+        // - undelegateTo(): explicit non-zero check
         require(msg.sender != _staker, "staker cannot undelegate to self");
         require(msg.sender != stakerInfo[_staker].operator, "operator cannot undelegate to self");
+        require(_amount > 0, "amount zero");
 
         // update stake info
         _updateRewardInfo(_staker, msg.sender);
@@ -433,15 +456,15 @@ contract GovStaking {
         _subStaking(_staker, msg.sender, _amount);
 
         if (isStaker(_staker)) {
-            _newCredential(_amount, GovConfig(govConfig).unbondingPeriodDelegator());
+            _newCredential(_recipient, _amount, GovConfig(govConfig).unbondingPeriodDelegator());
         } else {
             danglingDelegated -= _amount;
 
-            (bool success, ) = payable(msg.sender).call{ value: _amount }("");
+            (bool success, ) = payable(_recipient).call{ value: _amount }("");
             require(success, "failed to send undelegating amount");
         }
 
-        emit Undelegated(msg.sender, _staker, _amount);
+        emit Undelegated(msg.sender, _staker, _recipient, _amount);
     }
 
     function claim(
@@ -510,6 +533,32 @@ contract GovStaking {
 
             emit Withdrawn(msg.sender, _withdrawalIndex, _amount);
         }
+    }
+
+    function previewReward(
+        address _staker,
+        address _user
+    ) external view returns (uint256 pendingReward, uint256 pendingFee, uint256 accRewardPerStaking, uint256 accFeePerStaking) {
+        Staker storage _stakerInfo = stakerInfo[_staker];
+        UserInfo storage _userInfo = userRewardInfo[_staker][_user];
+
+        accRewardPerStaking = _stakerInfo.accRewardPerStaking;
+        accFeePerStaking = _stakerInfo.accFeePerStaking;
+
+        if (_stakerInfo.totalStaked > 0) {
+            uint256 _accBalance = _stakerInfo.rewardee.balance - _stakerInfo.lastRewardBalance;
+
+            if (_accBalance > 0) {
+                uint256 _rewardPerStaking = (_accBalance * REWARD_PRECISION) / _stakerInfo.totalStaked;
+
+                accRewardPerStaking += _rewardPerStaking;
+                accFeePerStaking += (_rewardPerStaking * _stakerInfo.feeRate) / GovConfig(govConfig).feePrecision();
+            }
+        }
+
+        pendingReward = _userInfo.pendingReward + (_userInfo.stakingAmount * (accRewardPerStaking - _userInfo.rewardPerStaking)) / REWARD_PRECISION;
+
+        pendingFee = _userInfo.pendingFee + (_userInfo.stakingAmount * (accFeePerStaking - _userInfo.feePerStaking)) / REWARD_PRECISION;
     }
 
     function _updateRewardInfo(address _staker, address _user) private {
@@ -584,16 +633,16 @@ contract GovStaking {
         _userInfo.stakingAmount -= _amount;
     }
 
-    function _newCredential(uint256 _amount, uint256 _unbondingPeriod) private {
-        UserCredentialInfo storage _userCredential = userCredential[msg.sender];
-        credentials[msg.sender][_userCredential.credentialIndex] = WithdrawalCredential({
+    function _newCredential(address _recipient, uint256 _amount, uint256 _unbondingPeriod) private {
+        UserCredentialInfo storage _userCredential = userCredential[_recipient];
+        credentials[_recipient][_userCredential.credentialIndex] = WithdrawalCredential({
             amount: _amount,
             requestTime: block.timestamp,
             withdrawableTime: block.timestamp + _unbondingPeriod
         });
 
         _userCredential.credentialIndex++;
-        emit NewCredential(_userCredential.credentialIndex, msg.sender, _amount, block.timestamp, _unbondingPeriod);
+        emit NewCredential(_userCredential.credentialIndex, msg.sender, _recipient, _amount, block.timestamp, _unbondingPeriod);
     }
 
     function getStakerAmount(address _staker) external view returns (uint256) {

@@ -278,7 +278,7 @@ func NewTxOptsWithValue(t *testing.T, eoa *EOA, value *big.Int) *bind.TransactOp
 	return opts
 }
 
-// evnet_unpack
+// event_unpack
 type allEventsType map[string]abi.Event
 
 var (

@@ -382,7 +382,7 @@ func TestOperatorContractMultiSig(t *testing.T) {
 			})
 		})
 
-		t.Run("Withdraw unstaked amount from operator contarct", func(t *testing.T) {
+		t.Run("Withdraw unstaked amount from operator contract", func(t *testing.T) {
 			callOpts := new(bind.CallOpts)
 			var tracedUnstaked *big.Int
 			// 1. withdraw fee - failure case
@@ -486,7 +486,7 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 	})
 
 	t.Run("Claim for Reward, restake", func(t *testing.T) {
-		// disribute reward manually - 10 ether
+		// distribute reward manually - 10 ether
 		distributeReward(t, g, stateDB, rewardAmount, s1.Staker.Address)
 		// restake the reward
 		_, err := g.ExpectedOk(g.ClaimWithRestake(operatorContractSingleOwner, s1))
@@ -497,7 +497,7 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 	var claimedReward *big.Int
 
 	t.Run("Claim for Reward, not restake", func(t *testing.T) {
-		// disribute reward manually
+		// distribute reward manually
 		distributeReward(t, g, stateDB, rewardAmount, s1.Staker.Address)
 		// transfer reward from rewardee to operator contract
 		receipt, err := g.ExpectedOk(g.ClaimWithoutRestake(operatorContractSingleOwner, s1))
@@ -581,7 +581,7 @@ func TestOperatorContractSingleOwner(t *testing.T) {
 		require.True(t, feeAmount.Cmp(new(big.Int)) == 0)
 	})
 
-	t.Run("Unstake and withdraw undstaked amount", func(t *testing.T) {
+	t.Run("Unstake and withdraw unstaked amount", func(t *testing.T) {
 		// unstake the staked amount
 		stakedAmt := govwbft.UserInfo(TestGovStakingAddress, stateDB, s1.Staker.Address, s1.Staker.Address).StakingAmount
 		receipt, err := g.ExpectedOk(g.SingleOwnerUnstake(operatorContractSingleOwner, stakedAmt))

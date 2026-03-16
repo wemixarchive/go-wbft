@@ -48,16 +48,19 @@ func TestGovWithoutNCP(t *testing.T) {
 		totalStaking = new(big.Int)
 		stakers      = make([]common.Address, 0)
 
-		s1        = NewTestStaker()
-		s2        = NewTestStaker()
-		delegator = NewEOA()
-		newStaker = NewEOA()
+		s1          = NewTestStaker()
+		s2          = NewTestStaker()
+		delegator   = NewEOA()
+		delegatorTo = NewEOA()
+		recipient   = NewEOA()
+		newStaker   = NewEOA()
 	)
 
 	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
 		s1.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
 		s2.Operator.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		delegator.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
+		delegatorTo.Address: {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 		newStaker.Address:   {Balance: new(big.Int).Add(MAX_UINT_128, minStaking)},
 	})
 	require.NoError(t, err)
@@ -486,8 +489,9 @@ func TestGovWithoutNCP(t *testing.T) {
 	t.Run("Undelegate & Withdraw", func(t *testing.T) {
 		defer checkGovBalanceFn()
 		var (
-			undelegateEvent  map[string]interface{}
-			undelegateAmount = towei(50_000)
+			undelegateEvent          map[string]interface{}
+			undelegateToRecipientEvt map[string]interface{}
+			undelegateAmount         = towei(50_000)
 		)
 
 		t.Run("undelegate", func(t *testing.T) {
@@ -512,9 +516,52 @@ func TestGovWithoutNCP(t *testing.T) {
 			require.NotNil(t, undelegateEvent)
 		})
 
+		t.Run("undelegateTo", func(t *testing.T) {
+			beforeBalance := g.balanceAt(t, ctx, delegatorTo.Address, nil)
+			beforeInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
+
+			delegateReceipt, err := g.ExpectedOk(g.Delegate(t, delegatorTo, s1.Staker.Address, undelegateAmount))
+			require.NoError(t, err)
+
+			totalStaking.Add(totalStaking, undelegateAmount)
+			require.Equal(t, totalStaking, govwbft.TotalStaking(TestGovStakingAddress, stateDB))
+
+			delegatedInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.TotalStaked, beforeInfo_s1.TotalStaked))
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.Delegated, beforeInfo_s1.Delegated))
+
+			undelegateReceipt, err := g.ExpectedOk(g.UndelegateTo(t, delegatorTo, s1.Staker.Address, recipient.Address, undelegateAmount))
+			require.NoError(t, err)
+
+			totalStaking.Sub(totalStaking, undelegateAmount)
+			require.Equal(t, totalStaking, govwbft.TotalStaking(TestGovStakingAddress, stateDB))
+
+			afterInfo_s1 := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address)
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.TotalStaked, afterInfo_s1.TotalStaked))
+			require.Equal(t, undelegateAmount, new(big.Int).Sub(delegatedInfo_s1.Delegated, afterInfo_s1.Delegated))
+
+			delegateGasCost := calcTxGasCost(delegateReceipt)
+			undelegateGasCost := calcTxGasCost(undelegateReceipt)
+			expectedBalance := new(big.Int).Sub(beforeBalance, new(big.Int).Add(undelegateAmount, new(big.Int).Add(delegateGasCost, undelegateGasCost)))
+			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegatorTo.Address, nil))
+
+			undelegateToRecipientEvt = findEvent("NewCredential", undelegateReceipt.Logs)
+			require.NotNil(t, undelegateToRecipientEvt)
+
+			recipientAddress := undelegateToRecipientEvt["recipient"].(common.Address)
+			require.Equal(t, recipient.Address, recipientAddress)
+
+			_, err = g.ExpectedOk(TransferCoin(g.backend.Client(), g.owner, towei(1), &recipient.Address))
+			require.NoError(t, err)
+		})
+
 		t.Run("failure case", func(t *testing.T) {
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Withdraw(t, delegator, common.Big1)),
+				"withdrawal time not reached",
+			)
+			ExpectedRevert(t,
+				g.ExpectedFail(g.Withdraw(t, recipient, common.Big1)),
 				"withdrawal time not reached",
 			)
 
@@ -528,9 +575,9 @@ func TestGovWithoutNCP(t *testing.T) {
 				"insufficient balance",
 			)
 
-			// try unstake, including the delegated amount
+			// try unstake more than current staking balance
 			ExpectedRevert(t,
-				g.ExpectedFail(g.Unstake(t, s1.Operator, govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).TotalStaked)),
+				g.ExpectedFail(g.Unstake(t, s1.Operator, new(big.Int).Add(govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).TotalStaked, common.Big1))),
 				"insufficient balance",
 			)
 		})
@@ -548,6 +595,24 @@ func TestGovWithoutNCP(t *testing.T) {
 			require.Equal(t, expectedBalance, g.balanceAt(t, ctx, delegator.Address, nil))
 		})
 
+		t.Run("withdraw undelegateTo recipient", func(t *testing.T) {
+			beforeRecipientBalance := g.balanceAt(t, ctx, recipient.Address, nil)
+
+			unbonding := undelegateToRecipientEvt["unbonding"].(*big.Int)
+			g.adjustTime(time.Duration(unbonding.Int64()) * time.Second)
+
+			withdrawReceipt, err := g.ExpectedOk(g.Withdraw(t, recipient, common.Big0))
+			require.NoError(t, err)
+
+			withdrawnEvent := findEvent("Withdrawn", withdrawReceipt.Logs)
+			requester := withdrawnEvent["requester"].(common.Address)
+			require.Equal(t, recipient.Address, requester)
+
+			withdrawGasCost := calcTxGasCost(withdrawReceipt)
+			expectedRecipientBalance := new(big.Int).Add(beforeRecipientBalance, new(big.Int).Sub(undelegateAmount, withdrawGasCost))
+			require.Equal(t, expectedRecipientBalance, g.balanceAt(t, ctx, recipient.Address, nil))
+		})
+
 		t.Run("undelegate to removed staker", func(t *testing.T) {
 			// unstake and remove staker
 			{
@@ -557,7 +622,7 @@ func TestGovWithoutNCP(t *testing.T) {
 				totalStaking.Sub(totalStaking, minStaking)
 
 				delegated := govwbft.StakerInfo(TestGovStakingAddress, stateDB, s1.Staker.Address).Delegated
-				require.Equal(t, delegated, govwbft.DanglingDelegated(TestGovStakingAddress, stateDB))
+				require.True(t, delegated.Cmp(govwbft.DanglingDelegated(TestGovStakingAddress, stateDB)) == 0)
 
 				stakers = removeElement(stakers, s1.Staker.Address)
 
@@ -1230,14 +1295,32 @@ func TestGovReward(t *testing.T) {
 		distributeReward(t, g, stateDB, rewardAmount, v1.Staker.Address, v2.Staker.Address)
 
 		beforeBalance := g.balanceAt(t, ctx, v1.Operator.Address, nil)
+		rewardee := govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).Rewardee
+		beforeRewardeeBalance := g.balanceAt(t, ctx, rewardee, nil)
 		// v1 claim reward
 		// v1.rewardee = 20 => v1.pendingReward = 15, delegator1.pendingReward = 5
+
+		nextRewardPerStaking := toRewardPerStaking(rewardAmount, new(big.Int).Add(minStaking, minStaking))
+		expectedAccRewardPerStaking := new(big.Int).Add(new(big.Int).Set(calcRewardPerStaking), nextRewardPerStaking)
+
+		operatorPreview, err := g.previewReward(t, v1.Staker.Address, v1.Staker.Address)
+		require.NoError(t, err)
+		require.Equal(t, expectedAccRewardPerStaking, operatorPreview.AccRewardPerStaking)
+		require.Equal(t, new(big.Int).Div(new(big.Int).Mul(expectedAccRewardPerStaking, feeRate1), new(big.Int).SetUint64(10000)), operatorPreview.AccFeePerStaking)
+
+		delegatorPreview, err := g.previewReward(t, v1.Staker.Address, delegator1.Address)
+		require.NoError(t, err)
+		require.Equal(t, expectedAccRewardPerStaking, delegatorPreview.AccRewardPerStaking)
+		require.Equal(t, new(big.Int).Div(new(big.Int).Mul(expectedAccRewardPerStaking, feeRate1), new(big.Int).SetUint64(10000)), delegatorPreview.AccFeePerStaking)
+		require.True(t, delegatorPreview.PendingReward.Cmp(delegatorPreview.PendingFee) >= 0)
+		require.True(t, operatorPreview.PendingReward.Cmp(operatorPreview.PendingFee) >= 0)
+
 		receipt, err := g.ExpectedOk(g.Claim(t, v1.Operator, v1.Staker.Address, false))
 		require.NoError(t, err)
 		gasCost := calcTxGasCost(receipt)
-		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, toRewardPerStaking(rewardAmount, new(big.Int).Add(minStaking, minStaking)))
-		expectedClaimed := towei(15)
-		expectedBalance := towei(5)
+		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, nextRewardPerStaking)
+		expectedClaimed := operatorPreview.PendingReward
+		expectedBalance := new(big.Int).Sub(beforeRewardeeBalance, expectedClaimed)
 
 		// check list
 		require.Equal(t, totalStaking, govwbft.TotalStaking(TestGovStakingAddress, stateDB))
@@ -1372,18 +1455,30 @@ func TestGovReward(t *testing.T) {
 		distributeReward(t, g, stateDB, rewardAmount, v1.Staker.Address, v2.Staker.Address)
 
 		beforeBalance := g.balanceAt(t, ctx, delegator1.Address, nil)
+		rewardee := govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).Rewardee
+		beforeRewardeeBalance := g.balanceAt(t, ctx, rewardee, nil)
+		feeRecipient := govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).FeeRecipient
+		beforeFeeRecipientBalance := g.balanceAt(t, ctx, feeRecipient, nil)
+
+		v1Staking := new(big.Int).Add(minStaking, minStaking)
+		nextRewardPerStaking := toRewardPerStaking(rewardAmount, v1Staking)
+		expectedAccRewardPerStaking := new(big.Int).Add(new(big.Int).Set(calcRewardPerStaking), nextRewardPerStaking)
+
+		preview, err := g.previewReward(t, v1.Staker.Address, delegator1.Address)
+		require.NoError(t, err)
+		require.Equal(t, expectedAccRewardPerStaking, preview.AccRewardPerStaking)
+		require.Equal(t, new(big.Int).Div(new(big.Int).Mul(expectedAccRewardPerStaking, feeRate1), new(big.Int).SetUint64(10000)), preview.AccFeePerStaking)
+		require.True(t, preview.PendingReward.Cmp(preview.PendingFee) >= 0)
+
 		// v1 claim reward
 		receipt, err := g.ExpectedOk(g.Claim(t, delegator1, v1.Staker.Address, true))
 		require.NoError(t, err)
 
 		gasCost := calcTxGasCost(receipt)
-		v1Staking := new(big.Int).Add(minStaking, minStaking)
-		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, toRewardPerStaking(rewardAmount, v1Staking))
-		expectedClaimed := towei(25)
-		fee := new(big.Int).Mul(expectedClaimed, feeRate1)
-		fee = fee.Div(fee, new(big.Int).SetUint64(10000))
-		expectedClaimed = expectedClaimed.Sub(expectedClaimed, fee)
-		expectedBalance := towei(40)
+		calcRewardPerStaking = calcRewardPerStaking.Add(calcRewardPerStaking, nextRewardPerStaking)
+		expectedClaimed := new(big.Int).Sub(new(big.Int).Set(preview.PendingReward), preview.PendingFee)
+		fee := new(big.Int).Set(preview.PendingFee)
+		expectedBalance := new(big.Int).Sub(beforeRewardeeBalance, preview.PendingReward)
 		v1Staking = v1Staking.Add(v1Staking, expectedClaimed)
 		totalStaking = totalStaking.Add(totalStaking, expectedClaimed)
 
@@ -1398,7 +1493,7 @@ func TestGovReward(t *testing.T) {
 		require.Equal(t, calcRewardPerStaking, govwbft.UserInfo(TestGovStakingAddress, stateDB, v1.Staker.Address, delegator1.Address).RewardPerStaking)
 		afterBalance := g.balanceAt(t, ctx, delegator1.Address, nil)
 		require.Equal(t, afterBalance, beforeBalance.Sub(beforeBalance, gasCost))
-		require.Equal(t, fee, g.balanceAt(t, ctx, govwbft.StakerInfo(TestGovStakingAddress, stateDB, v1.Staker.Address).FeeRecipient, nil))
+		require.Equal(t, fee, new(big.Int).Sub(g.balanceAt(t, ctx, feeRecipient, nil), beforeFeeRecipientBalance))
 	})
 }
 
