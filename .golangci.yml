@@ -21,7 +21,6 @@ linters:
     - copyloopvar
     - whitespace
     - revive # only certain checks enabled
-    - durationcheck
     - gocheckcompilerdirectives
     - reassign
     - mirror
