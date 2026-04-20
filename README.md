@@ -176,7 +176,7 @@ The existing miner worker is designed to be fit to the ethash algorithm. When a 
 WBFT is not only implemented to run a WBFT chain from genesis but is also designed and implemented to enable a hard fork from a legacy chain to the WBFT chain. This hard fork is named the `Croissant` hard fork.
 You should define the Croissant hard fork in genesis.json to run a WBFT chain. Two chain configs are added for Croissant hard fork; `croissantBlock` and `croissant`.
 - `croissantBlock`: Defines the block height at which the Croissant hard fork occurs. You can set it to zero for the genesis block.
-- `croissant`: Defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `upgrades`.
+- `croissant`: Defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `govContracts`.
 
 Setting `croissantBlock` to 0 triggers WBFT-related initialization in the genesis block when executing the `gwemix init` command. Conversely, if `croissantBlock` is set to 1 or greater, WBFT-related initialization occurs when the Croissant block is created and finalized.
 The Croissant hard fork protocols are as follows:
@@ -223,37 +223,37 @@ If you want to use the WBFT consensus, you should use the following chain config
     ],
     "blsPublicKeys": [
       "0xaec493af8fa358a1c6f05499f2dd712721ade88c477d21b799d38e9b84582b6fbe4f4adc21e1e454bc37522eb3478b9b"
-    ],
-    "govContracts": {
-      "govConfig": {
-        "address": "0x0000000000000000000000000000000000001000",
-        "version": "v1",
-        "params": {
-          "changeFeeDelay": "604800",
-          "feePrecision": "10000",
-          "maximumStaking": "100000000000000000000000000",
-          "minimumStaking": "10000000000000000000000000",
-          "unbondingPeriodDelegator": "259200",
-          "unbondingPeriodStaker": "604800",
-          "govCouncil": "0x0000000000000000000000000000000000001003"
-        }
-      },
-      "govStaking": {
-        "address": "0x0000000000000000000000000000000000001001",
-        "version": "v1",
-        "params": null
-      },
-      "govRewardeeImp": {
-        "address": "0x0000000000000000000000000000000000001002",
-        "version": "v1",
-        "params": null
-      },
-      "govNCP": {
-        "address": "0x0000000000000000000000000000000000001003",
-        "version": "v1",
-        "params": {
-          "ncps": "0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697"
-        }
+    ]
+  },
+  "govContracts": {
+    "govConfig": {
+      "address": "0x0000000000000000000000000000000000001000",
+      "version": "v1",
+      "params": {
+        "changeFeeDelay": "604800",
+        "feePrecision": "10000",
+        "maximumStaking": "100000000000000000000000000",
+        "minimumStaking": "10000000000000000000000000",
+        "unbondingPeriodDelegator": "259200",
+        "unbondingPeriodStaker": "604800",
+        "govCouncil": "0x0000000000000000000000000000000000001003"
+      }
+    },
+    "govStaking": {
+      "address": "0x0000000000000000000000000000000000001001",
+      "version": "v1",
+      "params": null
+    },
+    "govRewardeeImp": {
+      "address": "0x0000000000000000000000000000000000001002",
+      "version": "v1",
+      "params": null
+    },
+    "govNCP": {
+      "address": "0x0000000000000000000000000000000000001003",
+      "version": "v1",
+      "params": {
+        "ncps": "0xaA5FAA65e9cC0F74a85b6fDfb5f6991f5C094697"
       }
     }
   },
@@ -261,7 +261,7 @@ If you want to use the WBFT consensus, you should use the following chain config
 }
 ```
 - `croissantBlock` defines the block height at which the Croissant hard fork occurs. You can set it to zero for the genesis block.
-- `croissant` defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `upgrades`.
+- `croissant` defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `govContracts`.
 - `wBFT` defines the WBFT consensus engine parameters:
 - `blockRewardBeneficiary` defines the address that will receive the block minting rewards consistently.
 - `targetValidators` should be less than or equals to `epochLength`.
@@ -269,7 +269,8 @@ If you want to use the WBFT consensus, you should use the following chain config
 - `blsPublicKeys` defines initial validator's bls key signing BFT messages. order must be same to `validators`.
 - `stabilizingStakersThreshold` defines the minimum number of stakers to quit stabilization stage. It must be greater than or equals to 1.
 - `useNCP` defines whether to use NCP system or not. If it is true, the NCP contract address must be defined in `govNCP` field.
-- `init` defines the initial state of the WBFT chain. It includes the initial validator set, BLS public keys, and the GovContracts.
+- `init` defines the initial validator set and BLS public keys for the first epoch.
+- `govContracts` defines the governance contract addresses and their initialization parameters. 
 ```
 type Staker struct {
     Addr      common.Address
@@ -287,6 +288,7 @@ type WBFTAggregatedSeal struct {
 }
 type WBFTExtra struct {
 	VanityData        []byte
+	RandaoReveal      []byte
 	PrevRound         uint32
 	PrevPreparedSeal  *WBFTAggregatedSeal
 	PrevCommittedSeal *WBFTAggregatedSeal
@@ -319,7 +321,7 @@ Node that NCP system is optional for use of a private chain and can be disabled 
 
 ## Building the source
 
-Building `gwemix` requires both a Go (version 1.19 or later) and a C compiler. You can install
+Building `gwemix` requires both a Go (version 1.23.0 or later) and a C compiler. You can install
 them using your favourite package manager. Once the dependencies are installed, run
 
 ```shell
@@ -332,19 +334,23 @@ or, to build the full suite of utilities:
 make all
 ```
 
+Built binaries are placed in `./build/bin/`.
+
 ## Executables
 
-The go-ethereum project comes with several wrappers/executables found in the `cmd`
+The go-wemix-wbft project comes with several wrappers/executables found in the `cmd`
 directory.
 
 |       Command       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 |:-------------------:|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|    **`gwemix`**     | Our main Ethereum CLI client. It is the entry point into the Ethereum network (main-, test- or private net), capable of running as a full node (default), archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the Ethereum network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `gwemix --help` and the [CLI page](https://geth.ethereum.org/docs/fundamentals/command-line-options) for command line options. |
-| `genesis_generator` | Genesis generator tool. It is used for the first genesis.json file.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+|    **`gwemix`**     | Main WEMIX CLI client. Entry point into the WEMIX network, capable of running as a full node (default) or archive node (retaining all historical state). Exposes JSON-RPC endpoints over HTTP, WebSocket, and/or IPC transports. Use `gwemix --help` for command line options. |
+| `genesis_generator` | Genesis generator tool. Generates a genesis.json interactively by prompting for consensus engine, validator addresses, BLS public keys, pre-funded accounts, and chain ID. |
 |       `clef`        | Stand-alone signing tool, which can be used as a backend signer for `gwemix`.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 |      `devp2p`       | Utilities to interact with nodes on the networking layer, without running a full blockchain.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 |      `abigen`       | Source code generator to convert Ethereum contract definitions into easy-to-use, compile-time type-safe Go packages. It operates on plain [Ethereum contract ABIs](https://docs.soliditylang.org/en/develop/abi-spec.html) with expanded functionality if the contract bytecode is also available. However, it also accepts Solidity source files, making development much more streamlined. |
-|     `bootnode`      | Stripped down version of our Ethereum client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks.                                                                                                                                                                                                                                                  |
+|     `abidump`       | ABI dump utility for inspecting contract ABI data. |
+|     `bootnode`      | Stripped down version of the client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks.                                                                                                                                                                                                                                                  |
+|      `ethkey`       | Key management utility for Ethereum-compatible accounts (generate, inspect, sign, verify). |
 |        `evm`        | Developer utility version of the EVM (Ethereum Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode. Its purpose is to allow isolated, fine-grained debugging of EVM opcodes (e.g. `evm --code 60ff60ff --debug run`).                                                                                                                                                                                                                                                  |
 |      `rlpdump`      | Developer utility tool to convert binary RLP ([Recursive Length Prefix](https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp)) dumps (data encoding used by the Ethereum protocol both network as well as consensus wise) to user-friendlier hierarchical representation (e.g. `rlpdump --hex CE0183FFFFFFC4C304050583616263`).                                                                                                                                                                                   |
 
@@ -371,9 +377,9 @@ Recommended:
 * High-performance SSD with at least 1TB of free space
 * 25+ MBit/sec download Internet service
 
-### Full node on the main Ethereum network
+### Full node on the WEMIX network
 
-By far the most common scenario is people wanting to simply interact with the Ethereum
+By far the most common scenario is people wanting to simply interact with the WEMIX
 network: create accounts; transfer funds; deploy and interact with contracts. For this
 particular use case, the user doesn't care about years-old historical data, so we can
 sync quickly to the current state of the network. To do so:
@@ -383,49 +389,15 @@ $ gwemix console
 ```
 
 This command will:
- * Start `gwemix` in snap sync mode (default, can be changed with the `--syncmode` flag),
-   causing it to download more data in exchange for avoiding processing the entire history
-   of the Ethereum network, which is very CPU intensive.
+ * Start `gwemix` in full sync mode (default, can be changed with the `--syncmode` flag),
+   downloading and re-executing all blocks from genesis to fully verify the entire history
+   of the WEMIX network.
  * Start the built-in interactive [JavaScript console](https://geth.ethereum.org/docs/interacting-with-geth/javascript-console),
-   (via the trailing `console` subcommand) through which you can interact using [`web3` methods](https://github.com/ChainSafe/web3.js/blob/0.20.7/DOCUMENTATION.md) 
+   (via the trailing `console` subcommand) through which you can interact using [`web3` methods](https://github.com/ChainSafe/web3.js/blob/0.20.7/DOCUMENTATION.md)
    (note: the `web3` version bundled within `gwemix` is very old, and not up to date with official docs),
    as well as `gwemix`'s own [management APIs](https://geth.ethereum.org/docs/interacting-with-geth/rpc).
    This tool is optional and if you leave it out you can always attach it to an already running
    `gwemix` instance with `gwemix attach`.
-
-### A Full node on the Görli test network
-
-Transitioning towards developers, if you'd like to play around with creating Ethereum
-contracts, you almost certainly would like to do that without any real money involved until
-you get the hang of the entire system. In other words, instead of attaching to the main
-network, you want to join the **test** network with your node, which is fully equivalent to
-the main network, but with play-Ether only.
-
-```shell
-$ gwemix --goerli console
-```
-
-The `console` subcommand has the same meaning as above and is equally
-useful on the testnet too.
-
-Specifying the `--goerli` flag, however, will reconfigure your `gwemix` instance a bit:
-
- * Instead of connecting to the main Ethereum network, the client will connect to the Görli
-   test network, which uses different P2P bootnodes, different network IDs and genesis
-   states.
- * Instead of using the default data directory (`~/.ethereum` on Linux for example), `gwemix`
-   will nest itself one level deeper into a `goerli` subfolder (`~/.ethereum/goerli` on
-   Linux). Note, on OSX and Linux this also means that attaching to a running testnet node
-   requires the use of a custom endpoint since `gwemix attach` will try to attach to a
-   production node endpoint by default, e.g.,
-   `gwemix attach <datadir>/goerli/gwemix.ipc`. Windows users are not affected by
-   this.
-
-*Note: Although some internal protective measures prevent transactions from
-crossing over between the main network and test network, you should always
-use separate accounts for play and real money. Unless you manually move
-accounts, `gwemix` will by default correctly separate the two networks and will not make any
-accounts available between them.*
 
 ### Configuration
 
@@ -443,30 +415,10 @@ export your existing configuration:
 $ gwemix --your-favourite-flags dumpconfig
 ```
 
-#### Docker quick start
-
-One of the quickest ways to get Ethereum up and running on your machine is by using
-Docker:
-
-```shell
-docker run -d --name ethereum-node -v /Users/alice/ethereum:/root \
-           -p 8545:8545 -p 30303:30303 \
-           ethereum/client-go
-```
-
-This will start `gwemix` in snap-sync mode with a DB memory allowance of 1GB, as the
-above command does.  It will also create a persistent volume in your home directory for
-saving your blockchain as well as map the default ports. There is also an `alpine` tag
-available for a slim version of the image.
-
-Do not forget `--http.addr 0.0.0.0`, if you want to access RPC from other containers
-and/or hosts. By default, `gwemix` binds to the local interface and RPC endpoints are not
-accessible from the outside.
-
 ### Programmatically interfacing `gwemix` nodes
 
 As a developer, sooner rather than later you'll want to start interacting with `gwemix` and the
-Ethereum network via your own programs and not manually through the console. To aid
+WEMIX network via your own programs and not manually through the console. To aid
 this, `gwemix` has built-in support for a JSON-RPC based APIs ([standard APIs](https://ethereum.github.io/execution-apis/api-documentation/)
 and [`gwemix` specific APIs](https://geth.ethereum.org/docs/interacting-with-geth/rpc)).
 These can be exposed via HTTP, WebSockets and IPC (UNIX sockets on UNIX based
@@ -500,7 +452,7 @@ can reuse the same connection for multiple requests!
 
 **Note: Please understand the security implications of opening up an HTTP/WS based
 transport before doing so! Hackers on the internet are actively trying to subvert
-Ethereum nodes with exposed APIs! Further, all browser tabs can access locally
+nodes with exposed APIs! Further, all browser tabs can access locally
 running web servers, so malicious web pages could try to subvert locally available
 APIs!**
 
@@ -777,7 +729,6 @@ $ gwemix --datadir=path/to/custom/data/folder --bootnodes=<bootnode-enode-url-fr
 also need to configure a miner to process transactions and create new blocks for you.*
 
 #### Running a private miner
-
 
 In a private network setting a single CPU miner instance is more than enough for
 practical purposes as it can produce a stable stream of blocks at the correct intervals
