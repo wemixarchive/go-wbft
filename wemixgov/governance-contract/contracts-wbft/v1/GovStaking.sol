@@ -471,7 +471,9 @@ contract GovStaking {
         address _staker,
         bool _restake
     ) external isRegistered(_staker) inspectWithCouncil(GovStaking.claim.selector, abi.encode(_staker, _restake)) {
-        address _user = isOperator(msg.sender) ? _staker : msg.sender;
+        // Operator may claim on behalf of a staker only when msg.sender is the operator
+        // registered for that specific staker, not any staker in the system.
+        address _user = (stakerByOperator[msg.sender] == _staker) ? _staker : msg.sender;
         require(userRewardInfo[_staker][_user].stakingAmount > 0 || userRewardInfo[_staker][_user].pendingReward > 0, "no reward to claim");
         Staker storage _stakerInfo = stakerInfo[_staker];
         UserInfo storage _userInfo = userRewardInfo[_staker][_user];
@@ -513,15 +515,20 @@ contract GovStaking {
         if (_withdrawalCount > 0) {
             _lastIndex = _userCredential.withdrawalIndex + _withdrawalCount;
             require(_lastIndex <= _userCredential.credentialIndex, "out of max user credential index");
-            require(
-                credentials[msg.sender][_userCredential.withdrawalIndex + _withdrawalCount - 1].withdrawableTime <= block.timestamp,
-                "withdrawal time not reached"
-            );
+            // Per-credential expiry is enforced inside the loop below. We must not
+            // assume withdrawableTime is monotonically increasing across credentials
+            // because (1) unbondingPeriodStaker/Delegator can be updated via
+            // governance after some credentials are created, and (2) a single user
+            // can accumulate credentials from both unstake (unbondingPeriodStaker)
+            // and undelegate (unbondingPeriodDelegator) which may differ.
         }
         for (uint256 i = _userCredential.withdrawalIndex; i < _lastIndex; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
-            if (_withdrawalCount == 0 && block.timestamp < _credential.withdrawableTime) {
-                break;
+            if (block.timestamp < _credential.withdrawableTime) {
+                if (_withdrawalCount == 0) {
+                    break; // auto mode: stop at the first not-yet-mature credential
+                }
+                revert("withdrawal time not reached"); // explicit mode: reject partial-mature ranges
             }
             _userCredential.withdrawalIndex++;
             uint256 _withdrawalIndex = _userCredential.withdrawalIndex;
