@@ -24,6 +24,31 @@ import { GovRewardeeImp } from "./GovRewardeeImp.sol";
 import { GovRewardee } from "./GovRewardee.sol";
 import { IGovCouncil } from "./IGovCouncil.sol";
 
+/**
+ * @title GovStaking — staking & reward management for WBFT validators
+ *
+ * Role model
+ * ----------
+ * - Staker   : the on-chain identity of a Validator. The validator's node key
+ *              address is what the consensus layer signs blocks with, and that
+ *              same address is registered here as the `staker`. In other
+ *              words, `staker == validator`.
+ * - Operator : a separate EOA that acts on behalf of the Staker for all
+ *              staking and reward-management interactions with this contract
+ *              (registerStaker / stake / unstake / claim / changeFeeRecipient
+ *              / requestChangingFee / transferOperatorShip).
+ *
+ * Why the Operator indirection exists
+ * -----------------------------------
+ * The validator's node key address could sign staking transactions directly,
+ * but exposing that key to user-facing wallets for routine staking / reward
+ * operations is undesirable: the node key sits on a validator node and
+ * should be treated as a hot, dedicated signer for consensus messages only.
+ * The Operator concept lets the Staker (validator) delegate day-to-day
+ * staking and reward management to a separate key, while the node key's
+ * scope stays limited to block signing. The mapping between the two is
+ * maintained here via `stakerByOperator` and `stakerInfo[staker].operator`.
+ */
 contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
 
