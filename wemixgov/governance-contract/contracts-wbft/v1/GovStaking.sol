@@ -536,34 +536,80 @@ contract GovStaking {
         UserCredentialInfo storage _userCredential = userCredential[msg.sender];
         require(_userCredential.credentialIndex > _userCredential.withdrawalIndex, "no credential to withdraw");
 
-        uint256 _lastIndex = _userCredential.credentialIndex;
-        if (_withdrawalCount > 0) {
-            _lastIndex = _userCredential.withdrawalIndex + _withdrawalCount;
-            require(_lastIndex <= _userCredential.credentialIndex, "out of max user credential index");
-            // Per-credential expiry is enforced inside the loop below. We must not
-            // assume withdrawableTime is monotonically increasing across credentials
-            // because (1) unbondingPeriodStaker/Delegator can be updated via
-            // governance after some credentials are created, and (2) a single user
-            // can accumulate credentials from both unstake (unbondingPeriodStaker)
-            // and undelegate (unbondingPeriodDelegator) which may differ.
-        }
-        for (uint256 i = _userCredential.withdrawalIndex; i < _lastIndex; i++) {
+        // Scan semantics:
+        // - Drain every mature credential encountered; locked credentials are
+        //   skipped (safety: their funds stay locked, no early drain). Empty
+        //   slots (already withdrawn) are also skipped.
+        // - autoMode  (count == 0): process all mature credentials in range.
+        // - count > 0              : stop draining once `count` matures were
+        //                            processed. If the scan ends with fewer
+        //                            matures than requested, the whole call
+        //                            reverts so the caller's intent is
+        //                            all-or-nothing.
+        // - withdrawalIndex becomes "the oldest still-live slot" (locked or
+        //   future credential). Consecutive empty-prefix slots are folded
+        //   into the advance so later scans start at the first live slot.
+        //
+        // This layout preserves VUL-001/004/005/006 safety (locked credentials
+        // are never processed) while restoring liveness: a matured credential
+        // is always reachable regardless of other, still-locked credentials
+        // sitting in front of it (for example, a 28-day unstake credential in
+        // front of a 7-day undelegate credential for the same msg.sender).
+        bool _autoMode = (_withdrawalCount == 0);
+        uint256 _processed = 0;
+        uint256 _oldestAlive = type(uint256).max;
+
+        for (uint256 i = _userCredential.withdrawalIndex; i < _userCredential.credentialIndex; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
-            if (block.timestamp < _credential.withdrawableTime) {
-                if (_withdrawalCount == 0) {
-                    break; // auto mode: stop at the first not-yet-mature credential
+
+            // Explicit mode: once the requested count is met, keep scanning
+            // only to determine the correct pointer advance target.
+            if (!_autoMode && _processed == _withdrawalCount) {
+                if (_oldestAlive == type(uint256).max && _credential.withdrawableTime > 0) {
+                    _oldestAlive = i;
+                    break;
                 }
-                revert("withdrawal time not reached"); // explicit mode: reject partial-mature ranges
+                continue;
             }
-            _userCredential.withdrawalIndex++;
-            uint256 _withdrawalIndex = _userCredential.withdrawalIndex;
+
+            // Empty slot (already withdrawn via a prior call) — skip.
+            if (_credential.withdrawableTime == 0) {
+                continue;
+            }
+
+            // Not-yet-mature credential — skip, remember as potential pointer target.
+            if (block.timestamp < _credential.withdrawableTime) {
+                if (_oldestAlive == type(uint256).max) {
+                    _oldestAlive = i;
+                }
+                continue;
+            }
+
+            // Mature credential — process (CEI: effect then interaction).
             uint256 _amount = _credential.amount;
             delete credentials[msg.sender][i];
 
             (bool success, ) = payable(msg.sender).call{ value: _amount }("");
             require(success, "failed to send withdrawal amount");
 
-            emit Withdrawn(msg.sender, _withdrawalIndex, _amount);
+            emit Withdrawn(msg.sender, i, _amount);
+            _processed++;
+        }
+
+        // Explicit count must be fully satisfied; otherwise revert the entire
+        // transaction so the caller sees an atomic failure.
+        if (!_autoMode && _processed < _withdrawalCount) {
+            revert("insufficient withdrawable credentials");
+        }
+
+        // Advance withdrawalIndex to the first still-live slot. If none remain,
+        // fast-forward to credentialIndex so the next call short-circuits on
+        // the `credentialIndex > withdrawalIndex` guard.
+        uint256 _newIndex = _oldestAlive == type(uint256).max
+            ? _userCredential.credentialIndex
+            : _oldestAlive;
+        if (_newIndex > _userCredential.withdrawalIndex) {
+            _userCredential.withdrawalIndex = _newIndex;
         }
     }
 

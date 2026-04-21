@@ -23,16 +23,19 @@
 //   * withdraw() — when a single account accumulates staker credentials and
 //     delegator credentials with different unbonding periods, the older
 //     locked credential must not be drained via the bulk path.
-//   * withdraw() — auto mode preserves the sequential-lock policy (stops at
-//     the first not-yet-mature credential).
-//   * withdraw() — explicit-count mode succeeds when every credential in the
-//     range is mature, and rejects partial-mature ranges.
+//   * withdraw() — liveness: every matured credential is reachable even when
+//     an earlier credential is still locked. Locked / empty slots are
+//     skipped; the withdrawalIndex pointer advances to the oldest live slot.
+//   * withdraw() — explicit-count mode succeeds when enough matures exist,
+//     and reverts with "insufficient withdrawable credentials" when the
+//     count cannot be met by currently-mature credentials.
 //   * receive() — only a registered active rewardee vault may send coin to
 //     GovStaking; direct EOA sends revert.
 //
 // Related documents:
 //   - docs/secrity-review/fix-report-govstaking-security.md
 //   - docs/secrity-review/govstaking-logic-flow.md
+//   - docs/secrity-review/govstaking-withdraw-liveness-evaluation.md
 
 package test
 
@@ -180,16 +183,15 @@ func TestClaim_OperatorCanClaimOwnDelegationOnAnotherStaker(t *testing.T) {
 }
 
 // -----------------------------------------------------------------------------
-// withdraw() — governance-shortened unbonding period
+// withdraw() — safety under governance-shortened unbonding period
 // -----------------------------------------------------------------------------
 
-// TestWithdraw_RejectsDrainAfterUnbondingPeriodShortened asserts that
-// shortening the staker unbonding period via governance after credentials are
-// already in-flight does not let the earlier (still-locked) credential be
-// drained via the bulk path `withdraw(_withdrawalCount > 0)`. The previous
-// implementation only checked the last credential's withdrawableTime; the
-// corrected implementation enforces per-credential expiry inside the loop.
-func TestWithdraw_RejectsDrainAfterUnbondingPeriodShortened(t *testing.T) {
+// TestWithdraw_SafetyUnderGovernanceShortenedUnbonding asserts that shortening
+// the staker unbonding period via governance after credentials are already in
+// flight does NOT let the earlier (still-locked) credential be drained. The
+// per-credential expiry check inside the loop prevents early drain regardless
+// of mode; locked credentials are simply skipped.
+func TestWithdraw_SafetyUnderGovernanceShortenedUnbonding(t *testing.T) {
 	var (
 		feeRate    = new(big.Int).SetUint64(1000)
 		minStaking = towei(500000)
@@ -211,7 +213,7 @@ func TestWithdraw_RejectsDrainAfterUnbondingPeriodShortened(t *testing.T) {
 	_, err = g.ExpectedOk(g.Stake(t, sX.Operator, topUp))
 	require.NoError(t, err)
 
-	// credential[0] with the ORIGINAL long period.
+	// credential[0] with the ORIGINAL long period (7d).
 	_, err = g.ExpectedOk(g.Unstake(t, sX.Operator, towei(5)))
 	require.NoError(t, err)
 
@@ -239,40 +241,54 @@ func TestWithdraw_RejectsDrainAfterUnbondingPeriodShortened(t *testing.T) {
 	// Advance past the short period — credential[1] is mature, credential[0] is not.
 	g.adjustTime(time.Duration(shortPeriod+60) * time.Second)
 
-	t.Run("explicit bulk withdraw must revert", func(t *testing.T) {
-		// The later, short-period credential matured first, but the earlier
-		// long-period credential is still locked. Per-credential expiry
-		// enforcement inside the loop must abort the whole call.
+	t.Run("explicit count=2 reverts because credential[0] is still locked", func(t *testing.T) {
+		// Requested 2 matures but only 1 is actually mature (credential[1]).
+		// The scan completes with processed=1 < count=2 → revert.
+		// Critically, credential[0] is never drained.
 		err := g.ExpectedFail(g.Withdraw(t, sX.Operator, common.Big2))
-		ExpectedRevert(t, err, "withdrawal time not reached")
+		ExpectedRevert(t, err, "insufficient withdrawable credentials")
 	})
 
-	t.Run("auto withdraw breaks at first immature credential", func(t *testing.T) {
-		// credential[0] is still locked, so withdraw(0) must break
-		// immediately without returning any amount and without advancing
-		// withdrawalIndex. This is the intentional sequential-lock policy:
-		// the user must wait for credential[0] to mature before any later
-		// credential can be withdrawn.
+	t.Run("auto withdraw drains credential[1], leaves credential[0] locked", func(t *testing.T) {
+		// Liveness: the user's 1-hour credential is accessible even though
+		// credential[0] is still locked. VUL-005 is resolved by skipping
+		// (not breaking on) locked credentials in auto mode.
 		receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
 		require.NoError(t, err)
-		require.Empty(t, findEvents("Withdrawn", receipt.Logs),
-			"no Withdrawn event when first credential is immature")
+		events := findEvents("Withdrawn", receipt.Logs)
+		require.Len(t, events, 1, "exactly credential[1] must be drained")
+		// The emitted storage index must be 1 (the short-period credential).
+		require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(1)),
+			"Withdrawn event index must reflect the actual storage key")
+	})
+
+	t.Run("after credential[0] matures, auto withdraw drains it", func(t *testing.T) {
+		// Wait the remaining 7d to mature credential[0].
+		g.adjustTime(time.Duration(7*24*3600) * time.Second)
+
+		receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
+		require.NoError(t, err)
+		events := findEvents("Withdrawn", receipt.Logs)
+		require.Len(t, events, 1, "only credential[0] remained")
+		require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(0)))
 	})
 }
 
 // -----------------------------------------------------------------------------
-// withdraw() — staker/delegator mixed credentials
+// withdraw() — staker/delegator mixed credentials (naturally occurring, no governance change)
 // -----------------------------------------------------------------------------
 
-// TestWithdraw_RejectsDrainOnMixedStakerDelegatorCredentials reproduces the
-// dual-role condition: the same EOA is the operator of one staker and a
+// TestWithdraw_SafetyAndLivenessOnMixedStakerDelegatorCredentials reproduces
+// the dual-role condition: the same EOA is the operator of one staker and a
 // delegator to a different staker. Because unbondingPeriodStaker is longer
 // than unbondingPeriodDelegator in standard deployments, credential[0] (from
-// unstake) matures *later* than credential[1] (from undelegate). The previous
-// last-credential-only expiry check allowed draining credential[0] early; the
-// corrected per-credential check must revert on any locked credential inside
-// the requested range.
-func TestWithdraw_RejectsDrainOnMixedStakerDelegatorCredentials(t *testing.T) {
+// unstake) matures *later* than credential[1] (from undelegate).
+//
+// Safety: the earlier long-period credential cannot be drained early through
+// any mode.
+// Liveness: the later short-period credential is reachable as soon as it
+// matures, even though credential[0] is still locked in front of it.
+func TestWithdraw_SafetyAndLivenessOnMixedStakerDelegatorCredentials(t *testing.T) {
 	var (
 		feeRate     = new(big.Int).SetUint64(1000)
 		minStaking  = towei(500000)
@@ -312,27 +328,34 @@ func TestWithdraw_RejectsDrainOnMixedStakerDelegatorCredentials(t *testing.T) {
 	// Advance 3d + slack → credential[1] mature, credential[0] still locked.
 	g.adjustTime(time.Duration(259200+60) * time.Second)
 
-	t.Run("explicit bulk withdraw must revert", func(t *testing.T) {
+	t.Run("explicit count=2 reverts because only 1 mature", func(t *testing.T) {
+		// Scan finds 1 mature; requested 2 → "insufficient..." revert.
+		// Safety: credential[0] is never drained.
 		err := g.ExpectedFail(g.Withdraw(t, sX.Operator, common.Big2))
-		ExpectedRevert(t, err, "withdrawal time not reached")
+		ExpectedRevert(t, err, "insufficient withdrawable credentials")
 	})
 
-	t.Run("auto withdraw must not advance past the locked credential[0]", func(t *testing.T) {
+	t.Run("auto withdraw drains the mature delegator credential, skips locked staker credential", func(t *testing.T) {
+		// Liveness: credential[1] is reachable even though credential[0] is
+		// still locked. Only the mature one is emitted.
 		receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
 		require.NoError(t, err)
-		require.Empty(t, findEvents("Withdrawn", receipt.Logs),
-			"sequential policy: credential[0] must gate credential[1] until it matures")
+		events := findEvents("Withdrawn", receipt.Logs)
+		require.Len(t, events, 1, "only credential[1] (mature) must be drained")
+		require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(1)),
+			"drained credential must be the delegator one at index 1")
 	})
 
-	t.Run("after credential[0] matures, explicit withdraw succeeds", func(t *testing.T) {
+	t.Run("after credential[0] matures, auto withdraw drains it", func(t *testing.T) {
 		// Wait the remaining 4 days to mature credential[0] (7d total for staker period).
 		g.adjustTime(time.Duration(4*24*3600) * time.Second)
 
-		receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big2))
+		receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
 		require.NoError(t, err)
 
 		events := findEvents("Withdrawn", receipt.Logs)
-		require.Len(t, events, 2, "both mature credentials drained in order")
+		require.Len(t, events, 1, "only credential[0] remained from previous partial withdrawal")
+		require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(0)))
 	})
 }
 
@@ -378,11 +401,9 @@ func TestWithdraw_ExplicitAllMatureStillWorks(t *testing.T) {
 	require.Len(t, findEvents("Withdrawn", receipt.Logs), 3)
 }
 
-// TestWithdraw_AutoModeMixedMaturity verifies that auto mode (count==0) stops
-// at the first immature credential and does not drain later ones — the
-// intentional sequential-lock policy that sits alongside the per-credential
-// expiry check.
-func TestWithdraw_AutoModeMixedMaturity(t *testing.T) {
+// TestWithdraw_AutoModeAllImmatureYieldsNothing verifies that auto mode
+// returns no events when no credential is mature yet.
+func TestWithdraw_AutoModeAllImmatureYieldsNothing(t *testing.T) {
 	var (
 		feeRate    = new(big.Int).SetUint64(1000)
 		minStaking = towei(500000)
@@ -402,16 +423,12 @@ func TestWithdraw_AutoModeMixedMaturity(t *testing.T) {
 	_, err = g.ExpectedOk(g.Stake(t, sX.Operator, towei(20)))
 	require.NoError(t, err)
 
-	// Two unstakes.
+	// Two unstakes — both immediately in locked state.
 	_, err = g.ExpectedOk(g.Unstake(t, sX.Operator, towei(10)))
 	require.NoError(t, err)
 	_, err = g.ExpectedOk(g.Unstake(t, sX.Operator, towei(5)))
 	require.NoError(t, err)
 
-	// Advance past first credential only (use the staker period / 2 plus
-	// account for blocks between the two unstakes — but both have 7d period
-	// so they mature together; instead use a small partial advance that
-	// leaves both immature, confirming auto mode returns nothing).
 	g.adjustTime(time.Hour)
 
 	receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
@@ -419,7 +436,7 @@ func TestWithdraw_AutoModeMixedMaturity(t *testing.T) {
 	require.Empty(t, findEvents("Withdrawn", receipt.Logs),
 		"auto mode yields nothing when nothing is mature yet")
 
-	// Now mature both.
+	// Now mature both and auto-drain.
 	g.adjustTime(time.Duration(604800+60) * time.Second)
 	receipt, err = g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
 	require.NoError(t, err)
@@ -464,9 +481,10 @@ func TestReceive_OnlyActiveRewardeeAllowed(t *testing.T) {
 	ExpectedRevert(t, err, "only an active rewardee can send coin")
 }
 
-// TestWithdraw_OutOfRangeStillRejected is a regression check for the
-// `_lastIndex <= credentialIndex` guard that was NOT removed by the fix.
-func TestWithdraw_OutOfRangeStillRejected(t *testing.T) {
+// TestWithdraw_InsufficientCountReverts verifies explicit mode rejects a
+// request that cannot be fully satisfied by currently-mature credentials.
+// The whole call must revert atomically; no partial processing.
+func TestWithdraw_InsufficientCountReverts(t *testing.T) {
 	var (
 		feeRate    = new(big.Int).SetUint64(1000)
 		minStaking = towei(500000)
@@ -487,7 +505,150 @@ func TestWithdraw_OutOfRangeStillRejected(t *testing.T) {
 	_, err = g.ExpectedOk(g.Unstake(t, sX.Operator, towei(5)))
 	require.NoError(t, err)
 
-	// count=5 but only 1 credential exists — must revert.
+	// count=5 but only 1 credential exists → insufficient matures.
 	err = g.ExpectedFail(g.Withdraw(t, sX.Operator, big.NewInt(5)))
-	ExpectedRevert(t, err, "out of max user credential index")
+	ExpectedRevert(t, err, "insufficient withdrawable credentials")
+}
+
+// -----------------------------------------------------------------------------
+// withdraw() — liveness new coverage (Option C)
+// -----------------------------------------------------------------------------
+
+// TestWithdraw_PointerAdvancesToOldestLiveSlot verifies that after an auto
+// withdrawal that drains some but not all credentials, the withdrawalIndex
+// pointer ends up pointing to the oldest still-live (locked) slot — not to
+// an already-emptied slot and not past a live slot.
+func TestWithdraw_PointerAdvancesToOldestLiveSlot(t *testing.T) {
+	var (
+		feeRate     = new(big.Int).SetUint64(1000)
+		minStaking  = towei(500000)
+		delegateAmt = towei(50000)
+
+		sX = NewTestStaker()
+		sY = NewTestStaker()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		sX.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		sY.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+	})
+	require.NoError(t, err)
+	setWbftGovConfig(g) // staker=604800 (7d), delegator=259200 (3d)
+	defer g.backend.Close()
+
+	_, err = g.ExpectedOk(g.RegisterStaker(t, sX, minStaking, feeRate))
+	require.NoError(t, err)
+	_, err = g.ExpectedOk(g.RegisterStaker(t, sY, minStaking, feeRate))
+	require.NoError(t, err)
+
+	_, err = g.ExpectedOk(g.Stake(t, sX.Operator, towei(20)))
+	require.NoError(t, err)
+
+	// credentials[OpX][0] — 7d staker period (will remain locked after first withdraw)
+	_, err = g.ExpectedOk(g.Unstake(t, sX.Operator, towei(10)))
+	require.NoError(t, err)
+
+	// credentials[OpX][1] — 3d delegator period (will mature first)
+	_, err = g.ExpectedOk(g.Delegate(t, sX.Operator, sY.Staker.Address, delegateAmt))
+	require.NoError(t, err)
+	_, err = g.ExpectedOk(g.Undelegate(t, sX.Operator, sY.Staker.Address, delegateAmt))
+	require.NoError(t, err)
+
+	// Advance 3d + slack → credentials[1] mature, credentials[0] locked.
+	g.adjustTime(time.Duration(259200+60) * time.Second)
+
+	// Drain credentials[1] via auto mode.
+	receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
+	require.NoError(t, err)
+	require.Len(t, findEvents("Withdrawn", receipt.Logs), 1)
+
+	// A second auto call at the same block must not emit anything (credentials[0]
+	// is still locked, credentials[1] is empty now).
+	receipt, err = g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
+	require.NoError(t, err)
+	require.Empty(t, findEvents("Withdrawn", receipt.Logs),
+		"second auto call must yield 0 events: pointer should have advanced to locked credentials[0]")
+
+	// After credentials[0] matures, the same auto call drains it.
+	g.adjustTime(time.Duration(4*24*3600) * time.Second)
+	receipt, err = g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
+	require.NoError(t, err)
+	events := findEvents("Withdrawn", receipt.Logs)
+	require.Len(t, events, 1)
+	require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(0)))
+}
+
+// TestWithdraw_ExplicitPartialMatureDrainsOnlyRequested verifies that when
+// more matures are available than requested, explicit count drains exactly
+// `count` matures and leaves the rest live.
+func TestWithdraw_ExplicitPartialMatureDrainsOnlyRequested(t *testing.T) {
+	var (
+		feeRate    = new(big.Int).SetUint64(1000)
+		minStaking = towei(500000)
+
+		sX = NewTestStaker()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		sX.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+	})
+	require.NoError(t, err)
+	setWbftGovConfig(g)
+	defer g.backend.Close()
+
+	_, err = g.ExpectedOk(g.RegisterStaker(t, sX, minStaking, feeRate))
+	require.NoError(t, err)
+	_, err = g.ExpectedOk(g.Stake(t, sX.Operator, towei(30)))
+	require.NoError(t, err)
+
+	for i := 0; i < 3; i++ {
+		_, err = g.ExpectedOk(g.Unstake(t, sX.Operator, towei(10)))
+		require.NoError(t, err)
+	}
+
+	// All 3 become mature.
+	g.adjustTime(time.Duration(604800+60) * time.Second)
+
+	// Explicit count=2 must drain only 2 credentials.
+	receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big2))
+	require.NoError(t, err)
+	events := findEvents("Withdrawn", receipt.Logs)
+	require.Len(t, events, 2)
+	require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(0)))
+	require.Zero(t, events[1]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(1)))
+
+	// Remaining credential[2] still withdrawable in a subsequent call.
+	receipt, err = g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big1))
+	require.NoError(t, err)
+	events = findEvents("Withdrawn", receipt.Logs)
+	require.Len(t, events, 1)
+	require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(2)))
+}
+
+// TestWithdraw_NoCredentialRevertsUnchanged verifies the empty-set guard is
+// preserved (both pointers equal means no live credential).
+func TestWithdraw_NoCredentialRevertsUnchanged(t *testing.T) {
+	var (
+		feeRate    = new(big.Int).SetUint64(1000)
+		minStaking = towei(500000)
+
+		sX = NewTestStaker()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		sX.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+	})
+	require.NoError(t, err)
+	setWbftGovConfig(g)
+	defer g.backend.Close()
+
+	_, err = g.ExpectedOk(g.RegisterStaker(t, sX, minStaking, feeRate))
+	require.NoError(t, err)
+
+	// No unstake/undelegate yet; credentialIndex == withdrawalIndex == 0.
+	err = g.ExpectedFail(g.Withdraw(t, sX.Operator, common.Big0))
+	ExpectedRevert(t, err, "no credential to withdraw")
+
+	err = g.ExpectedFail(g.Withdraw(t, sX.Operator, common.Big1))
+	ExpectedRevert(t, err, "no credential to withdraw")
 }
