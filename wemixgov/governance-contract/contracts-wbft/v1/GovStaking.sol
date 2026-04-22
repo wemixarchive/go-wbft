@@ -731,8 +731,9 @@ contract GovStaking {
             withdrawableTime: block.timestamp + _unbondingPeriod
         });
 
+        uint256 _credentialIndex = _userCredential.credentialIndex;
         _userCredential.credentialIndex++;
-        emit NewCredential(_userCredential.credentialIndex, msg.sender, _recipient, _amount, block.timestamp, _unbondingPeriod);
+        emit NewCredential(_credentialIndex, msg.sender, _recipient, _amount, block.timestamp, _unbondingPeriod);
     }
 
     function getStakerAmount(address _staker) external view returns (uint256) {
