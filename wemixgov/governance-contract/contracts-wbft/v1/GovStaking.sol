@@ -562,13 +562,25 @@ contract GovStaking {
         for (uint256 i = _userCredential.withdrawalIndex; i < _userCredential.credentialIndex; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
 
-            // Explicit mode: once the requested count is met, keep scanning
-            // only to determine the correct pointer advance target.
+            // Explicit mode: once the requested count is met, no more drains
+            // happen. Remaining iterations exist only to determine the correct
+            // pointer advance target — and only when it is not already known.
             if (!_autoMode && _processed == _withdrawalCount) {
-                if (_oldestAlive == type(uint256).max && _credential.withdrawableTime > 0) {
+                // Pointer target was already set by an earlier locked
+                // credential (L582-584); nothing more to determine.
+                if (_oldestAlive != type(uint256).max) {
+                    break;
+                }
+                // Live slot (locked or mature-but-not-drained) — this is the
+                // oldest still-live slot relative to the drained range.
+                if (_credential.withdrawableTime > 0) {
                     _oldestAlive = i;
                     break;
                 }
+                // Empty slot (already withdrawn by a prior call) — keep
+                // scanning; the oldest still-live slot must not be an empty
+                // one, otherwise subsequent calls would restart scanning from
+                // a drained index.
                 continue;
             }
 

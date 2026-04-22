@@ -625,6 +625,113 @@ func TestWithdraw_ExplicitPartialMatureDrainsOnlyRequested(t *testing.T) {
 	require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(2)))
 }
 
+// TestWithdraw_ExplicitAdvancesPointerPastEmptyHoles verifies that when an
+// earlier withdraw call leaves empty (previously-drained) slots between
+// withdrawalIndex and credentialIndex, a later explicit-mode withdraw that
+// hits its requested count inside that prefix still scans past the empty
+// holes to find the next still-live slot and parks withdrawalIndex there.
+//
+// Regression guard against two classes of mistake:
+//
+//  1. Breaking unconditionally once _processed == _withdrawalCount would
+//     leave _oldestAlive unset, fast-forward withdrawalIndex to
+//     credentialIndex, and strand later live credentials (funds lock-up).
+//  2. Setting _oldestAlive to an empty slot would park withdrawalIndex on a
+//     drained index, wasting gas on future scans.
+//
+// Scenario construction produces credentials = [0:mature, 1:empty, 2:locked]
+// with withdrawalIndex == 0, then calls withdraw(count=1). Correct behavior:
+// drain slot 0, skip slot 1, recognize slot 2 as the oldest still-live slot
+// and advance withdrawalIndex to 2.
+func TestWithdraw_ExplicitAdvancesPointerPastEmptyHoles(t *testing.T) {
+	var (
+		feeRate     = new(big.Int).SetUint64(1000)
+		minStaking  = towei(500000)
+		delegateAmt = towei(50000)
+
+		sX = NewTestStaker()
+		sY = NewTestStaker()
+	)
+
+	g, err := NewGovWBFT(t, nil, types.GenesisAlloc{
+		sX.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+		sY.Operator.Address: {Balance: new(big.Int).Mul(MAX_UINT_128, common.Big2)},
+	})
+	require.NoError(t, err)
+	setWbftGovConfig(g) // staker=604800 (7d), delegator=259200 (3d)
+	defer g.backend.Close()
+
+	_, err = g.ExpectedOk(g.RegisterStaker(t, sX, minStaking, feeRate))
+	require.NoError(t, err)
+	_, err = g.ExpectedOk(g.RegisterStaker(t, sY, minStaking, feeRate))
+	require.NoError(t, err)
+
+	_, err = g.ExpectedOk(g.Stake(t, sX.Operator, towei(30)))
+	require.NoError(t, err)
+
+	// credentials[OpX][0] — 7d staker period.
+	_, err = g.ExpectedOk(g.Unstake(t, sX.Operator, towei(10)))
+	require.NoError(t, err)
+
+	// credentials[OpX][1] — 3d delegator period (matures first).
+	_, err = g.ExpectedOk(g.Delegate(t, sX.Operator, sY.Staker.Address, delegateAmt))
+	require.NoError(t, err)
+	_, err = g.ExpectedOk(g.Undelegate(t, sX.Operator, sY.Staker.Address, delegateAmt))
+	require.NoError(t, err)
+
+	// Advance 3d + slack → credentials[0] still locked, credentials[1] mature.
+	g.adjustTime(time.Duration(259200+60) * time.Second)
+
+	// Drain credentials[1] via auto mode. State afterwards:
+	//   credentials = [0:locked, 1:empty], withdrawalIndex = 0.
+	receipt, err := g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
+	require.NoError(t, err)
+	events := findEvents("Withdrawn", receipt.Logs)
+	require.Len(t, events, 1)
+	require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(1)))
+
+	// Advance enough so credentials[0] also matures (total ~7d+ since unstake).
+	g.adjustTime(time.Duration(604800-259200+60) * time.Second)
+
+	// credentials[OpX][2] — brand-new 3d delegator credential (locked).
+	_, err = g.ExpectedOk(g.Delegate(t, sX.Operator, sY.Staker.Address, delegateAmt))
+	require.NoError(t, err)
+	_, err = g.ExpectedOk(g.Undelegate(t, sX.Operator, sY.Staker.Address, delegateAmt))
+	require.NoError(t, err)
+
+	// State now: credentials = [0:mature, 1:empty, 2:locked],
+	//            withdrawalIndex = 0, credentialIndex = 3.
+	// Explicit withdraw(1) must drain credentials[0] only, skip the empty
+	// credentials[1], and advance the pointer to credentials[2].
+	receipt, err = g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big1))
+	require.NoError(t, err)
+	events = findEvents("Withdrawn", receipt.Logs)
+	require.Len(t, events, 1, "explicit count=1 must drain exactly one credential")
+	require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(0)),
+		"drained credential must be credentials[0]")
+
+	// If the pointer had been fast-forwarded to credentialIndex (3), the
+	// next call would revert with "no credential to withdraw". If it had
+	// been parked on the empty credentials[1], the call would succeed but
+	// also scan the empty slot. Either way, the post-fix pointer must sit
+	// on credentials[2] (still locked) — auto mode at the same block must
+	// not revert and must emit zero events.
+	receipt, err = g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
+	require.NoError(t, err)
+	require.Empty(t, findEvents("Withdrawn", receipt.Logs),
+		"auto mode on a fully-locked residual set must emit no events")
+
+	// After credentials[2] matures the same auto call drains it, proving
+	// the pointer is positioned to reach it.
+	g.adjustTime(time.Duration(259200+60) * time.Second)
+	receipt, err = g.ExpectedOk(g.Withdraw(t, sX.Operator, common.Big0))
+	require.NoError(t, err)
+	events = findEvents("Withdrawn", receipt.Logs)
+	require.Len(t, events, 1)
+	require.Zero(t, events[0]["withdrawalIndex"].(*big.Int).Cmp(big.NewInt(2)),
+		"final drain must target credentials[2]")
+}
+
 // TestWithdraw_NoCredentialRevertsUnchanged verifies the empty-set guard is
 // preserved (both pointers equal means no live credential).
 func TestWithdraw_NoCredentialRevertsUnchanged(t *testing.T) {
