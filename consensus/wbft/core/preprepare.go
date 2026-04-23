@@ -21,6 +21,7 @@
 package core
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -144,6 +145,7 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 			logger.Info("WBFT: PRE-PREPARE block proposal is in the future (will be treated again later)", "duration", duration)
 
 			// start a timer to re-input PRE-PREPARE message as a backlog event
+			c.timerMu.Lock()
 			c.stopFuturePreprepareTimer()
 			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
 				_, validator := c.valSet.GetByAddress(preprepare.Source())
@@ -152,6 +154,7 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 					msg: preprepare,
 				})
 			})
+			c.timerMu.Unlock()
 		} else {
 			logger.Warn("WBFT: invalid PRE-PREPARE block proposal", "err", err)
 		}
@@ -163,8 +166,17 @@ func (c *Core) handlePreprepareMsg(preprepare *wbfmessage.Preprepare) error {
 	if c.state == StateAcceptRequest {
 		c.logger.Debug("WBFT: accepted PRE-PREPARE message")
 
-		// Re-initialize ROUND-CHANGE timer
-		c.newRoundChangeTimer()
+		// Re-initialize ROUND-CHANGE timer.
+		// Snapshot the current view under RLock; newRoundChangeTimer no longer
+		// reads c.current and relies solely on the passed-in values.
+		var seq, round *big.Int
+		c.currentMutex.RLock()
+		if c.current != nil {
+			seq = new(big.Int).Set(c.current.Sequence())
+			round = new(big.Int).Set(c.current.Round())
+		}
+		c.currentMutex.RUnlock()
+		c.newRoundChangeTimer(seq, round)
 		c.consensusTimestamp = time.Now()
 
 		// Update current state
