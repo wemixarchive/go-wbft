@@ -258,8 +258,15 @@ func (c *Core) startNewRound(round *big.Int) {
 	c.backend.NotifyNewRound(round)
 
 	// the order of NotifyNewRound() and newRoundChangeTimer() does not matter on actual consensus, but
-	// it matters on multi-engine test, so we keep the order as it is
-	c.newRoundChangeTimer()
+	// it matters on multi-engine test, so we keep the order as it is.
+	//
+	// currentMutex.Lock() is held here (see top of startNewRound); snapshot the
+	// view fields directly and pass them to newRoundChangeTimer, which no
+	// longer touches c.current.
+	c.newRoundChangeTimer(
+		new(big.Int).Set(c.current.Sequence()),
+		new(big.Int).Set(c.current.Round()),
+	)
 
 	oldLogger.Info("WBFT: start new round", "next.round", newView.Round, "next.seq", newView.Sequence, "next.proposer", c.valSet.GetProposer(), "next.valSet", c.valSet.List(), "next.size", c.valSet.Size(), "next.IsProposer", c.IsProposer())
 }
@@ -337,18 +344,28 @@ func (c *Core) stopTimer() {
 	c.cancelLastSentTimeout()
 }
 
-func (c *Core) newRoundChangeTimer() {
+// newRoundChangeTimer schedules a ROUND-CHANGE timer for the given view.
+// The caller must snapshot seq/round under currentMutex (Lock or RLock) before
+// calling this function; the implementation does not access c.current. This
+// mirrors newRetrySendingRoundChangeTimer's snapshot contract and removes the
+// previous unsynchronized reads of c.current (spin-wait + Sequence/Round calls).
+//
+// If seq or round is nil (e.g. called before c.current is initialized) the
+// function skips scheduling and returns after stopping any prior timer.
+func (c *Core) newRoundChangeTimer(seq, round *big.Int) {
 	c.stopTimer()
 
-	for c.current == nil { // wait because it is asynchronous in handleRequest
-		time.Sleep(10 * time.Millisecond)
+	if seq == nil || round == nil {
+		c.logger.Warn("WBFT: newRoundChangeTimer skipped: current view not initialized")
+		return
 	}
 
 	// set timeout based on the round number
-	cfg := c.config.GetConfig(c.current.Sequence())
+	cfg := c.config.GetConfig(seq)
 	baseTimeout := time.Duration(cfg.RequestTimeout) * time.Millisecond
-	round := c.current.Round().Uint64()
+	roundNum := round.Uint64()
 	maxRequestTimeout := time.Duration(cfg.MaxRequestTimeoutSeconds) * time.Second
+	logger := c.logger.New("current.round", roundNum, "current.sequence", seq.Uint64())
 
 	// If the upper limit of the request timeout is capped by small maxRequestTimeout, round can be a quite large number,
 	// which leads to float64 overflow, making its value negative or zero forever after some point.
@@ -356,7 +373,7 @@ func (c *Core) newRoundChangeTimer() {
 	var timeout time.Duration
 	if maxRequestTimeout > time.Duration(0) {
 		timeout = baseTimeout
-		for i := uint64(0); i < round; i++ {
+		for i := uint64(0); i < roundNum; i++ {
 			timeout = timeout * 2
 			if timeout > maxRequestTimeout {
 				timeout = maxRequestTimeout
@@ -365,18 +382,17 @@ func (c *Core) newRoundChangeTimer() {
 		}
 		// prevent log storm when unexpected overflow happens
 		if timeout < baseTimeout {
-			c.currentLogger(true, nil).Warn("WBFT: Possible request timeout overflow detected, setting timeout value to maxRequestTimeout",
+			logger.Warn("WBFT: Possible request timeout overflow detected, setting timeout value to maxRequestTimeout",
 				"timeout", timeout.Seconds(),
 				"max_request_timeout", maxRequestTimeout.Seconds(),
 			)
 			timeout = maxRequestTimeout
 		}
 	} else {
-		timeoutFloat64 := math.Pow(2, float64(round)) * float64(baseTimeout)
+		timeoutFloat64 := math.Pow(2, float64(roundNum)) * float64(baseTimeout)
 
 		if math.IsNaN(timeoutFloat64) || math.IsInf(timeoutFloat64, 0) || timeoutFloat64 > float64(math.MaxInt64) {
-			c.currentLogger(true, nil).Warn("WBFT: Timeout overflow detected, setting timeout value to MaxInt64",
-				"round", round,
+			logger.Warn("WBFT: Timeout overflow detected, setting timeout value to MaxInt64",
 				"adjusted_timeout", time.Duration(math.MaxInt64).Seconds(),
 			)
 			timeout = time.Duration(math.MaxInt64)
@@ -385,7 +401,7 @@ func (c *Core) newRoundChangeTimer() {
 		}
 	}
 
-	c.currentLogger(true, nil).Trace("WBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
+	logger.Trace("WBFT: start new ROUND-CHANGE timer", "timeout", timeout.Seconds())
 	c.timerMu.Lock()
 	canceled := new(bool)
 	c.lastSentTimeoutCanceled = canceled
