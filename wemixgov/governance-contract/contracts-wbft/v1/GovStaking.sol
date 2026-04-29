@@ -24,6 +24,31 @@ import { GovRewardeeImp } from "./GovRewardeeImp.sol";
 import { GovRewardee } from "./GovRewardee.sol";
 import { IGovCouncil } from "./IGovCouncil.sol";
 
+/**
+ * @title GovStaking — staking & reward management for WBFT validators
+ *
+ * Role model
+ * ----------
+ * - Staker   : the on-chain identity of a Validator. The validator's node key
+ *              address is what the consensus layer signs blocks with, and that
+ *              same address is registered here as the `staker`. In other
+ *              words, `staker == validator`.
+ * - Operator : a separate EOA that acts on behalf of the Staker for all
+ *              staking and reward-management interactions with this contract
+ *              (registerStaker / stake / unstake / claim / changeFeeRecipient
+ *              / requestChangingFee / transferOperatorShip).
+ *
+ * Why the Operator indirection exists
+ * -----------------------------------
+ * The validator's node key address could sign staking transactions directly,
+ * but exposing that key to user-facing wallets for routine staking / reward
+ * operations is undesirable: the node key sits on a validator node and
+ * should be treated as a hot, dedicated signer for consensus messages only.
+ * The Operator concept lets the Staker (validator) delegate day-to-day
+ * staking and reward management to a separate key, while the node key's
+ * scope stays limited to block signing. The mapping between the two is
+ * maintained here via `stakerByOperator` and `stakerInfo[staker].operator`.
+ */
 contract GovStaking {
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -471,7 +496,9 @@ contract GovStaking {
         address _staker,
         bool _restake
     ) external isRegistered(_staker) inspectWithCouncil(GovStaking.claim.selector, abi.encode(_staker, _restake)) {
-        address _user = isOperator(msg.sender) ? _staker : msg.sender;
+        // Operator may claim on behalf of a staker only when msg.sender is the operator
+        // registered for that specific staker, not any staker in the system.
+        address _user = (stakerByOperator[msg.sender] == _staker) ? _staker : msg.sender;
         require(userRewardInfo[_staker][_user].stakingAmount > 0 || userRewardInfo[_staker][_user].pendingReward > 0, "no reward to claim");
         Staker storage _stakerInfo = stakerInfo[_staker];
         UserInfo storage _userInfo = userRewardInfo[_staker][_user];
@@ -509,29 +536,92 @@ contract GovStaking {
         UserCredentialInfo storage _userCredential = userCredential[msg.sender];
         require(_userCredential.credentialIndex > _userCredential.withdrawalIndex, "no credential to withdraw");
 
-        uint256 _lastIndex = _userCredential.credentialIndex;
-        if (_withdrawalCount > 0) {
-            _lastIndex = _userCredential.withdrawalIndex + _withdrawalCount;
-            require(_lastIndex <= _userCredential.credentialIndex, "out of max user credential index");
-            require(
-                credentials[msg.sender][_userCredential.withdrawalIndex + _withdrawalCount - 1].withdrawableTime <= block.timestamp,
-                "withdrawal time not reached"
-            );
-        }
-        for (uint256 i = _userCredential.withdrawalIndex; i < _lastIndex; i++) {
+        // Scan semantics:
+        // - Drain every mature credential encountered; locked credentials are
+        //   skipped (safety: their funds stay locked, no early drain). Empty
+        //   slots (already withdrawn) are also skipped.
+        // - autoMode  (count == 0): process all mature credentials in range.
+        // - count > 0              : stop draining once `count` matures were
+        //                            processed. If the scan ends with fewer
+        //                            matures than requested, the whole call
+        //                            reverts so the caller's intent is
+        //                            all-or-nothing.
+        // - withdrawalIndex becomes "the oldest still-live slot" (locked or
+        //   future credential). Consecutive empty-prefix slots are folded
+        //   into the advance so later scans start at the first live slot.
+        //
+        // This layout preserves VUL-001/004/005/006 safety (locked credentials
+        // are never processed) while restoring liveness: a matured credential
+        // is always reachable regardless of other, still-locked credentials
+        // sitting in front of it (for example, a 28-day unstake credential in
+        // front of a 7-day undelegate credential for the same msg.sender).
+        bool _autoMode = (_withdrawalCount == 0);
+        uint256 _processed = 0;
+        uint256 _oldestAlive = type(uint256).max;
+
+        for (uint256 i = _userCredential.withdrawalIndex; i < _userCredential.credentialIndex; i++) {
             WithdrawalCredential storage _credential = credentials[msg.sender][i];
-            if (_withdrawalCount == 0 && block.timestamp < _credential.withdrawableTime) {
-                break;
+
+            // Explicit mode: once the requested count is met, no more drains
+            // happen. Remaining iterations exist only to determine the correct
+            // pointer advance target — and only when it is not already known.
+            if (!_autoMode && _processed == _withdrawalCount) {
+                // Pointer target was already set by an earlier locked
+                // credential (L582-584); nothing more to determine.
+                if (_oldestAlive != type(uint256).max) {
+                    break;
+                }
+                // Live slot (locked or mature-but-not-drained) — this is the
+                // oldest still-live slot relative to the drained range.
+                if (_credential.withdrawableTime > 0) {
+                    _oldestAlive = i;
+                    break;
+                }
+                // Empty slot (already withdrawn by a prior call) — keep
+                // scanning; the oldest still-live slot must not be an empty
+                // one, otherwise subsequent calls would restart scanning from
+                // a drained index.
+                continue;
             }
-            _userCredential.withdrawalIndex++;
-            uint256 _withdrawalIndex = _userCredential.withdrawalIndex;
+
+            // Empty slot (already withdrawn via a prior call) — skip.
+            if (_credential.withdrawableTime == 0) {
+                continue;
+            }
+
+            // Not-yet-mature credential — skip, remember as potential pointer target.
+            if (block.timestamp < _credential.withdrawableTime) {
+                if (_oldestAlive == type(uint256).max) {
+                    _oldestAlive = i;
+                }
+                continue;
+            }
+
+            // Mature credential — process (CEI: effect then interaction).
             uint256 _amount = _credential.amount;
             delete credentials[msg.sender][i];
 
             (bool success, ) = payable(msg.sender).call{ value: _amount }("");
             require(success, "failed to send withdrawal amount");
 
-            emit Withdrawn(msg.sender, _withdrawalIndex, _amount);
+            emit Withdrawn(msg.sender, i, _amount);
+            _processed++;
+        }
+
+        // Explicit count must be fully satisfied; otherwise revert the entire
+        // transaction so the caller sees an atomic failure.
+        if (!_autoMode && _processed < _withdrawalCount) {
+            revert("insufficient withdrawable credentials");
+        }
+
+        // Advance withdrawalIndex to the first still-live slot. If none remain,
+        // fast-forward to credentialIndex so the next call short-circuits on
+        // the `credentialIndex > withdrawalIndex` guard.
+        uint256 _newIndex = _oldestAlive == type(uint256).max
+            ? _userCredential.credentialIndex
+            : _oldestAlive;
+        if (_newIndex > _userCredential.withdrawalIndex) {
+            _userCredential.withdrawalIndex = _newIndex;
         }
     }
 
@@ -641,8 +731,9 @@ contract GovStaking {
             withdrawableTime: block.timestamp + _unbondingPeriod
         });
 
+        uint256 _credentialIndex = _userCredential.credentialIndex;
         _userCredential.credentialIndex++;
-        emit NewCredential(_userCredential.credentialIndex, msg.sender, _recipient, _amount, block.timestamp, _unbondingPeriod);
+        emit NewCredential(_credentialIndex, msg.sender, _recipient, _amount, block.timestamp, _unbondingPeriod);
     }
 
     function getStakerAmount(address _staker) external view returns (uint256) {

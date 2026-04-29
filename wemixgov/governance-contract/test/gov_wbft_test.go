@@ -345,7 +345,7 @@ func TestGovWithoutNCP(t *testing.T) {
 
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Withdraw(t, s1.Operator, common.Big1)),
-				"withdrawal time not reached",
+				"insufficient withdrawable credentials",
 			)
 
 			// no error, no withdrawal
@@ -558,11 +558,11 @@ func TestGovWithoutNCP(t *testing.T) {
 		t.Run("failure case", func(t *testing.T) {
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Withdraw(t, delegator, common.Big1)),
-				"withdrawal time not reached",
+				"insufficient withdrawable credentials",
 			)
 			ExpectedRevert(t,
 				g.ExpectedFail(g.Withdraw(t, recipient, common.Big1)),
-				"withdrawal time not reached",
+				"insufficient withdrawable credentials",
 			)
 
 			ExpectedRevert(t,
