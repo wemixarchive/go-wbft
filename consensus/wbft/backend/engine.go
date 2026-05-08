@@ -85,6 +85,21 @@ func (sb *Backend) verifyHeader(chain consensus.ChainHeaderReader, header *types
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
+	return sb.verifyHeaders(chain, headers, nil)
+}
+
+// VerifyHeadersWithParent is like VerifyHeaders but accepts an explicit parent
+// header as the parent of headers[0]. Use this when the immediate parent of the
+// first header in the batch is not yet in the chain DB (e.g. snap sync batches
+// that start at the Croissant fork boundary).
+func (sb *Backend) VerifyHeadersWithParent(chain consensus.ChainHeaderReader, headers []*types.Header, parent *types.Header) (chan<- struct{}, <-chan error) {
+	return sb.verifyHeaders(chain, headers, []*types.Header{parent})
+}
+
+// verifyHeaders is the shared implementation for VerifyHeaders and
+// VerifyHeadersWithParent. seed is used as parents for headers[0]; nil means
+// the first header has no in-memory parents and falls back to chain DB lookup.
+func (sb *Backend) verifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seed []*types.Header) (chan<- struct{}, <-chan error) {
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 	go func() {
@@ -94,13 +109,17 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 			if errored {
 				err = consensus.ErrUnknownAncestor
 			} else {
-				err = sb.verifyHeader(chain, header, headers[:i])
+				var parents []*types.Header
+				if i == 0 {
+					parents = seed
+				} else {
+					parents = headers[:i]
+				}
+				err = sb.verifyHeader(chain, header, parents)
 			}
-
 			if err != nil {
 				errored = true
 			}
-
 			select {
 			case <-abort:
 				return
