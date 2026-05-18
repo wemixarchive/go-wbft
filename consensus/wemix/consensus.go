@@ -79,6 +79,9 @@ func (we *CroissantConsensus) VerifyHeader(chain consensus.ChainHeaderReader, he
 	return we.legacy.VerifyHeader(chain, header)
 }
 
+// VerifyHeaders verifies a batch of headers. If the batch spans the Croissant
+// fork boundary, it splits the headers into legacy and wbft slices and verifies
+// each with the appropriate engine sequentially.
 func (we *CroissantConsensus) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
 	if chain.Config().IsCroissant(headers[0].Number) {
 		return we.wbft.VerifyHeaders(chain, headers)
@@ -86,29 +89,46 @@ func (we *CroissantConsensus) VerifyHeaders(chain consensus.ChainHeaderReader, h
 		return we.legacy.VerifyHeaders(chain, headers)
 	}
 
+	// Mixed batch spanning the Croissant fork boundary.
+	// Split into legacy and wbft slices so each engine can do batch verification
+	// (which passes preceding headers as parents), avoiding ErrUnknownAncestor
+	// that would occur if each header were verified individually via VerifyHeader.
+	croissantBlock := chain.Config().CroissantBlock
+	splitIdx := int(new(big.Int).Sub(croissantBlock, headers[0].Number).Int64())
+
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
+
 	go func() {
-		errored := false
-		for _, header := range headers {
-			var err error
-			if errored {
-				err = consensus.ErrUnknownAncestor
-			} else {
-				err = we.VerifyHeader(chain, header)
-			}
-
-			if err != nil {
-				errored = true
-			}
-
+		// Verify legacy headers first. Sequential execution ensures results are
+		// forwarded in order and the last legacy header is available as the parent
+		// seed for the wbft batch below.
+		legacyAbort, legacyResults := we.legacy.VerifyHeaders(chain, headers[:splitIdx])
+		defer close(legacyAbort) // propagate abort to sub-engine goroutine on exit
+		for i := 0; i < splitIdx; i++ {
 			select {
 			case <-abort:
 				return
-			case results <- err:
+			case err := <-legacyResults:
+				results <- err
+			}
+		}
+
+		// Verify wbft headers with the last legacy header injected as the explicit
+		// parent of headers[0], since it is not yet committed to the chain DB
+		// during snap sync.
+		wbftAbort, wbftResults := we.wbft.VerifyHeadersWithParent(chain, headers[splitIdx:], headers[splitIdx-1])
+		defer close(wbftAbort) // propagate abort to sub-engine goroutine on exit
+		for i := splitIdx; i < len(headers); i++ {
+			select {
+			case <-abort:
+				return
+			case err := <-wbftResults:
+				results <- err
 			}
 		}
 	}()
+
 	return abort, results
 }
 
