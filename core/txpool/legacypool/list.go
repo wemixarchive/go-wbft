@@ -274,9 +274,8 @@ type list struct {
 	strict bool       // Whether nonces are strictly continuous or not
 	txs    *sortedMap // Heap indexed sorted hash map of the transactions
 
-	costcap   *uint256.Int // Price of the highest costing transaction (reset only if exceeds balance)
-	gascap    uint64       // Gas limit of the highest spending transaction (reset only if exceeds block limit)
-	totalcost *uint256.Int // Total cost of all transactions in the list
+	costcap *uint256.Int // Price of the highest costing transaction (reset only if exceeds balance)
+	gascap  uint64       // Gas limit of the highest spending transaction (reset only if exceeds block limit)
 
 	// totalvalue is the cumulative tx.Value() of every transaction in the list,
 	// i.e. the amount this account owes purely as a *sender* (regardless of who
@@ -304,7 +303,6 @@ func newList(strict bool) *list {
 		strict:     strict,
 		txs:        newSortedMap(),
 		costcap:    new(uint256.Int),
-		totalcost:  new(uint256.Int),
 		totalvalue: new(uint256.Int),
 		totalgas:   new(uint256.Int),
 	}
@@ -345,14 +343,14 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 			return false, nil
 		}
 		// Old is being replaced, subtract old cost
-		l.subTotalCost([]*types.Transaction{old})
+		l.subCosts([]*types.Transaction{old})
 	}
 	// Add new tx cost to totalcost
 	cost, overflow := uint256.FromBig(tx.Cost())
 	if overflow {
 		return false, nil
 	}
-	l.totalcost.Add(l.totalcost, cost)
+
 	l.addCost(tx)
 
 	// Otherwise overwrite the old transaction with the current one
@@ -371,7 +369,7 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 // maintenance.
 func (l *list) Forward(threshold uint64) types.Transactions {
 	txs := l.txs.Forward(threshold)
-	l.subTotalCost(txs)
+	l.subCosts(txs)
 	return txs
 }
 
@@ -415,8 +413,8 @@ func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uin
 		invalids = l.txs.filter(func(tx *types.Transaction) bool { return tx.Nonce() > lowest })
 	}
 	// Reset total cost
-	l.subTotalCost(removed)
-	l.subTotalCost(invalids)
+	l.subCosts(removed)
+	l.subCosts(invalids)
 	l.txs.reheap()
 	return removed, invalids
 }
@@ -425,7 +423,7 @@ func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uin
 // exceeding that limit.
 func (l *list) Cap(threshold int) types.Transactions {
 	txs := l.txs.Cap(threshold)
-	l.subTotalCost(txs)
+	l.subCosts(txs)
 	return txs
 }
 
@@ -438,11 +436,11 @@ func (l *list) Remove(tx *types.Transaction) (bool, types.Transactions) {
 	if removed := l.txs.Remove(nonce); !removed {
 		return false, nil
 	}
-	l.subTotalCost([]*types.Transaction{tx})
+	l.subCosts([]*types.Transaction{tx})
 	// In strict mode, filter out non-executable transactions
 	if l.strict {
 		txs := l.txs.Filter(func(tx *types.Transaction) bool { return tx.Nonce() > nonce })
-		l.subTotalCost(txs)
+		l.subCosts(txs)
 		return true, txs
 	}
 	return true, nil
@@ -457,7 +455,7 @@ func (l *list) Remove(tx *types.Transaction) (bool, types.Transactions) {
 // happen but better to be self correcting than failing!
 func (l *list) Ready(start uint64) types.Transactions {
 	txs := l.txs.Ready(start)
-	l.subTotalCost(txs)
+	l.subCosts(txs)
 	return txs
 }
 
@@ -484,14 +482,9 @@ func (l *list) LastElement() *types.Transaction {
 	return l.txs.LastElement()
 }
 
-// subTotalCost subtracts the cost of the given transactions from the
-// total cost of all transactions.
-func (l *list) subTotalCost(txs []*types.Transaction) {
+// subCosts applies subCost to each of the given transactions.
+func (l *list) subCosts(txs []*types.Transaction) {
 	for _, tx := range txs {
-		_, underflow := l.totalcost.SubOverflow(l.totalcost, uint256.MustFromBig(tx.Cost()))
-		if underflow {
-			panic("totalcost underflow")
-		}
 		l.subCost(tx)
 	}
 }
