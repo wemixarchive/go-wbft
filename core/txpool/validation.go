@@ -308,14 +308,14 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		// whichever account currently carries it (value -> sender, gas -> its own
 		// gas payer, which may differ from the new transaction's gas payer).
 		var (
-			hasPrev      bool
-			prevGasPayer = from
-			prevValue    = new(big.Int)
-			prevGasCost  = new(big.Int)
+			isReplacement bool
+			prevGasPayer  = from
+			prevValue     = new(big.Int)
+			prevGasCost   = new(big.Int)
 		)
 		if opts.ExistingTx != nil {
 			if prev := opts.ExistingTx(from, tx.Nonce()); prev != nil {
-				hasPrev = true
+				isReplacement = true
 				prevValue = prev.Value()
 				prevGasCost = prev.FeeCost()
 				if prev.Type() == types.FeeDelegateDynamicFeeTxType && prev.FeePayer() != nil {
@@ -325,23 +325,16 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		} else if prev := opts.ExistingCost(from, tx.Nonce()); prev != nil {
 			// Pools without fee-delegation support (e.g. the blob pool): the replaced
 			// transaction is fully sender-paid, so its whole cost belongs to the sender.
-			hasPrev = true
+			isReplacement = true
 			prevGasCost = prev // prev == old.Cost(); oldGasPayer == from
 		}
 
 		// need computes an account's total pooled obligation (value owed as a
 		// sender plus gas owed as a gas payer), augmented by the incoming
 		// transaction's deltas and discounted by any transaction being replaced.
-		need := func(addr common.Address, curValue, curGasCost *big.Int) *big.Int {
+		need := func(addr common.Address, curValue, curGasCost *big.Int) (*big.Int, error) {
 			n := new(big.Int).Set(opts.ExistingExpenditure(addr))
-			// Incoming tx contribution.
-			if addr == from {
-				n.Add(n, curValue)
-			}
-			if addr == gasPayer {
-				n.Add(n, curGasCost)
-			}
-			if hasPrev {
+			if isReplacement {
 				if addr == from {
 					n.Sub(n, prevValue)
 				}
@@ -349,13 +342,19 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 					n.Sub(n, prevGasCost)
 				}
 				if n.Sign() < 0 {
-					n.SetInt64(0) // guard against accounting drift
+					return nil, fmt.Errorf("%w: addr %v, underflow %v",
+						core.ErrTxPoolAccountingUnderflow, addr, new(big.Int).Neg(n))
 				}
 			}
-			return n
+			// Incoming tx contribution.
+			if addr == from {
+				n.Add(n, curValue)
+			}
+			if addr == gasPayer {
+				n.Add(n, curGasCost)
+			}
+			return n, nil
 		}
-
-
 		if from == gasPayer {
 			// Self-paid: value and gas are drawn from the same balance and must be
 			// checked combined, otherwise an account could overdraft by splitting
@@ -387,6 +386,5 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 			}
 		}
 	}
-
 	return nil
 }
