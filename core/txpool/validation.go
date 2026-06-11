@@ -332,10 +332,15 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		// need computes an account's total pooled obligation (value owed as a
 		// sender plus gas owed as a gas payer), augmented by the incoming
 		// transaction's deltas and discounted by any transaction being replaced.
-		need := func(addr common.Address, addValue, addGas *big.Int) *big.Int {
+		need := func(addr common.Address, curValue, curGasCost *big.Int) *big.Int {
 			n := new(big.Int).Set(opts.ExistingExpenditure(addr))
-			n.Add(n, addValue)
-			n.Add(n, addGas)
+			// Incoming tx contribution.
+			if addr == from {
+				n.Add(n, curValue)
+			}
+			if addr == gasPayer {
+				n.Add(n, curGasCost)
+			}
 			if hasPrev {
 				if addr == from {
 					n.Sub(n, prevValue)
@@ -350,24 +355,35 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 			return n
 		}
 
-		zero := new(big.Int)
+
 		if from == gasPayer {
 			// Self-paid: value and gas are drawn from the same balance and must be
 			// checked combined, otherwise an account could overdraft by splitting
 			// its obligations across two independent checks.
-			n := need(from, txValue, txGasCost)
-			if balance.Cmp(n) < 0 {
-				return fmt.Errorf("%w: balance %v, needed %v, overshot %v", core.ErrInsufficientFunds, balance, n, new(big.Int).Sub(n, balance))
+			combinedNeed, err := need(from, txValue, txGasCost)
+			if err != nil {
+				return err
+			}
+			if balance.Cmp(combinedNeed) < 0 {
+				return fmt.Errorf("%w: balance %v, needed %v, overshot %v", core.ErrInsufficientFunds, balance, combinedNeed, new(big.Int).Sub(combinedNeed, balance))
 			}
 		} else {
 			// Fee delegation: the sender covers its value obligations, the fee
 			// payer covers its gas obligations, each against its own balance.
-			if nv := need(from, txValue, zero); balance.Cmp(nv) < 0 {
-				return fmt.Errorf("%w: sender balance %v, needed %v, overshot %v", ErrSenderInsufficientFunds, balance, nv, new(big.Int).Sub(nv, balance))
+			senderNeed, err := need(from, txValue, txGasCost)
+			if err != nil {
+				return err
+			}
+			if balance.Cmp(senderNeed) < 0 {
+				return fmt.Errorf("%w: sender balance %v, needed %v, overshot %v", ErrSenderInsufficientFunds, balance, senderNeed, new(big.Int).Sub(senderNeed, balance))
 			}
 			feePayerBalance := opts.State.GetBalance(gasPayer).ToBig()
-			if ng := need(gasPayer, zero, txGasCost); feePayerBalance.Cmp(ng) < 0 {
-				return fmt.Errorf("%w: fee payer balance %v, needed %v, overshot %v", ErrFeePayerInsufficientFunds, feePayerBalance, ng, new(big.Int).Sub(ng, feePayerBalance))
+			feePayerNeed, err := need(gasPayer, txValue, txGasCost)
+			if err != nil {
+				return err
+			}
+			if feePayerBalance.Cmp(feePayerNeed) < 0 {
+				return fmt.Errorf("%w: fee payer balance %v, needed %v, overshot %v", ErrFeePayerInsufficientFunds, feePayerBalance, feePayerNeed, new(big.Int).Sub(feePayerNeed, feePayerBalance))
 			}
 		}
 	}
