@@ -345,7 +345,6 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 		// Old is being replaced, subtract old cost
 		l.subCosts([]*types.Transaction{old})
 	}
-	// Add new tx cost to totalcost
 	cost, overflow := uint256.FromBig(tx.Cost())
 	if overflow {
 		return false, nil
@@ -412,7 +411,6 @@ func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uin
 		}
 		invalids = l.txs.filter(func(tx *types.Transaction) bool { return tx.Nonce() > lowest })
 	}
-	// Reset total cost
 	l.subCosts(removed)
 	l.subCosts(invalids)
 	l.txs.reheap()
