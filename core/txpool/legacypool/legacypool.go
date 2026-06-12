@@ -670,7 +670,7 @@ func (pool *LegacyPool) addPendingGas(payer common.Address, feeCost *uint256.Int
 func (pool *LegacyPool) subPendingGas(payer common.Address, feeCost *uint256.Int) {
 	acc := pool.pendingGas[payer]
 	if acc == nil {
-		panic("pendingGas underflow")
+		panic("pendingGas: no entry for payer")
 	}
 	if _, underflow := acc.SubOverflow(acc, feeCost); underflow {
 		panic("pendingGas underflow")
