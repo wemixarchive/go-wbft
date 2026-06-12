@@ -658,6 +658,28 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 	return nil
 }
 
+func (pool *LegacyPool) addPendingGas(payer common.Address, feeCost *uint256.Int) {
+	acc := pool.pendingGas[payer]
+	if acc == nil {
+		acc = new(uint256.Int)
+		pool.pendingGas[payer] = acc
+	}
+	acc.Add(acc, feeCost)
+}
+
+func (pool *LegacyPool) subPendingGas(payer common.Address, feeCost *uint256.Int) {
+	acc := pool.pendingGas[payer]
+	if acc == nil {
+		panic("pendingGas underflow")
+	}
+	if _, underflow := acc.SubOverflow(acc, feeCost); underflow {
+		panic("pendingGas underflow")
+	}
+	if acc.IsZero() {
+		delete(pool.pendingGas, payer)
+	}
+}
+
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
@@ -1001,16 +1023,13 @@ func (pool *LegacyPool) journalTx(from common.Address, tx *types.Transaction) {
 
 // promoteTx adds a transaction to the pending (processable) list of transactions
 // and returns whether it was inserted or an older was better.
-//
 // Note, this method assumes the pool lock is held!
 func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
 		list := newList(true)
-		// Share the pool-wide fee-payer gas index by reference so this sender's
-		// fee-delegated txs contribute to their fee payer's cumulative obligation.
-		// Only pending lists are wired up (the overdraft check is pending-only).
-		list.pendingGas = pool.pendingGas
+		list.addPendingGas = pool.addPendingGas
+		list.subPendingGas = pool.subPendingGas
 		pool.pending[addr] = list
 	}
 	list := pool.pending[addr]

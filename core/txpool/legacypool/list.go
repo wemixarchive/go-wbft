@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
 )
 
@@ -289,11 +290,10 @@ type list struct {
 	// list of its own.
 	totalgas *uint256.Int
 
-	// pendingGas is a pool-wide map (shared by reference across all per-account
-	// lists) tracking the cumulative gas (tx.FeeCost()) each account owes when it
-	// acts as the fee payer of fee-delegated transactions. nil is tolerated
-	// (e.g. in unit tests), in which case fee-delegation gas is simply not tracked.
-	pendingGas map[common.Address]*uint256.Int
+	// addPendingGas and subPendingGas update pool-wide fee-payer gas accounting
+	// for fee-delegated transactions in pending lists.
+	addPendingGas func(common.Address, *uint256.Int)
+	subPendingGas func(common.Address, *uint256.Int)
 }
 
 // newList creates a new transaction list for maintaining nonce-indexable fast,
@@ -489,25 +489,36 @@ func (l *list) subCosts(txs []*types.Transaction) {
 	}
 }
 
-// addCost attributes a transaction's value and gas obligations to the right
-// accounts: the value is always owed by the sender (this list's owner), while
-// the gas is owed by the sender for normal transactions or by the fee payer for
-// fee-delegated transactions (tracked pool-wide via pendingGas).
+// tracksExpenditure reports whether this list is wired for the pool-wide fee-payer
+// gas accounting (pending lists are; queue/test lists are not). The two callbacks
+// are always set as a pair — if only one were nil, addCost/subCost would diverge
+// and the accounting (totalvalue/pendingGas) would become wrong, so a half-wired
+// state is treated as a fatal wiring bug and panics. Used as the top-level guard
+// in addCost/subCost so both stay symmetric.
+func (l *list) tracksExpenditure() bool {
+	if (l.addPendingGas == nil) != (l.subPendingGas == nil) {
+		panic("legacypool: inconsistent pendingGas callbacks would corrupt gas accounting ")
+	}
+	return l.addPendingGas != nil
+}
+
+// addCost updates the expenditure counters used by pending-only overdraft
+// accounting. Lists without pending-gas callbacks are unwired queue/test lists;
+// their counters are intentionally unused by ExistingExpenditure, so value and
+// gas are skipped together.
 func (l *list) addCost(tx *types.Transaction) {
+	if !l.tracksExpenditure() {
+		return
+	}
 	l.totalvalue.Add(l.totalvalue, uint256.MustFromBig(tx.Value()))
 
 	feeCost := uint256.MustFromBig(tx.FeeCost())
-	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() != nil {
-		if l.pendingGas == nil {
+	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
+		if tx.FeePayer() == nil {
+			log.Error("fee-delegated tx missing fee payer in addCost", "tx", tx.Hash())
 			return
 		}
-		payer := *tx.FeePayer()
-		acc := l.pendingGas[payer]
-		if acc == nil {
-			acc = new(uint256.Int)
-			l.pendingGas[payer] = acc
-		}
-		acc.Add(acc, feeCost)
+		l.addPendingGas(*tx.FeePayer(), feeCost)
 		return
 	}
 	l.totalgas.Add(l.totalgas, feeCost)
@@ -515,26 +526,20 @@ func (l *list) addCost(tx *types.Transaction) {
 
 // subCost reverses addCost for a removed transaction.
 func (l *list) subCost(tx *types.Transaction) {
+	if !l.tracksExpenditure() {
+		return
+	}
 	if _, underflow := l.totalvalue.SubOverflow(l.totalvalue, uint256.MustFromBig(tx.Value())); underflow {
 		panic("totalvalue underflow")
 	}
 
 	feeCost := uint256.MustFromBig(tx.FeeCost())
-	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() != nil {
-		if l.pendingGas == nil {
+	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
+		if tx.FeePayer() == nil {
+			log.Error("fee-delegated tx missing fee payer in subCost", "tx", tx.Hash())
 			return
 		}
-		payer := *tx.FeePayer()
-		acc := l.pendingGas[payer]
-		if acc == nil {
-			panic("pendingGas underflow")
-		}
-		if _, underflow := acc.SubOverflow(acc, feeCost); underflow {
-			panic("pendingGas underflow")
-		}
-		if acc.IsZero() {
-			delete(l.pendingGas, payer)
-		}
+		l.subPendingGas(*tx.FeePayer(), feeCost)
 		return
 	}
 	if _, underflow := l.totalgas.SubOverflow(l.totalgas, feeCost); underflow {
