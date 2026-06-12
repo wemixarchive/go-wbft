@@ -250,7 +250,7 @@ type LegacyPool struct {
 	reserver   txpool.Reserver                 // Address reserver to ensure exclusivity across subpools
 	pending    map[common.Address]*list        // All currently processable transactions
 	queue      map[common.Address]*list        // Queued but non-processable transactions
-	pendingGas map[common.Address]*uint256.Int // Cumulative pending gas fee indexed by gas payer (sender, or fee payer for delegation txs)
+	pendingGas map[common.Address]*uint256.Int // Cumulative pending gas fee indexed by fee payer for fee-delegated txs
 	beats      map[common.Address]time.Time    // Last heartbeat from each known account
 	all        *lookup                         // All transactions to allow lookups
 	priced     *pricedList                     // All transactions sorted by price
