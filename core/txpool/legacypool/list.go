@@ -501,7 +501,7 @@ func (l *list) subCosts(txs []*types.Transaction) {
 // in addCost/subCost so both stay symmetric.
 func (l *list) tracksExpenditure() bool {
 	if (l.addPendingGas == nil) != (l.subPendingGas == nil) {
-		panic("legacypool: inconsistent pendingGas callbacks would corrupt gas accounting ")
+		panic("inconsistent pendingGas callbacks would corrupt gas accounting")
 	}
 	return l.addPendingGas != nil
 }

@@ -1031,7 +1031,7 @@ func (pool *LegacyPool) journalTx(from common.Address, tx *types.Transaction) {
 
 func newPendingList(add, sub func(common.Address, *uint256.Int)) *list {
 	if add == nil || sub == nil {
-		panic("legacypool: pending list requires both gas accounting callbacks")
+		panic("pending list requires both gas accounting callbacks")
 	}
 	l := newList(true)
 	l.addPendingGas = add
@@ -1051,8 +1051,7 @@ func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *typ
 
 	inserted, old, err := list.Add(tx, pool.config.PriceBump)
 	if err != nil {
-		log.Error("legacypool: promoteTx encountered invalid tx in queue",
-			"tx", tx.Hash(), "err", err)
+		log.Error("Promoting invalid queued transaction", "hash", tx.Hash(), "err", err)
 	}
 	if !inserted {
 		// An older transaction was better, discard this
