@@ -30,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
 )
 
@@ -315,22 +314,23 @@ func (l *list) Contains(nonce uint64) bool {
 	return l.txs.Get(nonce) != nil
 }
 
-// Add tries to insert a new transaction into the list, returning whether the
-// transaction was accepted, and if yes, any previous transaction it replaced.
-// If the new transaction is accepted into the list, the lists' cost and gas
-// thresholds are also potentially updated.
-func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction, error) {
+// Add tries to insert a new transaction into the list, returning any previous
+// transaction it replaced, or an error if the transaction was rejected (e.g.
+// underpriced replacement or invalid fee payer). On success, the list updates
+// its cost/gas thresholds and expenditure accounting (totalvalue, totalgas,
+// and pool-wide pendingGas for fee-delegated transactions).
+func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction, error) {
 	// The upstream ValidateTransaction already rejects these (ErrInvalidFeePayer), so this is
 	// unreachable on the normal path. Keep the invariant local to list.Add too.
 	// if it ever were reached, the caller may surface this as ErrReplaceUnderpriced (when colliding on nonce)
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
-		return false, nil, txpool.ErrInvalidFeePayer
+		return nil, txpool.ErrInvalidFeePayer
 	}
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
 		if old.GasFeeCapCmp(tx) >= 0 || old.GasTipCapCmp(tx) >= 0 {
-			return false, nil, nil
+			return nil, txpool.ErrReplaceUnderpriced
 		}
 		// thresholdFeeCap = oldFC  * (100 + priceBump) / 100
 		a := big.NewInt(100 + int64(priceBump))
@@ -346,18 +346,18 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 		// old ones as well as checking the percentage threshold to ensure that
 		// this is accurate for low (Wei-level) gas price replacements.
 		if tx.GasFeeCapIntCmp(thresholdFeeCap) < 0 || tx.GasTipCapIntCmp(thresholdTip) < 0 {
-			return false, nil, nil
+			return nil, txpool.ErrReplaceUnderpriced
 		}
 		// Old is being replaced, subtract old cost
 		l.subCosts([]*types.Transaction{old})
 	}
 	cost, overflow := uint256.FromBig(tx.Cost())
 	if overflow {
-		return false, nil, nil
+		return nil, txpool.ErrReplaceUnderpriced
 	}
-
-	l.addCost(tx)
-
+	if err := l.addCost(tx); err != nil {
+		return nil, err
+	}
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
 	if l.costcap.Cmp(cost) < 0 {
@@ -366,7 +366,7 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 	if gas := tx.Gas(); l.gascap < gas {
 		l.gascap = gas
 	}
-	return true, old, nil
+	return old, nil
 }
 
 // Forward removes all transactions from the list with a nonce lower than the
@@ -510,22 +510,21 @@ func (l *list) tracksExpenditure() bool {
 // accounting. Lists without pending-gas callbacks are unwired queue/test lists;
 // their counters are intentionally unused by ExistingExpenditure, so value and
 // gas are skipped together.
-func (l *list) addCost(tx *types.Transaction) {
+func (l *list) addCost(tx *types.Transaction) error {
 	if !l.tracksExpenditure() {
-		return
+		return nil
+	}
+	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
+		return txpool.ErrInvalidFeePayer
 	}
 	l.totalvalue.Add(l.totalvalue, uint256.MustFromBig(tx.Value()))
-
 	feeCost := uint256.MustFromBig(tx.FeeCost())
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
-		if tx.FeePayer() == nil {
-			log.Error("fee-delegated tx missing fee payer in addCost", "tx", tx.Hash())
-			return
-		}
 		l.addPendingGas(*tx.FeePayer(), feeCost)
-		return
+		return nil
 	}
 	l.totalgas.Add(l.totalgas, feeCost)
+	return nil
 }
 
 // subCost reverses addCost for a removed transaction.
@@ -533,16 +532,14 @@ func (l *list) subCost(tx *types.Transaction) {
 	if !l.tracksExpenditure() {
 		return
 	}
+	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
+		panic("fee-delegated tx missing fee payer in subCost")
+	}
 	if _, underflow := l.totalvalue.SubOverflow(l.totalvalue, uint256.MustFromBig(tx.Value())); underflow {
 		panic("totalvalue underflow")
 	}
-
 	feeCost := uint256.MustFromBig(tx.FeeCost())
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
-		if tx.FeePayer() == nil {
-			log.Error("fee-delegated tx missing fee payer in subCost", "tx", tx.Hash())
-			return
-		}
 		l.subPendingGas(*tx.FeePayer(), feeCost)
 		return
 	}

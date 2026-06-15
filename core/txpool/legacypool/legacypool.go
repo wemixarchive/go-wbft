@@ -659,6 +659,13 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 }
 
 func (pool *LegacyPool) addPendingGas(payer common.Address, feeCost *uint256.Int) {
+	if feeCost.IsZero() {
+		// A zero gas obligation contributes nothing; do not create a map entry.
+		// subPendingGas mirrors this (it deletes entries that reach zero and panics
+		// on a missing one), so a zero contribution must be skipped on both sides to
+		// keep the accounting symmetric.
+		return
+	}
 	acc := pool.pendingGas[payer]
 	if acc == nil {
 		acc = new(uint256.Int)
@@ -668,9 +675,14 @@ func (pool *LegacyPool) addPendingGas(payer common.Address, feeCost *uint256.Int
 }
 
 func (pool *LegacyPool) subPendingGas(payer common.Address, feeCost *uint256.Int) {
+	if feeCost.IsZero() {
+		// Mirror addPendingGas: a zero contribution was never recorded, so there is
+		// nothing to reverse (and the entry may legitimately not exist).
+		return
+	}
 	acc := pool.pendingGas[payer]
 	if acc == nil {
-		panic("pendingGas: no entry for payer")
+		panic("pendingGas no entry for payer")
 	}
 	if _, underflow := acc.SubOverflow(acc, feeCost); underflow {
 		panic("pendingGas underflow")
@@ -904,15 +916,12 @@ func (pool *LegacyPool) add(tx *types.Transaction, local bool) (replaced bool, e
 	// Try to replace an existing transaction in the pending pool
 	if list := pool.pending[from]; list != nil && list.Contains(tx.Nonce()) {
 		// Nonce already pending, check if required price bump is met
-		inserted, old, err := list.Add(tx, pool.config.PriceBump)
+		old, err := list.Add(tx, pool.config.PriceBump)
 		if err != nil {
 			pendingDiscardMeter.Mark(1)
 			return false, err
 		}
-		if !inserted {
-			pendingDiscardMeter.Mark(1)
-			return false, txpool.ErrReplaceUnderpriced
-		}
+
 		// New transaction is better, replace old one
 		if old != nil {
 			pool.all.Remove(old.Hash())
@@ -982,16 +991,12 @@ func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, local
 	if pool.queue[from] == nil {
 		pool.queue[from] = newList(false)
 	}
-	inserted, old, err := pool.queue[from].Add(tx, pool.config.PriceBump)
+	old, err := pool.queue[from].Add(tx, pool.config.PriceBump)
 	if err != nil {
 		queuedDiscardMeter.Mark(1)
 		return false, err
 	}
-	if !inserted {
-		// An older transaction was better, discard this
-		queuedDiscardMeter.Mark(1)
-		return false, txpool.ErrReplaceUnderpriced
-	}
+
 	// Discard any previous transaction and mark this
 	if old != nil {
 		pool.all.Remove(old.Hash())
@@ -1049,12 +1054,9 @@ func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *typ
 	}
 	list := pool.pending[addr]
 
-	inserted, old, err := list.Add(tx, pool.config.PriceBump)
+	old, err := list.Add(tx, pool.config.PriceBump)
 	if err != nil {
 		log.Error("Promoting invalid queued transaction", "hash", tx.Hash(), "err", err)
-	}
-	if !inserted {
-		// An older transaction was better, discard this
 		pool.all.Remove(hash)
 		pool.priced.Removed(1)
 		pendingDiscardMeter.Mark(1)
