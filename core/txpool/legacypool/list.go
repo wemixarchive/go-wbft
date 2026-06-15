@@ -28,6 +28,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
@@ -316,15 +317,20 @@ func (l *list) Contains(nonce uint64) bool {
 
 // Add tries to insert a new transaction into the list, returning whether the
 // transaction was accepted, and if yes, any previous transaction it replaced.
-//
 // If the new transaction is accepted into the list, the lists' cost and gas
 // thresholds are also potentially updated.
-func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction) {
+func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction, error) {
+	// The upstream ValidateTransaction already rejects these (ErrInvalidFeePayer), so this is
+	// unreachable on the normal path. Keep the invariant local to list.Add too.
+	// if it ever were reached, the caller may surface this as ErrReplaceUnderpriced (when colliding on nonce)
+	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
+		return false, nil, txpool.ErrInvalidFeePayer
+	}
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
 		if old.GasFeeCapCmp(tx) >= 0 || old.GasTipCapCmp(tx) >= 0 {
-			return false, nil
+			return false, nil, nil
 		}
 		// thresholdFeeCap = oldFC  * (100 + priceBump) / 100
 		a := big.NewInt(100 + int64(priceBump))
@@ -340,14 +346,14 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 		// old ones as well as checking the percentage threshold to ensure that
 		// this is accurate for low (Wei-level) gas price replacements.
 		if tx.GasFeeCapIntCmp(thresholdFeeCap) < 0 || tx.GasTipCapIntCmp(thresholdTip) < 0 {
-			return false, nil
+			return false, nil, nil
 		}
 		// Old is being replaced, subtract old cost
 		l.subCosts([]*types.Transaction{old})
 	}
 	cost, overflow := uint256.FromBig(tx.Cost())
 	if overflow {
-		return false, nil
+		return false, nil, nil
 	}
 
 	l.addCost(tx)
@@ -360,7 +366,7 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transa
 	if gas := tx.Gas(); l.gascap < gas {
 		l.gascap = gas
 	}
-	return true, old
+	return true, old, nil
 }
 
 // Forward removes all transactions from the list with a nonce lower than the
