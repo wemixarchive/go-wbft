@@ -692,10 +692,16 @@ func (pool *LegacyPool) subPendingGas(payer common.Address, feeCost *uint256.Int
 	}
 }
 
-// validateTx checks whether a transaction is valid according to the consensus
-// rules and adheres to some heuristic limits of the local node (price and size).
-func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
-	opts := &txpool.ValidationOptionsWithState{
+// stateValidationOptions builds the stateful validation options (nonce, balance
+// and cumulative overdraft checks) used by ValidateTransactionWithState. The same
+// option set is reused on submission (validateTx) and on promotion of queued
+// transactions, so the cumulative affordability check stays identical across both
+// paths. The callbacks read pool.pending / pool.pendingGas live, so when the
+// options are reused while promoting a batch, each freshly promoted transaction's
+// obligation is reflected in the next transaction's check.
+// Note, this method assumes the pool lock is held!
+func (pool *LegacyPool) stateValidationOptions() *txpool.ValidationOptionsWithState {
+	return &txpool.ValidationOptionsWithState{
 		State: pool.currentState,
 
 		FirstNonceGap:    nil, // Pool allows arbitrary arrival order, don't invalidate nonce gaps
@@ -731,7 +737,12 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 			return nil
 		},
 	}
-	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
+}
+
+// validateTx checks whether a transaction is valid according to the consensus
+// rules and adheres to some heuristic limits of the local node (price and size).
+func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
+	if err := txpool.ValidateTransactionWithState(tx, pool.signer, pool.stateValidationOptions()); err != nil {
 		return err
 	}
 	return pool.validateAuth(tx)
@@ -1613,8 +1624,12 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 			pool.all.Remove(hash)
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
-		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), pool.currentState, pool.currentState.GetBalance(addr), gasLimit)
+		// Drop all transactions that are too costly (low balance or out of gas).
+		// enforceFeePayer is false here: a queued fee-delegated tx whose fee payer
+		// is only temporarily insolvent is left queued (and retried on a later
+		// pass) instead of being dropped. The promotion loop below still rejects it
+		// via ValidateTransactionWithState until the fee payer can afford it.
+		drops, _ := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), false, pool.currentState, pool.currentState.GetBalance(addr), gasLimit)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)
@@ -1622,16 +1637,43 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 		log.Trace("Removed unpayable queued transactions", "count", len(drops))
 		queuedNofundsMeter.Mark(int64(len(drops)))
 
-		// Gather all executable transactions and promote them
-		readies := list.Ready(pool.pendingNonces.get(addr))
+		// Peek the executable prefix without removing it, then admit only the
+		// transactions that pass. For fee-delegated transactions the shared fee
+		// payer may be over-committed once several senders' queues are promoted in
+		// the same pass, so run ValidateTransactionWithState (cumulative check)
+		// before each admit. On the first failure we stop: that transaction and
+		// every later one depend on it by nonce, so they stay queued (Peek-then-
+		// Admit) and are retried on a later pass once the fee payer can afford
+		// them. Plain transactions keep the existing per-tx behaviour.
+		readies := list.PeekReady(pool.pendingNonces.get(addr))
+		var (
+			admitted types.Transactions
+			fdOpts   *txpool.ValidationOptionsWithState // nil until the first FD tx; reused for subsequent ones
+		)
 		for _, tx := range readies {
-			hash := tx.Hash()
-			if pool.promoteTx(addr, hash, tx) {
+			if tx.Type() == types.FeeDelegateDynamicFeeTxType {
+				if fdOpts == nil {
+					fdOpts = pool.stateValidationOptions()
+				}
+				if err := txpool.ValidateTransactionWithState(tx, pool.signer, fdOpts); err != nil {
+					break // failing tx and its tail stay queued (nonce dependency)
+				}
+			}
+			if pool.promoteTx(addr, tx.Hash(), tx) {
 				promoted = append(promoted, tx)
+				admitted = append(admitted, tx)
+			} else {
+				// promoteTx already cleaned pool.all/priced; drop it from the
+				// queue and stop, since the tail depends on this nonce.
+				admitted = append(admitted, tx)
+				break
 			}
 		}
-		log.Trace("Promoted queued transactions", "count", len(promoted))
-		queuedGauge.Dec(int64(len(readies)))
+		// PeekReady did not remove anything; remove only the admitted prefix so the
+		// rejected tail remains in the queue.
+		list.RemoveReadyPrefix(admitted)
+		log.Trace("Promoted queued transactions", "count", len(admitted))
+		queuedGauge.Dec(int64(len(admitted)))
 
 		// Drop all transactions over the allowed limit
 		var caps types.Transactions
@@ -1815,7 +1857,9 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), pool.currentState, pool.currentState.GetBalance(addr), gasLimit)
+		// enforceFeePayer is true here: pending txs must stay payable, so a
+		// fee-delegated tx whose fee payer can no longer afford the gas is dropped.
+		drops, invalids := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), true, pool.currentState, pool.currentState.GetBalance(addr), gasLimit)
 		for _, tx := range drops {
 			hash := tx.Hash()
 			pool.all.Remove(hash)

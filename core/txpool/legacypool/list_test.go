@@ -84,7 +84,7 @@ func BenchmarkListAdd(b *testing.B) {
 		list := newList(true)
 		for _, v := range rand.Perm(len(txs)) {
 			list.Add(txs[v], DefaultConfig.PriceBump)
-			list.Filter(false, nil, priceLimit, DefaultConfig.PriceBump)
+			list.Filter(false, true, nil, priceLimit, DefaultConfig.PriceBump)
 		}
 	}
 }
