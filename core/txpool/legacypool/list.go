@@ -512,11 +512,14 @@ func (l *list) subCosts(txs []*types.Transaction) {
 // tracksExpenditure reports whether this list participates in pending
 // expenditure accounting. The pendingGas callbacks must be wired as a pair so
 // addCost/subCost remain symmetric.
+
 func (l *list) tracksExpenditure() bool {
-	if (l.addPendingGas == nil) != (l.subPendingGas == nil) {
+	hasAddPendingGas := l.addPendingGas != nil
+	hasSubPendingGas := l.subPendingGas != nil
+	if hasAddPendingGas != hasSubPendingGas {
 		panic("inconsistent pendingGas callbacks would corrupt gas accounting")
 	}
-	return l.addPendingGas != nil
+	return hasAddPendingGas
 }
 
 // addCost updates pending-only expenditure accounting.
