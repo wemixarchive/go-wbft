@@ -42,8 +42,9 @@ var (
 )
 
 const (
-	sequenceThreshold = 1  // Allow up to 1 future sequence
-	roundThreshold    = 10 // Allow up to 10 future rounds
+	sequenceThreshold          = 1   // Allow up to 1 future sequence
+	roundThreshold             = 10  // Allow up to 10 future rounds
+	maxBacklogSizePerValidator = 100 // Allow up to 100 backlog messages per validator
 )
 
 // isSequenceTooFarAhead returns true if the sequence difference exceeds the threshold
@@ -210,6 +211,12 @@ func (c *Core) addToBacklog(msg wbfmessage.WBFTMessage) {
 		backlog = prque.New[int64, wbfmessage.WBFTMessage](nil)
 		c.backlogs[src] = backlog
 	}
+	// Reject messages from a validator whose backlog exceeds the size limit.
+	if backlog.Size() >= maxBacklogSizePerValidator {
+		logger.Warn("WBFT: backlog is full, dropping message", "src", src, "size", backlog.Size())
+		return
+	}
+
 	view := msg.View()
 	backlog.Push(msg, toNegatePriority(msg.Code(), &view))
 }
