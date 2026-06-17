@@ -208,12 +208,10 @@ type ValidationOptionsWithState struct {
 	// be rejected once the number of remaining slots reaches zero.
 	UsedAndLeftSlots func(addr common.Address) (int, int)
 
-	// ExistingExpenditure is a mandatory callback to retrieve an account's total
-	// cumulative obligation across every role it plays in the pending set: value
-	// it owes as a sender, gas it owes as its own gas payer, and gas it owes as a
-	// fee payer for others' fee-delegated transactions. This single "total
-	// obligation" view keeps the overdraft check correct for both ordinary and
-	// fee-delegated transactions.
+	// ExistingExpenditure retrieves an account's cumulative pending obligation
+	// across all roles: sender value, self-paid gas, and fee-payer gas for delegated
+	// transactions. This lets the overdraft check handle ordinary and fee-delegated
+	// transactions with one account-level balance view.
 	ExistingExpenditure func(addr common.Address) *big.Int
 
 	// ExistingCost is a mandatory callback to retrieve an already pooled
@@ -279,21 +277,17 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		}
 	}
 
-	// Cumulative overdraft protection (DoS hardening).
+	// Cumulative overdraft protection.
 	//
-	// A transaction can clear the per-tx balance checks above yet still be
-	// uncoverable once combined with the account's other pooled obligations. Left
-	// unchecked, an attacker can flood the pool with individually-valid but
-	// collectively-unfundable transactions (sequential value overdrafts from one
-	// sender, or many senders piling gas onto a single fee payer) that mostly
-	// revert on execution and pollute the mempool.
+	// A transaction can pass the per-tx balance checks above but still become
+	// unaffordable when combined with the account's other pending obligations. This
+	// allows individually valid but collectively unfundable transactions to occupy
+	// txpool resources.
 	//
-	// Fee delegation (tx type 0x16) splits an obligation across two accounts: the
-	// sender owes the value, the fee payer owes the gas (FeeCost). The
-	// ExistingExpenditure callback therefore reports each account's *total*
-	// obligation across every role it plays (value as sender, gas as its own gas
-	// payer, and gas as a fee payer for others), so the checks below remain correct
-	// for both normal and fee-delegated transactions.
+	// Fee delegation splits the obligation across two accounts: the sender owes
+	// value and the fee payer owes gas. ExistingExpenditure reports each account's
+	// cumulative pending obligation across all roles, so the checks below work for
+	// both ordinary and fee-delegated transactions.
 	if opts.ExistingExpenditure != nil {
 		// Determine who is responsible for the gas fee of the incoming transaction.
 		gasPayer := from

@@ -311,16 +311,13 @@ func (l *list) Contains(nonce uint64) bool {
 // Add tries to insert a new transaction into the list, returning any previous
 // transaction it replaced, or an error if the transaction was rejected
 func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction, error) {
-	// The upstream ValidateTransaction already rejects these (ErrInvalidFeePayer), so this is
-	// unreachable on the normal path. Keep the invariant local to list.Add too.
-	// if it ever were reached, the caller may surface this as ErrReplaceUnderpriced (when colliding on nonce)
+	// ValidateTransaction rejects fee-delegated txs without a fee payer before they
+	// reach the list, but keep the invariant local because addCost/subCost require it.
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
 		return nil, txpool.ErrInvalidFeePayer
 	}
-	// Compute the cost and reject on overflow before mutating any accounting.
-	// Otherwise a replacement that bails out here would already have subtracted
-	// the old transaction's cost (and decremented feeDelegated), leaving the old
-	// transaction in the map but no longer accounted for.
+	// Reject overflow before mutating accounting, otherwise a failed replacement
+	// could leave the old tx in the map but missing from the list counters.
 	cost, overflow := uint256.FromBig(tx.Cost())
 	if overflow {
 		return nil, txpool.ErrReplaceUnderpriced
@@ -512,12 +509,9 @@ func (l *list) subCosts(txs []*types.Transaction) {
 	}
 }
 
-// tracksExpenditure reports whether this list is wired for the pool-wide fee-payer
-// gas accounting (pending lists are; queue/test lists are not). The two callbacks
-// are always set as a pair — if only one were nil, addCost/subCost would diverge
-// and the accounting (totalcost/pendingGas) would become wrong, so a half-wired
-// state is treated as a fatal wiring bug and panics. Used as the top-level guard
-// in addCost/subCost so both stay symmetric.
+// tracksExpenditure reports whether this list participates in pending
+// expenditure accounting. The pendingGas callbacks must be wired as a pair so
+// addCost/subCost remain symmetric.
 func (l *list) tracksExpenditure() bool {
 	if (l.addPendingGas == nil) != (l.subPendingGas == nil) {
 		panic("inconsistent pendingGas callbacks would corrupt gas accounting")
