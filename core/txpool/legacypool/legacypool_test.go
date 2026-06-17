@@ -3393,8 +3393,6 @@ func TestFeeDelegationCumulativeGasOnPromotion(t *testing.T) {
 
 // validateFeeDelegationAccounting recomputes the fee-delegation accounting from
 // the live pending/queue contents and compares it against the maintained values.
-// validatePoolInternals does not cover these, so it cannot catch drift in the
-// per-list feeDelegated counter, totalvalue/totalgas, or the pool-wide pendingGas.
 func validateFeeDelegationAccounting(pool *LegacyPool) error {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
@@ -3416,10 +3414,10 @@ func validateFeeDelegationAccounting(pool *LegacyPool) error {
 		if fd := countFD(l); l.feeDelegated != fd {
 			return fmt.Errorf("pending[%s].feeDelegated = %d, recomputed %d", addr.Hex(), l.feeDelegated, fd)
 		}
-		sumValue, sumGasNonFD := new(big.Int), new(big.Int)
+		sumCost := new(big.Int)
 		for _, tx := range l.txs.items {
-			sumValue.Add(sumValue, tx.Value())
 			if tx.Type() == types.FeeDelegateDynamicFeeTxType {
+				sumCost.Add(sumCost, tx.Value())
 				p := *tx.FeePayer()
 				acc := wantPendingGas[p]
 				if acc == nil {
@@ -3428,14 +3426,11 @@ func validateFeeDelegationAccounting(pool *LegacyPool) error {
 				}
 				acc.Add(acc, tx.FeeCost())
 			} else {
-				sumGasNonFD.Add(sumGasNonFD, tx.FeeCost())
+				sumCost.Add(sumCost, tx.Cost())
 			}
 		}
-		if l.totalvalue.ToBig().Cmp(sumValue) != 0 {
-			return fmt.Errorf("pending[%s].totalvalue = %v, recomputed %v", addr.Hex(), l.totalvalue, sumValue)
-		}
-		if l.totalgas.ToBig().Cmp(sumGasNonFD) != 0 {
-			return fmt.Errorf("pending[%s].totalgas = %v, recomputed %v", addr.Hex(), l.totalgas, sumGasNonFD)
+		if l.totalcost.ToBig().Cmp(sumCost) != 0 {
+			return fmt.Errorf("pending[%s].totalcost = %v, recomputed %v", addr.Hex(), l.totalcost, sumCost)
 		}
 	}
 	for addr, l := range pool.queue {

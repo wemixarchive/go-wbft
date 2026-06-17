@@ -299,22 +299,11 @@ type list struct {
 	costcap *uint256.Int // Price of the highest costing transaction (reset only if exceeds balance)
 	gascap  uint64       // Gas limit of the highest spending transaction (reset only if exceeds block limit)
 
-	// totalvalue is the cumulative tx.Value() of every transaction in the list,
-	// i.e. the amount this account owes purely as a *sender* (regardless of who
-	// pays the gas). Used for the cumulative overdraft check.
-	totalvalue *uint256.Int
+	// totalcost tracks the sender-side pending cost:
+	// tx.Cost() for non-fee-delegated txs, tx.Value() for fee-delegated txs.
+	totalcost *uint256.Int
 
-	// totalgas is the cumulative gas-side cost (tx.FeeCost()) of the transactions
-	// in this list for which this account is also the gas payer, i.e. every
-	// non-fee-delegated transaction. Gas owed via fee delegation is attributed to
-	// the fee payer through pendingGas instead, since that account may not have a
-	// list of its own.
-	totalgas *uint256.Int
-
-	// feeDelegated counts the fee-delegated transactions currently held. While it
-	// is non-zero the Filter short-circuit is suppressed so the per-tx fee-payer
-	// balance check always runs. Maintained for every list (queue lists included),
-	// hence outside the tracksExpenditure guard.
+	// feeDelegated counts the fee-delegated transactions currently held.
 	feeDelegated int
 
 	// addPendingGas and subPendingGas update pool-wide fee-payer gas accounting
@@ -327,11 +316,10 @@ type list struct {
 // gapped, sortable transaction lists.
 func newList(strict bool) *list {
 	return &list{
-		strict:     strict,
-		txs:        newSortedMap(),
-		costcap:    new(uint256.Int),
-		totalvalue: new(uint256.Int),
-		totalgas:   new(uint256.Int),
+		strict:    strict,
+		txs:       newSortedMap(),
+		costcap:   new(uint256.Int),
+		totalcost: new(uint256.Int),
 	}
 }
 
@@ -342,10 +330,7 @@ func (l *list) Contains(nonce uint64) bool {
 }
 
 // Add tries to insert a new transaction into the list, returning any previous
-// transaction it replaced, or an error if the transaction was rejected (e.g.
-// underpriced replacement or invalid fee payer). On success, the list updates
-// its cost/gas thresholds, the feeDelegated counter, and expenditure accounting
-// (totalvalue, totalgas, and pool-wide pendingGas for fee-delegated transactions).
+// transaction it replaced, or an error if the transaction was rejected
 func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction, error) {
 	// The upstream ValidateTransaction already rejects these (ErrInvalidFeePayer), so this is
 	// unreachable on the normal path. Keep the invariant local to list.Add too.
@@ -510,7 +495,7 @@ func (l *list) RemoveReadyPrefix(txs types.Transactions) {
 	for _, tx := range txs {
 		l.txs.Remove(tx.Nonce())
 	}
-	l.subCosts(txs) // reverse totalvalue/totalgas/pendingGas and feeDelegated
+	l.subCosts(txs) // reverse totalcost/pendingGas and feeDelegated
 }
 
 // Ready retrieves a sequentially increasing list of transactions starting at the
@@ -563,10 +548,6 @@ func (l *list) decFeeDelegated(tx *types.Transaction) {
 	}
 }
 
-// subCosts reverses the accounting for each removed transaction: it decrements
-// the feeDelegated counter and applies subCost (totalvalue/totalgas, or pendingGas
-// for fee-delegated txs). It is the single chokepoint shared by every removal path
-// (Forward/Filter/Cap/Remove/Ready/RemoveReadyPrefix), so the counter stays in sync.
 func (l *list) subCosts(txs []*types.Transaction) {
 	for _, tx := range txs {
 		l.decFeeDelegated(tx)
@@ -577,7 +558,7 @@ func (l *list) subCosts(txs []*types.Transaction) {
 // tracksExpenditure reports whether this list is wired for the pool-wide fee-payer
 // gas accounting (pending lists are; queue/test lists are not). The two callbacks
 // are always set as a pair — if only one were nil, addCost/subCost would diverge
-// and the accounting (totalvalue/pendingGas) would become wrong, so a half-wired
+// and the accounting (totalcost/pendingGas) would become wrong, so a half-wired
 // state is treated as a fatal wiring bug and panics. Used as the top-level guard
 // in addCost/subCost so both stay symmetric.
 func (l *list) tracksExpenditure() bool {
@@ -587,10 +568,7 @@ func (l *list) tracksExpenditure() bool {
 	return l.addPendingGas != nil
 }
 
-// addCost updates the expenditure counters used by pending-only overdraft
-// accounting. Lists without pending-gas callbacks are unwired queue/test lists;
-// their counters are intentionally unused by ExistingExpenditure, so value and
-// gas are skipped together.
+// addCost updates pending-only expenditure accounting.
 func (l *list) addCost(tx *types.Transaction) error {
 	if !l.tracksExpenditure() {
 		return nil
@@ -598,13 +576,12 @@ func (l *list) addCost(tx *types.Transaction) error {
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
 		return txpool.ErrInvalidFeePayer
 	}
-	l.totalvalue.Add(l.totalvalue, uint256.MustFromBig(tx.Value()))
-	feeCost := uint256.MustFromBig(tx.FeeCost())
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
-		l.addPendingGas(*tx.FeePayer(), feeCost)
+		l.totalcost.Add(l.totalcost, uint256.MustFromBig(tx.Value()))
+		l.addPendingGas(*tx.FeePayer(), uint256.MustFromBig(tx.FeeCost()))
 		return nil
 	}
-	l.totalgas.Add(l.totalgas, feeCost)
+	l.totalcost.Add(l.totalcost, uint256.MustFromBig(tx.Cost()))
 	return nil
 }
 
@@ -616,16 +593,15 @@ func (l *list) subCost(tx *types.Transaction) {
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
 		panic("fee-delegated tx missing fee payer in subCost")
 	}
-	if _, underflow := l.totalvalue.SubOverflow(l.totalvalue, uint256.MustFromBig(tx.Value())); underflow {
-		panic("totalvalue underflow")
-	}
-	feeCost := uint256.MustFromBig(tx.FeeCost())
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
-		l.subPendingGas(*tx.FeePayer(), feeCost)
+		if _, underflow := l.totalcost.SubOverflow(l.totalcost, uint256.MustFromBig(tx.Value())); underflow {
+			panic("totalcost underflow")
+		}
+		l.subPendingGas(*tx.FeePayer(), uint256.MustFromBig(tx.FeeCost()))
 		return
 	}
-	if _, underflow := l.totalgas.SubOverflow(l.totalgas, feeCost); underflow {
-		panic("totalgas underflow")
+	if _, underflow := l.totalcost.SubOverflow(l.totalcost, uint256.MustFromBig(tx.Cost())); underflow {
+		panic("totalcost underflow")
 	}
 }
 
