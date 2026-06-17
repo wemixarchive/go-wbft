@@ -47,6 +47,20 @@ const (
 	maxBacklogSizePerValidator = 100 // Allow up to 100 backlog messages per validator
 )
 
+// backlogKey identifies a message slot within a single validator's backlog
+// by message type, sequence, and round.
+type backlogKey struct {
+	code     uint64
+	sequence uint64
+	round    uint64
+}
+
+// assertComparable enforces at compile time that T can be used as a map key.
+func assertComparable[T comparable]() {}
+
+// compile-time check: all fields of backlogKey must remain comparable for use as a map key.
+var _ = assertComparable[backlogKey]
+
 // isSequenceTooFarAhead returns true if the sequence difference exceeds the threshold
 func (c *Core) isSequenceTooFarAhead(viewSeq, currSeq *big.Int, threshold int64) (*big.Int, bool) {
 	seqDiff := new(big.Int).Sub(viewSeq, currSeq)
@@ -218,6 +232,17 @@ func (c *Core) addToBacklog(msg wbfmessage.WBFTMessage) {
 	}
 
 	view := msg.View()
+	pkey := backlogKey{msg.Code(), view.Sequence.Uint64(), view.Round.Uint64()}
+	// Drop the message if the same (code, sequence, round) slot is already queued for this validator.
+	if keys, ok := c.backlogKeys[src]; ok {
+		if _, exists := keys[pkey]; exists {
+			logger.Trace("WBFT: duplicate backlog message, dropping", "src", src)
+			return
+		}
+	} else {
+		c.backlogKeys[src] = make(map[backlogKey]struct{})
+	}
+	c.backlogKeys[src][pkey] = struct{}{}
 	backlog.Push(msg, toNegatePriority(msg.Code(), &view))
 }
 
@@ -237,6 +262,7 @@ func (c *Core) processBacklog() {
 		if src == nil {
 			// validator is not available
 			delete(c.backlogs, srcAddress)
+			delete(c.backlogKeys, srcAddress) // purge all keys for the departing validator
 			continue
 		}
 		logger := c.logger.New("from", src, "state", c.state)
@@ -257,6 +283,7 @@ func (c *Core) processBacklog() {
 			code = msg.Code()
 			view = msg.View()
 			event.msg = msg
+			pkey := backlogKey{msg.Code(), view.Sequence.Uint64(), view.Round.Uint64()}
 
 			// Push back if it's a future message
 			err := c.checkMessage(code, &view)
@@ -268,9 +295,12 @@ func (c *Core) processBacklog() {
 					isFuture = true
 					break
 				}
+				// Message is expired or invalid and will never be processable; remove its key.
+				delete(c.backlogKeys[srcAddress], pkey)
 				logger.Trace("WBFT: skip backlog message", "msg", msg, "err", err)
 				continue
 			}
+			delete(c.backlogKeys[srcAddress], pkey) // remove key on dispatch
 			logger.Trace("WBFT: post backlog event", "msg", msg)
 
 			event.src = src
