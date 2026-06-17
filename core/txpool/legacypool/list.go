@@ -267,27 +267,6 @@ func (m *sortedMap) LastElement() *types.Transaction {
 	return cache[len(cache)-1]
 }
 
-// PeekReady returns the same contiguous run of ready transactions as Ready, but
-// without removing them from the map. Like Ready it starts from the heap minimum
-// nonce (not from start) whenever that minimum is <= start, so transactions with
-// a nonce below start are also returned to stay self-correcting.
-func (m *sortedMap) PeekReady(start uint64) types.Transactions {
-	if m.index.Len() == 0 || (*m.index)[0] > start {
-		return nil
-	}
-	var ready types.Transactions
-	// Walk from the heap minimum, not from start, and stop at the first gap
-	// (equivalent to Ready's heap-front condition).
-	for next := (*m.index)[0]; ; next++ {
-		tx := m.items[next]
-		if tx == nil {
-			break
-		}
-		ready = append(ready, tx)
-	}
-	return ready
-}
-
 // list is a "list" of transactions belonging to an account, sorted by account
 // nonce. The same type can be used both for storing contiguous transactions for
 // the executable/pending queue; and for storing gapped transactions for the non-
@@ -406,13 +385,9 @@ func (l *list) Forward(threshold uint64) types.Transactions {
 // cannot represent the separate fee-payer balance dimension. When the short-circuit
 // is skipped the caps are reset to the provided thresholds.
 //
-// enforceFeePayer controls whether fee-delegated transactions are dropped when
-// their fee payer can no longer afford the gas. It is set on demotion (pending
-// txs must stay payable) and cleared on promotion: a queued fee-delegated tx
-// whose fee payer is only temporarily insolvent is then retained and retried
-// rather than dropped, since queued txs are not in pending/pendingGas/blocks and
-// carry no affordability guarantee yet.
-func (l *list) Filter(feeDelegation bool, enforceFeePayer bool, stateDB *state.StateDB, costLimit *uint256.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
+// For fee-delegated transactions the sender's value and the gas limit are checked
+// as usual, and the fee payer's balance must cover the gas cost.
+func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uint256.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
 	// Short circuit only when every tx is below the thresholds AND the list holds
 	// no fee-delegated tx (the cap check ignores the fee-payer balance dimension).
 	if l.feeDelegated == 0 && l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
@@ -424,12 +399,11 @@ func (l *list) Filter(feeDelegation bool, enforceFeePayer bool, stateDB *state.S
 	// Filter out all the transactions above the account's funds
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
 		if feeDelegation && tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() != nil {
-			// The sender always owes the value and the gas must fit the block;
-			// the fee payer's balance is only enforced when requested (demotion).
-			if tx.Gas() > gasLimit || tx.Value().Cmp(costLimit.ToBig()) > 0 {
-				return true
-			}
-			return enforceFeePayer && tx.FeeCost().Cmp(stateDB.GetBalance(*tx.FeePayer()).ToBig()) > 0
+			// Sender owes the value, the gas must fit the block, and the fee payer
+			// must cover the gas cost.
+			return tx.Gas() > gasLimit ||
+				tx.Value().Cmp(costLimit.ToBig()) > 0 ||
+				tx.FeeCost().Cmp(stateDB.GetBalance(*tx.FeePayer()).ToBig()) > 0
 		}
 		return tx.Gas() > gasLimit || tx.Cost().Cmp(costLimit.ToBig()) > 0
 	})
@@ -479,23 +453,6 @@ func (l *list) Remove(tx *types.Transaction) (bool, types.Transactions) {
 		return true, txs
 	}
 	return true, nil
-}
-
-// PeekReady returns the ready transactions without removing them, mirroring
-// Ready's contiguous-run semantics. Used by promotion to validate fee-delegated
-// transactions before deciding which prefix to admit.
-func (l *list) PeekReady(start uint64) types.Transactions {
-	return l.txs.PeekReady(start)
-}
-
-// RemoveReadyPrefix removes the given (already peeked) transactions from the list
-// and reverses their cost accounting. Only the admitted prefix is passed in, so
-// any transactions left behind by promotion stay queued.
-func (l *list) RemoveReadyPrefix(txs types.Transactions) {
-	for _, tx := range txs {
-		l.txs.Remove(tx.Nonce())
-	}
-	l.subCosts(txs) // reverse totalcost/pendingGas and feeDelegated
 }
 
 // Ready retrieves a sequentially increasing list of transactions starting at the

@@ -3138,9 +3138,9 @@ func BenchmarkMultiAccountBatchInsert(b *testing.B) {
 	}
 }
 
-// feeDelegateTx builds a fee delegation dynamic-fee transaction signed by both
-// the sender (over the inner DynamicFeeTx) and the fee payer (over the wrapping
-// FeeDelegateDynamicFeeTx).
+// feeDelegateTx creates a fee-delegated dynamic-fee tx signed by the sender and
+// fee payer. The sender signs the inner DynamicFeeTx; the fee payer signs the
+// outer FeeDelegateDynamicFeeTx.
 func feeDelegateTx(chainID *big.Int, nonce uint64, gas uint64, gasFeeCap, gasTipCap, value *big.Int, senderKey, feePayerKey *ecdsa.PrivateKey) *types.Transaction {
 	to := common.Address{}
 	inner := types.DynamicFeeTx{
@@ -3233,13 +3233,10 @@ func TestFeeDelegationCumulativeGas(t *testing.T) {
 	}
 }
 
-// TestPendingGasZeroAccounting verifies that fee-delegated transactions whose gas
-// obligation is zero (e.g. a zero gas-fee-cap tx) do not corrupt the pool-wide
-// per-fee-payer gas index. addPendingGas creates an entry on first use and
-// subPendingGas deletes it once it reaches zero and panics on a missing one, so a
-// naive implementation would: create a zero entry, delete it on the first
-// removal, then panic on the second removal of another zero-gas tx sharing the
-// fee payer. The accounting must skip zero contributions symmetrically instead.
+// TestPendingGasZeroAccounting verifies that zero gas obligations are ignored
+// symmetrically by pendingGas add/remove accounting, so multiple zero-cost
+// fee-delegated txs sharing a fee payer can be removed without creating stale
+// entries or underflow panics.
 func TestPendingGasZeroAccounting(t *testing.T) {
 	t.Parallel()
 
@@ -3352,31 +3349,23 @@ func TestFeeDelegationCumulativeGasOnPromotion(t *testing.T) {
 	if g := pool.pendingGas[feePayer]; g != nil {
 		gotGas = g.ToBig()
 	}
-	pendingFD, queuedFD := 0, 0
-	for i, tx := range gapTxs {
-		sender := crypto.PubkeyToAddress(senders[i].PublicKey)
-		if pool.all.Get(tx.Hash()) == nil {
-			pool.mu.RUnlock()
-			t.Fatalf("gap tx %d was dropped from pool.all; Peek-then-Admit must retain rejected txs", i)
-		}
-		switch {
-		case pool.pending[sender] != nil && pool.pending[sender].txs.Get(tx.Nonce()) != nil:
-			pendingFD++
-		case pool.queue[sender] != nil && pool.queue[sender].txs.Get(tx.Nonce()) != nil:
-			queuedFD++
-		default:
-			pool.mu.RUnlock()
-			t.Fatalf("gap tx %d is in neither the pending nor the queue list", i)
+	promotedCount, droppedCount := 0, 0
+	for _, tx := range gapTxs {
+		if pool.all.Get(tx.Hash()) != nil {
+			promotedCount++
+		} else {
+			droppedCount++
 		}
 	}
+	if promotedCount != 2 || droppedCount != 1 {
+		t.Fatalf("want 2 promoted and 1 dropped")
+	}
+
 	feePayerBalance := pool.currentState.GetBalance(feePayer).ToBig()
 	pool.mu.RUnlock()
 
 	if want := new(big.Int).Mul(perTxGas, big.NewInt(2)); gotGas.Cmp(want) != 0 {
 		t.Fatalf("pendingGas[feePayer] = %v after promotion, want %v", gotGas, want)
-	}
-	if pendingFD != 2 || queuedFD != 1 {
-		t.Fatalf("fee-delegated txs: %d pending, %d queued, want 2 pending and 1 queued", pendingFD, queuedFD)
 	}
 	// The fee payer's aggregate gas obligation must never exceed its balance.
 	if gotGas.Cmp(feePayerBalance) > 0 {
@@ -3458,52 +3447,6 @@ func validateFeeDelegationAccounting(pool *LegacyPool) error {
 		}
 	}
 	return nil
-}
-
-// TestPeekReadyNonDestructive verifies that list.PeekReady returns the same
-// contiguous run as Ready without removing anything, that it is self-correcting
-// (returns from the heap minimum even when start is higher), and that
-// RemoveReadyPrefix removes only the admitted prefix.
-func TestPeekReadyNonDestructive(t *testing.T) {
-	t.Parallel()
-
-	key, _ := crypto.GenerateKey()
-	l := newList(false)
-	for _, n := range []uint64{0, 1, 2, 4} { // gap at nonce 3
-		l.Add(transaction(n, 0, key), DefaultConfig.PriceBump)
-	}
-
-	// PeekReady returns the contiguous run 0,1,2 (stops at the gap) without removing.
-	ready := l.PeekReady(0)
-	if len(ready) != 3 || ready[0].Nonce() != 0 || ready[1].Nonce() != 1 || ready[2].Nonce() != 2 {
-		t.Fatalf("PeekReady(0) returned wrong run: %v", nonceSlice(ready))
-	}
-	if l.txs.Len() != 4 {
-		t.Fatalf("PeekReady must not remove items: Len = %d, want 4", l.txs.Len())
-	}
-
-	// Self-correcting: even with start beyond the minimum it returns from the heap
-	// minimum (0,1,2), mirroring Ready, so low-nonce txs are never stranded.
-	if got := l.PeekReady(2); len(got) != 3 || got[0].Nonce() != 0 {
-		t.Fatalf("PeekReady(2) = %v, want run starting at heap minimum 0", nonceSlice(got))
-	}
-
-	// Remove only the admitted prefix (0,1); nonces 2 and 4 stay queued.
-	l.RemoveReadyPrefix(ready[:2])
-	if l.txs.Len() != 2 || l.txs.Get(0) != nil || l.txs.Get(1) != nil {
-		t.Fatalf("RemoveReadyPrefix must remove exactly nonces 0,1 (Len=%d)", l.txs.Len())
-	}
-	if l.txs.Get(2) == nil || l.txs.Get(4) == nil {
-		t.Fatalf("RemoveReadyPrefix removed more than the prefix")
-	}
-}
-
-func nonceSlice(txs types.Transactions) []uint64 {
-	out := make([]uint64, len(txs))
-	for i, tx := range txs {
-		out[i] = tx.Nonce()
-	}
-	return out
 }
 
 // TestListFeeDelegatedCounter verifies that the per-list feeDelegated counter is
@@ -3600,74 +3543,6 @@ func TestFeeDelegationFilterShortCircuitGate(t *testing.T) {
 	}
 	if pg != nil && !pg.IsZero() {
 		t.Fatalf("pendingGas[feePayer] = %v after demote, want 0", pg)
-	}
-	if err := validateFeeDelegationAccounting(pool); err != nil {
-		t.Fatalf("fee-delegation accounting drift: %v", err)
-	}
-}
-
-// TestFeeDelegationFeePayerDipRevives verifies the promotion-path liveness goal:
-// a queued fee-delegated tx whose fee payer is only temporarily insolvent is not
-// dropped by the promote-time Filter (enforceFeePayer=false). It stays queued
-// while the fee payer is short, and is promoted automatically once the fee payer
-// can afford it again, without the sender having to resubmit.
-func TestFeeDelegationFeePayerDipRevives(t *testing.T) {
-	t.Parallel()
-
-	config := *params.TestChainConfig
-	config.ApplepieBlock = big.NewInt(0)
-	pool, _ := setupPoolWithConfig(&config)
-	defer pool.Close()
-
-	chainID := config.ChainID
-	const gasLimit = 21000
-	gasFeeCap := big.NewInt(1_000_000_000)
-	gasTipCap := big.NewInt(1)
-	value := big.NewInt(100)
-	feeCost := new(big.Int).Mul(big.NewInt(gasLimit), gasFeeCap)
-
-	senderKey, _ := crypto.GenerateKey()
-	sender := crypto.PubkeyToAddress(senderKey.PublicKey)
-	payerKey, _ := crypto.GenerateKey()
-	feePayer := crypto.PubkeyToAddress(payerKey.PublicKey)
-
-	testAddBalance(pool, sender, new(big.Int).Mul(feeCost, big.NewInt(10)))
-	testAddBalance(pool, feePayer, feeCost)
-
-	// nonce 0 self-paid (closes the gap), nonce 1 fee-delegated (the one under test).
-	fillTx := dynamicFeeTx(0, gasLimit, gasFeeCap, gasTipCap, senderKey)
-	fdTx := feeDelegateTx(chainID, 1, gasLimit, gasFeeCap, gasTipCap, value, senderKey, payerKey)
-	pool.enqueueTx(fillTx.Hash(), fillTx, false, true)
-	pool.enqueueTx(fdTx.Hash(), fdTx, false, true)
-
-	// Fee payer dips below the FD tx's gas cost just before promotion.
-	testAddBalance(pool, feePayer, new(big.Int).Neg(feeCost))
-	pool.promoteExecutables([]common.Address{sender})
-
-	// The FD tx must NOT be dropped: it stays queued (not pending) and tracked.
-	if pool.all.Get(fdTx.Hash()) == nil {
-		t.Fatalf("fee-delegated tx was dropped during a transient fee-payer dip")
-	}
-	if pool.pending[sender] != nil && pool.pending[sender].txs.Get(1) != nil {
-		t.Fatalf("fee-delegated tx promoted while fee payer was insolvent")
-	}
-	if pool.queue[sender] == nil || pool.queue[sender].txs.Get(1) == nil {
-		t.Fatalf("fee-delegated tx should remain queued during the dip")
-	}
-	if g := pool.pendingGas[feePayer]; g != nil && !g.IsZero() {
-		t.Fatalf("pendingGas[feePayer] = %v while FD tx is only queued, want 0", g)
-	}
-
-	// Fee payer is funded again; the next promotion pass must admit the FD tx
-	// automatically, without any resubmission.
-	testAddBalance(pool, feePayer, feeCost)
-	pool.promoteExecutables([]common.Address{sender})
-
-	if pool.pending[sender] == nil || pool.pending[sender].txs.Get(1) == nil {
-		t.Fatalf("fee-delegated tx was not auto-promoted after the fee payer recovered")
-	}
-	if g := pool.pendingGas[feePayer]; g == nil || g.ToBig().Cmp(feeCost) != 0 {
-		t.Fatalf("pendingGas[feePayer] = %v after revival, want %v", g, feeCost)
 	}
 	if err := validateFeeDelegationAccounting(pool); err != nil {
 		t.Fatalf("fee-delegation accounting drift: %v", err)
