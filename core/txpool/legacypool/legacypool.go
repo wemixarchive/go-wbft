@@ -247,12 +247,13 @@ type LegacyPool struct {
 	locals  *accountSet // Set of local transaction to exempt from eviction rules
 	journal *journal    // Journal of local transaction to back up to disk
 
-	reserver txpool.Reserver              // Address reserver to ensure exclusivity across subpools
-	pending  map[common.Address]*list     // All currently processable transactions
-	queue    map[common.Address]*list     // Queued but non-processable transactions
-	beats    map[common.Address]time.Time // Last heartbeat from each known account
-	all      *lookup                      // All transactions to allow lookups
-	priced   *pricedList                  // All transactions sorted by price
+	reserver   txpool.Reserver                 // Address reserver to ensure exclusivity across subpools
+	pending    map[common.Address]*list        // All currently processable transactions
+	queue      map[common.Address]*list        // Queued but non-processable transactions
+	pendingGas map[common.Address]*uint256.Int // Cumulative pending gas fee indexed by fee payer for fee-delegated txs
+	beats      map[common.Address]time.Time    // Last heartbeat from each known account
+	all        *lookup                         // All transactions to allow lookups
+	priced     *pricedList                     // All transactions sorted by price
 
 	reqResetCh      chan *txpoolResetRequest
 	reqPromoteCh    chan *accountSet
@@ -283,6 +284,7 @@ func New(config Config, chain BlockChain) *LegacyPool {
 		signer:          types.LatestSigner(chain.Config()),
 		pending:         make(map[common.Address]*list),
 		queue:           make(map[common.Address]*list),
+		pendingGas:      make(map[common.Address]*uint256.Int),
 		beats:           make(map[common.Address]time.Time),
 		all:             newLookup(),
 		reqResetCh:      make(chan *txpoolResetRequest),
@@ -656,6 +658,28 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 	return nil
 }
 
+func (pool *LegacyPool) addPendingGas(payer common.Address, feeCost *uint256.Int) {
+	acc := pool.pendingGas[payer]
+	if acc == nil {
+		acc = new(uint256.Int)
+		pool.pendingGas[payer] = acc
+	}
+	acc.Add(acc, feeCost)
+}
+
+func (pool *LegacyPool) subPendingGas(payer common.Address, feeCost *uint256.Int) {
+	acc := pool.pendingGas[payer]
+	if acc == nil {
+		panic("pendingGas no entry for payer")
+	}
+	if _, underflow := acc.SubOverflow(acc, feeCost); underflow {
+		panic("pendingGas underflow")
+	}
+	if acc.IsZero() {
+		delete(pool.pendingGas, payer)
+	}
+}
+
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
@@ -665,16 +689,32 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 		FirstNonceGap:    nil, // Pool allows arbitrary arrival order, don't invalidate nonce gaps
 		UsedAndLeftSlots: nil, // Pool has own mechanism to limit the number of transactions
 		ExistingExpenditure: func(addr common.Address) *big.Int {
+			// Total wei the account is on the hook for in the pending set (matching
+			// upstream's pending-only accounting): value it owes as a sender, gas it
+			// owes as its own gas payer, and gas it owes as a fee payer for others.
+			// Queued (non-executable) txs are not counted; they are re-checked on
+			// promotion.
+			obligation := new(big.Int)
 			if list := pool.pending[addr]; list != nil {
-				return list.totalcost.ToBig()
+				obligation.Add(obligation, list.totalvalue.ToBig())
+				obligation.Add(obligation, list.totalgas.ToBig())
 			}
-			return new(big.Int)
+			if g := pool.pendingGas[addr]; g != nil {
+				obligation.Add(obligation, g.ToBig())
+			}
+			return obligation
 		},
 		ExistingCost: func(addr common.Address, nonce uint64) *big.Int {
 			if list := pool.pending[addr]; list != nil {
 				if tx := list.txs.Get(nonce); tx != nil {
 					return tx.Cost()
 				}
+			}
+			return nil
+		},
+		ExistingTx: func(addr common.Address, nonce uint64) *types.Transaction {
+			if list := pool.pending[addr]; list != nil {
+				return list.txs.Get(nonce)
 			}
 			return nil
 		},
@@ -988,7 +1028,10 @@ func (pool *LegacyPool) journalTx(from common.Address, tx *types.Transaction) {
 func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
-		pool.pending[addr] = newList(true)
+		list := newList(true)
+		list.addPendingGas = pool.addPendingGas
+		list.subPendingGas = pool.subPendingGas
+		pool.pending[addr] = list
 	}
 	list := pool.pending[addr]
 
