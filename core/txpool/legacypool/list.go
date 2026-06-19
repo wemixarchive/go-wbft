@@ -311,9 +311,8 @@ func (l *list) Contains(nonce uint64) bool {
 // If the new transaction is accepted into the list, the list's cost and gas
 // thresholds and expenditure accounting are also potentially updated.
 func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction, error) {
-	// The upstream ValidateTransaction already rejects these (ErrInvalidFeePayer), so this is
-	// unreachable on the normal path. Keep the invariant local to list.Add too.
-	// if it ever were reached, the caller may surface this as ErrReplaceUnderpriced (when colliding on nonce)
+	// ValidateTransaction rejects fee-delegated txs without a fee payer before they
+	// reach the list. Check again here because addCost/subCost dereference FeePayer.
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
 		return nil, txpool.ErrInvalidFeePayer
 	}
@@ -484,12 +483,9 @@ func (l *list) subCosts(txs []*types.Transaction) {
 	}
 }
 
-// tracksExpenditure reports whether this list is wired for the pool-wide fee-payer
-// gas accounting (pending lists are; queue/test lists are not). The two callbacks
-// are always set as a pair — if only one were nil, addCost/subCost would diverge
-// and the accounting (totalvalue/pendingGas) would become wrong, so a half-wired
-// state is treated as a fatal wiring bug and panics. Used as the top-level guard
-// in addCost/subCost so both stay symmetric.
+// tracksExpenditure reports whether this list participates in pending
+// expenditure accounting. The pendingGas callbacks must be wired as a pair so
+// addCost/subCost remain symmetric.
 func (l *list) tracksExpenditure() bool {
 	hasAddPendingGas := l.addPendingGas != nil
 	hasSubPendingGas := l.subPendingGas != nil
@@ -499,10 +495,9 @@ func (l *list) tracksExpenditure() bool {
 	return hasAddPendingGas
 }
 
-// addCost updates the expenditure counters used by pending-only overdraft
-// accounting. Lists without pending-gas callbacks are unwired queue/test lists;
-// their counters are intentionally unused by ExistingExpenditure, so value and
-// gas are skipped together.
+// addCost updates pending-only expenditure accounting: totalcost for sender-side
+// obligations and pendingGas for fee-payer gas. Queue/test lists are not wired
+// into ExistingExpenditure, so they skip this accounting entirely.
 func (l *list) addCost(tx *types.Transaction) error {
 	if !l.tracksExpenditure() {
 		return nil

@@ -277,21 +277,17 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		}
 	}
 
-	// Cumulative overdraft protection (DoS hardening).
+	// Cumulative overdraft protection.
 	//
-	// A transaction can clear the per-tx balance checks above yet still be
-	// uncoverable once combined with the account's other pooled obligations. Left
-	// unchecked, an attacker can flood the pool with individually-valid but
-	// collectively-unfundable transactions (sequential value overdrafts from one
-	// sender, or many senders piling gas onto a single fee payer) that mostly
-	// revert on execution and pollute the mempool.
+	// A transaction can pass the per-tx balance checks above but still become
+	// unaffordable when combined with the account's other pending obligations. This
+	// allows individually valid but collectively unfundable transactions to occupy
+	// txpool resources.
 	//
-	// Fee delegation (tx type 0x16) splits an obligation across two accounts: the
-	// sender owes the value, the fee payer owes the gas (FeeCost). The
-	// ExistingExpenditure callback therefore reports each account's *total*
-	// obligation across every role it plays (value as sender, gas as its own gas
-	// payer, and gas as a fee payer for others), so the checks below remain correct
-	// for both normal and fee-delegated transactions.
+	// Fee delegation splits the obligation across two accounts: the sender owes
+	// value and the fee payer owes gas. ExistingExpenditure reports each account's
+	// cumulative pending obligation across all roles, so the checks below work for
+	// both ordinary and fee-delegated transactions.
 	if opts.ExistingExpenditure != nil {
 		// Determine who is responsible for the gas fee of the incoming transaction.
 		gasPayer := from
