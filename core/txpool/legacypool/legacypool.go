@@ -660,7 +660,6 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 
 func (pool *LegacyPool) addPendingGas(payer common.Address, feeCost *uint256.Int) {
 	if feeCost.IsZero() {
-		// Zero-cost removals are no-ops.
 		return
 	}
 	acc := pool.pendingGas[payer]
@@ -697,17 +696,17 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 		FirstNonceGap:    nil, // Pool allows arbitrary arrival order, don't invalidate nonce gaps
 		UsedAndLeftSlots: nil, // Pool has own mechanism to limit the number of transactions
 		ExistingExpenditure: func(addr common.Address) *big.Int {
-			// Total wei the account is on the hook for in the pending set (matching
-			// upstream's pending-only accounting): value it owes as a sender, gas it
-			// owes as its own gas payer, and gas it owes as a fee payer for others.
-			// Queued (non-executable) txs are not counted; they are re-checked on
-			// promotion.
+			// Total wei the account is on the hook for in the pending set, matching
+			// upstream's pending-only accounting. totalcost covers sender-side obligations
+			// for this account's own txs; pendingGas covers gas this account owes as a fee
+			// payer for delegated txs.
 			obligation := new(big.Int)
 			if list := pool.pending[addr]; list != nil {
-				obligation.Add(obligation, list.totalvalue.ToBig())
-				obligation.Add(obligation, list.totalgas.ToBig())
+				// Sender-paid pending costs for txs sent by this account.
+				obligation.Add(obligation, list.totalcost.ToBig())
 			}
 			if g := pool.pendingGas[addr]; g != nil {
+				// Fee-delegated gas charged to this account as fee payer.
 				obligation.Add(obligation, g.ToBig())
 			}
 			return obligation
