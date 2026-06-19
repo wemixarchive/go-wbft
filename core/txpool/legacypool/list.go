@@ -282,6 +282,9 @@ type list struct {
 	// tx.Cost() for non-fee-delegated txs, tx.Value() for fee-delegated txs.
 	totalcost *uint256.Int
 
+	// feeDelegated counts the fee-delegated transactions currently held.
+	feeDelegated int
+
 	// addPendingGas and subPendingGas update pool-wide fee-payer gas accounting
 	// for fee-delegated transactions in pending lists.
 	addPendingGas func(common.Address, *uint256.Int)
@@ -316,6 +319,12 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction,
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
 		return nil, txpool.ErrInvalidFeePayer
 	}
+	// Reject overflow before mutating accounting, otherwise a failed replacement
+	// could leave the old transaction in the map but missing from the counters.
+	cost, overflow := uint256.FromBig(tx.Cost())
+	if overflow {
+		return nil, txpool.ErrReplaceUnderpriced
+	}
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
@@ -341,15 +350,12 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction,
 		// Old is being replaced, subtract old cost
 		l.subCosts([]*types.Transaction{old})
 	}
-	cost, overflow := uint256.FromBig(tx.Cost())
-	if overflow {
-		return nil, txpool.ErrReplaceUnderpriced
-	}
 	if err := l.addCost(tx); err != nil {
 		return nil, err
 	}
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
+	l.incFeeDelegated(tx)
 	if l.costcap.Cmp(cost) < 0 {
 		l.costcap = cost
 	}
@@ -373,13 +379,17 @@ func (l *list) Forward(threshold uint64) types.Transactions {
 // post-removal maintenance. Strict-mode invalidated transactions are also
 // returned.
 //
-// This method uses the cached costcap and gascap to quickly decide if there's even
-// a point in calculating all the costs or if the balance covers all. If the threshold
-// is lower than the costgas cap, the caps will be reset to a new high after removing
-// the newly invalidated transactions.
+// The cached costcap/gascap allow a quick short-circuit when the sender balance
+// and block gas limit cover every transaction. This shortcut is disabled while
+// the list holds any fee-delegated tx, because costcap cannot represent the
+// separate fee-payer balance dimension.
+//
+// For fee-delegated transactions, the sender must cover tx.Value(), the fee
+// payer must cover tx.FeeCost(), and tx.Gas() must fit within the block gas limit.
 func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uint256.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
-	// If all transactions are below the threshold, short circuit
-	if l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
+	// Short circuit only when every tx is below the thresholds AND the list holds
+	// no fee-delegated tx (the cap check ignores the fee-payer balance dimension).
+	if l.feeDelegated == 0 && l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
 		return nil, nil
 	}
 	l.costcap = new(uint256.Int).Set(costLimit) // Lower the caps to the thresholds
@@ -388,7 +398,11 @@ func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uin
 	// Filter out all the transactions above the account's funds
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
 		if feeDelegation && tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() != nil {
-			return tx.Gas() > gasLimit || tx.FeeCost().Cmp(stateDB.GetBalance(*tx.FeePayer()).ToBig()) > 0 || tx.Value().Cmp(costLimit.ToBig()) > 0
+			// Sender owes the value, the gas must fit the block, and the fee payer
+			// must cover the gas cost.
+			return tx.Gas() > gasLimit ||
+				tx.Value().Cmp(costLimit.ToBig()) > 0 ||
+				tx.FeeCost().Cmp(stateDB.GetBalance(*tx.FeePayer()).ToBig()) > 0
 		}
 		return tx.Gas() > gasLimit || tx.Cost().Cmp(costLimit.ToBig()) > 0
 	})
@@ -476,9 +490,24 @@ func (l *list) LastElement() *types.Transaction {
 	return l.txs.LastElement()
 }
 
+func (l *list) incFeeDelegated(tx *types.Transaction) {
+	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
+		l.feeDelegated++
+	}
+}
+func (l *list) decFeeDelegated(tx *types.Transaction) {
+	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
+		l.feeDelegated--
+		if l.feeDelegated < 0 {
+			panic("feeDelegated counter underflow")
+		}
+	}
+}
+
 // subCosts reverses pending expenditure accounting for removed txs.
 func (l *list) subCosts(txs []*types.Transaction) {
 	for _, tx := range txs {
+		l.decFeeDelegated(tx)
 		l.subCost(tx)
 	}
 }

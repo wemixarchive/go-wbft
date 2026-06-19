@@ -687,10 +687,13 @@ func (pool *LegacyPool) subPendingGas(payer common.Address, feeCost *uint256.Int
 	}
 }
 
-// validateTx checks whether a transaction is valid according to the consensus
-// rules and adheres to some heuristic limits of the local node (price and size).
-func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
-	opts := &txpool.ValidationOptionsWithState{
+// stateValidationOptions builds the stateful validation options used by
+// ValidateTransactionWithState. Both submission and queued promotion use this
+// builder so nonce, balance, and cumulative overdraft checks stay identical.
+// The expenditure callbacks read pending state at call time, so promotion
+// reflects txs admitted earlier in the same batch. The pool lock must be held.
+func (pool *LegacyPool) stateValidationOptions() *txpool.ValidationOptionsWithState {
+	return &txpool.ValidationOptionsWithState{
 		State: pool.currentState,
 
 		FirstNonceGap:    nil, // Pool allows arbitrary arrival order, don't invalidate nonce gaps
@@ -726,7 +729,12 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 			return nil
 		},
 	}
-	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
+}
+
+// validateTx checks whether a transaction is valid according to the consensus
+// rules and adheres to some heuristic limits of the local node (price and size).
+func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
+	if err := txpool.ValidateTransactionWithState(tx, pool.signer, pool.stateValidationOptions()); err != nil {
 		return err
 	}
 	return pool.validateAuth(tx)
@@ -916,7 +924,6 @@ func (pool *LegacyPool) add(tx *types.Transaction, local bool) (replaced bool, e
 			pendingDiscardMeter.Mark(1)
 			return false, err
 		}
-
 		// New transaction is better, replace old one
 		if old != nil {
 			pool.all.Remove(old.Hash())
@@ -991,7 +998,6 @@ func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, local
 		queuedDiscardMeter.Mark(1)
 		return false, err
 	}
-
 	// Discard any previous transaction and mark this
 	if old != nil {
 		pool.all.Remove(old.Hash())
@@ -1609,7 +1615,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 			pool.all.Remove(hash)
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
-		// Drop all transactions that are too costly (low balance or out of gas)
+		// Drop queued txs that fail per-tx affordability or block gas checks.
 		drops, _ := list.Filter(pool.chainconfig.IsApplepie(pool.currentHead.Load().Number), pool.currentState, pool.currentState.GetBalance(addr), gasLimit)
 		for _, tx := range drops {
 			hash := tx.Hash()
@@ -1618,16 +1624,52 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 		log.Trace("Removed unpayable queued transactions", "count", len(drops))
 		queuedNofundsMeter.Mark(int64(len(drops)))
 
-		// Gather all executable transactions and promote them
+		// Gather all executable transactions and promote them. Fee-delegated txs
+		// are re-checked against the shared fee payer's cumulative budget; on the
+		// first failure that tx and its nonce tail are unpromotable, so they are
+		// dropped from the pool (Drop & Forget). Plain txs keep the per-tx behaviour.
 		readies := list.Ready(pool.pendingNonces.get(addr))
-		for _, tx := range readies {
-			hash := tx.Hash()
-			if pool.promoteTx(addr, hash, tx) {
+		before := len(promoted) // promoted is the outer-loop accumulator
+		var (
+			rejectedAtPromote types.Transactions
+			fdOpts            *txpool.ValidationOptionsWithState
+		)
+		for i, tx := range readies {
+			if tx.Type() == types.FeeDelegateDynamicFeeTxType {
+				if fdOpts == nil {
+					fdOpts = pool.stateValidationOptions()
+				}
+				if err := txpool.ValidateTransactionWithState(tx, pool.signer, fdOpts); err != nil {
+					rejectedAtPromote = append(rejectedAtPromote, readies[i:]...)
+					break
+				}
+			}
+			if pool.promoteTx(addr, tx.Hash(), tx) {
 				promoted = append(promoted, tx)
+			} else {
+				// promoteTx already removed tx from the global indexes. Ready removed the
+				// whole prefix from the queue, so only the unprocessed nonce tail needs cleanup.
+				rejectedAtPromote = append(rejectedAtPromote, readies[i+1:]...)
+				break
 			}
 		}
-		log.Trace("Promoted queued transactions", "count", len(promoted))
+		log.Trace("Promoted queued transactions", "count", len(promoted)-before)
 		queuedGauge.Dec(int64(len(readies)))
+
+		// Drop the rejected tail. list.Ready already removed them from the queue
+		// list and reversed their cost accounting (subCosts), and queuedGauge was
+		// decremented above via len(readies); only the global lookup, priced index,
+		// and local gauge remain to clean up.
+		for _, tx := range rejectedAtPromote {
+			pool.all.Remove(tx.Hash())
+		}
+		if n := len(rejectedAtPromote); n > 0 {
+			pool.priced.Removed(n)
+			queuedNofundsMeter.Mark(int64(n))
+			if pool.locals.contains(addr) {
+				localGauge.Dec(int64(n))
+			}
+		}
 
 		// Drop all transactions over the allowed limit
 		var caps types.Transactions
