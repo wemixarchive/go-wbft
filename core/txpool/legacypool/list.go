@@ -494,10 +494,12 @@ func (l *list) subCosts(txs []*types.Transaction) {
 // state is treated as a fatal wiring bug and panics. Used as the top-level guard
 // in addCost/subCost so both stay symmetric.
 func (l *list) tracksExpenditure() bool {
-	if (l.addPendingGas == nil) != (l.subPendingGas == nil) {
-		panic("legacypool: inconsistent pendingGas callbacks would corrupt gas accounting ")
+	hasAddPendingGas := l.addPendingGas != nil
+	hasSubPendingGas := l.subPendingGas != nil
+	if hasAddPendingGas != hasSubPendingGas {
+		panic("inconsistent pendingGas callbacks would corrupt gas accounting")
 	}
-	return l.addPendingGas != nil
+	return hasAddPendingGas
 }
 
 // addCost updates the expenditure counters used by pending-only overdraft
