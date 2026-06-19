@@ -3232,3 +3232,51 @@ func TestFeeDelegationCumulativeGas(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 }
+
+// TestPendingGasZeroAccounting verifies that fee-delegated transactions whose gas
+// obligation is zero (e.g. a zero gas-fee-cap tx) do not corrupt the pool-wide
+// per-fee-payer gas index. addPendingGas creates an entry on first use and
+// subPendingGas deletes it once it reaches zero and panics on a missing one, so a
+// naive implementation would: create a zero entry, delete it on the first
+// removal, then panic on the second removal of another zero-gas tx sharing the
+// fee payer. The accounting must skip zero contributions symmetrically instead.
+func TestPendingGasZeroAccounting(t *testing.T) {
+	t.Parallel()
+
+	config := *params.TestChainConfig
+	config.ApplepieBlock = big.NewInt(0)
+	pool, _ := setupPoolWithConfig(&config)
+	defer pool.Close()
+
+	payerKey, _ := crypto.GenerateKey()
+	payer := crypto.PubkeyToAddress(payerKey.PublicKey)
+	zero := new(uint256.Int)
+	five := uint256.NewInt(5)
+
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	// Two zero-gas obligations sharing a fee payer: the second removal must not
+	// panic on a missing map entry.
+	pool.addPendingGas(payer, zero)
+	pool.addPendingGas(payer, zero)
+	if _, ok := pool.pendingGas[payer]; ok {
+		t.Fatalf("zero gas obligation must not create a pendingGas entry")
+	}
+	pool.subPendingGas(payer, zero)
+	pool.subPendingGas(payer, zero)
+
+	// Mixed: a real obligation kept alongside a zero one. Removing the real one
+	// first drives the running total to zero and deletes the entry; the later
+	// zero removal must still be a no-op rather than a panic.
+	pool.addPendingGas(payer, five)
+	pool.addPendingGas(payer, zero)
+	if got := pool.pendingGas[payer]; got == nil || got.Cmp(five) != 0 {
+		t.Fatalf("pendingGas[payer] = %v, want %v", got, five)
+	}
+	pool.subPendingGas(payer, five)
+	if _, ok := pool.pendingGas[payer]; ok {
+		t.Fatalf("pendingGas entry must be deleted once it reaches zero")
+	}
+	pool.subPendingGas(payer, zero) // must not panic on the now-absent entry
+}
