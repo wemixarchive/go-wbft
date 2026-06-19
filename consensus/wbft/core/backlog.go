@@ -221,26 +221,25 @@ func (c *Core) addToBacklog(msg wbfmessage.WBFTMessage) {
 	defer c.backlogsMu.Unlock()
 
 	backlog := c.backlogs[src]
-	if backlog == nil {
-		backlog = prque.New[int64, wbfmessage.WBFTMessage](nil)
-		c.backlogs[src] = backlog
-	}
-	// Reject messages from a validator whose backlog exceeds the size limit.
-	if backlog.Size() >= maxBacklogSizePerValidator {
-		logger.Warn("WBFT: backlog is full, dropping message", "src", src, "size", backlog.Size())
-		return
-	}
-
 	view := msg.View()
 	pkey := backlogKey{msg.Code(), view.Sequence.Uint64(), view.Round.Uint64()}
-	// Drop the message if the same (code, sequence, round) slot is already queued for this validator.
-	if keys, ok := c.backlogKeys[src]; ok {
-		if _, exists := keys[pkey]; exists {
+
+	if backlog == nil {
+		// First message from this validator: size and dedup checks are unnecessary.
+		backlog = prque.New[int64, wbfmessage.WBFTMessage](nil)
+		c.backlogs[src] = backlog
+		c.backlogKeys[src] = make(map[backlogKey]struct{})
+	} else {
+		// Drop the message if the same (code, sequence, round) slot is already queued for this validator.
+		if _, exists := c.backlogKeys[src][pkey]; exists {
 			logger.Trace("WBFT: duplicate backlog message, dropping", "src", src)
 			return
 		}
-	} else {
-		c.backlogKeys[src] = make(map[backlogKey]struct{})
+		// Reject messages from a validator whose backlog exceeds the size limit.
+		if backlog.Size() >= maxBacklogSizePerValidator {
+			logger.Warn("WBFT: backlog is full, dropping message", "src", src, "size", backlog.Size())
+			return
+		}
 	}
 	c.backlogKeys[src][pkey] = struct{}{}
 	backlog.Push(msg, toNegatePriority(msg.Code(), &view))
