@@ -184,7 +184,8 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 
 	roundDistribution := make(map[uint64]uint64)
 	for n := start; n <= end; n++ {
-		round, err := api.analyzeBlock(n, &activity, authorCounts, &cachedCurVals, &cachedPrevVals)
+		isLastBlock := n == end
+		round, err := api.analyzeBlock(n, &activity, authorCounts, &cachedCurVals, &cachedPrevVals, isLastBlock)
 		if err != nil {
 			return nil, err
 		}
@@ -261,7 +262,7 @@ func (api *API) calculateBlockRange(startBlockNum *rpc.BlockNumber, endBlockNum 
 
 // analyzeBlock analyzes a single block and updates counters.
 // Validator sets are cached and refreshed only on epoch transition to avoid redundant DB calls.
-func (api *API) analyzeBlock(blockNum uint64, activity *SealerActivity, authorCounts map[common.Address]int, cachedCurVals, cachedPrevVals *[]common.Address) (uint64, error) {
+func (api *API) analyzeBlock(blockNum uint64, activity *SealerActivity, authorCounts map[common.Address]int, cachedCurVals, cachedPrevVals *[]common.Address, isLastBlock bool) (uint64, error) {
 	header := api.chain.GetHeaderByNumber(blockNum)
 	if header == nil {
 		return 0, fmt.Errorf("block %d not found", blockNum)
@@ -294,6 +295,13 @@ func (api *API) analyzeBlock(blockNum uint64, activity *SealerActivity, authorCo
 		}
 		for _, addr := range *cachedPrevVals {
 			initZero(addr, activity.PrevPrepared, activity.PrevCommitted, activity.Total, authorCounts)
+		}
+		// curVals will become prevVals on the next block — pre-initialize PrevPrepared/PrevCommitted
+		// unless this is the last block (curVals will never be used as prevVals in the range).
+		if !isLastBlock {
+			for _, addr := range *cachedCurVals {
+				initZero(addr, activity.PrevPrepared, activity.PrevCommitted)
+			}
 		}
 	}
 	curVals := *cachedCurVals
