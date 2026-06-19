@@ -1021,6 +1021,16 @@ func (pool *LegacyPool) journalTx(from common.Address, tx *types.Transaction) {
 	}
 }
 
+func newPendingList(add, sub func(common.Address, *uint256.Int)) *list {
+	if add == nil || sub == nil {
+		panic("pending list requires both gas accounting callbacks")
+	}
+	l := newList(true)
+	l.addPendingGas = add
+	l.subPendingGas = sub
+	return l
+}
+
 // promoteTx adds a transaction to the pending (processable) list of transactions
 // and returns whether it was inserted or an older was better.
 //
@@ -1028,10 +1038,7 @@ func (pool *LegacyPool) journalTx(from common.Address, tx *types.Transaction) {
 func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *types.Transaction) bool {
 	// Try to insert the transaction into the pending queue
 	if pool.pending[addr] == nil {
-		list := newList(true)
-		list.addPendingGas = pool.addPendingGas
-		list.subPendingGas = pool.subPendingGas
-		pool.pending[addr] = list
+		pool.pending[addr] = newPendingList(pool.addPendingGas, pool.subPendingGas)
 	}
 	list := pool.pending[addr]
 
