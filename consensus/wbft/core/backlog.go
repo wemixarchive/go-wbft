@@ -90,7 +90,7 @@ func (c *Core) isTooFarFutureMessage(view *wbft.View) bool {
 			return true
 		}
 		// Reject future sequence messages with an excessively high round number.
-		if view.Round.Cmp(big.NewInt(roundThreshold)) > 0 {
+		if view.Round.Cmp(big.NewInt(roundThreshold)) >= 0 {
 			c.logger.Trace("WBFT: future sequence message too far ahead in round, dropped",
 				"msg_view", view.String(),
 				"curr_view", curr.String(),

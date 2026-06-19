@@ -70,7 +70,8 @@ func TestIsTooFarFutureMessageRoundThreshold(t *testing.T) {
 		expected bool
 	}{
 		// Future sequence (n+1): absolute round check from 0
-		{"future seq, round at threshold", 101, roundThreshold, false},
+		{"future seq, round below threshold", 101, roundThreshold - 1, false},
+		{"future seq, round at threshold", 101, roundThreshold, true},
 		{"future seq, round exceeds threshold", 101, roundThreshold + 1, true},
 		{"future seq, round way over threshold", 101, 1000000, true},
 		// Same sequence: relative round check from current round (0)
