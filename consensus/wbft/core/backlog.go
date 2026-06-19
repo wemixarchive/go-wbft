@@ -42,9 +42,12 @@ var (
 )
 
 const (
-	sequenceThreshold          = 1   // Allow up to 1 future sequence
-	roundThreshold             = 10  // Allow up to 10 future rounds
-	maxBacklogSizePerValidator = 100 // Allow up to 100 backlog messages per validator
+	sequenceThreshold = 1  // Allow up to 1 future sequence
+	roundThreshold    = 10 // Allow up to 10 future rounds
+
+	// maxBacklogSizePerValidator caps the number of backlog messages per validator,
+	// computed as an upper bound over all 4 message types, rounds, and sequences.
+	maxBacklogSizePerValidator = 4 * (roundThreshold + 1) * (sequenceThreshold + 1)
 )
 
 // backlogKey identifies a message slot within a single validator's backlog
