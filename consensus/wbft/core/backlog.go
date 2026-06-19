@@ -58,12 +58,6 @@ type backlogKey struct {
 	round    uint64
 }
 
-// assertComparable enforces at compile time that T can be used as a map key.
-func assertComparable[T comparable]() {}
-
-// compile-time check: all fields of backlogKey must remain comparable for use as a map key.
-var _ = assertComparable[backlogKey]
-
 // isSequenceTooFarAhead returns true if the sequence difference exceeds the threshold
 func (c *Core) isSequenceTooFarAhead(viewSeq, currSeq *big.Int, threshold int64) (*big.Int, bool) {
 	seqDiff := new(big.Int).Sub(viewSeq, currSeq)
