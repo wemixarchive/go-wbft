@@ -1656,7 +1656,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 		log.Trace("Promoted queued transactions", "count", len(promoted)-before)
 		queuedGauge.Dec(int64(len(readies)))
 
-		// Drop the rejected tail. list.Ready already removed them from the queue
+		// Drop the rejected txs. list.Ready already removed them from the queue
 		// list and reversed their cost accounting (subCosts), and queuedGauge was
 		// decremented above via len(readies); only the global lookup, priced index,
 		// and local gauge remain to clean up.

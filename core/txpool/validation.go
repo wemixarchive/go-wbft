@@ -298,7 +298,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		txGasCost := tx.FeeCost() // tx.Cost() - tx.Value()
 
 		// If a transaction with the same sender and nonce is already pooled, the
-		// incoming one replaces it, so its contribution must be discounted from
+		// incoming one replaces it, so its contribution must be subtracted from
 		// whichever account currently carries it (value -> sender, gas -> its own
 		// gas payer, which may differ from the new transaction's gas payer).
 		var (

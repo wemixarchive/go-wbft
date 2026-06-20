@@ -3222,8 +3222,8 @@ func TestFeeDelegationCumulativeGas(t *testing.T) {
 	}
 
 	// Removing one accepted transaction frees enough of the fee payer's budget
-	// for the previously rejected one to be admitted, proving the index is also
-	// maintained on removal.
+	// for the previously rejected one to be admitted, proving the fee-payer gas
+	// accounting is also updated on removal.
 	pool.removeTx(txs[0].Hash(), false, true)
 	if err := pool.Add([]*types.Transaction{txs[2]}, true, true)[0]; err != nil {
 		t.Fatalf("tx 2 after removal: unexpected error: %v", err)
@@ -3319,13 +3319,23 @@ func TestFeeDelegationCumulativeGasOnPromotion(t *testing.T) {
 		gapTxs[i] = feeDelegateTx(chainID, 1, gas, gasFeeCap, gasTipCap, value, senders[i], feePayerKey)
 		fillTxs[i] = dynamicFeeTx(0, gas, gasFeeCap, gasTipCap, senders[i])
 	}
-
-	// All three fee-delegated txs have a nonce gap, so they sit in the queue. The
+	// All three nonce-1 fee-delegated txs have a nonce gap, so they sit in the queue. The
 	// per-fee-payer gas index only tracks pending txs, so each one passes the
 	// submission-time cumulative check in isolation (the index reads zero).
 	for i, tx := range gapTxs {
 		if err := pool.Add([]*types.Transaction{tx}, true, true)[0]; err != nil {
 			t.Fatalf("gap tx %d: unexpected error: %v", i, err)
+		}
+	}
+	// Add a nonce tail for the third sender. These transactions also remain queued
+	// because nonce 0 is still missing.
+	tailTxs := types.Transactions{
+		feeDelegateTx(chainID, 2, gas, gasFeeCap, gasTipCap, value, senders[2], feePayerKey),
+		feeDelegateTx(chainID, 3, gas, gasFeeCap, gasTipCap, value, senders[2], feePayerKey),
+	}
+	for _, tx := range tailTxs {
+		if err := pool.Add([]*types.Transaction{tx}, true, true)[0]; err != nil {
+			t.Fatalf("add tail tx nonce %d: %v", tx.Nonce(), err)
 		}
 	}
 	pool.mu.RLock()
@@ -3334,7 +3344,6 @@ func TestFeeDelegationCumulativeGasOnPromotion(t *testing.T) {
 		t.Fatalf("pendingGas[feePayer] = %v before promotion, want 0 (queued txs must not be tracked)", g)
 	}
 	pool.mu.RUnlock()
-
 	// Close each gap one sender at a time, so promotion is deterministic: the
 	// third sender's fee-delegated tx is the one that overdraws the fee payer.
 	for i, tx := range fillTxs {
@@ -3342,7 +3351,6 @@ func TestFeeDelegationCumulativeGasOnPromotion(t *testing.T) {
 			t.Fatalf("fill tx %d: unexpected error: %v", i, err)
 		}
 	}
-
 	// Exactly two fee-delegated txs must have been promoted to pending; the third
 	// fails the promotion-time cumulative check and is dropped with its nonce tail.
 	pool.mu.RLock()
@@ -3350,29 +3358,31 @@ func TestFeeDelegationCumulativeGasOnPromotion(t *testing.T) {
 	if g := pool.pendingGas[feePayer]; g != nil {
 		gotGas = g.ToBig()
 	}
-	promotedCount, droppedCount := 0, 0
-	for _, tx := range gapTxs {
-		if pool.all.Get(tx.Hash()) != nil {
-			promotedCount++
-		} else {
-			droppedCount++
-		}
-	}
-	if promotedCount != 2 || droppedCount != 1 {
-		t.Fatalf("want 2 promoted and 1 dropped")
-	}
-
 	feePayerBalance := pool.currentState.GetBalance(feePayer).ToBig()
 	pool.mu.RUnlock()
+	// The first two nonce-1 transactions must be pending.
+	for i := 0; i < 2; i++ {
+		if status := pool.Status(gapTxs[i].Hash()); status != txpool.TxStatusPending {
+			t.Fatalf("gap tx %d status = %v, want pending", i, status)
+		}
+	}
+
+	// The failed transaction and its nonce tail must be removed from the pool.
+	droppedTxs := append(types.Transactions{gapTxs[2]}, tailTxs...)
+	for _, tx := range droppedTxs {
+		if pool.Get(tx.Hash()) != nil {
+			t.Fatalf("tx nonce %d was not dropped", tx.Nonce())
+		}
+	}
 
 	if want := new(big.Int).Mul(perTxGas, big.NewInt(2)); gotGas.Cmp(want) != 0 {
 		t.Fatalf("pendingGas[feePayer] = %v after promotion, want %v", gotGas, want)
 	}
+
 	// The fee payer's aggregate gas obligation must never exceed its balance.
 	if gotGas.Cmp(feePayerBalance) > 0 {
 		t.Fatalf("pendingGas[feePayer] = %v exceeds balance %v", gotGas, feePayerBalance)
 	}
-
 	if err := validatePoolInternals(pool); err != nil {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}

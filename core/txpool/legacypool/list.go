@@ -309,7 +309,7 @@ func (l *list) Contains(nonce uint64) bool {
 }
 
 // Add tries to insert a new transaction into the list, returning any previous
-// transaction it replaced, or an error if the transaction was rejected
+// transaction it replaced, or an error if the transaction was rejected.
 //
 // If the new transaction is accepted into the list, the list's cost and gas
 // thresholds and expenditure accounting are also potentially updated.
@@ -387,7 +387,7 @@ func (l *list) Forward(threshold uint64) types.Transactions {
 // For fee-delegated transactions, the sender must cover tx.Value(), the fee
 // payer must cover tx.FeeCost(), and tx.Gas() must fit within the block gas limit.
 func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uint256.Int, gasLimit uint64) (types.Transactions, types.Transactions) {
-	// Short circuit only when every tx is below the thresholds AND the list holds
+	// Short circuit only when every tx is below the thresholds and the list holds
 	// no fee-delegated tx (the cap check ignores the fee-payer balance dimension).
 	if l.feeDelegated == 0 && l.costcap.Cmp(costLimit) <= 0 && l.gascap <= gasLimit {
 		return nil, nil
@@ -504,7 +504,7 @@ func (l *list) decFeeDelegated(tx *types.Transaction) {
 	}
 }
 
-// subCosts reverses pending expenditure accounting for removed txs.
+// subCosts reverses fee-delegation counters and pending expenditure accounting for removed txs.
 func (l *list) subCosts(txs []*types.Transaction) {
 	for _, tx := range txs {
 		l.decFeeDelegated(tx)
