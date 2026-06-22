@@ -320,7 +320,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 			// Pools without fee-delegation support (e.g. the blob pool): the replaced
 			// transaction is fully sender-paid, so its whole cost belongs to the sender.
 			isReplacement = true
-			prevGasCost = prev // prev == old.Cost(); oldGasPayer == from
+			prevGasCost = prev
 		}
 
 		// need computes an account's total pooled obligation (value owed as a
