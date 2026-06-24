@@ -184,8 +184,7 @@ func (api *API) Status(startBlockNum *rpc.BlockNumber, endBlockNum *rpc.BlockNum
 
 	roundDistribution := make(map[uint64]uint64)
 	for n := start; n <= end; n++ {
-		isLastBlock := n == end
-		round, err := api.analyzeBlock(n, &activity, authorCounts, &cachedCurVals, &cachedPrevVals, isLastBlock)
+		round, err := api.analyzeBlock(n, &activity, authorCounts, &cachedCurVals, &cachedPrevVals)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +261,7 @@ func (api *API) calculateBlockRange(startBlockNum *rpc.BlockNumber, endBlockNum 
 
 // analyzeBlock analyzes a single block and updates counters.
 // Validator sets are cached and refreshed only on epoch transition to avoid redundant DB calls.
-func (api *API) analyzeBlock(blockNum uint64, activity *SealerActivity, authorCounts map[common.Address]int, cachedCurVals, cachedPrevVals *[]common.Address, isLastBlock bool) (uint64, error) {
+func (api *API) analyzeBlock(blockNum uint64, activity *SealerActivity, authorCounts map[common.Address]int, cachedCurVals, cachedPrevVals *[]common.Address) (uint64, error) {
 	header := api.chain.GetHeaderByNumber(blockNum)
 	if header == nil {
 		return 0, fmt.Errorf("block %d not found", blockNum)
@@ -282,7 +281,8 @@ func (api *API) analyzeBlock(blockNum uint64, activity *SealerActivity, authorCo
 		*cachedCurVals = curValidators.AddressList()
 		*cachedPrevVals = prevValidators.AddressList()
 
-		// Initialize zero baseline for validators entering the range or new epoch
+		// Initialize zero baseline for validators entering the range or new epoch.
+		// Only sets missing keys — existing counts are preserved.
 		initZero := func(addr common.Address, maps ...map[common.Address]int) {
 			for _, m := range maps {
 				if _, ok := m[addr]; !ok {
@@ -290,18 +290,13 @@ func (api *API) analyzeBlock(blockNum uint64, activity *SealerActivity, authorCo
 				}
 			}
 		}
+		// curVals are also pre-registered in the prev maps: on epoch transition they become
+		// prevVals on the next block and must appear in the response even with no signatures.
 		for _, addr := range *cachedCurVals {
-			initZero(addr, activity.Prepared, activity.Committed, activity.Total, authorCounts)
+			initZero(addr, activity.Prepared, activity.Committed, activity.Total, authorCounts, activity.PrevPrepared, activity.PrevCommitted)
 		}
 		for _, addr := range *cachedPrevVals {
 			initZero(addr, activity.PrevPrepared, activity.PrevCommitted, activity.Total, authorCounts)
-		}
-		// curVals will become prevVals on the next block — pre-initialize PrevPrepared/PrevCommitted
-		// unless this is the last block (curVals will never be used as prevVals in the range).
-		if !isLastBlock {
-			for _, addr := range *cachedCurVals {
-				initZero(addr, activity.PrevPrepared, activity.PrevCommitted)
-			}
 		}
 	}
 	curVals := *cachedCurVals
