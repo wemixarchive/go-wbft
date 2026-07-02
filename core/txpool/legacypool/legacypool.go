@@ -1052,7 +1052,7 @@ func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *typ
 
 	old, err := list.Add(tx, pool.config.PriceBump)
 	if err != nil {
-		log.Error("Promoting invalid queued transaction", "hash", tx.Hash(), "err", err)
+		log.Trace("Promoting invalid queued transaction", "hash", tx.Hash(), "err", err)
 		pool.all.Remove(hash)
 		pool.priced.Removed(1)
 		pendingDiscardMeter.Mark(1)
