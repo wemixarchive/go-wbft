@@ -3204,7 +3204,7 @@ func TestFeeDelegationCumulativeGas(t *testing.T) {
 		t.Fatalf("tx 1: unexpected error: %v", err)
 	}
 
-	// The pool-wide gas index must now reflect both transactions' fees.
+	// pendingGas must now include both transactions' FeeCost for the shared fee payer.
 	pool.mu.RLock()
 	gotGas := new(big.Int)
 	if g := pool.pendingGas[feePayer]; g != nil {
@@ -3222,7 +3222,7 @@ func TestFeeDelegationCumulativeGas(t *testing.T) {
 	}
 
 	// Removing one accepted transaction frees enough of the fee payer's budget
-	// for the previously rejected one to be admitted, proving the index is also
+	// for the previously rejected one to be admitted, proving the fee payer is also
 	// maintained on removal.
 	pool.removeTx(txs[0].Hash(), false, true)
 	if err := pool.Add([]*types.Transaction{txs[2]}, true, true)[0]; err != nil {
