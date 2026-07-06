@@ -129,19 +129,20 @@ func TestStateProcessorErrors(t *testing.T) {
 		return tx
 	}
 	var mkFeeDelegateTx = func(nonce uint64, to common.Address, gasLimit uint64, gasTipCap, gasFeeCap *big.Int, feePayer *common.Address, feePayerKey *ecdsa.PrivateKey) *types.Transaction {
-		signedSenderTx := mkDynamicTx(nonce, to, gasLimit, gasTipCap, gasFeeCap)
-		v, r, s := signedSenderTx.RawSignatureValues()
 		senderTxData := &types.DynamicFeeTx{
+			ChainID:   config.ChainID,
 			Nonce:     nonce,
 			GasTipCap: gasTipCap,
 			GasFeeCap: gasFeeCap,
 			Gas:       gasLimit,
 			To:        &to,
 			Value:     big.NewInt(0),
-			V:         v,
-			R:         r,
-			S:         s,
 		}
+		signedSenderTx, err := types.SignTx(types.NewTx(senderTxData), signer, key1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		senderTxData.V, senderTxData.R, senderTxData.S = signedSenderTx.RawSignatureValues()
 
 		fdTxData := &types.FeeDelegateDynamicFeeTx{FeePayer: feePayer}
 		fdTxData.SetSenderTx(*senderTxData)
@@ -307,25 +308,25 @@ func TestStateProcessorErrors(t *testing.T) {
 				txs: []*types.Transaction{
 					mkFeeDelegateTx(0, common.Address{}, params.TxGas, big.NewInt(1), big.NewInt(params.InitialBaseFee), nil, nil),
 				},
-				want: "could not apply tx 0 [0x843aecfde8b9f3b20208dca191a96d7b0a8c1080e76e572264e14e4d2be5d448]: fee delegation: feePayer not set",
+				want: "could not apply tx 0 [0xee8e9ffeb64702b56885326ede3acd4c42a566b12214f0680f12b3721a7ca3a1]: fee delegation: feePayer not set",
 			},
 			{ // ErrFeePayerNotSet: no feePayer address, but feePayer signature present
 				txs: []*types.Transaction{
 					mkFeeDelegateTx(0, common.Address{}, params.TxGas, big.NewInt(1), big.NewInt(params.InitialBaseFee), nil, feePayerKey),
 				},
-				want: "could not apply tx 0 [0x1de0318599c5ef96f44de0ade1add00f808e516d5d9aad2259d187bd9b4a1633]: fee delegation: feePayer not set",
+				want: "could not apply tx 0 [0xd6e6ff9a4803dab388c03af54e8879bee174b69edb09b7f57ad32a592a024380]: fee delegation: feePayer not set",
 			},
 			{ // ErrInvalidFeePayer: feePayer address set, but no feePayer signature
 				txs: []*types.Transaction{
 					mkFeeDelegateTx(0, common.Address{}, params.TxGas, big.NewInt(1), big.NewInt(params.InitialBaseFee), &feePayerAddr, nil),
 				},
-				want: "could not apply tx 0 [0x7822fcab65fb9aa3d16a12e7f51f9b4ec5aca421dabd93ca803c5da634a7d90c]: fee delegation: invalid feePayer",
+				want: "could not apply tx 0 [0x3e09e5b8869d65a109a3b445b1a04b73aa907852e06f11d102e035e4e11d7032]: fee delegation: invalid feePayer",
 			},
 			{ // ErrInvalidFeePayer: feePayer signature does not match the claimed address
 				txs: []*types.Transaction{
 					mkFeeDelegateTx(0, common.Address{}, params.TxGas, big.NewInt(1), big.NewInt(params.InitialBaseFee), &feePayerAddr, key2),
 				},
-				want: "could not apply tx 0 [0x5ab33ef27cae7645d812be552102376a13001b1eaa508d3e238d9fdf4c7a921d]: fee delegation: invalid feePayer",
+				want: "could not apply tx 0 [0x7d699f42076b7850986678f02b04251b9b8169f6a0cd0d80c6c2f0587fc209b4]: fee delegation: invalid feePayer",
 			},
 			// ErrSetCodeTxCreate cannot be tested here: it is impossible to create a SetCode-tx with nil `to`.
 			// The EstimateGas API tests test this case.
