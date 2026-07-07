@@ -3253,7 +3253,19 @@ func expectPendingGas(t *testing.T, pool *LegacyPool, payer common.Address, want
 		t.Fatalf("pendingGas[%s] = %v, want %v", payer.Hex(), got, want)
 	}
 }
+func expectPendingTotalCost(t *testing.T, pool *LegacyPool, sender common.Address, want *big.Int) {
+	t.Helper()
 
+	pool.mu.RLock()
+	got := new(big.Int)
+	if list := pool.pending[sender]; list != nil {
+		got = list.totalcost.ToBig()
+	}
+	pool.mu.RUnlock()
+	if got.Cmp(want) != 0 {
+		t.Fatalf("pendingTotalCost[%s] = %v, want %v", sender.Hex(), got, want)
+	}
+}
 func TestFeeDelegationPendingGasReplacementAccounting(t *testing.T) {
 	t.Parallel()
 
@@ -3289,6 +3301,7 @@ func TestFeeDelegationPendingGasReplacementAccounting(t *testing.T) {
 	}
 	expectPendingGas(t, pool, payerA, baseFeeCost)
 	expectPendingGas(t, pool, payerB, zero)
+	expectPendingTotalCost(t, pool, sender, value)
 
 	plainFeeCap := big.NewInt(2_000_000_000)
 	plain := dynamicFeeTx(0, gas, plainFeeCap, big.NewInt(2), senderKey)
@@ -3296,6 +3309,7 @@ func TestFeeDelegationPendingGasReplacementAccounting(t *testing.T) {
 		t.Fatalf("replace FD with plain: %v", err)
 	}
 	expectPendingGas(t, pool, payerA, zero)
+	expectPendingTotalCost(t, pool, sender, plain.Cost())
 
 	// Plain -> FD: the new fee payer's pendingGas must be added.
 	payerBFeeCap := big.NewInt(3_000_000_000)
@@ -3305,6 +3319,7 @@ func TestFeeDelegationPendingGasReplacementAccounting(t *testing.T) {
 		t.Fatalf("replace plain with FD payerB: %v", err)
 	}
 	expectPendingGas(t, pool, payerB, payerBFeeCost)
+	expectPendingTotalCost(t, pool, sender, value)
 
 	// FD payerB -> FD payerA: the old fee payer must be decremented and the new
 	// fee payer must be incremented.
@@ -3316,6 +3331,7 @@ func TestFeeDelegationPendingGasReplacementAccounting(t *testing.T) {
 	}
 	expectPendingGas(t, pool, payerA, payerAFeeCost)
 	expectPendingGas(t, pool, payerB, zero)
+	expectPendingTotalCost(t, pool, sender, value)
 
 	if status := pool.Status(fdA2.Hash()); status != txpool.TxStatusPending {
 		t.Fatalf("replacement status = %v, want pending", status)
@@ -3365,6 +3381,7 @@ func TestFeeDelegationExistingTxReplacementSplit(t *testing.T) {
 	expectPendingGas(t, pool, oldPayer, oldFeeCost)
 	// Sanity check the new payer starts with no pending gas.
 	expectPendingGas(t, pool, newPayer, zero)
+	expectPendingTotalCost(t, pool, sender, value)
 
 	// Same sender and nonce, but a different fee payer. ExistingTx must subtract
 	// the old tx's gas from oldPayer and add the new tx's gas to newPayer.
@@ -3374,6 +3391,7 @@ func TestFeeDelegationExistingTxReplacementSplit(t *testing.T) {
 	}
 	expectPendingGas(t, pool, oldPayer, zero)
 	expectPendingGas(t, pool, newPayer, newFeeCost)
+	expectPendingTotalCost(t, pool, sender, value)
 
 	if status := pool.Status(newTx.Hash()); status != txpool.TxStatusPending {
 		t.Fatalf("replacement status = %v, want pending", status)
@@ -3421,6 +3439,7 @@ func TestFeeDelegationPendingGasDemoteRequeueRepromote(t *testing.T) {
 		t.Fatalf("add nonce-1 FD: %v", err)
 	}
 	expectPendingGas(t, pool, feePayer, feeCost)
+	expectPendingTotalCost(t, pool, sender, new(big.Int).Add(plain.Cost(), value))
 
 	// Lower the sender balance so nonce 0 becomes unpayable. Since pending lists
 	// must stay nonce-contiguous, nonce 1 is moved back to the queue and its
@@ -3437,6 +3456,7 @@ func TestFeeDelegationPendingGasDemoteRequeueRepromote(t *testing.T) {
 		t.Fatalf("FD status after demote = %v, want queued", status)
 	}
 	expectPendingGas(t, pool, feePayer, zero)
+	expectPendingTotalCost(t, pool, sender, zero)
 	if err := validateFeeDelegationAccounting(pool); err != nil {
 		t.Fatalf("fee-delegation accounting drift after demote: %v", err)
 	}
@@ -3455,6 +3475,7 @@ func TestFeeDelegationPendingGasDemoteRequeueRepromote(t *testing.T) {
 		t.Fatalf("FD status after repromote = %v, want pending", status)
 	}
 	expectPendingGas(t, pool, feePayer, feeCost)
+	expectPendingTotalCost(t, pool, sender, new(big.Int).Add(refill.Cost(), value))
 	if err := validateFeeDelegationAccounting(pool); err != nil {
 		t.Fatalf("fee-delegation accounting drift after repromote: %v", err)
 	}
