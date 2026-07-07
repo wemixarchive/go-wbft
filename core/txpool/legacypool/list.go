@@ -314,11 +314,6 @@ func (l *list) Contains(nonce uint64) bool {
 // If the new transaction is accepted into the list, the list's cost and gas
 // thresholds and expenditure accounting are also potentially updated.
 func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction, error) {
-	// ValidateTransaction rejects fee-delegated txs without a fee payer before they
-	// reach the list. Check again here because addCost/subCost dereference FeePayer.
-	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
-		return nil, txpool.ErrInvalidFeePayer
-	}
 	// Reject overflow before mutating accounting, otherwise a failed replacement
 	// could leave the old transaction in the map but missing from the counters.
 	cost, overflow := uint256.FromBig(tx.Cost())
@@ -397,7 +392,7 @@ func (l *list) Filter(feeDelegation bool, stateDB *state.StateDB, costLimit *uin
 
 	// Filter out all the transactions above the account's funds
 	removed := l.txs.Filter(func(tx *types.Transaction) bool {
-		if feeDelegation && tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() != nil {
+		if feeDelegation && tx.Type() == types.FeeDelegateDynamicFeeTxType {
 			// Sender owes the value, the gas must fit the block, and the fee payer
 			// must cover the gas cost.
 			return tx.Gas() > gasLimit ||
@@ -531,9 +526,6 @@ func (l *list) addCost(tx *types.Transaction) error {
 	if !l.tracksExpenditure() {
 		return nil
 	}
-	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
-		return txpool.ErrInvalidFeePayer
-	}
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
 		l.totalcost.Add(l.totalcost, uint256.MustFromBig(tx.Value()))
 		l.addPendingGas(*tx.FeePayer(), uint256.MustFromBig(tx.FeeCost()))
@@ -547,9 +539,6 @@ func (l *list) addCost(tx *types.Transaction) error {
 func (l *list) subCost(tx *types.Transaction) {
 	if !l.tracksExpenditure() {
 		return
-	}
-	if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() == nil {
-		panic("fee-delegated tx missing fee payer in subCost")
 	}
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
 		if _, underflow := l.totalcost.SubOverflow(l.totalcost, uint256.MustFromBig(tx.Value())); underflow {

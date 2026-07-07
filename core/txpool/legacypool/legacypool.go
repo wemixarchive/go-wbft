@@ -659,7 +659,7 @@ func (pool *LegacyPool) validateTxBasics(tx *types.Transaction, local bool) erro
 }
 
 func (pool *LegacyPool) addPendingGas(payer common.Address, feeCost *uint256.Int) {
-	if feeCost.IsZero() { // Zero-cost removals are no-ops.
+	if feeCost.IsZero() {
 		return
 	}
 	acc := pool.pendingGas[payer]

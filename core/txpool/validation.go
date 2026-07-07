@@ -291,7 +291,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 	if opts.ExistingExpenditure != nil {
 		// Determine who is responsible for the gas fee of the incoming transaction.
 		gasPayer := from
-		if tx.Type() == types.FeeDelegateDynamicFeeTxType && tx.FeePayer() != nil {
+		if tx.Type() == types.FeeDelegateDynamicFeeTxType {
 			gasPayer = *tx.FeePayer()
 		}
 		txValue := tx.Value()
@@ -312,7 +312,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 				isReplacement = true
 				prevValue = prev.Value()
 				prevGasCost = prev.FeeCost()
-				if prev.Type() == types.FeeDelegateDynamicFeeTxType && prev.FeePayer() != nil {
+				if prev.Type() == types.FeeDelegateDynamicFeeTxType {
 					prevGasPayer = *prev.FeePayer()
 				}
 			}
