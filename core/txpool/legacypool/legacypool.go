@@ -910,10 +910,10 @@ func (pool *LegacyPool) add(tx *types.Transaction, local bool) (replaced bool, e
 	// Try to replace an existing transaction in the pending pool
 	if list := pool.pending[from]; list != nil && list.Contains(tx.Nonce()) {
 		// Nonce already pending, check if required price bump is met
-		old, err := list.Add(tx, pool.config.PriceBump)
-		if err != nil {
+		inserted, old := list.Add(tx, pool.config.PriceBump)
+		if !inserted {
 			pendingDiscardMeter.Mark(1)
-			return false, err
+			return false, txpool.ErrReplaceUnderpriced
 		}
 
 		// New transaction is better, replace old one
@@ -985,10 +985,11 @@ func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, local
 	if pool.queue[from] == nil {
 		pool.queue[from] = newList(false)
 	}
-	old, err := pool.queue[from].Add(tx, pool.config.PriceBump)
-	if err != nil {
+	inserted, old := pool.queue[from].Add(tx, pool.config.PriceBump)
+	if !inserted {
+		// An older transaction was better, discard this
 		queuedDiscardMeter.Mark(1)
-		return false, err
+		return false, txpool.ErrReplaceUnderpriced
 	}
 
 	// Discard any previous transaction and mark this
@@ -1049,9 +1050,9 @@ func (pool *LegacyPool) promoteTx(addr common.Address, hash common.Hash, tx *typ
 	}
 	list := pool.pending[addr]
 
-	old, err := list.Add(tx, pool.config.PriceBump)
-	if err != nil {
-		log.Trace("Promoting invalid queued transaction", "hash", tx.Hash(), "err", err)
+	inserted, old := list.Add(tx, pool.config.PriceBump)
+	if !inserted {
+		// An older transaction was better, discard this
 		pool.all.Remove(hash)
 		pool.priced.Removed(1)
 		pendingDiscardMeter.Mark(1)

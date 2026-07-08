@@ -3616,9 +3616,14 @@ func TestListFeeDelegatedCounter(t *testing.T) {
 
 	// Replace the nonce-1 FD tx with a higher-priced FD tx: net counter change 0.
 	higher := feeDelegateTx(chainID, 1, 21000, big.NewInt(2_000_000_000), big.NewInt(2), big.NewInt(1), senderKey, payerKey)
-	if _, err := l.Add(higher, DefaultConfig.PriceBump); err != nil {
-		t.Fatalf("replacement add: %v", err)
+	inserted, old := l.Add(higher, DefaultConfig.PriceBump)
+	if !inserted {
+		t.Fatalf("replacement add rejected")
 	}
+	if old == nil {
+		t.Fatalf("replacement add did not replace the old tx")
+	}
+
 	if l.feeDelegated != 2 {
 		t.Fatalf("feeDelegated = %d after FD->FD replacement, want 2", l.feeDelegated)
 	}

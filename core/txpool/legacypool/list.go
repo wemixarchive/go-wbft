@@ -28,7 +28,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/holiman/uint256"
 )
@@ -308,23 +307,23 @@ func (l *list) Contains(nonce uint64) bool {
 	return l.txs.Get(nonce) != nil
 }
 
-// Add tries to insert a new transaction into the list, returning any previous
-// transaction it replaced, or an error if the transaction was rejected.
+// Add tries to insert a new transaction into the list, returning whether the
+// transaction was accepted, and if yes, any previous transaction it replaced.
 //
 // If the new transaction is accepted into the list, the list's cost and gas
 // thresholds and expenditure accounting are also potentially updated.
-func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction, error) {
+func (l *list) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction) {
 	// Reject overflow before mutating accounting, otherwise a failed replacement
 	// could leave the old transaction in the map but missing from the counters.
 	cost, overflow := uint256.FromBig(tx.Cost())
 	if overflow {
-		return nil, txpool.ErrReplaceUnderpriced
+		return false, nil
 	}
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
 		if old.GasFeeCapCmp(tx) >= 0 || old.GasTipCapCmp(tx) >= 0 {
-			return nil, txpool.ErrReplaceUnderpriced
+			return false, nil
 		}
 		// thresholdFeeCap = oldFC  * (100 + priceBump) / 100
 		a := big.NewInt(100 + int64(priceBump))
@@ -340,14 +339,12 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction,
 		// old ones as well as checking the percentage threshold to ensure that
 		// this is accurate for low (Wei-level) gas price replacements.
 		if tx.GasFeeCapIntCmp(thresholdFeeCap) < 0 || tx.GasTipCapIntCmp(thresholdTip) < 0 {
-			return nil, txpool.ErrReplaceUnderpriced
+			return false, nil
 		}
 		// Old is being replaced, subtract old cost
 		l.subCosts([]*types.Transaction{old})
 	}
-	if err := l.addCost(tx); err != nil {
-		return nil, err
-	}
+	l.addCost(tx)
 	// Otherwise overwrite the old transaction with the current one
 	l.txs.Put(tx)
 	l.incFeeDelegated(tx)
@@ -357,7 +354,7 @@ func (l *list) Add(tx *types.Transaction, priceBump uint64) (*types.Transaction,
 	if gas := tx.Gas(); l.gascap < gas {
 		l.gascap = gas
 	}
-	return old, nil
+	return true, old
 }
 
 // Forward removes all transactions from the list with a nonce lower than the
@@ -522,17 +519,16 @@ func (l *list) tracksExpenditure() bool {
 // addCost updates pending-only expenditure accounting: totalcost for sender-side
 // obligations and pendingGas for fee-payer gas. Queue/test lists are not wired
 // into ExistingExpenditure, so they skip this accounting entirely.
-func (l *list) addCost(tx *types.Transaction) error {
+func (l *list) addCost(tx *types.Transaction) {
 	if !l.tracksExpenditure() {
-		return nil
+		return
 	}
 	if tx.Type() == types.FeeDelegateDynamicFeeTxType {
 		l.totalcost.Add(l.totalcost, uint256.MustFromBig(tx.Value()))
 		l.addPendingGas(*tx.FeePayer(), uint256.MustFromBig(tx.FeeCost()))
-		return nil
+		return
 	}
 	l.totalcost.Add(l.totalcost, uint256.MustFromBig(tx.Cost()))
-	return nil
 }
 
 // subCost reverses addCost for a removed transaction.
