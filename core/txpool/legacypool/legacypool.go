@@ -915,7 +915,6 @@ func (pool *LegacyPool) add(tx *types.Transaction, local bool) (replaced bool, e
 			pendingDiscardMeter.Mark(1)
 			return false, txpool.ErrReplaceUnderpriced
 		}
-
 		// New transaction is better, replace old one
 		if old != nil {
 			pool.all.Remove(old.Hash())
@@ -991,7 +990,6 @@ func (pool *LegacyPool) enqueueTx(hash common.Hash, tx *types.Transaction, local
 		queuedDiscardMeter.Mark(1)
 		return false, txpool.ErrReplaceUnderpriced
 	}
-
 	// Discard any previous transaction and mark this
 	if old != nil {
 		pool.all.Remove(old.Hash())
