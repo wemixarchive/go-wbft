@@ -517,7 +517,7 @@ func (l *list) tracksExpenditure() bool {
 }
 
 // addCost updates pending-only expenditure accounting: totalcost for sender-side
-// obligations and pendingGas for fee-payer gas. Queue/test lists are not wired
+// expenditure and pendingGas for fee-payer gas. Queue/test lists are not wired
 // into ExistingExpenditure, so they skip this accounting entirely.
 func (l *list) addCost(tx *types.Transaction) {
 	if !l.tracksExpenditure() {

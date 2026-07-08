@@ -209,8 +209,8 @@ type ValidationOptionsWithState struct {
 	UsedAndLeftSlots func(addr common.Address) (int, int)
 
 	// ExistingExpenditure is a mandatory callback to retrieve the cumulative
-	// obligation of the already pooled transactions to check for overdrafts. The
-	// obligation includes sender value, self-paid gas, and delegated gas charged to
+	// expenditure of the already pooled transactions to check for overdrafts. The
+	// expenditure includes sender value, self-paid gas, and delegated gas charged to
 	// the fee payer.
 	ExistingExpenditure func(addr common.Address) *big.Int
 
@@ -218,12 +218,10 @@ type ValidationOptionsWithState struct {
 	// transaction's cost with the given nonce to check for overdrafts.
 	ExistingCost func(addr common.Address, nonce uint64) *big.Int
 
-	// ExistingTx is an optional callback to retrieve the already pooled
-	// transaction (if any) with the given sender and nonce, i.e. the transaction
-	// that an incoming one would replace. It lets the cumulative overdraft check
-	// split the replaced transaction's value and gas across the right accounts,
-	// which is required for fee-delegated transactions. When nil, the check falls
-	// back to ExistingCost and assumes the replaced transaction was sender-paid.
+	// ExistingTx returns a pooled transaction with the same sender and nonce, if one
+	// exists. It is used by replacement validation to subtract the replaced
+	// transaction's value and gas from the correct accounts. When nil, ExistingCost
+	// is used as a sender-paid fallback.
 	ExistingTx func(addr common.Address, nonce uint64) *types.Transaction
 }
 
@@ -280,13 +278,13 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 	// Cumulative overdraft protection.
 	//
 	// A transaction can pass the per-tx balance checks above but still become
-	// unaffordable when combined with the account's other pending obligations. This
+	// unaffordable when combined with the account's other pending expenditure. This
 	// allows individually valid but collectively unfundable transactions to occupy
 	// txpool resources.
 	//
-	// Fee delegation splits the obligation across two accounts: the sender owes
+	// Fee delegation splits the expenditure across two accounts: the sender owes
 	// value and the fee payer owes gas. ExistingExpenditure reports each account's
-	// cumulative pending obligation across all roles, so the checks below work for
+	// cumulative pending expenditure across all roles, so the checks below work for
 	// both ordinary and fee-delegated transactions.
 	if opts.ExistingExpenditure != nil {
 		// Determine who is responsible for the gas fee of the incoming transaction.
@@ -323,9 +321,9 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 			prevGasCost = prev
 		}
 
-		// need computes an account's total pooled obligation (value owed as a
-		// sender plus gas owed as a gas payer), augmented by the incoming
-		// transaction's deltas and discounted by any transaction being replaced.
+		// need computes an account's total pooled expenditure across sender value and
+		// fee-payer gas,augmented by the incoming transaction's deltas and discounted
+		// by any transaction being replaced.
 		need := func(addr common.Address, curValue, curGasCost *big.Int) (*big.Int, error) {
 			n := new(big.Int).Set(opts.ExistingExpenditure(addr))
 			if isReplacement {
@@ -352,7 +350,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		if from == gasPayer {
 			// Self-paid: value and gas are drawn from the same balance and must be
 			// checked combined, otherwise an account could overdraft by splitting
-			// its obligations across two independent checks.
+			// its expenditure across two independent checks.
 			combinedNeed, err := need(from, txValue, txGasCost)
 			if err != nil {
 				return err
@@ -361,8 +359,8 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 				return fmt.Errorf("%w: balance %v, needed %v, overshot %v", core.ErrInsufficientFunds, balance, combinedNeed, new(big.Int).Sub(combinedNeed, balance))
 			}
 		} else {
-			// Fee delegation: the sender covers its value obligations, the fee
-			// payer covers its gas obligations, each against its own balance.
+			// Fee delegation: the sender covers its value expenditure, the fee
+			// payer covers its gas expenditure, each against its own balance.
 			senderNeed, err := need(from, txValue, txGasCost)
 			if err != nil {
 				return err

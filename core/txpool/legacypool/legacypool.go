@@ -696,19 +696,19 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction, local bool) error {
 		UsedAndLeftSlots: nil, // Pool has own mechanism to limit the number of transactions
 		ExistingExpenditure: func(addr common.Address) *big.Int {
 			// Total wei the account is on the hook for in the pending set, matching
-			// upstream's pending-only accounting. totalcost covers sender-side obligations
+			// upstream's pending-only accounting. totalcost covers sender-side expenditure
 			// for this account's own txs; pendingGas covers gas this account owes as a fee
 			// payer for delegated txs.
-			obligation := new(big.Int)
+			expenditure := new(big.Int)
 			if list := pool.pending[addr]; list != nil {
 				// Sender-paid pending costs for txs sent by this account.
-				obligation.Add(obligation, list.totalcost.ToBig())
+				expenditure.Add(expenditure, list.totalcost.ToBig())
 			}
 			if g := pool.pendingGas[addr]; g != nil {
 				// Fee-delegated gas charged to this account as fee payer.
-				obligation.Add(obligation, g.ToBig())
+				expenditure.Add(expenditure, g.ToBig())
 			}
-			return obligation
+			return expenditure
 		},
 		ExistingCost: func(addr common.Address, nonce uint64) *big.Int {
 			if list := pool.pending[addr]; list != nil {

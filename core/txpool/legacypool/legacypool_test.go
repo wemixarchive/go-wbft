@@ -3169,7 +3169,7 @@ func feeDelegateTx(chainID *big.Int, nonce uint64, gas uint64, gasFeeCap, gasTip
 }
 
 // TestFeeDelegationCumulativeGas verifies that the pool aggregates the gas
-// obligations of fee delegation transactions per fee payer across the many
+// expenditure of fee delegation transactions per fee payer across the many
 // sender lists it subsidises, and rejects new transactions once that aggregate
 // would overdraw the fee payer's balance, while leaving the per-sender value
 // accounting intact.
@@ -3222,7 +3222,7 @@ func TestFeeDelegationCumulativeGas(t *testing.T) {
 	}
 
 	// The third transaction is individually affordable, but pushes the fee
-	// payer's aggregate gas obligation over its balance and must be rejected.
+	// payer's aggregate gas expenditure over its balance and must be rejected.
 	if err := pool.Add([]*types.Transaction{txs[2]}, true, true)[0]; !errors.Is(err, txpool.ErrFeePayerInsufficientFunds) {
 		t.Fatalf("tx 2: error = %v, want %v", err, txpool.ErrFeePayerInsufficientFunds)
 	}
@@ -3368,7 +3368,7 @@ func TestFeeDelegationExistingTxReplacementSplit(t *testing.T) {
 	newPayerKey, _ := crypto.GenerateKey()
 	newPayer := crypto.PubkeyToAddress(newPayerKey.PublicKey)
 
-	// The sender can only cover the value obligation, so replacement validation
+	// The sender can only cover the value expenditure, so replacement validation
 	// must not charge either the old or new delegated gas to the sender.
 	testAddBalance(pool, sender, new(big.Int).Set(value))
 	testAddBalance(pool, oldPayer, oldFeeCost)
@@ -3484,7 +3484,7 @@ func TestFeeDelegationPendingGasDemoteRequeueRepromote(t *testing.T) {
 	}
 }
 
-// TestPendingGasZeroAccounting verifies that zero gas obligations do not create
+// TestPendingGasZeroAccounting verifies that zero gas expenditure does not create
 // or remove pendingGas entries. addPendingGas should ignore zero contributions,
 // and subPendingGas should treat zero removals as no-ops even when the payer has
 // no entry. This keeps zero-fee delegated transactions from corrupting the
@@ -3505,15 +3505,15 @@ func TestPendingGasZeroAccounting(t *testing.T) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	// Zero-gas obligations must not create pendingGas entries.
+	// Zero-gas expenditure must not create pendingGas entries.
 	pool.addPendingGas(payer, zero)
 	if _, ok := pool.pendingGas[payer]; ok {
-		t.Fatalf("zero gas obligation must not create a pendingGas entry")
+		t.Fatalf("zero gas expenditure must not create a pendingGas entry")
 	}
 	pool.subPendingGas(payer, zero)
 
-	// After the real obligation is removed and the entry is deleted, removing the
-	// zero-gas obligation must still be a no-op.
+	// After the real expenditure is removed and the entry is deleted, removing the
+	// zero-gas expenditure must still be a no-op.
 	pool.addPendingGas(payer, five)
 	if got := pool.pendingGas[payer]; got == nil || got.Cmp(five) != 0 {
 		t.Fatalf("pendingGas[payer] = %v, want %v", got, five)
@@ -3578,7 +3578,7 @@ func validateFeeDelegationAccounting(pool *LegacyPool) error {
 		got := pool.pendingGas[payer]
 		if want.Sign() == 0 {
 			if got != nil {
-				return fmt.Errorf("pendingGas[%s] = %v, want no entry (zero obligation)", payer.Hex(), got)
+				return fmt.Errorf("pendingGas[%s] = %v, want no entry (zero expenditure)", payer.Hex(), got)
 			}
 			continue
 		}
