@@ -1,4 +1,5 @@
 // Copyright 2026 The go-stablenet Authors
+// Copyright 2026 The go-wbft Authors
 // This file is part of the go-stablenet library.
 //
 // The go-stablenet library is free software: you can redistribute it and/or modify
