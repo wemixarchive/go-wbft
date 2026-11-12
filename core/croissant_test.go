@@ -135,3 +135,29 @@ func TestEIP3860CreationTxRejected(t *testing.T) {
 		}
 	}
 }
+
+// TestEIP3651WarmCoinbase checks the gas effect of EIP-3651 through the state
+// transition: reading the coinbase balance costs a cold account access before
+// Croissant and a warm one from the fork on.
+func TestEIP3651WarmCoinbase(t *testing.T) {
+	// COINBASE, BALANCE, POP, STOP
+	balanceOfCoinbase := common.FromHex("41315000")
+	contract := common.HexToAddress("0x3000000000000000000000000000000000000003")
+
+	usedGas := func(block int64) uint64 {
+		res, err := applyAt(t, block, &contract, balanceOfCoinbase, nil)
+		if err != nil {
+			t.Fatalf("block %d: %v", block, err)
+		}
+		if res.Failed() {
+			t.Fatalf("block %d: execution failed: %v", block, res.Err)
+		}
+		return res.UsedGas
+	}
+
+	pre, post := usedGas(croissantForkBlock-1), usedGas(croissantForkBlock)
+	want := params.ColdAccountAccessCostEIP2929 - params.WarmStorageReadCostEIP2929
+	if pre-post != want {
+		t.Fatalf("Croissant saves %d gas on a coinbase BALANCE, want %d (pre=%d post=%d)", pre-post, want, pre, post)
+	}
+}
