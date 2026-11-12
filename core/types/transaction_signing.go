@@ -48,8 +48,8 @@ func MakeSigner(config *params.ChainConfig, blockNumber *big.Int, blockTime uint
 	switch {
 	case config.IsCancun(blockNumber, blockTime):
 		signer = NewCancunSigner(config.ChainID)
-	case config.IsCroissant(blockNumber):
-		signer = NewCroissantSigner(config.ChainID)
+	case config.IsDalgona(blockNumber):
+		signer = NewDalgonaSigner(config.ChainID)
 	case config.IsLondon(blockNumber):
 		signer = NewLondonSigner(config.ChainID)
 	case config.IsBerlin(blockNumber):
@@ -76,8 +76,8 @@ func LatestSigner(config *params.ChainConfig) Signer {
 		if config.CancunTime != nil {
 			return NewCancunSigner(config.ChainID)
 		}
-		if config.CroissantBlock != nil {
-			return NewCroissantSigner(config.ChainID)
+		if config.DalgonaBlock != nil {
+			return NewDalgonaSigner(config.ChainID)
 		}
 		if config.LondonBlock != nil {
 			return NewLondonSigner(config.ChainID)
@@ -220,7 +220,7 @@ type Signer interface {
 	Equal(Signer) bool
 }
 
-type cancunSigner struct{ croissantSigner }
+type cancunSigner struct{ dalgonaSigner }
 
 // NewCancunSigner returns a signer that accepts
 // - EIP-4844 blob transactions
@@ -230,12 +230,12 @@ type cancunSigner struct{ croissantSigner }
 // - EIP-155 replay protected transactions, and
 // - legacy Homestead transactions.
 func NewCancunSigner(chainId *big.Int) Signer {
-	return cancunSigner{croissantSigner{londonSigner{eip2930Signer{NewEIP155Signer(chainId)}}}}
+	return cancunSigner{dalgonaSigner{londonSigner{eip2930Signer{NewEIP155Signer(chainId)}}}}
 }
 
 func (s cancunSigner) Sender(tx *Transaction) (common.Address, error) {
 	if tx.Type() != BlobTxType {
-		return s.croissantSigner.Sender(tx)
+		return s.dalgonaSigner.Sender(tx)
 	}
 	V, R, S := tx.RawSignatureValues()
 	// Blob txs are defined to use 0 and 1 as their recovery
@@ -255,7 +255,7 @@ func (s cancunSigner) Equal(s2 Signer) bool {
 func (s cancunSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
 	txdata, ok := tx.inner.(*BlobTx)
 	if !ok {
-		return s.croissantSigner.SignatureValues(tx, sig)
+		return s.dalgonaSigner.SignatureValues(tx, sig)
 	}
 	// Check that chain ID of tx matches the signer. We also accept ID zero here,
 	// because it indicates that the chain ID was not specified in the tx.
@@ -271,31 +271,31 @@ func (s cancunSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big
 // It does not uniquely identify the transaction.
 func (s cancunSigner) Hash(tx *Transaction) common.Hash {
 	if tx.Type() != BlobTxType {
-		return s.croissantSigner.Hash(tx)
+		return s.dalgonaSigner.Hash(tx)
 	}
 	return tx.inner.sigHash(s.chainId)
 }
 
-// croissantSigner implements transaction signing for the Croissant hardfork, specifically adding support
+// dalgonaSigner implements transaction signing for the Dalgona hardfork, specifically adding support
 // for EIP-7702 SetCode transactions.
 //
 // In the standard Ethereum roadmap, this functionality is introduced in the Prague hardfork,
 // which builds upon Cancun (blob transactions). However, since go-wbft has not yet
 // adopted the Cancun fork, separate signer logic is used here that extends londonSigner
 // to support EIP-7702 directly without requiring EIP-4844 support.
-type croissantSigner struct{ londonSigner }
+type dalgonaSigner struct{ londonSigner }
 
-// NewCroissantSigner returns a signer that accepts
+// NewDalgonaSigner returns a signer that accepts
 // - EIP-7702 set code transactions
 // - EIP-1559 dynamic fee transactions
 // - EIP-2930 access list transactions,
 // - EIP-155 replay protected transactions, and
 // - legacy Homestead transactions.
-func NewCroissantSigner(chainId *big.Int) Signer {
-	return croissantSigner{londonSigner{eip2930Signer{NewEIP155Signer(chainId)}}}
+func NewDalgonaSigner(chainId *big.Int) Signer {
+	return dalgonaSigner{londonSigner{eip2930Signer{NewEIP155Signer(chainId)}}}
 }
 
-func (s croissantSigner) Sender(tx *Transaction) (common.Address, error) {
+func (s dalgonaSigner) Sender(tx *Transaction) (common.Address, error) {
 	if tx.Type() != SetCodeTxType {
 		return s.londonSigner.Sender(tx)
 	}
@@ -309,12 +309,12 @@ func (s croissantSigner) Sender(tx *Transaction) (common.Address, error) {
 	return recoverPlain(s.Hash(tx), R, S, V, true)
 }
 
-func (s croissantSigner) Equal(s2 Signer) bool {
-	x, ok := s2.(croissantSigner)
+func (s dalgonaSigner) Equal(s2 Signer) bool {
+	x, ok := s2.(dalgonaSigner)
 	return ok && x.chainId.Cmp(s.chainId) == 0
 }
 
-func (s croissantSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+func (s dalgonaSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
 	txdata, ok := tx.inner.(*SetCodeTx)
 	if !ok {
 		return s.londonSigner.SignatureValues(tx, sig)
@@ -331,7 +331,7 @@ func (s croissantSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
-func (s croissantSigner) Hash(tx *Transaction) common.Hash {
+func (s dalgonaSigner) Hash(tx *Transaction) common.Hash {
 	if tx.Type() != SetCodeTxType {
 		return s.londonSigner.Hash(tx)
 	}

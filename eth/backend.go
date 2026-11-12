@@ -172,7 +172,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 
 	etherbase := config.Miner.Etherbase
-	if chainConfig.CroissantEnabled() {
+	if chainConfig.DalgonaEnabled() {
 		// force to set the istanbul etherbase to node key address
 		etherbase = crypto.PubkeyToAddress(stack.Config().NodeKey().PublicKey)
 	}
@@ -267,7 +267,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 
 	eth.miner = miner.New(eth, &config.Miner, eth.blockchain.Config(), eth.EventMux(), eth.engine, eth.isLocalBlock)
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
-	if chainConfig.CroissantEnabled() {
+	if chainConfig.DalgonaEnabled() {
 		eth.miner.SetEtherbase(eth.etherbase)
 	}
 

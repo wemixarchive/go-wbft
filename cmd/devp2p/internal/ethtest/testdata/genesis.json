@@ -17,7 +17,7 @@
     "pangyoBlock": 0,
     "applepieBlock": 0,
     "briocheBlock": 0,
-    "croissantBlock": 0,
+    "dalgonaBlock": 0,
     "ethash": {},
     "brioche": {
       "blockReward": 1000000000000000000,
@@ -27,7 +27,7 @@
       "halvingTimes": 8,
       "halvingRate": 50
     },
-    "croissant": {
+    "dalgona": {
       "wBFT": {
         "requestTimeoutSeconds": 2,
         "blockPeriodSeconds": 1,

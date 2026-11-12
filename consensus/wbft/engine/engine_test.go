@@ -339,8 +339,8 @@ func TestWriteRandao(t *testing.T) {
 	}, nil)
 
 	chainConfig := &params.ChainConfig{
-		ChainID:        new(big.Int).SetUint64(9999),
-		CroissantBlock: parentBlockNumber,
+		ChainID:      new(big.Int).SetUint64(9999),
+		DalgonaBlock: parentBlockNumber,
 	}
 
 	expectedRandaoReveal, _ := crypto.Sign(crypto.Keccak256(makeRandaoData(chainConfig, blockNumber)), privateKey)
@@ -617,22 +617,22 @@ func TestEpochInfo(t *testing.T) {
 
 func TestEpochInfoTransition(t *testing.T) {
 	var testCases = []struct {
-		name           string
-		epoch          uint64
-		croissantBlock *big.Int
+		name         string
+		epoch        uint64
+		dalgonaBlock *big.Int
 	}{
 		{
-			"Epoch info transition (epoch = croissantBlock)",
+			"Epoch info transition (epoch = dalgonaBlock)",
 			3,
 			big.NewInt(3),
 		},
 		{
-			"Epoch info transition (epoch > croissantBlock)",
+			"Epoch info transition (epoch > dalgonaBlock)",
 			4,
 			big.NewInt(3),
 		},
 		{
-			"Epoch info transition (epoch < croissantBlock)",
+			"Epoch info transition (epoch < dalgonaBlock)",
 			3,
 			big.NewInt(4),
 		},
@@ -655,9 +655,9 @@ func TestEpochInfoTransition(t *testing.T) {
 			c := new(fakeChain)
 			c.chainConfig = new(params.ChainConfig) // do not mess TestChainConfig
 			*c.chainConfig = *params.TestWBFTChainConfig
-			c.chainConfig.CroissantBlock = tc.croissantBlock
-			c.chainConfig.Croissant.Init.Validators = validators
-			c.chainConfig.Croissant.Init.BLSPublicKeys = blsPubKeys
+			c.chainConfig.DalgonaBlock = tc.dalgonaBlock
+			c.chainConfig.Dalgona.Init.Validators = validators
+			c.chainConfig.Dalgona.Init.BLSPublicKeys = blsPubKeys
 			testConfig := *wbft.DefaultConfig
 			testConfig.Epoch = tc.epoch
 			engine := NewEngine(&testConfig, common.Address{}, nil, nil)
@@ -679,15 +679,15 @@ func TestEpochInfoTransition(t *testing.T) {
 				}
 
 				if newEpoch == nil {
-					if h.Number.Cmp(c.chainConfig.CroissantBlock) >= 0 {
-						t.Error("epoch is nil", "h.Number", h.Number, "croissantBlock", c.chainConfig.CroissantBlock)
+					if h.Number.Cmp(c.chainConfig.DalgonaBlock) >= 0 {
+						t.Error("epoch is nil", "h.Number", h.Number, "dalgonaBlock", c.chainConfig.DalgonaBlock)
 						break
 					}
 					continue
 				}
 
-				if h.Number.Cmp(c.chainConfig.CroissantBlock) != 0 {
-					t.Error("epoch is not nil", "h.Number", h.Number, "croissantBlock", c.chainConfig.CroissantBlock)
+				if h.Number.Cmp(c.chainConfig.DalgonaBlock) != 0 {
+					t.Error("epoch is not nil", "h.Number", h.Number, "dalgonaBlock", c.chainConfig.DalgonaBlock)
 					break
 				}
 
@@ -760,7 +760,7 @@ func TestDistributeRewardsForZeroStakes(t *testing.T) {
 			// Setup test chain genesis
 			c := new(fakeChain)
 			c.chainConfig = params.TestWBFTChainConfig
-			c.chainConfig.Croissant.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
+			c.chainConfig.Dalgona.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(params.Ether))
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 			engine := NewEngine(tc.wbftConfig, common.Address{}, nil, nil)
 			parent := makeGenesis(signers)
@@ -843,8 +843,8 @@ func TestDistributeRewardsOnlyForStakes(t *testing.T) {
 			c := new(fakeChain)
 			c.chainConfig = params.TestWBFTChainConfig
 			c.chainConfig.BriocheBlock = nil
-			c.chainConfig.Croissant.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(3000000))
-			tc.wbftConfig.BlockReward = c.chainConfig.Croissant.WBFT.BlockReward
+			c.chainConfig.Dalgona.WBFT.BlockReward = (*math.HexOrDecimal256)(big.NewInt(3000000))
+			tc.wbftConfig.BlockReward = c.chainConfig.Dalgona.WBFT.BlockReward
 
 			state, _ := state.New(types.EmptyRootHash, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 			engine := NewEngine(tc.wbftConfig, common.Address{}, nil, nil)
@@ -965,7 +965,7 @@ func TestIsEpochBlock(t *testing.T) {
 		expectedLatestEpoch *big.Int
 		expectedError       error
 	}{
-		// case 1: no croissant fork, zero block is an epoch block
+		// case 1: no dalgona fork, zero block is an epoch block
 		{
 			params.ChainConfig{},
 			wbft.Config{
@@ -976,7 +976,7 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int),
 			nil,
 		},
-		// case 2: no croissant fork, 1 block is not an epoch block
+		// case 2: no dalgona fork, 1 block is not an epoch block
 		{
 			params.ChainConfig{},
 			wbft.Config{
@@ -987,7 +987,7 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int),
 			nil,
 		},
-		// case 3: no croissant fork, epoch - 1 block is not an epoch block
+		// case 3: no dalgona fork, epoch - 1 block is not an epoch block
 		{
 			params.ChainConfig{},
 			wbft.Config{
@@ -998,7 +998,7 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int),
 			nil,
 		},
-		// case 4: no croissant fork, epoch block is an epoch block
+		// case 4: no dalgona fork, epoch block is an epoch block
 		{
 			params.ChainConfig{},
 			wbft.Config{
@@ -1009,7 +1009,7 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(100),
 			nil,
 		},
-		// case 5: no croissant fork, epoch block * n is an epoch block
+		// case 5: no dalgona fork, epoch block * n is an epoch block
 		{
 			params.ChainConfig{},
 			wbft.Config{
@@ -1020,10 +1020,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(300),
 			nil,
 		},
-		// case 6: croissant fork, error before fork
+		// case 6: dalgona fork, error before fork
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1),
+				DalgonaBlock: new(big.Int).SetUint64(1),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1033,10 +1033,10 @@ func TestIsEpochBlock(t *testing.T) {
 			nil,
 			wbftcommon.ErrIsNotWBFTBlock,
 		},
-		// case 7: croissant fork, fork block is an epoch block
+		// case 7: dalgona fork, fork block is an epoch block
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(13),
+				DalgonaBlock: new(big.Int).SetUint64(13),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1046,10 +1046,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(13),
 			nil,
 		},
-		// case 8: croissant fork, next of fork block is not an epoch block
+		// case 8: dalgona fork, next of fork block is not an epoch block
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(13),
+				DalgonaBlock: new(big.Int).SetUint64(13),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1059,10 +1059,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(13),
 			nil,
 		},
-		// case 9: croissant fork, fork block + epoch is an epoch block
+		// case 9: dalgona fork, fork block + epoch is an epoch block
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(13),
+				DalgonaBlock: new(big.Int).SetUint64(13),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1072,10 +1072,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(113),
 			nil,
 		},
-		// case 10: croissant fork, transition exist, before transition
+		// case 10: dalgona fork, transition exist, before transition
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1000),
+				DalgonaBlock: new(big.Int).SetUint64(1000),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1088,10 +1088,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(1100),
 			nil,
 		},
-		// case 11: croissant fork, transition exist, just on transition
+		// case 11: dalgona fork, transition exist, just on transition
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1000),
+				DalgonaBlock: new(big.Int).SetUint64(1000),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1104,10 +1104,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(1100),
 			nil,
 		},
-		// case 12: croissant fork, transition exist, after transition, applied new epoch length
+		// case 12: dalgona fork, transition exist, after transition, applied new epoch length
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1000),
+				DalgonaBlock: new(big.Int).SetUint64(1000),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1120,10 +1120,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(1100),
 			nil,
 		},
-		// case 13: edge case; transition before croissant fork?
+		// case 13: edge case; transition before dalgona fork?
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1000),
+				DalgonaBlock: new(big.Int).SetUint64(1000),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1136,10 +1136,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(1050),
 			nil,
 		},
-		// case 14: croissant fork, transitions exist, after transition, applied new epoch length
+		// case 14: dalgona fork, transitions exist, after transition, applied new epoch length
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1000),
+				DalgonaBlock: new(big.Int).SetUint64(1000),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1153,10 +1153,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(1100),
 			nil,
 		},
-		// case 15: croissant fork, transitions exist, after transitions, applied new epoch length
+		// case 15: dalgona fork, transitions exist, after transitions, applied new epoch length
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1000),
+				DalgonaBlock: new(big.Int).SetUint64(1000),
 			},
 			wbft.Config{
 				Epoch: 100,
@@ -1170,10 +1170,10 @@ func TestIsEpochBlock(t *testing.T) {
 			new(big.Int).SetUint64(1350),
 			nil,
 		},
-		// case 16: croissant fork, transitions exist, after transitions, applied new epoch length
+		// case 16: dalgona fork, transitions exist, after transitions, applied new epoch length
 		{
 			params.ChainConfig{
-				CroissantBlock: new(big.Int).SetUint64(1000),
+				DalgonaBlock: new(big.Int).SetUint64(1000),
 			},
 			wbft.Config{
 				Epoch: 100,

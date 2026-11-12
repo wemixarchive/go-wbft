@@ -170,12 +170,12 @@ func (g *genesisGenerator) wbftChainConfig() {
 		}
 	}
 
-	g.Genesis.Config.CroissantBlock = new(big.Int).SetUint64(0)
-	g.Genesis.Config.Croissant = params.DefaultCroissantConfig
+	g.Genesis.Config.DalgonaBlock = new(big.Int).SetUint64(0)
+	g.Genesis.Config.Dalgona = params.DefaultDalgonaConfig
 
 	for i, val := range validators {
-		g.Genesis.Config.Croissant.Init.Validators = append(g.Genesis.Config.Croissant.Init.Validators, val)
-		g.Genesis.Config.Croissant.Init.BLSPublicKeys = append(g.Genesis.Config.Croissant.Init.BLSPublicKeys, blsPublicKeys[i])
+		g.Genesis.Config.Dalgona.Init.Validators = append(g.Genesis.Config.Dalgona.Init.Validators, val)
+		g.Genesis.Config.Dalgona.Init.BLSPublicKeys = append(g.Genesis.Config.Dalgona.Init.BLSPublicKeys, blsPublicKeys[i])
 	}
 
 	// you can add config file for static nodes if you want

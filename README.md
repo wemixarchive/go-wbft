@@ -172,27 +172,27 @@ The existing miner worker is designed to be fit to the ethash algorithm. When a 
 - The WBFT engine waits for the block period before notifying the worker(In the existing IBFT, the block period was waited for when sealing the block).
 - When new work starts, the worker begins the process of preparing the block.
 
-### Croissant hard fork
-WBFT is not only implemented to run a WBFT chain from genesis but is also designed and implemented to enable a hard fork from a legacy chain to the WBFT chain. This hard fork is named the `Croissant` hard fork.
-You should define the Croissant hard fork in genesis.json to run a WBFT chain. Two chain configs are added for Croissant hard fork; `croissantBlock` and `croissant`.
-- `croissantBlock`: Defines the block height at which the Croissant hard fork occurs. You can set it to zero for the genesis block.
-- `croissant`: Defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `govContracts`.
+### Dalgona hard fork
+WBFT is not only implemented to run a WBFT chain from genesis but is also designed and implemented to enable a hard fork from a legacy chain to the WBFT chain. This hard fork is named the `Dalgona` hard fork.
+You should define the Dalgona hard fork in genesis.json to run a WBFT chain. Two chain configs are added for Dalgona hard fork; `dalgonaBlock` and `dalgona`.
+- `dalgonaBlock`: Defines the block height at which the Dalgona hard fork occurs. You can set it to zero for the genesis block.
+- `dalgona`: Defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `govContracts`.
 
-Setting `croissantBlock` to 0 triggers WBFT-related initialization in the genesis block when executing the `gwemix init` command. Conversely, if `croissantBlock` is set to 1 or greater, WBFT-related initialization occurs when the Croissant block is created and finalized.
-The Croissant hard fork protocols are as follows:
-- WBFT validator nodes just imports blocks from legacy chain miners before Croissant hard fork.
-- WBFT validator nodes supposes that legacy miners would stop block creation when it is time to create the Croissant block (i.e., they create blocks up to just before the Croissant hard fork).
-- WBFT validator nodes recognize the Croissant hard fork and can obtain the validator set from the WBFT config when it is their turn to create this block.
+Setting `dalgonaBlock` to 0 triggers WBFT-related initialization in the genesis block when executing the `gwemix init` command. Conversely, if `dalgonaBlock` is set to 1 or greater, WBFT-related initialization occurs when the Dalgona block is created and finalized.
+The Dalgona hard fork protocols are as follows:
+- WBFT validator nodes just imports blocks from legacy chain miners before Dalgona hard fork.
+- WBFT validator nodes supposes that legacy miners would stop block creation when it is time to create the Dalgona block (i.e., they create blocks up to just before the Dalgona hard fork).
+- WBFT validator nodes recognize the Dalgona hard fork and can obtain the validator set from the WBFT config when it is their turn to create this block.
 - WBFT validator nodes can create blocks and proceed with consensus once they can obtain the validator set.
-- The Croissant block is a special block. Validators that receive this block perform additional tasks to deploy and initialize the governance contracts.
-- The Croissant block is the first epoch block of WBFT. Therefore, the first validator set is recorded.
-- The first epoch starts from the block after the Croissant block, during which stakers start staking from zero.
+- The Dalgona block is a special block. Validators that receive this block perform additional tasks to deploy and initialize the governance contracts.
+- The Dalgona block is the first epoch block of WBFT. Therefore, the first validator set is recorded.
+- The first epoch starts from the block after the Dalgona block, during which stakers start staking from zero.
 - If the number of stakers is equal to or greater than the minimum stakers during the first epoch, these stakers become validators from the next epoch.
 - If the number of stakers is less than the minimum stakers during the first epoch, the initial validator set is maintained.
 
 #### Compatibility with Ethereum hard forks
-- Croissant hard fork includes all feature of the `London` hard fork and priors.
-- Croissant hard fork includes new evm instructions of the `Shanghai` and `Cancun` hard forks.
+- Dalgona hard fork includes all feature of the `London` hard fork and priors.
+- Dalgona hard fork includes new evm instructions of the `Shanghai` and `Cancun` hard forks.
   - EIP-3855 (PUSH0 opcode)
   - EIP-3860 (Limit and meter initcode)
   - EIP-1153 (Transient Storage)
@@ -204,8 +204,8 @@ The Croissant hard fork protocols are as follows:
 The existing WBFT Config was revised by removing unnecessary fields and adding required ones, resulting in the following structure.
 If you want to use the WBFT consensus, you should use the following chain config in genesis.json.
 ```
-"croissantBlock": 1000000,
-"croissant": {
+"dalgonaBlock": 1000000,
+"dalgona": {
   "wBFT": {
     "requestTimeoutSeconds": 2,
     "blockPeriodSeconds": 1,
@@ -260,8 +260,8 @@ If you want to use the WBFT consensus, you should use the following chain config
   "upgrades": null
 }
 ```
-- `croissantBlock` defines the block height at which the Croissant hard fork occurs. You can set it to zero for the genesis block.
-- `croissant` defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `govContracts`.
+- `dalgonaBlock` defines the block height at which the Dalgona hard fork occurs. You can set it to zero for the genesis block.
+- `dalgona` defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `govContracts`.
 - `wBFT` defines the WBFT consensus engine parameters:
 - `blockRewardBeneficiary` defines the address that will receive the block minting rewards consistently.
 - `targetValidators` should be less than or equals to `epochLength`.
@@ -311,7 +311,7 @@ During the period when NCP is in use, the rules for selecting the validator set 
 The process of obtaining the validator set at any block height is as follows (replacing the snapshot function in the existing IBFT):
 - If the current block is an epoch block, obtain the validator set from the current block.
 - If the current block is not an epoch block, traverse blocks backward from the height - 1 block to find the most recent epoch block and obtain the validator set.
-- It should meet the Croissant hard fork block or the genesis block during traversing, otherwise it is a failure.
+- It should meet the Dalgona hard fork block or the genesis block during traversing, otherwise it is a failure.
 
 Node that NCP system is optional for use of a private chain and can be disabled by setting `useNCP` to false in the genesis.json. If it is set to false, the all stakers can be validators if the number of stakers is less than or equal to the target validators.
 
@@ -499,8 +499,8 @@ aware of and agree upon. This consists of a small JSON file (e.g. call it `genes
     "londonBlock": 0,
     "arrowGlacierBlock": 0,
     "grayGlacierBlock": 0,
-    "croissantBlock": 0,
-    "croissant": {
+    "dalgonaBlock": 0,
+    "dalgona": {
       "wBFT": {
         "requestTimeoutSeconds": 2,
         "blockPeriodSeconds": 1,

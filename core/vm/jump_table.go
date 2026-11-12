@@ -61,7 +61,7 @@ var (
 )
 
 var (
-	croissantInstructionSet = newCroissantInstructionSet()
+	dalgonaInstructionSet = newDalgonaInstructionSet()
 )
 
 // JumpTable contains the EVM opcodes supported at a given fork.
@@ -114,7 +114,7 @@ func newMergeInstructionSet() JumpTable {
 	return validate(instructionSet)
 }
 
-func newCroissantInstructionSet() JumpTable {
+func newDalgonaInstructionSet() JumpTable {
 	instructionSet := newLondonInstructionSet()
 	instructionSet[PREVRANDAO] = &operation{
 		execute:     opRandom,
@@ -128,7 +128,7 @@ func newCroissantInstructionSet() JumpTable {
 	enable3860(&instructionSet) // Limit and meter initcode
 
 	// cancun
-	// Croissant does not support blob. (EIP-4844, EIP-7516)
+	// Dalgona does not support blob. (EIP-4844, EIP-7516)
 	enable1153(&instructionSet) // EIP-1153 "Transient Storage"
 	enable5656(&instructionSet) // EIP-5656 (MCOPY opcode)
 	enable6780(&instructionSet) // EIP-6780 SELFDESTRUCT only in same transaction

@@ -227,20 +227,20 @@ func applyOverrides(config *params.ChainConfig, overrides *ChainOverrides) {
 	}
 }
 
-func validateCroissantGenesisConfig(config *params.ChainConfig) error {
-	if config != nil && config.CroissantEnabled() && config.CroissantBlock.Sign() == 0 {
-		if err := config.Croissant.CheckValidity(); err != nil {
+func validateDalgonaGenesisConfig(config *params.ChainConfig) error {
+	if config != nil && config.DalgonaEnabled() && config.DalgonaBlock.Sign() == 0 {
+		if err := config.Dalgona.CheckValidity(); err != nil {
 			return fmt.Errorf("Invalid genesis config: %v", err)
 		}
 	}
 	return nil
 }
 
-func initializeCroissantGenesis(genesis *Genesis) error {
-	if genesis == nil || genesis.Config == nil || !genesis.Config.CroissantEnabled() || genesis.Config.CroissantBlock.Sign() != 0 {
+func initializeDalgonaGenesis(genesis *Genesis) error {
+	if genesis == nil || genesis.Config == nil || !genesis.Config.DalgonaEnabled() || genesis.Config.DalgonaBlock.Sign() != 0 {
 		return nil
 	}
-	extraData, err := wbft.CreateInitialExtraData(genesis.Config.Croissant)
+	extraData, err := wbft.CreateInitialExtraData(genesis.Config.Dalgona)
 	if err != nil {
 		return err
 	}
@@ -280,11 +280,11 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		}
 		applyOverrides(genesis.Config, overrides)
 
-		if err := validateCroissantGenesisConfig(genesis.Config); err != nil {
+		if err := validateDalgonaGenesisConfig(genesis.Config); err != nil {
 			return nil, common.Hash{}, err
 		}
 
-		if err := initializeCroissantGenesis(genesis); err != nil {
+		if err := initializeDalgonaGenesis(genesis); err != nil {
 			return genesis.Config, common.Hash{}, err
 		}
 		block, err := genesis.Commit(db, triedb)
@@ -304,10 +304,10 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 		}
 		applyOverrides(genesis.Config, overrides)
 
-		if err := validateCroissantGenesisConfig(genesis.Config); err != nil {
+		if err := validateDalgonaGenesisConfig(genesis.Config); err != nil {
 			return nil, common.Hash{}, err
 		}
-		if err := initializeCroissantGenesis(genesis); err != nil {
+		if err := initializeDalgonaGenesis(genesis); err != nil {
 			return genesis.Config, stored, err
 		}
 
@@ -325,10 +325,10 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *triedb.Database, g
 	// Check whether the genesis block is already written.
 	if genesis != nil {
 		applyOverrides(genesis.Config, overrides)
-		if err := validateCroissantGenesisConfig(genesis.Config); err != nil {
+		if err := validateDalgonaGenesisConfig(genesis.Config); err != nil {
 			return nil, common.Hash{}, err
 		}
-		if err := initializeCroissantGenesis(genesis); err != nil {
+		if err := initializeDalgonaGenesis(genesis); err != nil {
 			return genesis.Config, common.Hash{}, err
 		}
 		hash := genesis.ToBlock().Hash()
@@ -399,10 +399,10 @@ func LoadChainConfigWithOverride(db ethdb.Database, genesis *Genesis, overrides 
 	// the provided genesis does not point to a different chain.
 	if genesis != nil {
 		applyOverrides(genesis.Config, overrides)
-		if err := validateCroissantGenesisConfig(genesis.Config); err != nil {
+		if err := validateDalgonaGenesisConfig(genesis.Config); err != nil {
 			return nil, err
 		}
-		if err := initializeCroissantGenesis(genesis); err != nil {
+		if err := initializeDalgonaGenesis(genesis); err != nil {
 			return genesis.Config, err
 		}
 		hash := genesis.ToBlock().Hash()
@@ -716,12 +716,12 @@ func TestGenesisBlock() *Genesis {
 
 // InjectContracts sets WBFT GovContracts to genesis
 func InjectContracts(genesis *Genesis, config *params.ChainConfig) error {
-	transition, err := govwbft.GetGovContractsTransition(config.Croissant.GovContracts)
+	transition, err := govwbft.GetGovContractsTransition(config.Dalgona.GovContracts)
 	if err != nil {
 		return err
 	}
 	if transition == nil {
-		return errors.New("Some or all of the Croissant parameters are missing from the genesis configuration.")
+		return errors.New("Some or all of the Dalgona parameters are missing from the genesis configuration.")
 	}
 	if genesis.Alloc == nil {
 		genesis.Alloc = map[common.Address]types.Account{}

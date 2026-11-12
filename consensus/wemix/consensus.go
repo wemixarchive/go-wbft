@@ -36,23 +36,23 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type CroissantConsensus struct {
+type DalgonaConsensus struct {
 	legacy consensus.Engine
 	wbft   *wbftBackend.Backend
 	stopCh chan struct{}
 }
 
-func NewCroissantEngine(legacyEngine consensus.Engine, config *wbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Engine {
+func NewDalgonaEngine(legacyEngine consensus.Engine, config *wbft.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Engine {
 	wbft := wbftBackend.New(config, privateKey, db)
 
-	result := &CroissantConsensus{
+	result := &DalgonaConsensus{
 		legacy: legacyEngine,
 		wbft:   wbft,
 	}
 	return result
 }
 
-func (we *CroissantConsensus) Start(
+func (we *DalgonaConsensus) Start(
 	config *params.ChainConfig,
 	chain consensus.ChainHeaderReader,
 	currentBlock func() *types.Block,
@@ -62,39 +62,39 @@ func (we *CroissantConsensus) Start(
 	we.wbft.Start(chain, currentBlock, rawdb.HasBadBlock, notifyNewRound)
 }
 
-func (we *CroissantConsensus) Stop() {
+func (we *DalgonaConsensus) Stop() {
 	we.wbft.Stop()
 	close(we.stopCh)
 }
 
-func (we *CroissantConsensus) Author(header *types.Header) (common.Address, error) {
+func (we *DalgonaConsensus) Author(header *types.Header) (common.Address, error) {
 	return header.Coinbase, nil
 }
 
-func (we *CroissantConsensus) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
-	// The fact that this engine is used implies that the Croissant hard fork is configured. (Croissant is not nil)
-	if chain.Config().IsCroissant(header.Number) {
+func (we *DalgonaConsensus) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
+	// The fact that this engine is used implies that the Dalgona hard fork is configured. (Dalgona is not nil)
+	if chain.Config().IsDalgona(header.Number) {
 		return we.wbft.VerifyHeader(chain, header)
 	}
 	return we.legacy.VerifyHeader(chain, header)
 }
 
-// VerifyHeaders verifies a batch of headers. If the batch spans the Croissant
+// VerifyHeaders verifies a batch of headers. If the batch spans the Dalgona
 // fork boundary, it splits the headers into legacy and wbft slices and verifies
 // each with the appropriate engine sequentially.
-func (we *CroissantConsensus) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
-	if chain.Config().IsCroissant(headers[0].Number) {
+func (we *DalgonaConsensus) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
+	if chain.Config().IsDalgona(headers[0].Number) {
 		return we.wbft.VerifyHeaders(chain, headers)
-	} else if !chain.Config().IsCroissant(headers[len(headers)-1].Number) {
+	} else if !chain.Config().IsDalgona(headers[len(headers)-1].Number) {
 		return we.legacy.VerifyHeaders(chain, headers)
 	}
 
-	// Mixed batch spanning the Croissant fork boundary.
+	// Mixed batch spanning the Dalgona fork boundary.
 	// Split into legacy and wbft slices so each engine can do batch verification
 	// (which passes preceding headers as parents), avoiding ErrUnknownAncestor
 	// that would occur if each header were verified individually via VerifyHeader.
-	croissantBlock := chain.Config().CroissantBlock
-	splitIdx := int(new(big.Int).Sub(croissantBlock, headers[0].Number).Int64())
+	dalgonaBlock := chain.Config().DalgonaBlock
+	splitIdx := int(new(big.Int).Sub(dalgonaBlock, headers[0].Number).Int64())
 
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
@@ -132,64 +132,64 @@ func (we *CroissantConsensus) VerifyHeaders(chain consensus.ChainHeaderReader, h
 	return abort, results
 }
 
-func (we *CroissantConsensus) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	if chain.Config().IsCroissant(block.Number()) {
+func (we *DalgonaConsensus) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+	if chain.Config().IsDalgona(block.Number()) {
 		return we.wbft.VerifyUncles(chain, block)
 	}
 	return we.legacy.VerifyUncles(chain, block)
 }
 
-func (we *CroissantConsensus) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	if chain.Config().IsCroissant(header.Number) {
+func (we *DalgonaConsensus) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	if chain.Config().IsDalgona(header.Number) {
 		return we.wbft.Prepare(chain, header)
 	}
 	return we.legacy.Prepare(chain, header)
 }
 
-func (we *CroissantConsensus) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (we *DalgonaConsensus) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, withdrawals []*types.Withdrawal) error {
-	if chain.Config().IsCroissant(header.Number) {
+	if chain.Config().IsDalgona(header.Number) {
 		return we.wbft.Finalize(chain, header, state, txs, uncles, withdrawals)
 	} else {
 		return we.legacy.Finalize(chain, header, state, txs, uncles, withdrawals)
 	}
 }
 
-func (we *CroissantConsensus) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (we *DalgonaConsensus) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt, withdrawals []*types.Withdrawal) (*types.Block, error) {
-	if chain.Config().IsCroissant(header.Number) {
+	if chain.Config().IsDalgona(header.Number) {
 		return we.wbft.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts, withdrawals)
 	}
 	return we.legacy.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts, withdrawals)
 }
 
-func (we *CroissantConsensus) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
-	if chain.Config().IsCroissant(block.Number()) {
+func (we *DalgonaConsensus) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+	if chain.Config().IsDalgona(block.Number()) {
 		return we.wbft.Seal(chain, block, results, stop)
 	}
 	return we.legacy.Seal(chain, block, results, stop)
 }
 
-func (we *CroissantConsensus) SealHash(header *types.Header) common.Hash {
+func (we *DalgonaConsensus) SealHash(header *types.Header) common.Hash {
 	// Wpoa does not support SealHash, so we suppose this block to be a wbft block
 	return we.wbft.SealHash(header)
 }
 
-func (we *CroissantConsensus) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+func (we *DalgonaConsensus) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
 	num := new(big.Int).Set(parent.Number)
 	num = num.Add(num, big.NewInt(1))
-	if chain.Config().IsCroissant(num) {
+	if chain.Config().IsDalgona(num) {
 		return we.wbft.CalcDifficulty(chain, time, parent)
 	}
 	return we.legacy.CalcDifficulty(chain, time, parent)
 }
 
-func (we *CroissantConsensus) APIs(chain consensus.ChainHeaderReader) []rpc.API {
+func (we *DalgonaConsensus) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	// legacy has no consensus API
 	return we.wbft.APIs(chain)
 }
 
-func (we *CroissantConsensus) Close() error {
+func (we *DalgonaConsensus) Close() error {
 	err := we.legacy.Close()
 	if err != nil {
 		return err
@@ -198,18 +198,18 @@ func (we *CroissantConsensus) Close() error {
 }
 
 // CallEngineSpecific implements consensus.Engine
-func (we *CroissantConsensus) CallEngineSpecific(method string, args ...interface{}) interface{} {
+func (we *DalgonaConsensus) CallEngineSpecific(method string, args ...interface{}) interface{} {
 	return we.wbft.CallEngineSpecific(method, args)
 }
 
-func (we *CroissantConsensus) NewChainHead() error {
+func (we *DalgonaConsensus) NewChainHead() error {
 	return we.wbft.NewChainHead()
 }
 
-func (we *CroissantConsensus) HandleMsg(address common.Address, data p2p.Msg) (bool, error) {
+func (we *DalgonaConsensus) HandleMsg(address common.Address, data p2p.Msg) (bool, error) {
 	return we.wbft.HandleMsg(address, data)
 }
 
-func (we *CroissantConsensus) SetBroadcaster(broadcaster consensus.Broadcaster) {
+func (we *DalgonaConsensus) SetBroadcaster(broadcaster consensus.Broadcaster) {
 	we.wbft.SetBroadcaster(broadcaster)
 }

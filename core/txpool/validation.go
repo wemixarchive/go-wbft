@@ -75,8 +75,8 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 	if !opts.Config.IsCancun(head.Number, head.Time) && tx.Type() == types.BlobTxType {
 		return fmt.Errorf("%w: type %d rejected, pool not yet in Cancun", core.ErrTxTypeNotSupported, tx.Type())
 	}
-	if !opts.Config.IsCroissant(head.Number) && tx.Type() == types.SetCodeTxType {
-		return fmt.Errorf("%w: type %d rejected, pool not yet in Croissant", core.ErrTxTypeNotSupported, tx.Type())
+	if !opts.Config.IsDalgona(head.Number) && tx.Type() == types.SetCodeTxType {
+		return fmt.Errorf("%w: type %d rejected, pool not yet in Dalgona", core.ErrTxTypeNotSupported, tx.Type())
 	}
 	// Check whether the init code size has been exceeded
 	if opts.Config.IsShanghai(head.Number, head.Time) && tx.To() == nil && len(tx.Data()) > params.MaxInitCodeSize {

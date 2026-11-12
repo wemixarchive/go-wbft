@@ -264,7 +264,7 @@ func (st *StateTransition) buyGas() error {
 	mgval.Mul(mgval, st.msg.GasPrice)
 
 	feeCheck := new(big.Int).Set(mgval)
-	if !st.evm.ChainConfig().CroissantEnabled() || st.evm.ChainConfig().IsCroissant(st.evm.Context.BlockNumber) || !isFeeDelegation {
+	if !st.evm.ChainConfig().DalgonaEnabled() || st.evm.ChainConfig().IsDalgona(st.evm.Context.BlockNumber) || !isFeeDelegation {
 		if st.msg.GasFeeCap != nil {
 			feeCheck.SetUint64(st.msg.GasLimit)
 			feeCheck.Mul(feeCheck, st.msg.GasFeeCap)
@@ -535,7 +535,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// WEMIX
 	// In Wemix 3.0, effective tip is added to feeCollector (default: maintenance)
 	// In WBFT chain, effective tip is added to coinbase same as Ethereum.
-	if st.evm.ChainConfig().CroissantBlock == nil || st.evm.ChainConfig().IsCroissant(st.evm.Context.BlockNumber) {
+	if st.evm.ChainConfig().DalgonaBlock == nil || st.evm.ChainConfig().IsDalgona(st.evm.Context.BlockNumber) {
 		effectiveTip := msg.GasPrice
 		if rules.IsLondon {
 			effectiveTip = cmath.BigMin(msg.GasTipCap, new(big.Int).Sub(msg.GasFeeCap, st.evm.Context.BaseFee))

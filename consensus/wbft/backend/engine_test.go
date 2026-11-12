@@ -364,7 +364,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 		t.Errorf("Error inserting block: %v", err)
 	}
 
-	//create chain consists of genesisblock - croissant hardfork block - regular wbft block
+	//create chain consists of genesisblock - dalgona hardfork block - regular wbft block
 	testCases := []struct {
 		block                  *types.Block
 		headerManipulationFunc func(*types.Block) *types.Header
@@ -440,7 +440,7 @@ func TestVerifyHeaderForChainedBlock(t *testing.T) {
 				}
 				return header
 			},
-			// for croissant block, invalid preparedSeal "does not" occurs when validating preparedSeal because header is  "not" changed
+			// for dalgona block, invalid preparedSeal "does not" occurs when validating preparedSeal because header is  "not" changed
 			nil,
 		},
 		{

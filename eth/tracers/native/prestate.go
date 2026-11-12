@@ -100,7 +100,7 @@ func (t *prestateTracer) CaptureStart(from common.Address, to common.Address, cr
 	// Lookup the delegation target.
 	// For authority accounts, use pre-captured code (before EIP-7702 authorization)
 	// to correctly resolve the original delegation target.
-	if !create && t.env.ChainConfig().IsCroissant(t.env.Context.BlockNumber) {
+	if !create && t.env.ChainConfig().IsDalgona(t.env.Context.BlockNumber) {
 		var code []byte
 		if t.authorities[to] {
 			// Authority's code was captured in CaptureTxStart before authorization was applied
@@ -192,7 +192,7 @@ func (t *prestateTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64,
 		addr := common.Address(stackData[stackLen-1].Bytes20())
 		t.lookupAccount(addr)
 		if op == vm.SELFDESTRUCT {
-			if t.env.ChainConfig().IsCroissant(t.env.Context.BlockNumber) {
+			if t.env.ChainConfig().IsDalgona(t.env.Context.BlockNumber) {
 				// EIP-6780: only delete if created in same transaction
 				if t.created[caller] {
 					t.deleted[caller] = true
@@ -206,7 +206,7 @@ func (t *prestateTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64,
 		addr := common.Address(stackData[stackLen-2].Bytes20())
 		t.lookupAccount(addr)
 		// Lookup the delegation target
-		if t.env.ChainConfig().IsCroissant(t.env.Context.BlockNumber) {
+		if t.env.ChainConfig().IsDalgona(t.env.Context.BlockNumber) {
 			code := t.env.StateDB.GetCode(addr)
 			if target, ok := types.ParseDelegation(code); ok {
 				t.lookupAccount(target)

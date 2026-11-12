@@ -64,7 +64,7 @@ func TestStateProcessorErrors(t *testing.T) {
 			TerminalTotalDifficultyPassed: true,
 			ShanghaiTime:                  new(uint64),
 			CancunTime:                    new(uint64),
-			// CroissantBlock:                big.NewInt(0),
+			// DalgonaBlock:                big.NewInt(0),
 		}
 		signer         = types.LatestSigner(config)
 		key1, _        = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")

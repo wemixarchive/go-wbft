@@ -81,7 +81,7 @@ func NewEngine(cfg *wbft.Config, signer common.Address, sign SignerFn, checkSig 
 }
 
 func mustHavePrevSeals(header *types.Header, config *params.ChainConfig) bool {
-	return header.Number.Cmp(config.CroissantBlock) > 0 && header.Number.Cmp(common.Big1) > 0
+	return header.Number.Cmp(config.DalgonaBlock) > 0 && header.Number.Cmp(common.Big1) > 0
 }
 
 func (e *Engine) Author(header *types.Header) (common.Address, error) {
@@ -326,10 +326,10 @@ func (e *Engine) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return fmt.Errorf("invalid randao mix: have %x, want %x", header.MixDigest, calculatedRandaoMix)
 	}
 
-	// prev seals validation for croissant block or first block after genesis is skipped because it's empty
+	// prev seals validation for dalgona block or first block after genesis is skipped because it's empty
 	if mustHavePrevSeals(header, chain.Config()) {
-		// if croissant == 0: croissant+1(== 1) has no prev seals;
-		// if croissant > 0: croissant+1 has prev seals;
+		// if dalgona == 0: dalgona+1(== 1) has no prev seals;
+		// if dalgona > 0: dalgona+1 has prev seals;
 		// Verify prevPreparedSeals and prevCommittedSeals
 		if err := e.verifyPrevSeals(header, parent, prevValidators, currentExtra); err != nil {
 			return err
@@ -510,8 +510,8 @@ func (e *Engine) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 			)
 		}
 	} else {
-		// croissant hardFork block has empty prev seal
-		// next block of genesis croissant block has empty prev seal
+		// dalgona hardFork block has empty prev seal
+		// next block of genesis dalgona block has empty prev seal
 		madeExtra, err = ApplyHeaderWBFTExtra(header, e.WriteRandao(chain.Config(), header))
 	}
 	if err != nil {
@@ -537,8 +537,8 @@ func makeRandaoData(config *params.ChainConfig, number *big.Int) []byte {
 	var data []byte
 	chainId := config.ChainID
 	randaoVersion := new(big.Int)
-	if config.IsCroissant(number) {
-		randaoVersion.SetUint64(1) // croissant randao version is 1
+	if config.IsDalgona(number) {
+		randaoVersion.SetUint64(1) // dalgona randao version is 1
 	}
 	data = append(data, chainId.Bytes()...)
 	data = append(data, randaoVersion.Bytes()...)
@@ -619,8 +619,8 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// Generate initial epoch block if a transition occurs.
-	if config.CroissantBlock != nil && header.Number.Cmp(config.CroissantBlock) == 0 {
-		return wbft.CreateInitialEpochInfo(config.Croissant)
+	if config.DalgonaBlock != nil && header.Number.Cmp(config.DalgonaBlock) == 0 {
+		return wbft.CreateInitialEpochInfo(config.Dalgona)
 	}
 
 	proposedSealsInEpoch := make(map[common.Address]int)
@@ -718,7 +718,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 	}
 
 	// set prior validator
-	if it.Number.Cmp(config.CroissantBlock) > 0 {
+	if it.Number.Cmp(config.DalgonaBlock) > 0 {
 		parent := chain.GetHeader(it.ParentHash, it.Number.Uint64()-1)
 		_, priorEpochInfo, err2 := e.GetEpochInfo(chain, parent, nil)
 		if err2 != nil {
@@ -732,7 +732,7 @@ func (e *Engine) buildEpochInfo(chain consensus.ChainHeaderReader, header *types
 			}
 		}
 	} else if it.Number.Sign() != 0 {
-		// exception case: if "it" is the croissant block, all current stakers were validators in the croissant block
+		// exception case: if "it" is the dalgona block, all current stakers were validators in the dalgona block
 		// in other words, all current stakers can have the previous seals in the point of the first block
 		for _, st := range stakerMap {
 			st.wasValidator = true
@@ -955,14 +955,14 @@ func (e *Engine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 // IsEpochBlockNumber returns whether the given block number is an epoch block.
 // it returns whether the given block number is an epoch block and the last epoch block number.
 func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int) (bool, *big.Int, error) {
-	if config.CroissantBlock != nil && !config.IsCroissant(number) {
+	if config.DalgonaBlock != nil && !config.IsDalgona(number) {
 		return false, nil, wbftcommon.ErrIsNotWBFTBlock
 	}
 
 	epochLength := new(big.Int).SetUint64(e.cfg.Epoch)
 	firstNewEpoch := new(big.Int).SetUint64(0)
-	if config.CroissantBlock != nil {
-		firstNewEpoch.Set(config.CroissantBlock)
+	if config.DalgonaBlock != nil {
+		firstNewEpoch.Set(config.DalgonaBlock)
 	}
 	for _, transition := range e.cfg.Transitions {
 		if transition.Block.Cmp(number) > 0 {
@@ -983,12 +983,12 @@ func (e *Engine) IsEpochBlockNumber(config *params.ChainConfig, number *big.Int)
 // GetValidators retrieve the validator list of the epoch to which block of given number belongs.
 // If the given block is an epoch block, it returns the validators of prior epoch.
 // `parents` is a hint for backward traverse.
-// exceptional case: blockNumber is genesis block number or croissant hard fork block number, then
+// exceptional case: blockNumber is genesis block number or dalgona hard fork block number, then
 // it returns the validators from chain config.
 func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *big.Int, parentHash common.Hash, parents []*types.Header) (wbft.ValidatorSet, error) {
 	chainConfig := chain.Config()
 	// 1. Check if the block is not a WBFT block
-	if chainConfig.CroissantBlock != nil && !chainConfig.IsCroissant(blockNumber) {
+	if chainConfig.DalgonaBlock != nil && !chainConfig.IsDalgona(blockNumber) {
 		return nil, wbftcommon.ErrIsNotWBFTBlock
 	}
 
@@ -996,9 +996,9 @@ func (e *Engine) GetValidators(chain consensus.ChainHeaderReader, blockNumber *b
 		epochInfo *types.EpochInfo
 		err       error
 	)
-	if blockNumber.Cmp(chainConfig.CroissantBlock) == 0 {
-		//croissant hard fork validators from croissant config
-		vs := validator.NewSet(chainConfig.Croissant.Init.Validators, chainConfig.Croissant.GetInitialBLSPublicKeys(), e.cfg.ProposerPolicy)
+	if blockNumber.Cmp(chainConfig.DalgonaBlock) == 0 {
+		//dalgona hard fork validators from dalgona config
+		vs := validator.NewSet(chainConfig.Dalgona.Init.Validators, chainConfig.Dalgona.GetInitialBLSPublicKeys(), e.cfg.ProposerPolicy)
 		return vs, nil
 	}
 
@@ -1417,7 +1417,7 @@ func mergeSeals(seal *types.WBFTAggregatedSeal, extraSeals []wbft.SealData) *typ
 }
 
 func (e *Engine) GetEpochInfo(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) (*big.Int, *types.EpochInfo, error) {
-	if chain.Config().CroissantBlock.Cmp(header.Number) == 0 {
+	if chain.Config().DalgonaBlock.Cmp(header.Number) == 0 {
 		return e.extractEpochInfo(header)
 	}
 

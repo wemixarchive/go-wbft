@@ -91,7 +91,7 @@ func (sb *Backend) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*t
 // VerifyHeadersWithParent is like VerifyHeaders but accepts an explicit parent
 // header as the parent of headers[0]. Use this when the immediate parent of the
 // first header in the batch is not yet in the chain DB (e.g. snap sync batches
-// that start at the Croissant fork boundary).
+// that start at the Dalgona fork boundary).
 func (sb *Backend) VerifyHeadersWithParent(chain consensus.ChainHeaderReader, headers []*types.Header, parent *types.Header) (chan<- struct{}, <-chan error) {
 	return sb.verifyHeaders(chain, headers, []*types.Header{parent})
 }
@@ -437,7 +437,7 @@ func (sb *Backend) GetValidatorsForVerifying(chain consensus.ChainHeaderReader, 
 		return nil, nil, consensus.ErrUnknownAncestor
 	}
 
-	if header.Number.Uint64() >= chain.Config().CroissantBlock.Uint64()+2 {
+	if header.Number.Uint64() >= chain.Config().DalgonaBlock.Uint64()+2 {
 		var parent *types.Header
 		if len(parents) == 0 {
 			parent = chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
