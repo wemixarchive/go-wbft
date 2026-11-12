@@ -125,6 +125,7 @@ func newMergeInstructionSet() JumpTable {
 func newCroissantInstructionSet() JumpTable {
 	instructionSet := newLondonInstructionSet()
 	enable3855(&instructionSet) // EIP-3855: PUSH0 instruction
+	enable3860(&instructionSet) // EIP-3860: limit and meter initcode
 	return validate(instructionSet)
 }
 

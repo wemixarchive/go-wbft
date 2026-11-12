@@ -464,7 +464,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	)
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(msg.Data, msg.AccessList, msg.SetCodeAuthorizations, contractCreation, rules.IsHomestead, rules.IsIstanbul, rules.IsShanghai)
+	gas, err := IntrinsicGas(msg.Data, msg.AccessList, msg.SetCodeAuthorizations, contractCreation, rules.IsHomestead, rules.IsIstanbul, rules.IsShanghai || rules.IsCroissant)
 	if err != nil {
 		return nil, err
 	}
@@ -483,7 +483,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}
 
 	// Check whether the init code size has been exceeded.
-	if rules.IsShanghai && contractCreation && len(msg.Data) > params.MaxInitCodeSize {
+	if (rules.IsShanghai || rules.IsCroissant) && contractCreation && len(msg.Data) > params.MaxInitCodeSize {
 		return nil, fmt.Errorf("%w: code size %v limit %v", ErrMaxInitCodeSizeExceeded, len(msg.Data), params.MaxInitCodeSize)
 	}
 

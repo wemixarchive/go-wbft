@@ -123,3 +123,16 @@ func TestCroissantBeforeDalgona(t *testing.T) {
 		})
 	}
 }
+
+// TestMaxInitCodeSizeDerivation pins EIP-3860's MAX_INITCODE_SIZE to twice
+// WEMIX's MaxCodeSize, the same value go-wemix uses. A different value would
+// split the chain on a CREATE whose initcode falls between the two limits.
+func TestMaxInitCodeSizeDerivation(t *testing.T) {
+	const wemixMaxInitCodeSize = 507904
+	if MaxInitCodeSize != 2*MaxCodeSize {
+		t.Fatalf("MaxInitCodeSize = %d, want 2*MaxCodeSize = %d", MaxInitCodeSize, 2*MaxCodeSize)
+	}
+	if MaxInitCodeSize != wemixMaxInitCodeSize {
+		t.Fatalf("MaxInitCodeSize = %d, want %d", MaxInitCodeSize, wemixMaxInitCodeSize)
+	}
+}
