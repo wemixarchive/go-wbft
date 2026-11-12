@@ -67,8 +67,8 @@ var (
 		VerkleTime:          nil,
 		PangyoBlock:         big.NewInt(0),
 		ApplepieBlock:       big.NewInt(20_476_911),
-		BriocheBlock:        big.NewInt(53_525_500),  // target date: 24-07-01 00:00:00 (GMT+09)
-		DalgonaBlock:        big.NewInt(200_000_000), // TODO: decide the block number
+		BriocheBlock:        big.NewInt(53_525_500),    // target date: 24-07-01 00:00:00 (GMT+09)
+		DalgonaBlock:        big.NewInt(1_000_000_000), // Dalgona (WBFT switch): activation block not scheduled yet
 		Ethash:              new(EthashConfig),
 		Brioche: &BriocheConfig{
 			BlockReward:       big.NewInt(1e18),
@@ -153,8 +153,8 @@ var (
 		LondonBlock:         big.NewInt(0),
 		PangyoBlock:         big.NewInt(10_000_000),
 		ApplepieBlock:       big.NewInt(26_240_268),
-		BriocheBlock:        big.NewInt(59_414_700),  // target date: 24-06-04 11:00:41 (GMT+09)
-		DalgonaBlock:        big.NewInt(200_000_000), // TODO: decide the block number
+		BriocheBlock:        big.NewInt(59_414_700),    // target date: 24-06-04 11:00:41 (GMT+09)
+		DalgonaBlock:        big.NewInt(1_000_000_000), // Dalgona (WBFT switch): activation block not scheduled yet
 		Ethash:              new(EthashConfig),
 		Brioche: &BriocheConfig{
 			BlockReward:       big.NewInt(1e18),

@@ -245,7 +245,7 @@ func (c *compiledContract) Compile(root string) {
 			panic(err)
 		} else if c.GovImp, err = newBindContract(contracts["GovImp"]); err != nil {
 			panic(err)
-		} else if c.GovImpDalgona, err = patchGovImpDalgonaBlock(c.GovImp, 200_000_000, 100); err != nil {
+		} else if c.GovImpDalgona, err = patchGovImpDalgonaBlock(c.GovImp, 1_000_000_000, 100); err != nil {
 			panic(err)
 		} else if c.NCPExit, err = newBindContract(contracts["NCPExit"]); err != nil {
 			panic(err)
