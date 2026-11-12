@@ -61,7 +61,8 @@ var (
 )
 
 var (
-	dalgonaInstructionSet = newDalgonaInstructionSet()
+	croissantInstructionSet = newCroissantInstructionSet()
+	dalgonaInstructionSet   = newDalgonaInstructionSet()
 )
 
 // JumpTable contains the EVM opcodes supported at a given fork.
@@ -111,6 +112,19 @@ func newMergeInstructionSet() JumpTable {
 		minStack:    minStack(0, 1),
 		maxStack:    maxStack(0, 1),
 	}
+	return validate(instructionSet)
+}
+
+// newCroissantInstructionSet returns the london instructions plus the EVM
+// changes Croissant takes from Ethereum's Shanghai upgrade.
+//
+// It must match go-wemix, which runs Croissant before Dalgona. The Shanghai set
+// above is built on the merge set, but go-wemix never went through the merge:
+// its PoA headers carry difficulty 1 and opcode 0x44 stays DIFFICULTY. So the
+// Croissant set is built on london.
+func newCroissantInstructionSet() JumpTable {
+	instructionSet := newLondonInstructionSet()
+	enable3855(&instructionSet) // EIP-3855: PUSH0 instruction
 	return validate(instructionSet)
 }
 

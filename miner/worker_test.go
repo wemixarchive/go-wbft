@@ -88,12 +88,14 @@ func init() {
 	ethashChainConfig = new(params.ChainConfig)
 	*ethashChainConfig = *params.TestChainConfig
 	ethashChainConfig.BriocheBlock = nil
+	ethashChainConfig.CroissantBlock = nil
 	ethashChainConfig.DalgonaBlock = nil
 	ethashChainConfig.Brioche = nil
 	ethashChainConfig.Dalgona = nil
 	cliqueChainConfig = new(params.ChainConfig)
 	*cliqueChainConfig = *params.TestChainConfig
 	cliqueChainConfig.BriocheBlock = nil
+	cliqueChainConfig.CroissantBlock = nil
 	cliqueChainConfig.DalgonaBlock = nil
 	cliqueChainConfig.Brioche = nil
 	cliqueChainConfig.Dalgona = nil

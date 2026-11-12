@@ -352,6 +352,7 @@ var Forks = map[string]*params.ChainConfig{
 		LondonBlock:         big.NewInt(0),
 		ArrowGlacierBlock:   big.NewInt(0),
 		GrayGlacierBlock:    big.NewInt(0),
+		CroissantBlock:      big.NewInt(0),
 		DalgonaBlock:        big.NewInt(0),
 	},
 }

@@ -170,6 +170,7 @@ func (g *genesisGenerator) wbftChainConfig() {
 		}
 	}
 
+	g.Genesis.Config.CroissantBlock = new(big.Int).SetUint64(0)
 	g.Genesis.Config.DalgonaBlock = new(big.Int).SetUint64(0)
 	g.Genesis.Config.Dalgona = params.DefaultDalgonaConfig
 
