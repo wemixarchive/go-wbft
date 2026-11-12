@@ -172,10 +172,15 @@ The existing miner worker is designed to be fit to the ethash algorithm. When a 
 - The WBFT engine waits for the block period before notifying the worker(In the existing IBFT, the block period was waited for when sealing the block).
 - When new work starts, the worker begins the process of preparing the block.
 
+### Croissant hard fork
+Croissant brings three EIPs from Ethereum's Shanghai upgrade to WEMIX: EIP-3855 (PUSH0 opcode), EIP-3860 (limit and meter initcode) and EIP-3651 (warm COINBASE). go-wemix runs it before the WBFT switch, and go-wbft applies the same rules when it imports those blocks. It is scheduled by `croissantBlock` in genesis.json. See [docs/CROISSANT.md](docs/CROISSANT.md).
+
+Fork names are desserts in alphabetical order of activation: Applepie, Brioche, Croissant, Dalgona.
+
 ### Dalgona hard fork
 WBFT is not only implemented to run a WBFT chain from genesis but is also designed and implemented to enable a hard fork from a legacy chain to the WBFT chain. This hard fork is named the `Dalgona` hard fork.
 You should define the Dalgona hard fork in genesis.json to run a WBFT chain. Two chain configs are added for Dalgona hard fork; `dalgonaBlock` and `dalgona`.
-- `dalgonaBlock`: Defines the block height at which the Dalgona hard fork occurs. You can set it to zero for the genesis block.
+- `dalgonaBlock`: Defines the block height at which the Dalgona hard fork occurs. You can set it to zero for the genesis block. `croissantBlock` must also be set, at or before `dalgonaBlock`.
 - `dalgona`: Defines the WBFT consensus configuration. It consists of three sections: `wBFT`, `init`, and `govContracts`.
 
 Setting `dalgonaBlock` to 0 triggers WBFT-related initialization in the genesis block when executing the `gwemix init` command. Conversely, if `dalgonaBlock` is set to 1 or greater, WBFT-related initialization occurs when the Dalgona block is created and finalized.
@@ -192,9 +197,11 @@ The Dalgona hard fork protocols are as follows:
 
 #### Compatibility with Ethereum hard forks
 - Dalgona hard fork includes all feature of the `London` hard fork and priors.
-- Dalgona hard fork includes new evm instructions of the `Shanghai` and `Cancun` hard forks.
+- Dalgona hard fork includes all features of the `Croissant` hard fork.
   - EIP-3855 (PUSH0 opcode)
   - EIP-3860 (Limit and meter initcode)
+  - EIP-3651 (Warm COINBASE)
+- Dalgona hard fork includes new evm instructions of the `Cancun` hard fork.
   - EIP-1153 (Transient Storage)
   - EIP-5656 (MCOPY opcode)
   - EIP-6780 SELFDESTRUCT only in same transaction
@@ -204,6 +211,7 @@ The Dalgona hard fork protocols are as follows:
 The existing WBFT Config was revised by removing unnecessary fields and adding required ones, resulting in the following structure.
 If you want to use the WBFT consensus, you should use the following chain config in genesis.json.
 ```
+"croissantBlock": 1000000,
 "dalgonaBlock": 1000000,
 "dalgona": {
   "wBFT": {
