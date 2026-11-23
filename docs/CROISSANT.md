@@ -44,10 +44,11 @@ The fork block is `ChainConfig.CroissantBlock`, `croissantBlock` in a genesis
 - `0`: the chain starts on Croissant.
 - `N`: blocks `N` and later run the Croissant rules.
 
-Mainnet and testnet carry placeholder blocks that keep both forks inactive:
-`999,999,999` for Croissant and `1,000,000,000` for Dalgona, the same values as
-in go-wemix. They must be replaced with the scheduled blocks before a release
-that activates them. The two repositories must always carry the same blocks.
+Mainnet and testnet leave `croissantBlock` unset until its block is scheduled.
+`dalgonaBlock` keeps the placeholder `1,000,000,000`: go-wbft selects the WEMIX
+consensus engine only when Dalgona is configured, so it cannot be unset. go-wemix
+leaves both unset. A release that activates Croissant sets the same block in
+both repositories, because go-wbft re-executes the blocks go-wemix produced.
 
 ### Order with Dalgona
 

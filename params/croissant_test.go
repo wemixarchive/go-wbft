@@ -103,15 +103,19 @@ func TestCroissantCompatibility(t *testing.T) {
 	}
 }
 
-// TestWemixNetworksScheduleCroissant checks that mainnet and testnet both
-// declare a Croissant block before Dalgona and pass the fork order check.
-func TestWemixNetworksScheduleCroissant(t *testing.T) {
+// TestWemixNetworksLeaveCroissantUnscheduled checks that mainnet and testnet
+// leave Croissant unset until its block is scheduled, keep the Dalgona block
+// that selects the WEMIX consensus engine, and pass the fork order check.
+func TestWemixNetworksLeaveCroissantUnscheduled(t *testing.T) {
 	for name, cfg := range map[string]*ChainConfig{
 		"mainnet": WemixMainnetChainConfig,
 		"testnet": WemixTestnetChainConfig,
 	} {
-		if cfg.CroissantBlock == nil {
-			t.Errorf("%s: CroissantBlock is nil", name)
+		if cfg.CroissantBlock != nil {
+			t.Errorf("%s: CroissantBlock = %v, want nil until scheduled", name, cfg.CroissantBlock)
+		}
+		if !cfg.DalgonaEnabled() {
+			t.Errorf("%s: Dalgona must stay configured to select the WEMIX consensus engine", name)
 		}
 		if err := cfg.CheckConfigForkOrder(); err != nil {
 			t.Errorf("%s: %v", name, err)
