@@ -49,6 +49,29 @@ func TestIsCroissantGating(t *testing.T) {
 	}
 }
 
+// TestIsCroissantFromDalgona checks that Dalgona carries the Croissant EIPs, so
+// IsCroissant holds from the Dalgona block on even when Croissant is unset or
+// scheduled later.
+func TestIsCroissantFromDalgona(t *testing.T) {
+	const dalgona = 100
+	for _, tt := range []struct {
+		name      string
+		croissant *big.Int
+		num       int64
+		want      bool
+	}{
+		{"croissant unset, before dalgona", nil, dalgona - 1, false},
+		{"croissant unset, at dalgona", nil, dalgona, true},
+		{"croissant after dalgona, at dalgona", big.NewInt(dalgona + 50), dalgona, true},
+		{"croissant before dalgona, between them", big.NewInt(dalgona - 50), dalgona - 1, true},
+	} {
+		cfg := &ChainConfig{CroissantBlock: tt.croissant, DalgonaBlock: big.NewInt(dalgona)}
+		if got := cfg.IsCroissant(big.NewInt(tt.num)); got != tt.want {
+			t.Errorf("%s: IsCroissant(%d) = %v, want %v", tt.name, tt.num, got, tt.want)
+		}
+	}
+}
+
 // TestCroissantRulesPropagation checks that Rules carries the Croissant flag,
 // which is what the EVM and the state transition actually read. The flag does
 // not depend on the merge or on the block time.

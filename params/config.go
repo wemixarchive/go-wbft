@@ -1061,13 +1061,14 @@ func (c *ChainConfig) IsVerkle(num *big.Int, time uint64) bool {
 	return c.IsLondon(num) && isTimestampForked(c.VerkleTime, time)
 }
 
-// IsCroissant returns whether num is either equal to the Croissant fork block or greater.
-// Croissant brings three EIPs from Ethereum's Shanghai upgrade: EIP-3651 (warm
-// coinbase), EIP-3855 (PUSH0) and EIP-3860 (initcode limit and metering). It is
-// gated by block number like the other WEMIX forks, because go-wemix runs it
-// before the chain switches to WBFT at Dalgona.
+// IsCroissant returns whether the Croissant EIPs apply at num: from the
+// Croissant fork block on, and from the Dalgona fork block on whether or not
+// Croissant is set. Croissant brings three EIPs from Ethereum's Shanghai
+// upgrade: EIP-3651 (warm coinbase), EIP-3855 (PUSH0) and EIP-3860 (initcode
+// limit and metering). It is gated by block number like the other WEMIX forks,
+// because go-wemix runs it before the chain switches to WBFT at Dalgona.
 func (c *ChainConfig) IsCroissant(num *big.Int) bool {
-	return isBlockForked(c.CroissantBlock, num)
+	return isBlockForked(c.CroissantBlock, num) || c.IsDalgona(num)
 }
 
 func (c *ChainConfig) IsDalgona(num *big.Int) bool {
