@@ -1107,12 +1107,6 @@ func (c *ChainConfig) CheckCompatible(newcfg *ChainConfig, height uint64, time u
 // CheckConfigForkOrder checks that we don't "skip" any forks, gwemix isn't pluggable enough
 // to guarantee that forks can be implemented in a different order than on official networks
 func (c *ChainConfig) CheckConfigForkOrder() error {
-	// The loop below skips an optional fork that is not set, so it would accept
-	// Dalgona without Croissant. Dalgona builds on the Croissant rules, so that
-	// pair is checked explicitly.
-	if c.DalgonaBlock != nil && c.CroissantBlock == nil {
-		return fmt.Errorf("unsupported fork ordering: croissantBlock not enabled, but dalgonaBlock enabled at block %v", c.DalgonaBlock)
-	}
 	type fork struct {
 		name      string
 		block     *big.Int // forks up to - and including the merge - were defined with block numbers
@@ -1138,7 +1132,8 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		{name: "pangyoBlock", block: c.PangyoBlock, optional: true},
 		{name: "applepieBlock", block: c.ApplepieBlock, optional: true},
 		{name: "briocheBlock", block: c.BriocheBlock, optional: true},
-		{name: "croissantBlock", block: c.CroissantBlock, optional: true},
+		// croissantBlock is left out: Dalgona carries the Croissant EIPs, so
+		// Croissant may come before, at or after Dalgona, or not at all.
 		{name: "dalgonaBlock", block: c.DalgonaBlock, optional: true},
 		{name: "mergeNetsplitBlock", block: c.MergeNetsplitBlock, optional: true},
 		{name: "shanghaiTime", timestamp: c.ShanghaiTime, optional: true},

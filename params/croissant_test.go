@@ -119,29 +119,28 @@ func TestWemixNetworksScheduleCroissant(t *testing.T) {
 	}
 }
 
-// TestCroissantBeforeDalgona checks that a config scheduling Dalgona must also
-// schedule Croissant at or before it.
-func TestCroissantBeforeDalgona(t *testing.T) {
+// TestCroissantOrderNotEnforced checks that CheckConfigForkOrder accepts
+// Croissant before, at or after Dalgona, or unset, because Dalgona carries the
+// Croissant EIPs itself.
+func TestCroissantOrderNotEnforced(t *testing.T) {
 	for _, tt := range []struct {
 		name      string
 		croissant *big.Int
 		dalgona   *big.Int
-		wantErr   bool
 	}{
-		{"neither", nil, nil, false},
-		{"croissant only", big.NewInt(10), nil, false},
-		{"croissant before dalgona", big.NewInt(10), big.NewInt(20), false},
-		{"same block", big.NewInt(10), big.NewInt(10), false},
-		{"dalgona without croissant", nil, big.NewInt(20), true},
-		{"croissant after dalgona", big.NewInt(30), big.NewInt(20), true},
+		{"neither", nil, nil},
+		{"croissant only", big.NewInt(10), nil},
+		{"croissant before dalgona", big.NewInt(10), big.NewInt(20)},
+		{"same block", big.NewInt(10), big.NewInt(10)},
+		{"dalgona without croissant", nil, big.NewInt(20)},
+		{"croissant after dalgona", big.NewInt(30), big.NewInt(20)},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := londonConfig()
 			cfg.CroissantBlock = tt.croissant
 			cfg.DalgonaBlock = tt.dalgona
-			err := cfg.CheckConfigForkOrder()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CheckConfigForkOrder() error = %v, wantErr %v", err, tt.wantErr)
+			if err := cfg.CheckConfigForkOrder(); err != nil {
+				t.Errorf("CheckConfigForkOrder() = %v, want nil", err)
 			}
 		})
 	}

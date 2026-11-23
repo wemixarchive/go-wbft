@@ -51,30 +51,23 @@ that activates them. The two repositories must always carry the same blocks.
 
 ### Order with Dalgona
 
-Dalgona keeps every Croissant rule. `CheckConfigForkOrder` requires
-`croissantBlock` to be set whenever `dalgonaBlock` is set, at or before it.
-`gwemix init` rejects a genesis that breaks this, and so does a node started
-with such a genesis or on mainnet or testnet. A chain that runs WBFT from
-genesis sets both to `0`:
-
-```json
-"croissantBlock": 0,
-"dalgonaBlock": 0,
-```
+Dalgona carries every Croissant rule: `IsCroissant` holds from the Dalgona
+block on whether or not `croissantBlock` is set. The order of the two forks is
+therefore not enforced. Croissant may come before, at or after Dalgona, or not
+at all, and `CheckConfigForkOrder` leaves `croissantBlock` out of its order
+check. A Croissant block at or after Dalgona changes nothing.
 
 Before this fork existed, Dalgona alone enabled `PUSH0` and the `CREATE` and
 `CREATE2` part of EIP-3860. The transaction-level part of EIP-3860 and EIP-3651
-were gated by Shanghai, which WEMIX never schedules, so they were off. A new
-chain that sets both forks gets all three EIPs in full from Dalgona on.
+were gated by Shanghai, which WEMIX never schedules, so they were off. Dalgona
+now runs all three EIPs in full.
 
-A private network that already runs Dalgona without `croissantBlock` keeps
-working unchanged. On restart without a genesis file, a node loads the chain
-config stored in its database, and that path does not run the fork order
-check. `IsCroissant` stays false, so such a network keeps the old Dalgona
-rules. It cannot add Croissant later: Croissant would have to be at or before
-Dalgona, and moving a fork the chain has already passed is rejected as an
-incompatible change. Running `gwemix init` again with its old genesis file
-fails the order check.
+A private network that already runs Dalgona without `croissantBlock` changes
+its rules at the first block it processes with this version: creation
+transactions pay the initcode word gas, oversized initcode is rejected and the
+coinbase starts warm. Every node of such a network must upgrade together, and
+a node that re-executes blocks produced by an older version computes different
+gas for them.
 
 ### Renamed genesis keys
 
@@ -156,7 +149,7 @@ merge. Croissant is gated by block number and does not depend on the merge.
 
 | Package | What is checked |
 |---------|-----------------|
-| `params` | block-number gating, `Rules` propagation, compatibility check, order with Dalgona, mainnet and testnet order, `MaxInitCodeSize` derivation |
+| `params` | block-number gating, `Rules` propagation, compatibility check, Croissant from Dalgona on, no order with Dalgona, mainnet and testnet order, `MaxInitCodeSize` derivation |
 | `core/vm` | PUSH0 and the initcode gas functions in the Croissant set, `0x44` staying `DIFFICULTY` |
 | `core/vm/runtime` | PUSH0 execution, `CREATE`/`CREATE2` size limit, `DIFFICULTY` execution |
 | `core/txpool` | oversized creation transaction rejected from Croissant on |
