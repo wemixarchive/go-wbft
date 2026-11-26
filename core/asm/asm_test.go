@@ -17,9 +17,12 @@
 package asm
 
 import (
+	"strings"
 	"testing"
 
 	"encoding/hex"
+
+	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 // Tests disassembling instructions
@@ -31,9 +34,8 @@ func TestInstructionIterator(t *testing.T) {
 	}{
 		{2, "61000000", ""},                             // valid code
 		{0, "6100", "incomplete push instruction at 0"}, // invalid code
-		{2, "5900", ""},                                 // push0
+		{2, "5f00", ""},                                 // push0
 		{0, "", ""},                                     // empty
-
 	} {
 		var (
 			have    int
@@ -52,7 +54,27 @@ func TestInstructionIterator(t *testing.T) {
 			continue
 		}
 		if have != tc.want {
-			t.Errorf("wrong instruction count, have %d want %d", have, tc.want)
+			t.Errorf("test %d: wrong instruction count, have %d want %d", i, have, tc.want)
 		}
+	}
+}
+
+// Tests that PUSH0 is read as a push with no immediate bytes, so the
+// instruction after it is not swallowed as its argument.
+func TestInstructionIteratorPush0HasNoArgument(t *testing.T) {
+	code, _ := hex.DecodeString("5f6001")
+	it := NewInstructionIterator(code)
+	var ops []string
+	for it.Next() {
+		if it.Op() == vm.PUSH0 && len(it.Arg()) != 0 {
+			t.Fatalf("PUSH0 has argument %x, want none", it.Arg())
+		}
+		ops = append(ops, it.Op().String())
+	}
+	if err := it.Error(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := strings.Join(ops, ","), "PUSH0,PUSH1"; got != want {
+		t.Fatalf("ops %s, want %s", got, want)
 	}
 }
