@@ -103,22 +103,26 @@ func TestCroissantCompatibility(t *testing.T) {
 	}
 }
 
-// TestWemixNetworksLeaveCroissantUnscheduled checks that mainnet and testnet
-// leave Croissant unset until its block is scheduled, keep the Dalgona block
-// that selects the WEMIX consensus engine, and pass the fork order check.
-func TestWemixNetworksLeaveCroissantUnscheduled(t *testing.T) {
-	for name, cfg := range map[string]*ChainConfig{
-		"mainnet": WemixMainnetChainConfig,
-		"testnet": WemixTestnetChainConfig,
+// TestWemixNetworksScheduleCroissant pins the Croissant block of mainnet and
+// testnet, keeps the Dalgona block that selects the WEMIX consensus engine, and
+// checks the fork order. go-wemix must use the same Croissant blocks.
+func TestWemixNetworksScheduleCroissant(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		cfg       *ChainConfig
+		croissant int64
+	}{
+		{"mainnet", WemixMainnetChainConfig, 134_004_000},
+		{"testnet", WemixTestnetChainConfig, 138_903_600},
 	} {
-		if cfg.CroissantBlock != nil {
-			t.Errorf("%s: CroissantBlock = %v, want nil until scheduled", name, cfg.CroissantBlock)
+		if tt.cfg.CroissantBlock == nil || tt.cfg.CroissantBlock.Int64() != tt.croissant {
+			t.Errorf("%s: CroissantBlock = %v, want %d", tt.name, tt.cfg.CroissantBlock, tt.croissant)
 		}
-		if !cfg.DalgonaEnabled() {
-			t.Errorf("%s: Dalgona must stay configured to select the WEMIX consensus engine", name)
+		if !tt.cfg.DalgonaEnabled() {
+			t.Errorf("%s: Dalgona must stay configured to select the WEMIX consensus engine", tt.name)
 		}
-		if err := cfg.CheckConfigForkOrder(); err != nil {
-			t.Errorf("%s: %v", name, err)
+		if err := tt.cfg.CheckConfigForkOrder(); err != nil {
+			t.Errorf("%s: %v", tt.name, err)
 		}
 	}
 }

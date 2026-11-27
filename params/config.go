@@ -68,6 +68,7 @@ var (
 		PangyoBlock:         big.NewInt(0),
 		ApplepieBlock:       big.NewInt(20_476_911),
 		BriocheBlock:        big.NewInt(53_525_500),    // target date: 24-07-01 00:00:00 (GMT+09)
+		CroissantBlock:      big.NewInt(134_004_000),   // target date: 27-01-18 11:00:42 (GMT+09)
 		DalgonaBlock:        big.NewInt(1_000_000_000), // Dalgona (WBFT switch): activation block not scheduled yet
 		Ethash:              new(EthashConfig),
 		Brioche: &BriocheConfig{
@@ -154,6 +155,7 @@ var (
 		PangyoBlock:         big.NewInt(10_000_000),
 		ApplepieBlock:       big.NewInt(26_240_268),
 		BriocheBlock:        big.NewInt(59_414_700),    // target date: 24-06-04 11:00:41 (GMT+09)
+		CroissantBlock:      big.NewInt(138_903_600),   // target date: 26-12-11 11:00:13 (GMT+09)
 		DalgonaBlock:        big.NewInt(1_000_000_000), // Dalgona (WBFT switch): activation block not scheduled yet
 		Ethash:              new(EthashConfig),
 		Brioche: &BriocheConfig{

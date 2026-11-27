@@ -44,11 +44,16 @@ The fork block is `ChainConfig.CroissantBlock`, `croissantBlock` in a genesis
 - `0`: the chain starts on Croissant.
 - `N`: blocks `N` and later run the Croissant rules.
 
-Mainnet and testnet leave `croissantBlock` unset until its block is scheduled.
+| Network | `croissantBlock` | Expected time (KST) |
+|---------|------------------|---------------------|
+| Mainnet | 134,004,000 | 2027-01-18 11:00:42 |
+| Testnet | 138,903,600 | 2026-12-11 11:00:13 |
+
+The expected times assume one block per second. go-wemix sets the same
+Croissant blocks, because go-wbft re-executes the blocks go-wemix produced.
 `dalgonaBlock` keeps the placeholder `1,000,000,000`: go-wbft selects the WEMIX
 consensus engine only when Dalgona is configured, so it cannot be unset. go-wemix
-leaves both unset. A release that activates Croissant sets the same block in
-both repositories, because go-wbft re-executes the blocks go-wemix produced.
+leaves Dalgona unset.
 
 ### Order with Dalgona
 
