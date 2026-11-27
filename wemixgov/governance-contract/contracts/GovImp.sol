@@ -49,7 +49,7 @@ contract GovImp is
     }
 
     address constant ZERO = address(0);
-    uint256 constant CROISSANT_BLOCK = 200_000_000;
+    uint256 constant DALGONA_BLOCK = 1_000_000_000;
 
     event MemberAdded(address indexed addr, address indexed voter);
     event MemberRemoved(address indexed addr, address indexed voter);
@@ -352,8 +352,8 @@ contract GovImp is
         require(staker != ZERO, "Invalid address");
         require(isMember(staker), "Non-member");
 
-        bool isCroissantForked = block.number >= CROISSANT_BLOCK;
-        if (!isCroissantForked) {
+        bool isDalgonaForked = block.number >= DALGONA_BLOCK;
+        if (!isDalgonaForked) {
             require(getMemberLength() > 1, "Cannot remove a sole member");
         }
         require(
@@ -386,8 +386,8 @@ contract GovImp is
         createBallotForExit(ballotIdx, unlockAmount, slashing);
         ballotLength = ballotIdx;
 
-        if (isCroissantForked) {
-            // Croissant fork (WBFT) removes voting delay to allow fast exit/migration.
+        if (isDalgonaForked) {
+            // Dalgona fork (WBFT) removes voting delay to allow fast exit/migration.
             (, , uint256 period) = getBallotPeriod(ballotIdx);
             startBallot(ballotIdx, block.timestamp, block.timestamp + period);
             finalizeVote(

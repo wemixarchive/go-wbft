@@ -132,9 +132,10 @@ func Transaction(ctx *cli.Context) error {
 		} else {
 			r.Address = sender
 		}
+		eip3860 := chainConfig.IsShanghai(new(big.Int), 0) || chainConfig.IsCroissant(new(big.Int))
 		// Check intrinsic gas
 		if gas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.SetCodeAuthorizations(), tx.To() == nil,
-			chainConfig.IsHomestead(new(big.Int)), chainConfig.IsIstanbul(new(big.Int)), chainConfig.IsShanghai(new(big.Int), 0)); err != nil {
+			chainConfig.IsHomestead(new(big.Int)), chainConfig.IsIstanbul(new(big.Int)), eip3860); err != nil {
 			r.Error = err
 			results = append(results, r)
 			continue
@@ -166,7 +167,7 @@ func Transaction(ctx *cli.Context) error {
 			r.Error = errors.New("gas * maxFeePerGas exceeds 256 bits")
 		}
 		// Check whether the init code size has been exceeded.
-		if chainConfig.IsShanghai(new(big.Int), 0) && tx.To() == nil && len(tx.Data()) > params.MaxInitCodeSize {
+		if eip3860 && tx.To() == nil && len(tx.Data()) > params.MaxInitCodeSize {
 			r.Error = errors.New("max initcode size exceeded")
 		}
 		results = append(results, r)

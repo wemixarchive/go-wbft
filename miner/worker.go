@@ -86,7 +86,7 @@ var (
 	errBlockInterruptedByNewHead  = errors.New("new head arrived while building block")
 	errBlockInterruptedByRecommit = errors.New("recommit interrupt while building block")
 	errBlockInterruptedByTimeout  = errors.New("timeout while building block")
-	errSkipMiningBeforeCroissant  = errors.New("skipping block preparation before Croissant hard fork")
+	errSkipMiningBeforeDalgona    = errors.New("skipping block preparation before Dalgona hard fork")
 )
 
 var (
@@ -416,7 +416,7 @@ func (w *worker) start() {
 	w.running.Store(true)
 	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
 		wbftEngine.Start(w.chain, w.chain.CurrentFullBlock, rawdb.HasBadBlock, w.readyToCommit)
-	} else if wemixEngine, ok := w.engine.(*wemix.CroissantConsensus); ok {
+	} else if wemixEngine, ok := w.engine.(*wemix.DalgonaConsensus); ok {
 		wemixEngine.Start(w.chainConfig, w.chain, w.chain.CurrentFullBlock, w.eth.BlockChain().SubscribeChainHeadEvent, w.readyToCommit)
 	}
 	w.startCh <- struct{}{}
@@ -426,7 +426,7 @@ func (w *worker) start() {
 func (w *worker) stop() {
 	if wbftEngine, ok := w.engine.(*wbftBackend.Backend); ok {
 		wbftEngine.Stop()
-	} else if wemixEngine, ok := w.engine.(*wemix.CroissantConsensus); ok {
+	} else if wemixEngine, ok := w.engine.(*wemix.DalgonaConsensus); ok {
 		wemixEngine.Stop()
 	}
 
@@ -475,7 +475,7 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 
 // newWorkLoop is a standalone goroutine to submit new sealing work upon received events.
 func (w *worker) newWorkLoop(recommit time.Duration) {
-	if w.chainConfig.Croissant == nil {
+	if w.chainConfig.Dalgona == nil {
 		w.newWorkLoopOrigin(recommit)
 	} else {
 		w.newWorkLoopWBFT()
@@ -1149,9 +1149,9 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		header.ParentBeaconRoot = genParams.beaconRoot
 	}
 
-	if w.chainConfig.CroissantBlock != nil && !w.chainConfig.IsCroissant(header.Number) {
-		// If we are not in the Croissant phase, we don't prepare a block
-		return nil, errSkipMiningBeforeCroissant
+	if w.chainConfig.DalgonaBlock != nil && !w.chainConfig.IsDalgona(header.Number) {
+		// If we are not in the Dalgona phase, we don't prepare a block
+		return nil, errSkipMiningBeforeDalgona
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
@@ -1297,7 +1297,7 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 		coinbase:  coinbase,
 	})
 	if err != nil {
-		if !errors.Is(err, errSkipMiningBeforeCroissant) {
+		if !errors.Is(err, errSkipMiningBeforeDalgona) {
 			log.Error("Fail to prepare work", "err", err)
 		}
 		return

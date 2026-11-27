@@ -337,7 +337,7 @@ var Forks = map[string]*params.ChainConfig{
 		ShanghaiTime:            u64(0),
 		CancunTime:              u64(15_000),
 	},
-	"Croissant": {
+	"Dalgona": {
 		ChainID:             big.NewInt(1),
 		HomesteadBlock:      big.NewInt(0),
 		EIP150Block:         big.NewInt(0),
@@ -353,6 +353,7 @@ var Forks = map[string]*params.ChainConfig{
 		ArrowGlacierBlock:   big.NewInt(0),
 		GrayGlacierBlock:    big.NewInt(0),
 		CroissantBlock:      big.NewInt(0),
+		DalgonaBlock:        big.NewInt(0),
 	},
 }
 

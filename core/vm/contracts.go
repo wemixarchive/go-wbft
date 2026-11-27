@@ -124,7 +124,7 @@ var PrecompiledContractsBLS = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{18}): &bls12381MapG2{},
 }
 
-var PrecompiledContractsCroissant = map[common.Address]PrecompiledContract{
+var PrecompiledContractsDalgona = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{1}):    &ecrecover{},
 	common.BytesToAddress([]byte{2}):    &sha256hash{},
 	common.BytesToAddress([]byte{3}):    &ripemd160hash{},
@@ -147,7 +147,7 @@ var PrecompiledContractsP256Verify = map[common.Address]PrecompiledContract{
 }
 
 var (
-	PrecompiledAddressesCroissant []common.Address
+	PrecompiledAddressesDalgona   []common.Address
 	PrecompiledAddressesCancun    []common.Address
 	PrecompiledAddressesBerlin    []common.Address
 	PrecompiledAddressesIstanbul  []common.Address
@@ -171,16 +171,16 @@ func init() {
 	for k := range PrecompiledContractsCancun {
 		PrecompiledAddressesCancun = append(PrecompiledAddressesCancun, k)
 	}
-	for k := range PrecompiledContractsCroissant {
-		PrecompiledAddressesCroissant = append(PrecompiledAddressesCroissant, k)
+	for k := range PrecompiledContractsDalgona {
+		PrecompiledAddressesDalgona = append(PrecompiledAddressesDalgona, k)
 	}
 }
 
 // ActivePrecompiles returns the precompiles enabled with the current configuration.
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
-	case rules.IsCroissant:
-		return PrecompiledAddressesCroissant
+	case rules.IsDalgona:
+		return PrecompiledAddressesDalgona
 	case rules.IsCancun:
 		return PrecompiledAddressesCancun
 	case rules.IsBerlin:

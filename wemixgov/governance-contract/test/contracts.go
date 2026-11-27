@@ -66,15 +66,15 @@ func NewGovernance(t *testing.T) *Governance {
 	}
 }
 
-func (g *Governance) deployContracts(t *testing.T, patchCroissant bool) *Governance {
+func (g *Governance) deployContracts(t *testing.T, patchDalgona bool) *Governance {
 	// deploy registry
 	registry, Registry, err := g.Deploy(compiled.Registry.Deploy(g.backend.Client(), g.owner))
 	require.NoError(t, err)
 	// deploy impls
 	var govImp common.Address
-	// For tests that need Croissant behavior, use GovImp bytecode with only CROISSANT_BLOCK patched.
-	if patchCroissant {
-		govImp, _, err = g.Deploy(compiled.GovImpCroissant.Deploy(g.backend.Client(), g.owner))
+	// For tests that need Dalgona behavior, use GovImp bytecode with only DALGONA_BLOCK patched.
+	if patchDalgona {
+		govImp, _, err = g.Deploy(compiled.GovImpDalgona.Deploy(g.backend.Client(), g.owner))
 		require.NoError(t, err)
 	} else {
 		govImp, _, err = g.Deploy(compiled.GovImp.Deploy(g.backend.Client(), g.owner))
@@ -168,7 +168,7 @@ func (g *Governance) DeployContracts(t *testing.T) *Governance {
 	return g
 }
 
-func (g *Governance) DeployCroissantPatchedContracts(t *testing.T) *Governance {
+func (g *Governance) DeployDalgonaPatchedContracts(t *testing.T) *Governance {
 	g.deployContracts(t, true)
 
 	return g
@@ -201,20 +201,20 @@ func init() {
 
 type compiledContract struct {
 	Registry,
-	Gov, GovImp, GovImpCroissant,
+	Gov, GovImp, GovImpDalgona,
 	NCPExit, NCPExitImp,
 	Staking, StakingImp,
 	BallotStorage, BallotStorageImp,
 	EnvStorage, EnvStorageImp *bindContract
 }
 
-func patchGovImpCroissantBlock(base *bindContract, from, to uint32) (*bindContract, error) {
+func patchGovImpDalgonaBlock(base *bindContract, from, to uint32) (*bindContract, error) {
 	// PUSH4 <from> => PUSH4 <to>, preserving bytecode layout and jump offsets.
 	pattern := []byte{0x63, byte(from >> 24), byte(from >> 16), byte(from >> 8), byte(from)}
 	repl := []byte{0x63, byte(to >> 24), byte(to >> 16), byte(to >> 8), byte(to)}
 	count := bytes.Count(base.Bin, pattern)
 	if count == 0 {
-		return nil, fmt.Errorf("CROISSANT_BLOCK pattern not found in GovImp bytecode")
+		return nil, fmt.Errorf("DALGONA_BLOCK pattern not found in GovImp bytecode")
 	}
 	patched := &bindContract{
 		Bin: bytes.ReplaceAll(append([]byte(nil), base.Bin...), pattern, repl),
@@ -245,7 +245,7 @@ func (c *compiledContract) Compile(root string) {
 			panic(err)
 		} else if c.GovImp, err = newBindContract(contracts["GovImp"]); err != nil {
 			panic(err)
-		} else if c.GovImpCroissant, err = patchGovImpCroissantBlock(c.GovImp, 200_000_000, 100); err != nil {
+		} else if c.GovImpDalgona, err = patchGovImpDalgonaBlock(c.GovImp, 1_000_000_000, 100); err != nil {
 			panic(err)
 		} else if c.NCPExit, err = newBindContract(contracts["NCPExit"]); err != nil {
 			panic(err)

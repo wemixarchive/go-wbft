@@ -192,7 +192,7 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 		return beacon.New(clique.New(config.Clique, db)), nil
 	}
 
-	if config.CroissantEnabled() {
+	if config.DalgonaEnabled() {
 		wbftCfg := new(wbft.Config)
 		err := SetConfigFromChainConfig(wbftCfg, config)
 
@@ -200,8 +200,8 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 			return nil, err
 		}
 
-		if config.CroissantBlock.Cmp(common.Big1) >= 0 {
-			return wemix.NewCroissantEngine(wpoa.NewWemixPoAEngine(govCli), wbftCfg, privKey, db), nil
+		if config.DalgonaBlock.Cmp(common.Big1) >= 0 {
+			return wemix.NewDalgonaEngine(wpoa.NewWemixPoAEngine(govCli), wbftCfg, privKey, db), nil
 		}
 		return wbftBackend.New(wbftCfg, privKey, db), nil
 	}
@@ -217,7 +217,7 @@ func CreateConsensusEngine(govCli wemixgov.GovBackend, config *params.ChainConfi
 }
 
 func SetConfigFromChainConfig(wbftCfg *wbft.Config, chainCfg *params.ChainConfig) error {
-	config := chainCfg.Croissant.WBFT
+	config := chainCfg.Dalgona.WBFT
 	if config.RequestTimeoutSeconds != 0 {
 		wbftCfg.RequestTimeout = config.RequestTimeoutSeconds * 1000
 	}
@@ -251,7 +251,7 @@ func SetConfigFromChainConfig(wbftCfg *wbft.Config, chainCfg *params.ChainConfig
 
 	hfTransitionBlocks := make(map[*big.Int]bool)
 
-	//add hardforks that includes wbft config after croissant here like :
+	//add hardforks that includes wbft config after dalgona here like :
 	// transition := params.Transition{
 	// 	Block:      chainCfg.DalgonaBlock,
 	// 	WBFTConfig: chainCfg.Dalgona.WBFT,
@@ -278,8 +278,8 @@ func SetConfigFromChainConfig(wbftCfg *wbft.Config, chainCfg *params.ChainConfig
 		return wbftCfg.Transitions[i].Block.Cmp(wbftCfg.Transitions[j].Block) < 0
 	})
 
-	wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.CroissantBlock, GovContracts: chainCfg.Croissant.GovContracts})
-	// add hardforks that includes govContracts after croissant here like :
+	wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.DalgonaBlock, GovContracts: chainCfg.Dalgona.GovContracts})
+	// add hardforks that includes govContracts after dalgona here like :
 	// wbftCfg.GovContractUpgrades = append(wbftCfg.GovContractUpgrades, params.Upgrade{Block: chainCfg.DalgonaBlock, GovContracts: chainCfg.Dalgona.GovContracts})
 	return nil
 }

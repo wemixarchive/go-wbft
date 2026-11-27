@@ -67,8 +67,9 @@ var (
 		VerkleTime:          nil,
 		PangyoBlock:         big.NewInt(0),
 		ApplepieBlock:       big.NewInt(20_476_911),
-		BriocheBlock:        big.NewInt(53_525_500),  // target date: 24-07-01 00:00:00 (GMT+09)
-		CroissantBlock:      big.NewInt(200_000_000), // TODO: decide the block number
+		BriocheBlock:        big.NewInt(53_525_500),    // target date: 24-07-01 00:00:00 (GMT+09)
+		CroissantBlock:      big.NewInt(134_004_000),   // target date: 27-01-18 11:00:42 (GMT+09)
+		DalgonaBlock:        big.NewInt(1_000_000_000), // Dalgona (WBFT switch): activation block not scheduled yet
 		Ethash:              new(EthashConfig),
 		Brioche: &BriocheConfig{
 			BlockReward:       big.NewInt(1e18),
@@ -78,7 +79,7 @@ var (
 			HalvingTimes:      16,
 			HalvingRate:       50,
 		},
-		Croissant: &CroissantConfig{
+		Dalgona: &DalgonaConfig{
 			WBFT: &WBFTConfig{ // TODO: this is just for test on mainnet
 				EpochLength:              100,
 				BlockPeriodSeconds:       1,
@@ -153,8 +154,9 @@ var (
 		LondonBlock:         big.NewInt(0),
 		PangyoBlock:         big.NewInt(10_000_000),
 		ApplepieBlock:       big.NewInt(26_240_268),
-		BriocheBlock:        big.NewInt(59_414_700),  // target date: 24-06-04 11:00:41 (GMT+09)
-		CroissantBlock:      big.NewInt(200_000_000), // TODO: decide the block number
+		BriocheBlock:        big.NewInt(59_414_700),    // target date: 24-06-04 11:00:41 (GMT+09)
+		CroissantBlock:      big.NewInt(138_903_600),   // target date: 26-12-11 11:00:13 (GMT+09)
+		DalgonaBlock:        big.NewInt(1_000_000_000), // Dalgona (WBFT switch): activation block not scheduled yet
 		Ethash:              new(EthashConfig),
 		Brioche: &BriocheConfig{
 			BlockReward:       big.NewInt(1e18),
@@ -164,7 +166,7 @@ var (
 			HalvingTimes:      16,
 			HalvingRate:       50,
 		},
-		Croissant: &CroissantConfig{
+		Dalgona: &DalgonaConfig{
 			WBFT: &WBFTConfig{ // TODO: this is just for test on mainnet
 				EpochLength:              100,
 				BlockPeriodSeconds:       1,
@@ -371,6 +373,7 @@ var (
 		GrayGlacierBlock:    big.NewInt(0),
 		BriocheBlock:        big.NewInt(0),
 		CroissantBlock:      big.NewInt(0),
+		DalgonaBlock:        big.NewInt(0),
 		Brioche: &BriocheConfig{
 			BlockReward:       big.NewInt(1e18),
 			FirstHalvingBlock: big.NewInt(50),
@@ -379,7 +382,7 @@ var (
 			HalvingTimes:      8,
 			HalvingRate:       50,
 		},
-		Croissant: &CroissantConfig{
+		Dalgona: &DalgonaConfig{
 			WBFT: &WBFTConfig{
 				EpochLength:              100,
 				BlockPeriodSeconds:       1,
@@ -552,6 +555,7 @@ var (
 		MergeNetsplitBlock:            nil,
 		BriocheBlock:                  big.NewInt(0),
 		CroissantBlock:                big.NewInt(0),
+		DalgonaBlock:                  big.NewInt(0),
 		ShanghaiTime:                  nil,
 		CancunTime:                    nil,
 		PragueTime:                    nil,
@@ -568,7 +572,7 @@ var (
 			HalvingTimes:      8,
 			HalvingRate:       50,
 		},
-		Croissant: &CroissantConfig{
+		Dalgona: &DalgonaConfig{
 			WBFT: &WBFTConfig{
 				EpochLength:              100,
 				BlockPeriodSeconds:       1,
@@ -709,7 +713,8 @@ type ChainConfig struct {
 	PangyoBlock         *big.Int `json:"pangyoBlock,omitempty"`         // Pangyo switch block (nil = no fork, 0 = already on Pangyo)
 	ApplepieBlock       *big.Int `json:"applepieBlock,omitempty"`       // Applepie switch block (nil = no fork, 0 = already on Applepie)
 	BriocheBlock        *big.Int `json:"briocheBlock,omitempty"`        // Brioche switch block (nil = no fork, 0 = already on Brioche)
-	CroissantBlock      *big.Int `json:"croissantBlock,omitempty"`      // Croissant switch block (nil = no fork, 0 = already on Croissant)
+	CroissantBlock      *big.Int `json:"croissantBlock,omitempty"`      // Croissant switch block: EIP-3651, EIP-3855, EIP-3860 (nil = no fork, 0 = already on Croissant)
+	DalgonaBlock        *big.Int `json:"dalgonaBlock,omitempty"`        // Dalgona switch block (nil = no fork, 0 = already on Dalgona)
 
 	// Fork scheduling was switched from blocks to timestamps here
 
@@ -732,8 +737,8 @@ type ChainConfig struct {
 	Clique  *CliqueConfig  `json:"clique,omitempty"`
 	Brioche *BriocheConfig `json:"brioche,omitempty"` // if this config is nil, brioche halving is not applied
 
-	Croissant   *CroissantConfig `json:"croissant,omitempty"`
-	Transitions []Transition     `json:"transitions,omitempty"`
+	Dalgona     *DalgonaConfig `json:"dalgona,omitempty"`
+	Transitions []Transition   `json:"transitions,omitempty"`
 }
 
 // Brioche halving configuration
@@ -836,7 +841,7 @@ func (c *ChainConfig) Description() string {
 		} else {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
 		}
-	case c.CroissantEnabled():
+	case c.DalgonaEnabled():
 		banner += "Consensus: WBFT (wemix-byzantine-fault-tolerance)\n"
 	default:
 		banner += "Consensus: WEMIX PoA\n"
@@ -880,45 +885,46 @@ func (c *ChainConfig) Description() string {
 		banner += fmt.Sprintf("   - HalvingRate:               %-8v\n", c.Brioche.HalvingRate)
 	}
 	banner += fmt.Sprintf(" - Croissant:                   #%-8v\n", c.CroissantBlock)
-	if c.Croissant != nil {
-		if c.Croissant.WBFT != nil {
+	banner += fmt.Sprintf(" - Dalgona:                     #%-8v\n", c.DalgonaBlock)
+	if c.Dalgona != nil {
+		if c.Dalgona.WBFT != nil {
 			banner += "   - WBFT\n"
-			banner += fmt.Sprintf("     - EpochLength:               %-8v\n", c.Croissant.WBFT.EpochLength)
-			banner += fmt.Sprintf("     - BlockPeriodSeconds:        %-8v\n", c.Croissant.WBFT.BlockPeriodSeconds)
-			banner += fmt.Sprintf("     - RequestTimeoutSeconds:     %-8v\n", c.Croissant.WBFT.RequestTimeoutSeconds)
-			banner += fmt.Sprintf("     - ProposerPolicy:            %-8v\n", c.Croissant.WBFT.ProposerPolicy)
-			if c.Croissant.WBFT.BlockReward == nil {
+			banner += fmt.Sprintf("     - EpochLength:               %-8v\n", c.Dalgona.WBFT.EpochLength)
+			banner += fmt.Sprintf("     - BlockPeriodSeconds:        %-8v\n", c.Dalgona.WBFT.BlockPeriodSeconds)
+			banner += fmt.Sprintf("     - RequestTimeoutSeconds:     %-8v\n", c.Dalgona.WBFT.RequestTimeoutSeconds)
+			banner += fmt.Sprintf("     - ProposerPolicy:            %-8v\n", c.Dalgona.WBFT.ProposerPolicy)
+			if c.Dalgona.WBFT.BlockReward == nil {
 				banner += fmt.Sprintf("     - BlockReward:               %-8v\n", 0)
 			} else {
-				banner += fmt.Sprintf("     - BlockReward:               %-8v\n", ((*big.Int)(c.Croissant.WBFT.BlockReward)).Int64())
+				banner += fmt.Sprintf("     - BlockReward:               %-8v\n", ((*big.Int)(c.Dalgona.WBFT.BlockReward)).Int64())
 			}
-			if c.Croissant.WBFT.BlockRewardBeneficiary == nil {
+			if c.Dalgona.WBFT.BlockRewardBeneficiary == nil {
 				banner += fmt.Sprintf("     - BlockRewardBeneficiary:    %v\n", nil)
 			} else {
-				banner += fmt.Sprintf("     - BlockRewardBeneficiary.Denominator: %v\n", c.Croissant.WBFT.BlockRewardBeneficiary.Denominator)
-				for i, b := range c.Croissant.WBFT.BlockRewardBeneficiary.Beneficiaries {
+				banner += fmt.Sprintf("     - BlockRewardBeneficiary.Denominator: %v\n", c.Dalgona.WBFT.BlockRewardBeneficiary.Denominator)
+				for i, b := range c.Dalgona.WBFT.BlockRewardBeneficiary.Beneficiaries {
 					banner += fmt.Sprintf("     - BlockRewardBeneficiary[%v]: %v\n", i, b)
 				}
 			}
-			if c.Croissant.WBFT.MaxRequestTimeoutSeconds == nil {
+			if c.Dalgona.WBFT.MaxRequestTimeoutSeconds == nil {
 				banner += fmt.Sprintf("     - MaxRequestTimeoutSeconds:  %-8v\n", 0)
 			} else {
-				banner += fmt.Sprintf("     - MaxRequestTimeoutSeconds:  %-8v\n", *c.Croissant.WBFT.MaxRequestTimeoutSeconds)
+				banner += fmt.Sprintf("     - MaxRequestTimeoutSeconds:  %-8v\n", *c.Dalgona.WBFT.MaxRequestTimeoutSeconds)
 			}
 		}
-		if c.Croissant.Init != nil {
-			if c.Croissant.Init != nil {
+		if c.Dalgona.Init != nil {
+			if c.Dalgona.Init != nil {
 				banner += "   - Init\n"
-				banner += fmt.Sprintf("     - Validators:         %-8v\n", c.Croissant.Init.Validators)
-				banner += fmt.Sprintf("     - BLSPublicKeys:      %-8v\n", c.Croissant.Init.BLSPublicKeys)
+				banner += fmt.Sprintf("     - Validators:         %-8v\n", c.Dalgona.Init.Validators)
+				banner += fmt.Sprintf("     - BLSPublicKeys:      %-8v\n", c.Dalgona.Init.BLSPublicKeys)
 			}
 		}
-		if c.Croissant.GovContracts != nil {
+		if c.Dalgona.GovContracts != nil {
 			banner += "   - GovContracts:\n"
-			banner += fmt.Sprintf("     - GovConfig:        %-8v\n", c.Croissant.GovContracts.GovConfig)
-			banner += fmt.Sprintf("     - GovStaking:       %-8v\n", c.Croissant.GovContracts.GovStaking)
-			banner += fmt.Sprintf("     - GovRewardeeImp:   %-8v\n", c.Croissant.GovContracts.GovRewardeeImp)
-			banner += fmt.Sprintf("     - GovNCP:           %-8v\n", c.Croissant.GovContracts.GovNCP)
+			banner += fmt.Sprintf("     - GovConfig:        %-8v\n", c.Dalgona.GovContracts.GovConfig)
+			banner += fmt.Sprintf("     - GovStaking:       %-8v\n", c.Dalgona.GovContracts.GovStaking)
+			banner += fmt.Sprintf("     - GovRewardeeImp:   %-8v\n", c.Dalgona.GovContracts.GovRewardeeImp)
+			banner += fmt.Sprintf("     - GovNCP:           %-8v\n", c.Dalgona.GovContracts.GovNCP)
 		}
 	}
 	banner += "\n"
@@ -1055,12 +1061,22 @@ func (c *ChainConfig) IsVerkle(num *big.Int, time uint64) bool {
 	return c.IsLondon(num) && isTimestampForked(c.VerkleTime, time)
 }
 
+// IsCroissant returns whether the Croissant EIPs apply at num: from the
+// Croissant fork block on, and from the Dalgona fork block on whether or not
+// Croissant is set. Croissant brings three EIPs from Ethereum's Shanghai
+// upgrade: EIP-3651 (warm coinbase), EIP-3855 (PUSH0) and EIP-3860 (initcode
+// limit and metering). It is gated by block number like the other WEMIX forks,
+// because go-wemix runs it before the chain switches to WBFT at Dalgona.
 func (c *ChainConfig) IsCroissant(num *big.Int) bool {
-	return isBlockForked(c.CroissantBlock, num)
+	return isBlockForked(c.CroissantBlock, num) || c.IsDalgona(num)
 }
 
-func (c *ChainConfig) CroissantEnabled() bool {
-	return c.CroissantBlock != nil && c.Croissant != nil
+func (c *ChainConfig) IsDalgona(num *big.Int) bool {
+	return isBlockForked(c.DalgonaBlock, num)
+}
+
+func (c *ChainConfig) DalgonaEnabled() bool {
+	return c.DalgonaBlock != nil && c.Dalgona != nil
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -1116,7 +1132,9 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		{name: "pangyoBlock", block: c.PangyoBlock, optional: true},
 		{name: "applepieBlock", block: c.ApplepieBlock, optional: true},
 		{name: "briocheBlock", block: c.BriocheBlock, optional: true},
-		{name: "croissantBlock", block: c.CroissantBlock, optional: true},
+		// croissantBlock is left out: Dalgona carries the Croissant EIPs, so
+		// Croissant may come before, at or after Dalgona, or not at all.
+		{name: "dalgonaBlock", block: c.DalgonaBlock, optional: true},
 		{name: "mergeNetsplitBlock", block: c.MergeNetsplitBlock, optional: true},
 		{name: "shanghaiTime", timestamp: c.ShanghaiTime, optional: true},
 		{name: "cancunTime", timestamp: c.CancunTime, optional: true},
@@ -1224,6 +1242,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	}
 	if isForkBlockIncompatible(c.CroissantBlock, newcfg.CroissantBlock, headNumber) {
 		return newBlockCompatError("Croissant fork block", c.CroissantBlock, newcfg.CroissantBlock)
+	}
+	if isForkBlockIncompatible(c.DalgonaBlock, newcfg.DalgonaBlock, headNumber) {
+		return newBlockCompatError("Dalgona fork block", c.DalgonaBlock, newcfg.DalgonaBlock)
 	}
 	if isForkBlockIncompatible(c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock, headNumber) {
 		return newBlockCompatError("Merge netsplit fork block", c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock)
@@ -1401,7 +1422,7 @@ type Rules struct {
 	IsHomestead, IsEIP150, IsEIP155, IsEIP158               bool
 	IsByzantium, IsConstantinople, IsPetersburg, IsIstanbul bool
 	IsBerlin, IsLondon                                      bool
-	IsPangyo, IsApplepie, IsBrioche, IsCroissant            bool
+	IsPangyo, IsApplepie, IsBrioche, IsCroissant, IsDalgona bool
 	IsMerge, IsShanghai, IsCancun, IsPrague                 bool
 	IsVerkle                                                bool
 }
@@ -1430,6 +1451,7 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsApplepie:       c.IsApplepie(num),
 		IsBrioche:        c.IsBrioche(num),
 		IsCroissant:      c.IsCroissant(num),
+		IsDalgona:        c.IsDalgona(num),
 		IsMerge:          isMerge,
 		IsShanghai:       isMerge && c.IsShanghai(num, timestamp),
 		IsCancun:         isMerge && c.IsCancun(num, timestamp),

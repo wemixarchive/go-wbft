@@ -18,6 +18,8 @@
 package vm
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -63,6 +65,8 @@ func NewEVMInterpreter(evm *EVM) *EVMInterpreter {
 		table = &shanghaiInstructionSet
 	case evm.chainRules.IsMerge:
 		table = &mergeInstructionSet
+	case evm.chainRules.IsDalgona:
+		table = &dalgonaInstructionSet
 	case evm.chainRules.IsCroissant:
 		table = &croissantInstructionSet
 	case evm.chainRules.IsLondon:
@@ -214,7 +218,10 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			var dynamicCost uint64
 			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
 			cost += dynamicCost // for tracing
-			if err != nil || !contract.UseGas(dynamicCost) {
+			if err != nil {
+				return nil, fmt.Errorf("%w: %v", ErrOutOfGas, err)
+			}
+			if !contract.UseGas(dynamicCost) {
 				return nil, ErrOutOfGas
 			}
 			// Do tracing before memory expansion

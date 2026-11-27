@@ -1517,13 +1517,13 @@ func TestGov(t *testing.T) {
 				"Cannot remove a sole member",
 			)
 		})
-		t.Run("remove member after Croissant fork", func(t *testing.T) {
+		t.Run("remove member after Dalgona fork", func(t *testing.T) {
 			delegateAmount := towei(1)
 			oldStakingMax := new(big.Int).Set(EnvConstants.STAKING_MAX.Value)
 			EnvConstants.STAKING_MAX.Value = new(big.Int).Add(LOCK_AMOUNT, delegateAmount)
 			defer func() { EnvConstants.STAKING_MAX.Value = oldStakingMax }()
 
-			gov := NewGovernance(t).DeployCroissantPatchedContracts(t)
+			gov := NewGovernance(t).DeployDalgonaPatchedContracts(t)
 			voter := getTxOpt(t, "voter")
 			ncpStaking := getTxOpt(t, "ncpStaking")
 			user1 := getTxOpt(t, "user1")

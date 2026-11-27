@@ -62,6 +62,7 @@ var (
 
 var (
 	croissantInstructionSet = newCroissantInstructionSet()
+	dalgonaInstructionSet   = newDalgonaInstructionSet()
 )
 
 // JumpTable contains the EVM opcodes supported at a given fork.
@@ -114,7 +115,21 @@ func newMergeInstructionSet() JumpTable {
 	return validate(instructionSet)
 }
 
+// newCroissantInstructionSet returns the london instructions plus the EVM
+// changes Croissant takes from Ethereum's Shanghai upgrade.
+//
+// It must match go-wemix, which runs Croissant before Dalgona. The Shanghai set
+// above is built on the merge set, but go-wemix never went through the merge:
+// its PoA headers carry difficulty 1 and opcode 0x44 stays DIFFICULTY. So the
+// Croissant set is built on london.
 func newCroissantInstructionSet() JumpTable {
+	instructionSet := newLondonInstructionSet()
+	enable3855(&instructionSet) // EIP-3855: PUSH0 instruction
+	enable3860(&instructionSet) // EIP-3860: limit and meter initcode
+	return validate(instructionSet)
+}
+
+func newDalgonaInstructionSet() JumpTable {
 	instructionSet := newLondonInstructionSet()
 	instructionSet[PREVRANDAO] = &operation{
 		execute:     opRandom,
@@ -128,7 +143,7 @@ func newCroissantInstructionSet() JumpTable {
 	enable3860(&instructionSet) // Limit and meter initcode
 
 	// cancun
-	// Croissant does not support blob. (EIP-4844, EIP-7516)
+	// Dalgona does not support blob. (EIP-4844, EIP-7516)
 	enable1153(&instructionSet) // EIP-1153 "Transient Storage"
 	enable5656(&instructionSet) // EIP-5656 (MCOPY opcode)
 	enable6780(&instructionSet) // EIP-6780 SELFDESTRUCT only in same transaction

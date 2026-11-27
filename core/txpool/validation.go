@@ -75,11 +75,13 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 	if !opts.Config.IsCancun(head.Number, head.Time) && tx.Type() == types.BlobTxType {
 		return fmt.Errorf("%w: type %d rejected, pool not yet in Cancun", core.ErrTxTypeNotSupported, tx.Type())
 	}
-	if !opts.Config.IsCroissant(head.Number) && tx.Type() == types.SetCodeTxType {
-		return fmt.Errorf("%w: type %d rejected, pool not yet in Croissant", core.ErrTxTypeNotSupported, tx.Type())
+	if !opts.Config.IsDalgona(head.Number) && tx.Type() == types.SetCodeTxType {
+		return fmt.Errorf("%w: type %d rejected, pool not yet in Dalgona", core.ErrTxTypeNotSupported, tx.Type())
 	}
-	// Check whether the init code size has been exceeded
-	if opts.Config.IsShanghai(head.Number, head.Time) && tx.To() == nil && len(tx.Data()) > params.MaxInitCodeSize {
+	// Check whether the init code size has been exceeded (EIP-3860, from
+	// Shanghai on Ethereum and from Croissant on WEMIX)
+	eip3860 := opts.Config.IsShanghai(head.Number, head.Time) || opts.Config.IsCroissant(head.Number)
+	if eip3860 && tx.To() == nil && len(tx.Data()) > params.MaxInitCodeSize {
 		return fmt.Errorf("%w: code size %v, limit %v", core.ErrMaxInitCodeSizeExceeded, len(tx.Data()), params.MaxInitCodeSize)
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
@@ -108,7 +110,7 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 	}
 	// Ensure the transaction has more gas than the bare minimum needed to cover
 	// the transaction metadata
-	intrGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.SetCodeAuthorizations(), tx.To() == nil, true, opts.Config.IsIstanbul(head.Number), opts.Config.IsShanghai(head.Number, head.Time))
+	intrGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.SetCodeAuthorizations(), tx.To() == nil, true, opts.Config.IsIstanbul(head.Number), eip3860)
 	if err != nil {
 		return err
 	}

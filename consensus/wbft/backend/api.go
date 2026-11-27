@@ -417,7 +417,7 @@ func epochForJSON(epoch *types.EpochInfo) map[string]interface{} {
 func (api *API) GetWbftExtraInfo(number rpc.BlockNumber) (map[string]interface{}, error) {
 	bNumber := big.NewInt(int64(number))
 
-	if !api.chain.Config().IsCroissant(bNumber) {
+	if !api.chain.Config().IsDalgona(bNumber) {
 		return nil, wbftcommon.ErrIsNotWBFTBlock
 	}
 

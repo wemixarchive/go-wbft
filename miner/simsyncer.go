@@ -59,11 +59,11 @@ func (ss *simSyncer) Apply(chainConfig *params.ChainConfig, config *wbft.Config,
 		})
 	}
 	if upgradeContracts, ok := ss.upgradeContracts[number]; ok {
-		if chainConfig.CroissantBlock.Cmp(num) == 0 {
-			if chainConfig.Croissant.GovContracts == nil {
-				chainConfig.Croissant.GovContracts = new(params.GovContracts)
+		if chainConfig.DalgonaBlock.Cmp(num) == 0 {
+			if chainConfig.Dalgona.GovContracts == nil {
+				chainConfig.Dalgona.GovContracts = new(params.GovContracts)
 			}
-			combineGovContracts(chainConfig.Croissant.GovContracts, upgradeContracts)
+			combineGovContracts(chainConfig.Dalgona.GovContracts, upgradeContracts)
 		} else {
 			newUpgrade := params.Upgrade{
 				Block:        num,

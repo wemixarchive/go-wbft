@@ -52,20 +52,20 @@ type WbftInit struct {
 	BLSPublicKeys []string         `json:"blsPublicKeys"` // BLS public ket list of validators, order must be same as validators
 }
 
-type CroissantConfig struct {
+type DalgonaConfig struct {
 	WBFT         *WBFTConfig   `json:"wBFT"`
 	Init         *WbftInit     `json:"init"`
 	GovContracts *GovContracts `json:"govContracts"`
 }
 
-func (c *CroissantConfig) String() string {
+func (c *DalgonaConfig) String() string {
 	return fmt.Sprintf("{WBFT: %v Init: %v GovContracts: %v}",
 		c.WBFT,
 		c.Init,
 		c.GovContracts)
 }
 
-func (c *CroissantConfig) GetInitialBLSPublicKeys() [][]byte {
+func (c *DalgonaConfig) GetInitialBLSPublicKeys() [][]byte {
 	blsPubKeys := make([][]byte, len(c.Init.BLSPublicKeys))
 	for i, pk := range c.Init.BLSPublicKeys {
 		blsPubKeys[i] = hexutil.MustDecode(pk)
@@ -73,67 +73,67 @@ func (c *CroissantConfig) GetInitialBLSPublicKeys() [][]byte {
 	return blsPubKeys
 }
 
-func (c *CroissantConfig) CheckValidity() error {
+func (c *DalgonaConfig) CheckValidity() error {
 	if c == nil {
-		return errors.New("`croissant`: missing `croissant` section")
+		return errors.New("`dalgona`: missing `dalgona` section")
 	}
 	if c.Init == nil {
-		return errors.New("`croissant`: missing `init` section")
+		return errors.New("`dalgona`: missing `init` section")
 	}
 	if len(c.Init.BLSPublicKeys) == 0 {
-		return errors.New("`croissant.init`: missing `blsPublicKeys` field")
+		return errors.New("`dalgona.init`: missing `blsPublicKeys` field")
 	}
 	if len(c.Init.Validators) == 0 {
-		return errors.New("`croissant.init`: missing `validators`")
+		return errors.New("`dalgona.init`: missing `validators`")
 	}
 	if len(c.Init.Validators) != len(c.Init.BLSPublicKeys) {
 		return fmt.Errorf(
-			"`croissant.init`: mismatched lengths: %d validators vs %d blsPublicKeys",
+			"`dalgona.init`: mismatched lengths: %d validators vs %d blsPublicKeys",
 			len(c.Init.Validators), len(c.Init.BLSPublicKeys),
 		)
 	}
 	if c.GovContracts == nil {
-		return errors.New("`croissant: missing `govContracts` section")
+		return errors.New("`dalgona: missing `govContracts` section")
 	}
 	if c.GovContracts.GovStaking == nil {
-		return errors.New("`croissant.govContracts: missing `govStaking`")
+		return errors.New("`dalgona.govContracts: missing `govStaking`")
 	}
 	if c.GovContracts.GovConfig == nil {
-		return errors.New("`croissant.govContracts: missing `govConfig`")
+		return errors.New("`dalgona.govContracts: missing `govConfig`")
 	}
 	if c.GovContracts.GovRewardeeImp == nil {
-		return errors.New("`croissant.govContracts: missing `govRewardeeImp`")
+		return errors.New("`dalgona.govContracts: missing `govRewardeeImp`")
 	}
 	if err := CheckGovContractVersions(c.GovContracts); err != nil {
-		return fmt.Errorf("`croissant.govContracts`: %v", err)
+		return fmt.Errorf("`dalgona.govContracts`: %v", err)
 	}
 
 	if c.WBFT == nil {
-		return errors.New("`croissant`: missing `wBFT` section")
+		return errors.New("`dalgona`: missing `wBFT` section")
 	}
 	if c.WBFT.RequestTimeoutSeconds == 0 {
-		return errors.New("`croissant.wBFT`: `requestTimeoutSeconds` must be greater than 0")
+		return errors.New("`dalgona.wBFT`: `requestTimeoutSeconds` must be greater than 0")
 	}
 	if c.WBFT.BlockPeriodSeconds == 0 {
-		return errors.New("`croissant.wBFT`: `blockPeriodSeconds` must be greater than 0")
+		return errors.New("`dalgona.wBFT`: `blockPeriodSeconds` must be greater than 0")
 	}
 	if c.WBFT.EpochLength <= 1 {
-		return errors.New("`croissant.wBFT`: `epochLength` must be greater than or equal to 2")
+		return errors.New("`dalgona.wBFT`: `epochLength` must be greater than or equal to 2")
 	}
 	if c.WBFT.StabilizingStakersThreshold == nil {
-		return errors.New("`croissant.wBFT`: missing `stabilizingStakersThreshold`")
+		return errors.New("`dalgona.wBFT`: missing `stabilizingStakersThreshold`")
 	} else if *c.WBFT.StabilizingStakersThreshold == 0 {
-		return errors.New("`croissant.wBFT`: `stabilizingStakersThreshold` must be greater than 0")
+		return errors.New("`dalgona.wBFT`: `stabilizingStakersThreshold` must be greater than 0")
 	}
 	if c.WBFT.TargetValidators == nil {
-		return errors.New("`croissant.wBFT`: missing `targetValidators`")
+		return errors.New("`dalgona.wBFT`: missing `targetValidators`")
 	} else if c.WBFT.EpochLength < *c.WBFT.TargetValidators {
-		return fmt.Errorf("`croissant.wBFT`: `epochLength` (%d) must be greater than or equal to `targetValidators` (%d)",
+		return fmt.Errorf("`dalgona.wBFT`: `epochLength` (%d) must be greater than or equal to `targetValidators` (%d)",
 			c.WBFT.EpochLength, *c.WBFT.TargetValidators)
 	}
 
 	if err := checkSanityBeneficiaries(c.WBFT.BlockRewardBeneficiary); err != nil {
-		return fmt.Errorf("`croissant.wBFT`: %v", err)
+		return fmt.Errorf("`dalgona.wBFT`: %v", err)
 	}
 	return nil
 }
@@ -265,7 +265,7 @@ func (t *Transition) String() string {
 	)
 }
 
-var DefaultCroissantConfig = &CroissantConfig{
+var DefaultDalgonaConfig = &DalgonaConfig{
 	WBFT: &WBFTConfig{
 		RequestTimeoutSeconds:       2,
 		BlockPeriodSeconds:          1,
@@ -359,4 +359,4 @@ func (st *StateTransition) String() string {
 	return fmt.Sprintf("{Block: %v Codes: %v States: %v}", st.Block, st.Codes, st.States)
 }
 
-// ## Croissant CHAIN CONFIG END
+// ## Dalgona CHAIN CONFIG END
